@@ -1018,11 +1018,14 @@ internal fun MainActivity.showLanShare() {
 }
 
 private fun MainActivity.renderLanShareFileList(list: LinearLayout) {
+    val expectedIds = lanShareFiles.map { it.id }
+    val currentIds = (0 until list.childCount).mapNotNull { list.getChildAt(it).tag as? String }
+    if (currentIds == expectedIds) return
     list.removeAllViews()
     lanShareFiles.forEach { file ->
         val mine = file.id in lanShareOwnFileIds
-        val imageFile = lanShareManager.localFile(file.id)?.takeIf { isLanShareImageName(file.name) }
-        list.addView(LinearLayout(this).apply {
+        val imageFile = (lanShareManager.localFile(file.id) ?: lanSharePreviewFiles[file.id])?.takeIf { isLanShareImageName(file.name) }
+        list.addView(LinearLayout(this).apply { tag = file.id
             gravity = if (mine) Gravity.END else Gravity.START; setPadding(0, dp(4), 0, dp(4))
             val bubble = LinearLayout(this@renderLanShareFileList).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = dp(2).toFloat(); clipToOutline = true
                 if (imageFile == null) addView(ImageView(this@renderLanShareFileList).apply { setImageResource(R.drawable.ic_attachment); setColorFilter(if (mine) Color.WHITE else if (isDark()) 0xffd0d6e4.toInt() else 0xff52627a.toInt()); contentDescription = "文件附件" }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(10) })
@@ -1222,18 +1225,34 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
     if (lanShareRefreshInFlight) return
     lanShareRefreshInFlight = true
     lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        val result = runCatching { lanShareManager.list(session) }
+        val result = runCatching {
+            val files = lanShareManager.list(session)
+            files to fetchLanSharePreviews(session, files)
+        }
         runOnUiThread {
             lanShareRefreshInFlight = false
             updateLanShareConnectionStatus()
             result.onSuccess {
-                files -> lanShareFiles = files
+                (files, previews) ->
+                lanShareFiles = files
+                lanSharePreviewFiles.putAll(previews)
                 if (page == "lanShare") {
                     val messageList = content.findViewWithTag<LinearLayout>("lanShareFileList")
                     if (messageList != null) renderLanShareFileList(messageList) else render()
                 }
             }
             result.onFailure { if (showError) toast("无法连接到分享房间") }
+        }
+    }
+}
+
+private fun MainActivity.fetchLanSharePreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, File> {
+    val previewFolder = File(cacheDir, "lan-share-preview").apply { mkdirs() }
+    return buildMap {
+        files.filter { isLanShareImageName(it.name) && lanShareManager.localFile(it.id) == null }.forEach { file ->
+            val preview = File(previewFolder, file.id)
+            if (!preview.isFile) runCatching { lanShareManager.downloadPreview(session, file.id, preview) }
+            if (preview.isFile) put(file.id, preview)
         }
     }
 }

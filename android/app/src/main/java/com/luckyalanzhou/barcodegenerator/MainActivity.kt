@@ -185,6 +185,7 @@ class MainActivity : AppCompatActivity() {
     internal var lanShareBrowserConnected = false
     internal var lanShareFiles: List<LanShareFile> = emptyList()
     internal val lanShareOwnFileIds = mutableSetOf<String>()
+    internal val lanSharePreviewFiles = mutableMapOf<String, File>()
     internal val lanShareRefreshHandler = Handler(Looper.getMainLooper())
     internal var lanShareRefreshRunnable: Runnable? = null
     internal var lanShareRefreshInFlight = false
