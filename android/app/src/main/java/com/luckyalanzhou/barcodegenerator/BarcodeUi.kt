@@ -1168,7 +1168,7 @@ private fun formatLanShareSize(bytes: Long): String = if (bytes >= 1024L * 1024L
 internal fun MainActivity.joinLanShareSession(value: String) {
     if (!value.startsWith("http://")) { toast("这不是局域网分享地址"); return }
     val uri = Uri.parse(value)
-    if (uri.host.isNullOrBlank() || uri.query != null || !LanShareManager.isPrivateLanHost(uri.host)) { toast("这不是局域网分享地址"); return }
+    if (uri.host.isNullOrBlank() || uri.query != null || !LanShareManager.isLanShareHost(uri.host)) { toast("这不是局域网分享地址"); return }
     stopLanShareAutoRefresh(); lanShareManager.stop(); lanShareIsHost = false
     lanShareSession = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}")
     startLanShareAutoRefresh()
