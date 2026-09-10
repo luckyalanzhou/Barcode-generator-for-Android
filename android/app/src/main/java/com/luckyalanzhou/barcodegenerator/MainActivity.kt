@@ -273,11 +273,17 @@ class MainActivity : AppCompatActivity() {
         }
         when (page) {
             "settings" -> { page = settingsReturnPage; render() }
-            "lanShare" -> { stopLanShareAutoRefresh(); page = "settings"; render() }
+            "lanShare" -> { closeLanShare(); page = "settings"; render() }
             "favoriteDetail" -> { page = "favorites"; render() }
             "results" -> { page = resultsReturnPage; render() }
             else -> super.onBackPressed()
         }
+    }
+
+    override fun onDestroy() {
+        stopLanShareAutoRefresh()
+        lanShareManager.stop(clearSharedFiles = true)
+        super.onDestroy()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

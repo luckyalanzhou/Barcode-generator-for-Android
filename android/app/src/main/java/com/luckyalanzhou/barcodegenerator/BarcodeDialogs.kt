@@ -151,6 +151,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
             val limit = UpdateSecurity.MAX_APK_DOWNLOAD_BYTES
             require(expectedSha256 != null) { "该版本缺少 SHA-256 校验信息，无法安全更新" }
             require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
+            require(Uri.parse(apkUrl).scheme.equals("https", ignoreCase = true)) { "更新包必须使用 HTTPS 下载" }
             connection = URL(apkUrl).openConnection() as HttpURLConnection
             connection!!.apply { connectTimeout = 15000; readTimeout = 30000; instanceFollowRedirects = true; setRequestProperty("User-Agent", "BarcodeGenerator/${BuildConfig.VERSION_NAME}") }
             if (connection!!.responseCode !in 200..299) throw IllegalStateException("HTTP ${connection!!.responseCode}")

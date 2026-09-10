@@ -22,6 +22,14 @@ data class LanShareSession(val baseUrl: String)
 
 /** 仅在同一局域网使用的临时文件房间；地址由随机端口标识当前会话。 */
 class LanShareManager(private val context: Context) {
+    companion object {
+        const val MAX_FILE_BYTES = 100L * 1024L * 1024L
+        const val MAX_ROOM_BYTES = 500L * 1024L * 1024L
+
+        fun isPrivateLanHost(host: String?): Boolean = runCatching {
+            (java.net.InetAddress.getByName(host) as? Inet4Address)?.let { !it.isLoopbackAddress && it.isSiteLocalAddress } == true
+        }.getOrDefault(false)
+    }
     private val folder = File(context.filesDir, "lan-share").apply { mkdirs() }
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
@@ -79,6 +87,7 @@ class LanShareManager(private val context: Context) {
         val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor -> cursor.moveToFirst(); cursor.getString(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME)) } ?: "附件"
         val size = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
+        require(size <= MAX_FILE_BYTES) { "单个文件不能超过 100 MB" }
         val boundary = "----BarcodeShare${System.currentTimeMillis()}"
         val header = "--$boundary\r\nContent-Disposition: form-data; name=\"attachment\"; filename=\"${multipartFileName(name)}\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray()
         val footer = "\r\n--$boundary--\r\n".toByteArray()
@@ -127,6 +136,7 @@ class LanShareManager(private val context: Context) {
     }
 
     private fun <T> request(session: LanShareSession, path: String, output: Boolean = false, block: (HttpURLConnection) -> T): T {
+        require(isPrivateLanHost(Uri.parse(session.baseUrl).host)) { "仅允许连接局域网设备" }
         val connection = (URL(session.baseUrl + path).openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000; readTimeout = 30_000; requestMethod = if (output) "POST" else "GET"; doOutput = output
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
@@ -138,6 +148,13 @@ class LanShareManager(private val context: Context) {
         @Volatile private var lastBrowserRequestAt = 0L
         @Volatile private var fileVersion = 0L
         private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
+        private val uploadLock = Any()
+
+        private fun uploadLimitError(size: Long): String? = when {
+            size > MAX_FILE_BYTES -> "单个文件不能超过 100 MB"
+            folder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() } > MAX_ROOM_BYTES - size -> "房间文件总大小不能超过 500 MB"
+            else -> null
+        }
 
         fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
 
@@ -202,9 +219,8 @@ class LanShareManager(private val context: Context) {
                         val source = bodies["attachment"]?.let(::File) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
                         val name = safeFileName(session.parms["attachment"].orEmpty().substringAfterLast('/'))
                         val target = File(folder, "app_${System.currentTimeMillis()}_$name")
-                        source.copyTo(target, overwrite = true)
-                        notifyFilesChanged(target)
-                        newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok")
+                        val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
+                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok") else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
                     }
                     session.method == Method.PUT && requestPath == "/upload" -> {
                         val submittedName = Uri.decode(session.parms["name"].orEmpty()).ifBlank { "附件" }
@@ -214,9 +230,9 @@ class LanShareManager(private val context: Context) {
                         val files = HashMap<String, String>(); session.parseBody(files)
                         val temporaryFile = files["content"] ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到上传内容")
                         val target = File(folder, "web_${targetPrefix}_${clientId}_$name")
-                        File(temporaryFile).copyTo(target, overwrite = true)
-                        notifyFilesChanged(target)
-                        newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok")
+                        val source = File(temporaryFile)
+                        val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
+                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok") else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
                     }
                     session.method == Method.GET && requestPath.startsWith("/api/download/") -> {
                         val file = sharedFile(folder, Uri.decode(requestPath.substringAfterLast('/')))

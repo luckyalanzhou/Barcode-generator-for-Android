@@ -14,6 +14,9 @@ private const val INTERCHANGE_FORMAT = "BarcodeGeneratorInterchange"
 private const val INTERCHANGE_VERSION = 1
 private const val BACKUP_JSON_FILE = "barcode-generator-backup-android.json"
 private const val LEGACY_BACKUP_JSON_FILE = "barcode-generator-backup.json"
+private const val MAX_BACKUP_INPUT_BYTES = 4 * 1024 * 1024
+private const val MAX_BACKUP_JSON_BYTES = 8 * 1024 * 1024
+private const val MAX_BACKUP_ZIP_ENTRIES = 16
 
 data class InterchangeFavorite(
     val id: String?,
@@ -69,7 +72,7 @@ object FavoritesTransferManager {
     }
 
     fun restore(resolver: ContentResolver, uri: Uri): InterchangeBackup {
-        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("无法读取收藏备份文件")
+        val bytes = resolver.openInputStream(uri)?.use { readLimited(it, MAX_BACKUP_INPUT_BYTES) } ?: error("无法读取收藏备份文件")
         val json = if (bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) {
             extractBackupJson(bytes)
         } else {
@@ -101,17 +104,31 @@ object FavoritesTransferManager {
     /** Reads the required JSON entry from a ZIP backup without extracting files to disk. */
     private fun extractBackupJson(bytes: ByteArray): String {
         ZipInputStream(bytes.inputStream()).use { zip ->
+            var entries = 0
             while (true) {
                 val entry = zip.nextEntry ?: break
+                require(++entries <= MAX_BACKUP_ZIP_ENTRIES) { "ZIP 备份包含过多文件" }
                 if (!entry.isDirectory && entry.name.substringAfterLast('/') in setOf(BACKUP_JSON_FILE, LEGACY_BACKUP_JSON_FILE)) {
-                    val output = ByteArrayOutputStream()
-                    zip.copyTo(output)
-                    return output.toByteArray().toString(Charsets.UTF_8)
+                    return readLimited(zip, MAX_BACKUP_JSON_BYTES).toString(Charsets.UTF_8)
                 }
                 zip.closeEntry()
             }
         }
         error("ZIP 备份中缺少 $BACKUP_JSON_FILE")
+    }
+
+    private fun readLimited(input: java.io.InputStream, limit: Int): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(16 * 1024)
+        var total = 0
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            require(total <= limit) { "备份文件超过 ${limit / 1024 / 1024} MB 限制" }
+            output.write(buffer, 0, count)
+        }
+        return output.toByteArray()
     }
 
     fun appendEntities(backup: InterchangeBackup, existingItems: List<CodeItemEntity>, existingGroups: List<FavoriteGroupEntity>, existingLinks: List<FavoriteGroupItemEntity>): TransferEntities {
