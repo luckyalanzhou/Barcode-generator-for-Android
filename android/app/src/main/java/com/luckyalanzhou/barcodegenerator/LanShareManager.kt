@@ -23,8 +23,8 @@ data class LanShareSession(val baseUrl: String)
 /** 仅在同一局域网使用的临时文件房间；地址由随机端口标识当前会话。 */
 class LanShareManager(private val context: Context) {
     companion object {
-        const val MAX_FILE_BYTES = 100L * 1024L * 1024L
-        const val MAX_ROOM_BYTES = 500L * 1024L * 1024L
+        const val MAX_FILE_BYTES = 5L * 1024L * 1024L * 1024L
+        const val MAX_ROOM_BYTES = 100L * 1024L * 1024L * 1024L
 
         fun isPrivateLanHost(host: String?): Boolean = runCatching {
             (java.net.InetAddress.getByName(host) as? Inet4Address)?.let { !it.isLoopbackAddress && it.isSiteLocalAddress } == true
@@ -87,7 +87,7 @@ class LanShareManager(private val context: Context) {
         val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor -> cursor.moveToFirst(); cursor.getString(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME)) } ?: "附件"
         val size = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
-        require(size <= MAX_FILE_BYTES) { "单个文件不能超过 100 MB" }
+        require(size <= MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
         val boundary = "----BarcodeShare${System.currentTimeMillis()}"
         val header = "--$boundary\r\nContent-Disposition: form-data; name=\"attachment\"; filename=\"${multipartFileName(name)}\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray()
         val footer = "\r\n--$boundary--\r\n".toByteArray()
@@ -151,8 +151,8 @@ class LanShareManager(private val context: Context) {
         private val uploadLock = Any()
 
         private fun uploadLimitError(size: Long): String? = when {
-            size > MAX_FILE_BYTES -> "单个文件不能超过 100 MB"
-            folder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() } > MAX_ROOM_BYTES - size -> "房间文件总大小不能超过 500 MB"
+            size > MAX_FILE_BYTES -> "单个文件不能超过 5 GB"
+            folder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() } > MAX_ROOM_BYTES - size -> "房间文件总大小不能超过 100 GB"
             else -> null
         }
 
