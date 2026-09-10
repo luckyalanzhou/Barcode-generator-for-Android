@@ -98,7 +98,8 @@ internal fun MainActivity.openSettings() {
             updateTopTabSelection()
             return
         }
-        if (page != "settings") settingsReturnPage = page
+        // 分享房间已在离页时关闭，不能把它作为返回页；否则返回设置会自动新建房间。
+        settingsReturnPage = if (page == "lanShare") "generate" else page
         if (page == "lanShare") closeLanShare()
         page = "settings"
         render()
@@ -112,7 +113,7 @@ internal fun MainActivity.switchTopTabBySwipe(deltaX: Float) {
         val next = (current + if (deltaX < 0) 1 else -1).coerceIn(0, 3)
         val target = listOf("generate", "history", "favorites", "settings")[next]
         if (next != current) pendingPageTransitionDirection = if (next > current) 1 else -1
-        if (target == "settings") settingsReturnPage = page
+        if (target == "settings") settingsReturnPage = if (page == "lanShare") "generate" else page
         if (page == "lanShare" && target != "lanShare") closeLanShare()
         page = target
         render()
