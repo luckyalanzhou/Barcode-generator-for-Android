@@ -12,8 +12,8 @@ android {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
         targetSdk = 35
-    versionCode = 105
-    versionName = "1.0.104"
+    versionCode = 1
+    versionName = "1.0.0"
     }
 
     signingConfigs {
