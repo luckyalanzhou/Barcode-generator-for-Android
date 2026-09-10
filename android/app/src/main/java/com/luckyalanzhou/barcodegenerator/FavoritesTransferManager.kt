@@ -78,6 +78,11 @@ object FavoritesTransferManager {
         } else {
             bytes.toString(Charsets.UTF_8)
         }
+        return parseBackupJson(json)
+    }
+
+    /** 空收藏组是导出端允许的状态；导入时保留其名称和文件夹，不能让它阻断整包备份。 */
+    internal fun parseBackupJson(json: String): InterchangeBackup {
         val root = runCatching { JSONObject(json) }.getOrElse { error("收藏备份文件不是有效的 JSON 或 ZIP") }
         require(root.optString("format") == INTERCHANGE_FORMAT && root.optInt("version") == INTERCHANGE_VERSION) { "不支持的跨平台收藏备份文件" }
         val hasPayload = root.has("payload")
@@ -94,7 +99,6 @@ object FavoritesTransferManager {
             require(name.isNotBlank()) { "跨平台收藏缺少文件名" }
             require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
             require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }
-            require(texts.isNotEmpty()) { "收藏“$name”没有条码内容" }
             InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", "code128")), value.optLong("time", System.currentTimeMillis()), texts)
         }
         require(favorites.map { Triple(it.folder, it.name, it.texts) }.distinct().size == favorites.size) { "跨平台备份中包含重复收藏" }
