@@ -104,7 +104,8 @@ class LanShareManager(private val context: Context) {
                 output.write(footer)
             }
             if (connection.responseCode !in 200..299) error("上传失败：${connection.responseCode}")
-            return name
+            return connection.inputStream.bufferedReader().use { it.readText().trim() }
+                .ifBlank { error("上传完成但未收到文件标识") }
         } finally { connection.disconnect() }
     }
 
@@ -122,7 +123,8 @@ class LanShareManager(private val context: Context) {
         try {
             connection.outputStream.buffered().use { output -> output.write(header); output.write(body); output.write(footer) }
             if (connection.responseCode !in 200..299) error("发送失败：${connection.responseCode}")
-            return name
+            return connection.inputStream.bufferedReader().use { it.readText().trim() }
+                .ifBlank { error("发送完成但未收到文件标识") }
         } finally { connection.disconnect() }
     }
 
@@ -228,22 +230,22 @@ class LanShareManager(private val context: Context) {
                         val bodies = HashMap<String, String>(); session.parseBody(bodies)
                         val source = bodies["attachment"]?.let(::File) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
                         val name = safeFileName(session.parms["attachment"].orEmpty().substringAfterLast('/'))
-                        val target = File(folder, "app_${System.currentTimeMillis()}_$name")
+                        val target = File(folder, "app_${System.nanoTime()}_$name")
                         val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
-                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok") else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
+                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name) else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
                     }
                     session.method == Method.PUT && requestPath == "/upload" -> {
                         contentLengthError(session, multipart = false)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
                         val submittedName = Uri.decode(session.parms["name"].orEmpty()).ifBlank { "附件" }
                         val clientId = safeBrowserClientId(session.parms["client"].orEmpty())
                         val name = safeFileName(submittedName)
-                        val targetPrefix = System.currentTimeMillis()
+                        val targetPrefix = System.nanoTime()
                         val files = HashMap<String, String>(); session.parseBody(files)
                         val temporaryFile = files["content"] ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到上传内容")
                         val target = File(folder, "web_${targetPrefix}_${clientId}_$name")
                         val source = File(temporaryFile)
                         val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
-                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok") else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
+                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name) else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
                     }
                     session.method == Method.GET && requestPath.startsWith("/api/download/") -> {
                         val file = sharedFile(folder, Uri.decode(requestPath.substringAfterLast('/')))
@@ -268,7 +270,7 @@ function isImage(name){return /\\.(jpg|jpeg|png|gif|webp|heic|heif)/i.test(name|
 function refreshFiles(){fetch('/api/files?_='+Date.now(),{cache:'no-store'}).then(function(response){if(!response.ok)throw new Error('files');return response.json();}).then(reconcileFiles).catch(function(){setStatus(false);});}
  function upload(file){const pending=createItem({name:file.name||'未命名',size:file.size,sender:'browser:'+clientId},URL.createObjectURL(file));pending.dataset.pending='true';pending.dataset.fileName=file.name||'未命名';pending.dataset.fileSize=String(file.size||0);files.appendChild(pending);fetch('/upload?name='+encodeURIComponent(file.name||message.value||'未命名')+'&client='+encodeURIComponent(clientId),{method:'PUT',headers:{'content-type':file.type||'application/octet-stream'},body:file}).then(function(response){if(!response.ok)throw new Error('upload');attachment.value='';message.value='';refreshFiles();}).catch(function(){pending.remove();setStatus(false);window.alert('发送失败，请刷新页面后重试');});}
 form.addEventListener('submit',function(event){event.preventDefault();let file=attachment.files[0];if(!file){const text=message.value.trim();if(!text){message.focus();return;}file=new File([text],'消息.txt',{type:'text/plain'});}upload(file);});function selectFile(input){const file=input.files[0];if(!file)return;sheet.classList.remove('open');upload(file);input.value='';}
- const apple=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);attachmentButton.addEventListener('click',function(){if(apple){attachment.accept='image/*';attachment.removeAttribute('capture');attachment.click();return;}attachment.accept='*/*';sheet.classList.add('open');const rect=attachmentButton.getBoundingClientRect();sheet.style.left=(rect.left+8)+'px';sheet.style.top=(rect.top-sheet.offsetHeight-16)+'px';});attachment.addEventListener('change',function(){selectFile(this);});['camera-capture','gallery','file-picker'].forEach(function(id){document.getElementById(id).addEventListener('change',function(){selectFile(this);});});sheet.addEventListener('click',function(event){const picker=event.target.getAttribute('data-picker');if(picker)document.getElementById(picker).click();else if(event.target.classList.contains('sheet-close'))sheet.classList.remove('open');});
+ attachmentButton.addEventListener('click',function(){attachment.accept='*/*';sheet.classList.add('open');const rect=attachmentButton.getBoundingClientRect();sheet.style.left=(rect.left+8)+'px';sheet.style.top=(rect.top-sheet.offsetHeight-16)+'px';});attachment.addEventListener('change',function(){selectFile(this);});['camera-capture','gallery','file-picker'].forEach(function(id){document.getElementById(id).addEventListener('change',function(){selectFile(this);});});sheet.addEventListener('click',function(event){const picker=event.target.getAttribute('data-picker');if(picker)document.getElementById(picker).click();else if(event.target.classList.contains('sheet-close'))sheet.classList.remove('open');});
 function heartbeat(){fetch('/api/presence?_='+Date.now(),{cache:'no-store'}).then(function(response){setStatus(response.ok);}).catch(function(){setStatus(false);});}let socket;function connect(){try{socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');socket.onopen=function(){setStatus(true);socket.send('sync');};socket.onmessage=function(event){try{const packet=JSON.parse(event.data);if(packet.type==='snapshot')reconcileFiles(packet.files);else if(packet.type==='files'&&packet.file)appendFile(packet.file);else refreshFiles();}catch(_){}};socket.onclose=function(){setStatus(false);setTimeout(connect,1000);};}catch(_){setTimeout(connect,1000);}}heartbeat();refreshFiles();setInterval(heartbeat,2000);setInterval(refreshFiles,5000);connect();
 </script></body></html>"""
         }
@@ -313,8 +315,8 @@ private fun mimeTypeForName(name: String) = when (name.substringAfterLast('.', "
 
 private fun listFiles(folder: File, sender: String) = folder.listFiles().orEmpty().filter { it.isFile }.sortedBy { it.lastModified() }.map { file -> toLanShareFile(file, sender) }
 
-private fun toLanShareFile(file: File, sender: String): LanShareFile {
-    val browserMatch = Regex("^web_\\d+_(c[a-zA-Z0-9_-]{8,63})_(.*)$").matchEntire(file.name)
+internal fun toLanShareFile(file: File, sender: String): LanShareFile {
+    val browserMatch = Regex("^web_-?\\d+_(c[a-zA-Z0-9_-]{8,63})_(.*)$").matchEntire(file.name)
     val fromBrowser = file.name.startsWith("web_")
     val fromApp = file.name.startsWith("app_")
     val displayName = browserMatch?.groupValues?.get(2)
