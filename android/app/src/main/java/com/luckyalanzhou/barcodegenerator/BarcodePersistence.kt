@@ -68,9 +68,9 @@ internal suspend fun MainActivity.loadFavoriteGroupsOnIo() {
     })
 }
 
-private fun MainActivity.itemSnapshot() = items.take(MainActivity.MAX_HISTORY_ITEMS).map { CodeItemEntity(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder, it.inHistory) }
-private fun MainActivity.groupSnapshot() = favoriteGroups.take(MainActivity.MAX_FAVORITE_GROUPS).map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) }
-private fun MainActivity.groupItemSnapshot() = favoriteGroups.take(MainActivity.MAX_FAVORITE_GROUPS).flatMap { group -> group.itemIds.map { FavoriteGroupItemEntity(group.id, it) } }
+private fun MainActivity.itemSnapshot() = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(MainActivity.MAX_HISTORY_ITEMS)).map { CodeItemEntity(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder, it.inHistory) }
+private fun MainActivity.groupSnapshot() = favoriteGroups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) }
+private fun MainActivity.groupItemSnapshot() = favoriteGroups.flatMap { group -> group.itemIds.map { FavoriteGroupItemEntity(group.id, it) } }
 private fun MainActivity.folderSnapshot() = favoriteFolders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity)
 
 internal fun MainActivity.saveItems() {

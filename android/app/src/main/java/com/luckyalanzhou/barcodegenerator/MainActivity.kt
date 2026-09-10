@@ -178,7 +178,10 @@ class MainActivity : AppCompatActivity() {
     internal val database by lazy { BarcodeDatabase.create(this) }
     internal val dao by lazy { database.barcodeDao() }
     internal val style by lazy { loadStyle() }
-    internal val lanShareManager by lazy { LanShareManager(applicationContext) }
+    internal var lanShareManagerRef: LanShareManager? = null
+    internal val lanShareManager: LanShareManager
+        get() = lanShareManagerRef ?: retainedLanShare?.manager?.also { lanShareManagerRef = it }
+            ?: LanShareManager(applicationContext).also { lanShareManagerRef = it }
     internal var lanShareSession: LanShareSession? = null
     internal var lanShareIsHost = false
     internal var lanShareQrVisible = false
@@ -196,6 +199,14 @@ class MainActivity : AppCompatActivity() {
     internal var pendingLanCameraStartedAt = 0L
 
     companion object {
+        private data class RetainedLanShare(
+            val manager: LanShareManager,
+            val session: LanShareSession,
+            val isHost: Boolean,
+            val files: List<LanShareFile>,
+            val ownFileIds: Set<String>
+        )
+        private var retainedLanShare: RetainedLanShare? = null
         const val REQUEST_CAMERA_PERMISSION = 42
         const val REQUEST_SCAN_CAMERA = 43
         const val REQUEST_TEXT_CAMERA = 45
@@ -224,6 +235,7 @@ class MainActivity : AppCompatActivity() {
                 loadFavoriteGroupsOnIo()
                 loadFavoriteFoldersOnIo()
             }
+            restoreLanShareAfterConfigurationChange()
             // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
             applyAppearance()
             window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
@@ -281,9 +293,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        stopLanShareAutoRefresh()
-        lanShareManager.stop(clearSharedFiles = true)
+        val session = lanShareSession
+        if (isChangingConfigurations && session != null) {
+            stopLanShareAutoRefresh()
+            retainedLanShare = RetainedLanShare(lanShareManager, session, lanShareIsHost, lanShareFiles, lanShareOwnFileIds.toSet())
+        } else {
+            closeLanShare()
+        }
         super.onDestroy()
+    }
+
+    private fun restoreLanShareAfterConfigurationChange() {
+        val retained = retainedLanShare ?: return
+        lanShareManagerRef = retained.manager
+        lanShareSession = retained.session
+        lanShareIsHost = retained.isHost
+        lanShareFiles = retained.files
+        lanShareOwnFileIds.clear()
+        lanShareOwnFileIds.addAll(retained.ownFileIds)
+        retainedLanShare = null
+        startLanShareAutoRefresh()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

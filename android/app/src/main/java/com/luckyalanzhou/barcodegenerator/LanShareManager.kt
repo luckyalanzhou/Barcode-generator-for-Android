@@ -156,6 +156,12 @@ class LanShareManager(private val context: Context) {
             else -> null
         }
 
+        private fun contentLengthError(session: IHTTPSession, multipart: Boolean): String? {
+            val declared = session.headers["content-length"]?.toLongOrNull() ?: return null
+            val allowed = MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
+            return if (declared > allowed) "单个文件不能超过 5 GB" else null
+        }
+
         fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
 
         override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = object : NanoWSD.WebSocket(handshake) {
@@ -215,6 +221,7 @@ class LanShareManager(private val context: Context) {
                     }
                     session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", browserPage()).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
                     session.method == Method.POST && requestPath == "/api/upload" -> {
+                        contentLengthError(session, multipart = true)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
                         val bodies = HashMap<String, String>(); session.parseBody(bodies)
                         val source = bodies["attachment"]?.let(::File) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
                         val name = safeFileName(session.parms["attachment"].orEmpty().substringAfterLast('/'))
@@ -223,6 +230,7 @@ class LanShareManager(private val context: Context) {
                         if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok") else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
                     }
                     session.method == Method.PUT && requestPath == "/upload" -> {
+                        contentLengthError(session, multipart = false)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
                         val submittedName = Uri.decode(session.parms["name"].orEmpty()).ifBlank { "附件" }
                         val clientId = safeBrowserClientId(session.parms["client"].orEmpty())
                         val name = safeFileName(submittedName)

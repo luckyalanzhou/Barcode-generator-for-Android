@@ -99,6 +99,7 @@ internal fun MainActivity.openSettings() {
             return
         }
         if (page != "settings") settingsReturnPage = page
+        if (page == "lanShare") closeLanShare()
         page = "settings"
         render()
     }
@@ -112,6 +113,7 @@ internal fun MainActivity.switchTopTabBySwipe(deltaX: Float) {
         val target = listOf("generate", "history", "favorites", "settings")[next]
         if (next != current) pendingPageTransitionDirection = if (next > current) 1 else -1
         if (target == "settings") settingsReturnPage = page
+        if (page == "lanShare" && target != "lanShare") closeLanShare()
         page = target
         render()
     }
@@ -315,7 +317,7 @@ internal fun MainActivity.buildShell() {
             val current = tabPageIndex()
             if (index != current) pendingPageTransitionDirection = if (index > current) 1 else -1
             if (index == 3) openSettings()
-            else if (page != tabPages[index]) { page = tabPages[index]; render() }
+            else if (page != tabPages[index]) { if (page == "lanShare") closeLanShare(); page = tabPages[index]; render() }
             else updateTopTabSelection()
         }
         var touchDownX = 0f
