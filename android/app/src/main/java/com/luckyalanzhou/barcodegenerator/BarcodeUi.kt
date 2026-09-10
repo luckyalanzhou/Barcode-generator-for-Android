@@ -968,34 +968,8 @@ internal fun MainActivity.showLanShare() {
         return
     }
     val session = sessionState ?: return
-    // 二维码通过独立弹窗展示，传输页中间只保留两端文件消息。
-    lanShareFiles.forEach { file ->
-        val mine = file.id in lanShareOwnFileIds
-        val localFile = lanShareManager.localFile(file.id)
-        val imageFile = localFile?.takeIf { isLanShareImageName(file.name) }
-        content.addView(LinearLayout(this).apply {
-            gravity = if (mine) Gravity.END else Gravity.START; setPadding(0, dp(4), 0, dp(4))
-            val bubble = LinearLayout(this@showLanShare).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = dp(2).toFloat(); clipToOutline = true
-                if (imageFile == null) addView(ImageView(this@showLanShare).apply { setImageResource(R.drawable.ic_attachment); setColorFilter(if (mine) Color.WHITE else if (isDark()) 0xffd0d6e4.toInt() else 0xff52627a.toInt()); contentDescription = "文件附件" }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(10) })
-                val details = LinearLayout(this@showLanShare).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, 0, dp(6), 0) }
-                imageFile?.let { source ->
-                    decodeLanSharePreview(source)?.let { bitmap ->
-                        val maxWidth = dp(220).toFloat()
-                        val maxHeight = dp(180).toFloat()
-                        val scale = minOf(maxWidth / bitmap.width.coerceAtLeast(1), maxHeight / bitmap.height.coerceAtLeast(1), 1f)
-                        val previewWidth = (bitmap.width * scale).roundToInt().coerceAtLeast(dp(80))
-                        val previewHeight = (bitmap.height * scale).roundToInt().coerceAtLeast(dp(80))
-                        details.addView(ImageView(this@showLanShare).apply { setImageBitmap(bitmap); scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(0x22000000); contentDescription = file.name }, LinearLayout.LayoutParams(previewWidth, previewHeight).apply { bottomMargin = dp(6) })
-                    }
-                }
-                details.addView(TextView(this@showLanShare).apply { text = file.name; textSize = 14f; maxLines = 4; maxWidth = dp(220); ellipsize = null; setHorizontallyScrolling(false); gravity = Gravity.CENTER_HORIZONTAL; setTextColor(if (mine) Color.WHITE else primaryText()) })
-                details.addView(TextView(this@showLanShare).apply { text = formatLanShareSize(file.size); textSize = 12f; gravity = Gravity.CENTER_HORIZONTAL; setTextColor(if (mine) 0xffdbeafe.toInt() else secondaryText()) })
-                addView(details, LinearLayout.LayoutParams(-2, -2))
-            }
-            bubble.setOnClickListener { saveLanShareFile(file) }
-            addView(bubble, LinearLayout.LayoutParams(-2, -2))
-        }, LinearLayout.LayoutParams(-1, -2))
-    }
+    // 二维码通过独立弹窗展示；消息列表可独立刷新，避免重建输入框与键盘。
+    content.addView(LinearLayout(this).apply { tag = "lanShareFileList"; orientation = LinearLayout.VERTICAL; renderLanShareFileList(this) }, LinearLayout.LayoutParams(-1, -2))
     val actions = lanShareComposer ?: return
     actions.removeAllViews()
     actions.visibility = View.VISIBLE
@@ -1040,6 +1014,30 @@ internal fun MainActivity.showLanShare() {
     if (messageHadFocus) lanShareMessageInput?.post {
         lanShareMessageInput?.requestFocus()
         lanShareMessageInput?.setSelection(lanShareMessageInput?.text?.length ?: 0)
+    }
+}
+
+private fun MainActivity.renderLanShareFileList(list: LinearLayout) {
+    list.removeAllViews()
+    lanShareFiles.forEach { file ->
+        val mine = file.id in lanShareOwnFileIds
+        val imageFile = lanShareManager.localFile(file.id)?.takeIf { isLanShareImageName(file.name) }
+        list.addView(LinearLayout(this).apply {
+            gravity = if (mine) Gravity.END else Gravity.START; setPadding(0, dp(4), 0, dp(4))
+            val bubble = LinearLayout(this@renderLanShareFileList).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = dp(2).toFloat(); clipToOutline = true
+                if (imageFile == null) addView(ImageView(this@renderLanShareFileList).apply { setImageResource(R.drawable.ic_attachment); setColorFilter(if (mine) Color.WHITE else if (isDark()) 0xffd0d6e4.toInt() else 0xff52627a.toInt()); contentDescription = "文件附件" }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(10) })
+                val details = LinearLayout(this@renderLanShareFileList).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, 0, dp(6), 0) }
+                imageFile?.let { source -> decodeLanSharePreview(source)?.let { bitmap ->
+                    val scale = minOf(dp(220).toFloat() / bitmap.width.coerceAtLeast(1), dp(180).toFloat() / bitmap.height.coerceAtLeast(1), 1f)
+                    details.addView(ImageView(this@renderLanShareFileList).apply { setImageBitmap(bitmap); scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(0x22000000); contentDescription = file.name }, LinearLayout.LayoutParams((bitmap.width * scale).roundToInt().coerceAtLeast(dp(80)), (bitmap.height * scale).roundToInt().coerceAtLeast(dp(80))).apply { bottomMargin = dp(6) })
+                } }
+                details.addView(TextView(this@renderLanShareFileList).apply { text = file.name; textSize = 14f; maxLines = 4; maxWidth = dp(220); ellipsize = null; setHorizontallyScrolling(false); gravity = Gravity.CENTER_HORIZONTAL; setTextColor(if (mine) Color.WHITE else primaryText()) })
+                details.addView(TextView(this@renderLanShareFileList).apply { text = formatLanShareSize(file.size); textSize = 12f; gravity = Gravity.CENTER_HORIZONTAL; setTextColor(if (mine) 0xffdbeafe.toInt() else secondaryText()) })
+                addView(details, LinearLayout.LayoutParams(-2, -2))
+            }
+            bubble.setOnClickListener { saveLanShareFile(file) }
+            addView(bubble, LinearLayout.LayoutParams(-2, -2))
+        }, LinearLayout.LayoutParams(-1, -2))
     }
 }
 
@@ -1230,8 +1228,10 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
             updateLanShareConnectionStatus()
             result.onSuccess {
                 files -> lanShareFiles = files
-                // 自动刷新不能重建正在编辑的输入框，否则焦点丢失、键盘会自动收起。
-                if (page == "lanShare" && lanShareMessageInput?.hasFocus() != true) render()
+                if (page == "lanShare") {
+                    val messageList = content.findViewWithTag<LinearLayout>("lanShareFileList")
+                    if (messageList != null) renderLanShareFileList(messageList) else render()
+                }
             }
             result.onFailure { if (showError) toast("无法连接到分享房间") }
         }
