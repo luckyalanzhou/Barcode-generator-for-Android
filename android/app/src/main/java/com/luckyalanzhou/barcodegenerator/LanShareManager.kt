@@ -302,19 +302,6 @@ class LanShareManager(private val context: Context) {
             } catch (_: Exception) { newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败") }
         }
 
-        private fun browserInitialFiles(): String = listFiles(folder, "peer").joinToString("") { file ->
-            val fileName = html(file.name)
-            val url = "/api/download/${Uri.encode(file.id)}"
-            val image = if (mimeTypeForName(file.name).startsWith("image/")) "<img class='media-preview' src='$url' alt='$fileName'>" else ""
-            val senderClass = if (file.sender == "browser") "mine" else "peer"
-            val itemClass = " class='$senderClass${if (image.isEmpty()) "" else " image-item"}'"
-            val download = if (image.isEmpty()) "<a class='download' href='$url' download>下载</a>" else ""
-            "<li$itemClass data-file-id='${html(file.id)}'>$image<a href='$url' download>$fileName</a><small>${formatBrowserFileSize(file.size)}</small>$download</li>"
-        }
-
-        private fun formatBrowserFileSize(size: Long) = if (size >= 1_048_576L) "%.1f MB".format(java.util.Locale.US, size / 1_048_576.0) else "${size / 1024} KB"
-
-        private fun html(value: String) = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
     }
 }
 
