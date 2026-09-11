@@ -939,15 +939,17 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
         addView(View(this@showIos26NoticeDialog).apply {
             setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
         }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(12), 0, 0) })
-        addView(styleButton(Button(this@showIos26NoticeDialog).apply {
-            text = "确定"
-            textSize = 15f
-            minWidth = 0; minimumWidth = 0
-            isAllCaps = false
-            setTextColor(primaryText())
-            setBackgroundDrawable(glassButtonBackground())
-            setOnClickListener { dialog.dismiss() }
-        }), LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(16) })
+         addView(styleButton(Button(this@showIos26NoticeDialog).apply {
+             text = "确定"
+             textSize = 15f
+             minWidth = 0; minimumWidth = 0
+             isAllCaps = false
+             // 文字两侧约 3mm 的玻璃边距；按钮本身仍覆盖整个可见外框区域。
+             setPadding(dp(11), dp(10), dp(11), dp(10))
+             setTextColor(primaryText())
+             setBackgroundDrawable(glassButtonBackground())
+             setOnClickListener { dialog.dismiss() }
+         }), LinearLayout.LayoutParams(-2, dp(48)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(16) })
     }
     dialog.setView(box)
     showIos26Dialog(dialog, compact = true)
