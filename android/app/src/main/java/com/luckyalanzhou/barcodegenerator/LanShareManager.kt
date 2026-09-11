@@ -87,7 +87,9 @@ class LanShareManager(private val context: Context) {
         } ?: error("无法启动局域网分享服务")
         server = running
         lastPort = running.listeningPort
-        return LanShareSession("http://$address:${running.listeningPort}")
+        val session = LanShareSession("http://$address:${running.listeningPort}")
+        DebugLog.record("lan", "server started address=${session.baseUrl}")
+        return session
     }
 
     fun restart(): LanShareSession {
@@ -128,7 +130,9 @@ class LanShareManager(private val context: Context) {
                 output.write(footer)
             }
             if (connection.responseCode !in 200..299) error("上传失败：${connection.responseCode}")
-            return connection.inputStream.bufferedReader().use { it.readText().trim() }
+            return connection.inputStream.bufferedReader().use { it.readText().trim() }.also {
+                DebugLog.record("lan", "file uploaded name=$name size=$size")
+            }
                 .ifBlank { error("上传完成但未收到文件标识") }
         } finally { connection.disconnect() }
     }
@@ -147,13 +151,16 @@ class LanShareManager(private val context: Context) {
         try {
             connection.outputStream.buffered().use { output -> output.write(header); output.write(body); output.write(footer) }
             if (connection.responseCode !in 200..299) error("发送失败：${connection.responseCode}")
-            return connection.inputStream.bufferedReader().use { it.readText().trim() }
+            return connection.inputStream.bufferedReader().use { it.readText().trim() }.also {
+                DebugLog.record("lan", "text sent length=${body.size}")
+            }
                 .ifBlank { error("发送完成但未收到文件标识") }
         } finally { connection.disconnect() }
     }
 
     fun download(session: LanShareSession, id: String, destination: Uri) = request(session, "/api/download/${Uri.encode(id)}") { connection ->
         context.contentResolver.openOutputStream(destination)?.use { output -> connection.inputStream.use { it.copyTo(output) } } ?: error("无法写入文件")
+        DebugLog.record("lan", "file downloaded id=$id")
     }
 
     fun downloadPreview(session: LanShareSession, id: String, destination: File) = request(session, "/api/download/${Uri.encode(id)}") { connection ->
@@ -299,7 +306,10 @@ class LanShareManager(private val context: Context) {
                     }
                     else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "not found")
                 }
-            } catch (_: Exception) { newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败") }
+            } catch (error: Exception) {
+                DebugLog.record("lan-server", "request failed uri=${session.uri}", error)
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
+            }
         }
 
     }

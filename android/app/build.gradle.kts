@@ -28,6 +28,7 @@ android {
             manifestPlaceholders["appLabel"] = "@string/app_name_release"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-v\"")
             buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGenerator\"")
+            buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "false")
         }
         create("beta") {
             dimension = "channel"
@@ -35,6 +36,7 @@ android {
             manifestPlaceholders["appLabel"] = "@string/app_name_beta"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-test-v\"")
             buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorTest\"")
+            buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "true")
         }
     }
 
