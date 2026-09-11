@@ -55,9 +55,21 @@ class LanShareManager(private val context: Context) {
         val capabilities = connectivity.getNetworkCapabilities(network) ?: return@run emptyList()
         if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
             !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return@run emptyList()
-        connectivity.getLinkProperties(network)?.linkAddresses.orEmpty().filter { address ->
+        val properties = connectivity.getLinkProperties(network) ?: return@run emptyList()
+        val addresses = properties.linkAddresses.filter { address ->
             (address.address as? Inet4Address)?.let { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isMulticastAddress } == true
         }
+        // 系统可能暴露多个 IPv4（例如 VPN/容器残留地址）。优先选择与默认路由网关
+        // 同一子网的地址，二维码才能指向当前路由器实际分配的 LAN 地址。
+        val gateway = properties.routes.firstOrNull { route ->
+            route.isDefaultRoute && route.gateway is Inet4Address
+        }?.gateway as? Inet4Address
+        addresses.sortedWith(compareByDescending<android.net.LinkAddress> { address ->
+            gateway != null && areOnSameRouterSubnet(address.address as Inet4Address, gateway, address.prefixLength)
+        }.thenByDescending { address ->
+            val bytes = (address.address as Inet4Address).address
+            (bytes[0].toInt() and 0xff) == 192 && (bytes[1].toInt() and 0xff) == 168
+        })
     }
 
     fun start(): LanShareSession = start(clearSharedFiles = true)
