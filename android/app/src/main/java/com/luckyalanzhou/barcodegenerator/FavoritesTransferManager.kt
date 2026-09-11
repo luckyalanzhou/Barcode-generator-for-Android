@@ -44,6 +44,12 @@ object FavoritesTransferManager {
             ZipOutputStream(output).use { zip ->
                 // ZIP 只保留目录和每个收藏文件；不再写入包含全部收藏的聚合 JSON。
                 val writtenDirectories = mutableSetOf<String>()
+                ensureZipDirectories(zip, FAVORITES_DIRECTORY, writtenDirectories)
+                folders.map { it.name }.filter { it.isNotBlank() }.forEach { folder ->
+                    val parts = splitFolder(folder)
+                    val path = listOf(FAVORITES_DIRECTORY, parts.first, parts.second).filter { it.isNotBlank() }.joinToString("/")
+                    ensureZipDirectories(zip, path, writtenDirectories)
+                }
                 groups.forEach { group ->
                     val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
                     val types = groupItems.map { toTransferType(it.format) }.distinct()
@@ -76,10 +82,19 @@ object FavoritesTransferManager {
             var uncompressed = 0
             val favorites = mutableListOf<InterchangeFavorite>()
             val folders = linkedSetOf<String>()
+            var hasFavoritesRoot = false
             while (true) {
                 val entry = zip.nextEntry ?: break
                 require(++entries <= MAX_BACKUP_ZIP_ENTRIES) { "ZIP 备份包含过多文件" }
-                if (!entry.isDirectory && entry.name.startsWith("$FAVORITES_DIRECTORY/") && entry.name.endsWith(".json")) {
+                if (entry.isDirectory && entry.name.startsWith("$FAVORITES_DIRECTORY/")) {
+                    hasFavoritesRoot = true
+                    entry.name.removePrefix("$FAVORITES_DIRECTORY/").trim('/').takeIf { it.isNotBlank() }?.let { folder ->
+                        val parts = splitFolder(folder)
+                        if (parts.first.isNotBlank()) folders += parts.first
+                        if (folder.isNotBlank()) folders += folder
+                    }
+                } else if (!entry.isDirectory && entry.name.startsWith("$FAVORITES_DIRECTORY/") && entry.name.endsWith(".json")) {
+                    hasFavoritesRoot = true
                     val content = readLimited(zip, MAX_BACKUP_FAVORITE_JSON_BYTES)
                     uncompressed += content.size
                     require(uncompressed <= MAX_BACKUP_UNCOMPRESSED_BYTES) { "收藏备份解压后内容超过 32 MB 限制" }
@@ -90,7 +105,7 @@ object FavoritesTransferManager {
                 }
                 zip.closeEntry()
             }
-            if (favorites.isNotEmpty()) {
+            if (hasFavoritesRoot) {
                 require(favorites.map { Triple(it.folder, it.name, it.texts) }.distinct().size == favorites.size) { "跨平台备份中包含重复收藏" }
                 return InterchangeBackup(favorites, folders.toList())
             }
