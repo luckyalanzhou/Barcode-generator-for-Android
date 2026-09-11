@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.app.Dialog
 import android.content.*
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.*
 import android.media.ExifInterface
 import android.net.Uri
@@ -16,6 +17,7 @@ import android.widget.*
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.appcompat.widget.SwitchCompat
 import android.widget.PopupWindow
 import androidx.lifecycle.lifecycleScope
 import androidx.core.content.FileProvider
@@ -736,7 +738,23 @@ internal fun MainActivity.showSettings() {
         var persistSettingsAction: (() -> Unit)? = null
          val appearance = Spinner(this).apply { adapter = ArrayAdapter(activity, android.R.layout.simple_spinner_dropdown_item, listOf("跟随系统", "浅色", "深色")); setSelection(listOf("system", "light", "dark").indexOf(draft.colorScheme).coerceAtLeast(0)); gravity = Gravity.CENTER; setBackgroundResource(R.drawable.bg_input) }
          val appearanceValue = TextView(activity).apply { text = listOf("跟随系统", "浅色", "深色")[appearance.selectedItemPosition]; gravity = Gravity.CENTER; setTextColor(primaryText()); setBackgroundResource(R.drawable.bg_input); setOnClickListener { view -> showMaterialDropdown(view, listOf("跟随系统", "浅色", "深色"), selectedIndex = appearance.selectedItemPosition) { index -> (view as TextView).text = listOf("跟随系统", "浅色", "深色")[index]; appearance.setSelection(index); persistSettingsAction?.invoke() } } }
-        val showFormat = Switch(this).apply { text = ""; isChecked = draft.showFormat; setTextColor(primaryText()); gravity = Gravity.CENTER_VERTICAL }
+        val showFormat = SwitchCompat(this).apply {
+            // 51x31dp 的胶囊比例接近 iOS 设置开关，SwitchCompat 自带平滑滑块动画。
+            showText = false
+            isChecked = draft.showFormat
+            minWidth = dp(51)
+            minimumWidth = dp(51)
+            minimumHeight = dp(31)
+            setPadding(0, 0, 0, 0)
+            thumbTintList = ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(Color.WHITE, if (isDark()) 0xffd8dde6.toInt() else 0xfff4f5f7.toInt())
+            )
+            trackTintList = ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
+            )
+        }
          val textSizeSeekBar = SeekBar(this).apply { max = 14; progress = (draft.textSize.roundToInt() - 10).coerceIn(0, 14) }
         val barHeight = SeekBar(this).apply { max = 120; progress = (draft.barHeight - 30).coerceIn(0, 120) }
         val barWidth = SeekBar(this).apply { max = 240; progress = (draft.barWidth.roundToInt() - 120).coerceIn(0, 240) }
@@ -891,6 +909,7 @@ internal fun MainActivity.enterLanShare() {
         lanShareFiles = lanShareManager.localFiles()
         startLanShareAutoRefresh()
         render()
+        content.post { if (page == "lanShare" && lanShareQrVisible) showLanShareQrDialog() }
     }.onFailure {
         stopLanShareAutoRefresh()
         lanShareSession = null
@@ -1243,6 +1262,8 @@ internal fun MainActivity.showLanShareQrDialog() {
         addView(TextView(this@showLanShareQrDialog).apply { text = "局域网传输地址：${session.baseUrl}"; gravity = Gravity.CENTER; setTextColor(secondaryText()); setPadding(dp(8), dp(4), dp(8), dp(10)); setTextIsSelectable(true) }, LinearLayout.LayoutParams(-1, -2))
     }
     val dialog = AlertDialog.Builder(this).setView(box).setPositiveButton("关闭", null).create()
+    dialog.setCanceledOnTouchOutside(true)
+    dialog.setOnCancelListener { lanShareQrVisible = false }
     dialog.setOnDismissListener { lanShareQrVisible = false }
     showIos26Dialog(dialog)
 }
