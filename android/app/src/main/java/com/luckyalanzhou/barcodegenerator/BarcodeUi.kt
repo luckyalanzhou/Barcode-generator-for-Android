@@ -957,12 +957,19 @@ internal fun MainActivity.showLanShare() {
         gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = liquidGlassCard(); elevation = dp(3).toFloat(); clipToOutline = true
         addView(Space(this@showLanShare), LinearLayout.LayoutParams(dp(64), dp(64)))
         addView(TextView(this@showLanShare).apply { text = "文件传输"; textSize = 20f; gravity = Gravity.CENTER; setTypeface(null, Typeface.BOLD); setTextColor(shareTitle) }, LinearLayout.LayoutParams(0, dp(64), 1f))
-        addView(ImageButton(this@showLanShare).apply { setImageResource(R.drawable.ic_qr_code); setColorFilter(0xff0a84ff.toInt()); setPadding(dp(14), dp(14), dp(14), dp(14)); setBackgroundColor(Color.TRANSPARENT); contentDescription = "显示二维码"; setOnClickListener {
-            if (!lanShareQrVisible && lanShareIsHost) {
-                runCatching { lanShareSession = lanShareManager.restart(); lanShareBrowserConnected = false; lanShareQrVisible = true; lanShareFiles = lanShareManager.localFiles(); showLanShareQrDialog() }
-                    .onFailure { toast(it.message ?: "无法刷新分享端口") }
-            } else { lanShareQrVisible = false; render() }
-        } }, LinearLayout.LayoutParams(dp(64), dp(64)))
+        addView(FrameLayout(this@showLanShare).apply {
+            background = glassButtonBackground(); elevation = dp(2).toFloat(); clipToOutline = true
+            isClickable = true; isFocusable = true; contentDescription = "显示二维码"
+            addView(ImageView(this@showLanShare).apply {
+                setImageResource(R.drawable.ic_qr_code); setColorFilter(0xff0a84ff.toInt())
+            }, FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER))
+            setOnClickListener {
+                if (!lanShareQrVisible && lanShareIsHost) {
+                    runCatching { lanShareSession = lanShareManager.restart(); lanShareBrowserConnected = false; lanShareQrVisible = true; lanShareFiles = lanShareManager.localFiles(); showLanShareQrDialog() }
+                        .onFailure { toast(it.message ?: "无法刷新分享端口") }
+                } else { lanShareQrVisible = false; render() }
+            }
+        }, LinearLayout.LayoutParams(dp(60), dp(60)))
     }, LinearLayout.LayoutParams(-1, dp(80)))
     val sessionState = lanShareSession
     content.addView(TextView(this).apply { tag = "lanShareStatus"; textSize = 15f; gravity = Gravity.CENTER; setPadding(0, dp(12), 0, dp(14)); updateLanShareConnectionStatus(this) })
