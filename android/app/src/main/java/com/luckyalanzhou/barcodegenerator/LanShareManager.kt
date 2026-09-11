@@ -38,7 +38,7 @@ class LanShareManager(private val context: Context) {
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
 
-    /** 分享服务只使用当前 Wi-Fi/以太网从路由器网关获得的 IPv4 子网。 */
+    /** 分享服务只使用 Wi-Fi 默认网关所在子网的 IPv4 地址。 */
     fun isOnLocalNetwork(): Boolean {
         return routerIpv4Addresses().isNotEmpty()
     }
@@ -49,27 +49,26 @@ class LanShareManager(private val context: Context) {
         routerIpv4Addresses().any { local -> areOnSameRouterSubnet(local.address as Inet4Address, remote, local.prefixLength) }
     }.getOrDefault(false)
 
-    private fun routerIpv4Addresses() = run {
+    private fun routerIpv4Addresses(): List<android.net.LinkAddress> = run {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivity.activeNetwork ?: return@run emptyList()
-        val capabilities = connectivity.getNetworkCapabilities(network) ?: return@run emptyList()
-        if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return@run emptyList()
-        val properties = connectivity.getLinkProperties(network) ?: return@run emptyList()
-        val addresses = properties.linkAddresses.filter { address ->
-            (address.address as? Inet4Address)?.let { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isMulticastAddress } == true
-        }
-        // 系统可能暴露多个 IPv4（例如 VPN/容器残留地址）。优先选择与默认路由网关
-        // 同一子网的地址，二维码才能指向当前路由器实际分配的 LAN 地址。
-        val gateway = properties.routes.firstOrNull { route ->
-            route.isDefaultRoute && route.gateway is Inet4Address
-        }?.gateway as? Inet4Address
-        addresses.sortedWith(compareByDescending<android.net.LinkAddress> { address ->
-            gateway != null && areOnSameRouterSubnet(address.address as Inet4Address, gateway, address.prefixLength)
-        }.thenByDescending { address ->
-            val bytes = (address.address as Inet4Address).address
-            (bytes[0].toInt() and 0xff) == 192 && (bytes[1].toInt() and 0xff) == 168
-        })
+        // 不使用 activeNetwork：VPN 或容器网络可能接管它，并返回 172.x 等虚拟地址。
+        // 仅枚举系统标记为 Wi-Fi 的网络，并且必须同时找到该 Wi-Fi 的 IPv4 默认网关。
+        connectivity.allNetworks.asSequence()
+            .filter { network ->
+                connectivity.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            }
+            .flatMap { network ->
+                val properties = connectivity.getLinkProperties(network) ?: return@flatMap emptySequence()
+                val gateway = properties.routes.firstOrNull { route ->
+                    route.isDefaultRoute && route.gateway is Inet4Address
+                }?.gateway as? Inet4Address ?: return@flatMap emptySequence()
+                properties.linkAddresses.asSequence().filter { address ->
+                    val local = address.address as? Inet4Address ?: return@filter false
+                    !local.isLoopbackAddress && !local.isAnyLocalAddress && !local.isMulticastAddress &&
+                        areOnSameRouterSubnet(local, gateway, address.prefixLength)
+                }
+            }
+            .toList()
     }
 
     fun start(): LanShareSession = start(clearSharedFiles = true)
