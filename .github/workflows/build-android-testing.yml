@@ -26,8 +26,11 @@ jobs:
         -Dfile.encoding=UTF-8
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
+        -Dorg.gradle.configuration-cache=true
+        -Dorg.gradle.vfs.watch=true
         -Dkotlin.incremental=true
         -Dkapt.incremental.apt=true
+        -Dkapt.include.compile.classpath=false
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -91,7 +94,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleBetaRelease --build-cache --parallel --max-workers=4 --stacktrace
+        run: ./gradlew assembleBetaRelease --build-cache --parallel --max-workers=4
       - name: Prepare beta APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
