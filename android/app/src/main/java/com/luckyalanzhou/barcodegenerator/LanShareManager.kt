@@ -175,6 +175,7 @@ class LanShareManager(private val context: Context) {
         @Volatile private var fileVersion = 0L
         private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
         private val uploadLock = Any()
+        private var reservedUploadBytes = 0L
 
         private fun uploadLimitError(size: Long): String? = when {
             size > MAX_FILE_BYTES -> "单个文件不能超过 5 GB"
@@ -182,14 +183,28 @@ class LanShareManager(private val context: Context) {
             else -> null
         }
 
-        private fun contentLengthError(session: IHTTPSession, multipart: Boolean): String? {
+        private fun reserveUploadCapacity(session: IHTTPSession, multipart: Boolean): Long? = synchronized(uploadLock) {
             // 在写入 NanoHTTPD 的临时文件前必须有长度；否则分块请求可先耗尽磁盘，
             // 使 5 GB / 100 GB 限制在写入后才生效。
             val declared = session.headers["content-length"]?.toLongOrNull()
+                ?: return null
+            val allowed = MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
+            if (declared !in 1..allowed) return null
+            val stored = folder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
+            if (stored > MAX_ROOM_BYTES - reservedUploadBytes - declared) return null
+            reservedUploadBytes += declared
+            declared
+        }
+
+        private fun uploadCapacityError(session: IHTTPSession, multipart: Boolean): String? {
+            val declared = session.headers["content-length"]?.toLongOrNull()
                 ?: return "上传请求缺少文件大小"
             val allowed = MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
-            return if (declared > allowed) "单个文件不能超过 5 GB" else null
+            if (declared !in 1..allowed) return "单个文件不能超过 5 GB"
+            return null
         }
+
+        private fun releaseUploadCapacity(bytes: Long) = synchronized(uploadLock) { reservedUploadBytes = (reservedUploadBytes - bytes).coerceAtLeast(0L) }
 
         fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
 
@@ -248,28 +263,34 @@ class LanShareManager(private val context: Context) {
                         while (fileVersion <= since && System.currentTimeMillis() < deadline) Thread.sleep(120L)
                         newFixedLengthResponse(Response.Status.OK, "application/json; charset=utf-8", JSONObject().put("version", fileVersion).toString()).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
                     }
-                    session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", browserPage()).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
+                    session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", LanShareWebTemplates.page()).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
                     session.method == Method.POST && requestPath == "/api/upload" -> {
-                        contentLengthError(session, multipart = true)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
-                        val bodies = HashMap<String, String>(); session.parseBody(bodies)
-                        val source = bodies["attachment"]?.let(::File) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
-                        val name = safeFileName(session.parms["attachment"].orEmpty().substringAfterLast('/'))
-                        val target = File(folder, "app_${System.nanoTime()}_$name")
-                        val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
-                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name) else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
+                        uploadCapacityError(session, multipart = true)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
+                        val reservation = reserveUploadCapacity(session, multipart = true) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
+                        try {
+                            val bodies = HashMap<String, String>(); session.parseBody(bodies)
+                            val source = bodies["attachment"]?.let(::File) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
+                            val name = safeFileName(session.parms["attachment"].orEmpty().substringAfterLast('/'))
+                            val target = File(folder, "app_${System.nanoTime()}_$name")
+                            val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
+                            if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name) else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
+                        } finally { releaseUploadCapacity(reservation) }
                     }
                     session.method == Method.PUT && requestPath == "/upload" -> {
-                        contentLengthError(session, multipart = false)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
-                        val submittedName = Uri.decode(session.parms["name"].orEmpty()).ifBlank { "附件" }
-                        val clientId = safeBrowserClientId(session.parms["client"].orEmpty())
-                        val name = safeFileName(submittedName)
-                        val targetPrefix = System.nanoTime()
-                        val files = HashMap<String, String>(); session.parseBody(files)
-                        val temporaryFile = files["content"] ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到上传内容")
-                        val target = File(folder, "web_${targetPrefix}_${clientId}_$name")
-                        val source = File(temporaryFile)
-                        val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
-                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name) else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
+                        uploadCapacityError(session, multipart = false)?.let { return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it) }
+                        val reservation = reserveUploadCapacity(session, multipart = false) ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
+                        try {
+                            val submittedName = Uri.decode(session.parms["name"].orEmpty()).ifBlank { "附件" }
+                            val clientId = safeBrowserClientId(session.parms["client"].orEmpty())
+                            val name = safeFileName(submittedName)
+                            val targetPrefix = System.nanoTime()
+                            val files = HashMap<String, String>(); session.parseBody(files)
+                            val temporaryFile = files["content"] ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到上传内容")
+                            val target = File(folder, "web_${targetPrefix}_${clientId}_$name")
+                            val source = File(temporaryFile)
+                            val error = synchronized(uploadLock) { uploadLimitError(source.length()) ?: run { source.copyTo(target, overwrite = true); notifyFilesChanged(target); null } }
+                            if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name) else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
+                        } finally { releaseUploadCapacity(reservation) }
                     }
                     session.method == Method.GET && requestPath.startsWith("/api/download/") -> {
                         val file = sharedFile(folder, Uri.decode(requestPath.substringAfterLast('/')))

@@ -1111,14 +1111,23 @@ internal fun MainActivity.findRecentLanCameraMedia(): Uri? {
 }
 
 internal fun MainActivity.openLanShareGallery() {
-    val permission = if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
-    if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+    if (android.os.Build.VERSION.SDK_INT >= 33) {
+        openLanShareGalleryPicker()
+        return
+    }
+    val permission = Manifest.permission.READ_EXTERNAL_STORAGE
+    if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
         requestPermissions(arrayOf(permission), MainActivity.REQUEST_LAN_SHARE_GALLERY_PERMISSION)
     } else openLanShareGalleryPicker()
 }
 
 internal fun MainActivity.openLanShareGalleryPicker() {
-    startActivityForResult(Intent(Intent.ACTION_PICK).apply { setDataAndType(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, MainActivity.REQUEST_LAN_SHARE_UPLOAD)
+    val intent = if (android.os.Build.VERSION.SDK_INT >= 33) {
+        Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
+    } else {
+        Intent(Intent.ACTION_PICK).setDataAndType(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*")
+    }
+    startActivityForResult(intent.apply { addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, MainActivity.REQUEST_LAN_SHARE_UPLOAD)
 }
 
 internal fun MainActivity.openLanShareFiles() {
