@@ -182,7 +182,8 @@ internal fun MainActivity.showTextCaptureCamera() {
                             if (bitmap == null) toast("拍摄失败，请重试")
                             else {
                                 val prepared = prepareTextBitmap(bitmap, outputFile)
-                                recognizeText(cropTextBitmap(prepared, guide.frameForBitmap(prepared.width.toFloat() / prepared.height.coerceAtLeast(1))))
+                                val cropped = cropTextBitmap(prepared, guide.frameForBitmap(prepared.width.toFloat() / prepared.height.coerceAtLeast(1)))
+                                recognizeText(prepareScreenOcrBitmap(cropped))
                             }
                             outputFile.delete()
                         }
@@ -297,4 +298,41 @@ private fun cropTextBitmap(bitmap: android.graphics.Bitmap, normalized: RectF): 
     val right = (bitmap.width * normalized.right).toInt().coerceIn(left + 1, bitmap.width)
     val bottom = (bitmap.height * normalized.bottom).toInt().coerceIn(top + 1, bitmap.height)
     return runCatching { android.graphics.Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top) }.getOrDefault(bitmap)
+}
+
+/**
+ * 屏幕像素网格会制造高频摩尔纹。先适度降采样，再做一次保边低通，
+ * 让网格纹理变弱而不把表格文字锐化成更明显的伪影。
+ */
+private fun prepareScreenOcrBitmap(bitmap: android.graphics.Bitmap): android.graphics.Bitmap {
+    var source = bitmap
+    val longest = maxOf(source.width, source.height)
+    if (longest > 1800) {
+        val scale = 1800f / longest.toFloat()
+        source = android.graphics.Bitmap.createScaledBitmap(source, (source.width * scale).toInt().coerceAtLeast(1), (source.height * scale).toInt().coerceAtLeast(1), true)
+    }
+    if (source.width < 900 || source.height < 600) return source
+    val width = source.width
+    val height = source.height
+    val input = IntArray(width * height)
+    val output = IntArray(width * height)
+    source.getPixels(input, 0, width, 0, 0, width, height)
+    for (y in 1 until height - 1) {
+        for (x in 1 until width - 1) {
+            var red = 0
+            var green = 0
+            var blue = 0
+            for (dy in -1..1) for (dx in -1..1) {
+                val weight = if (dx == 0 && dy == 0) 4 else if (dx == 0 || dy == 0) 2 else 1
+                val color = input[(y + dy) * width + x + dx]
+                red += android.graphics.Color.red(color) * weight
+                green += android.graphics.Color.green(color) * weight
+                blue += android.graphics.Color.blue(color) * weight
+            }
+            output[y * width + x] = android.graphics.Color.rgb(red / 16, green / 16, blue / 16)
+        }
+    }
+    for (x in 0 until width) { output[x] = input[x]; output[(height - 1) * width + x] = input[(height - 1) * width + x] }
+    for (y in 0 until height) { output[y * width] = input[y * width]; output[y * width + width - 1] = input[y * width + width - 1] }
+    return android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888).also { it.setPixels(output, 0, width, 0, 0, width, height) }
 }
