@@ -45,12 +45,15 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
             val releases = connection.inputStream.bufferedReader().use { JSONArray(it.readText()) }.also { connection.disconnect() }
             val release = (0 until releases.length())
                 .mapNotNull { releases.optJSONObject(it) }
-                .filter { it.optString("tag_name").startsWith("android-v") }
+                .filter { it.optString("tag_name").startsWith(BuildConfig.UPDATE_TAG_PREFIX) }
                 .maxWithOrNull(Comparator { left, right ->
                     compareVersions(parseAppVersion(left.optString("tag_name")) ?: "0.0.0", parseAppVersion(right.optString("tag_name")) ?: "0.0.0")
                 })
             val tag = release?.optString("tag_name")?.takeIf { it.isNotBlank() }
-            val apkAsset = release?.optJSONArray("assets")?.let { assets -> (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }.firstOrNull { it.optString("name").endsWith(".apk", true) } }
+            val apkAsset = release?.optJSONArray("assets")?.let { assets ->
+                (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }
+                    .firstOrNull { asset -> asset.optString("name").startsWith(BuildConfig.APK_FILE_PREFIX) && asset.optString("name").endsWith(".apk", true) }
+            }
             val apkUrl = apkAsset?.optString("browser_download_url")?.takeIf { it.isNotBlank() }
             val expectedSize = apkAsset?.optLong("size", 0L)?.takeIf { it > 0L }
             val expectedSha256 = apkAsset?.optString("digest")?.removePrefix("sha256:")?.trim()?.lowercase(Locale.US)?.takeIf { it.matches(Regex("[0-9a-f]{64}")) }
@@ -211,10 +214,10 @@ internal fun MainActivity.installApk(file: File) {
     } catch (error: Exception) { val reason = error.message ?: "未知安装错误"; settingsStore.setUpdateError(reason); toast("安装失败：$reason") }
 }
 
-    /** Release 标签为 android-v<应用版本>.<Actions 构建号>；构建号绝不参与应用版本比较。 */
+    /** Release 标签为当前渠道前缀加版本号；构建号绝不参与应用版本比较。 */
 
 internal fun MainActivity.parseAppVersion(releaseTag: String): String? {
-    val value = releaseTag.trim().removePrefix("android-v").removePrefix("v")
+    val value = releaseTag.trim().removePrefix(BuildConfig.UPDATE_TAG_PREFIX).removePrefix("v")
     val parts = value.split(".")
     if (parts.size < 3 || parts.size > 4 || parts.take(3).any { it.isEmpty() || it.length > 9 || it.toLongOrNull() == null }) return null
     if (parts.size == 4 && (parts[3].isEmpty() || parts[3].length > 12 || parts[3].toLongOrNull() == null)) return null

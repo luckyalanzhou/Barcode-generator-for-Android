@@ -12,8 +12,26 @@ android {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
         targetSdk = 35
-    versionCode = 6
-    versionName = "1.0.5"
+        versionCode = 6
+        versionName = "1.0.5"
+    }
+
+    flavorDimensions += "channel"
+    productFlavors {
+        create("official") {
+            dimension = "channel"
+            applicationId = "com.luckyalanzhou.barcodegenerator"
+            manifestPlaceholders["appLabel"] = "条码生成器"
+            buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-v\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGenerator\"")
+        }
+        create("beta") {
+            dimension = "channel"
+            applicationId = "com.luckyalanzhou.barcodegenerator.test"
+            manifestPlaceholders["appLabel"] = "条码生成器测试版"
+            buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-test-v\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorTest\"")
+        }
     }
 
     signingConfigs {
