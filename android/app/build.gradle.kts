@@ -25,14 +25,14 @@ android {
         create("official") {
             dimension = "channel"
             applicationId = "com.luckyalanzhou.barcodegenerator"
-            manifestPlaceholders["appLabel"] = "条码生成器"
+            manifestPlaceholders["appLabel"] = "Barcode Generator Release"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-v\"")
             buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGenerator\"")
         }
         create("beta") {
             dimension = "channel"
             applicationId = "com.luckyalanzhou.barcodegenerator.test"
-            manifestPlaceholders["appLabel"] = "条码生成器测试版"
+            manifestPlaceholders["appLabel"] = "Barcode Generator Beta"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-test-v\"")
             buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorTest\"")
         }
