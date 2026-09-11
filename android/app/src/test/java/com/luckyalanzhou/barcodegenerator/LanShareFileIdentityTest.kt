@@ -6,11 +6,12 @@ import org.junit.Test
 
 class LanShareFileIdentityTest {
     @Test
-    fun lanShareAcceptsOnly192168RouterIpv4() {
-        assertEquals(true, LanShareManager.isRouterLanHost("192.168.1.1"))
-        assertEquals(false, LanShareManager.isRouterLanHost("10.0.0.1"))
-        assertEquals(false, LanShareManager.isRouterLanHost("172.16.0.1"))
-        assertEquals(false, LanShareManager.isRouterLanHost("127.0.0.1"))
+    fun lanShareUsesTheActiveRouterSubnet() {
+        val local = java.net.InetAddress.getByName("192.168.1.23") as java.net.Inet4Address
+        val sameGatewaySubnet = java.net.InetAddress.getByName("192.168.1.99") as java.net.Inet4Address
+        val otherGatewaySubnet = java.net.InetAddress.getByName("192.168.2.9") as java.net.Inet4Address
+        assertEquals(true, LanShareManager.areOnSameRouterSubnet(local, sameGatewaySubnet, 24))
+        assertEquals(false, LanShareManager.areOnSameRouterSubnet(local, otherGatewaySubnet, 24))
     }
 
     @Test

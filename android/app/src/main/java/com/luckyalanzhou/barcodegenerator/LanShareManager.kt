@@ -26,29 +26,37 @@ class LanShareManager(private val context: Context) {
         const val MAX_FILE_BYTES = 5L * 1024L * 1024L * 1024L
         const val MAX_ROOM_BYTES = 100L * 1024L * 1024L * 1024L
 
-        /** 局域网分享仅使用家庭路由器常见的 192.168.x.x 地址段。 */
-        fun isRouterLanHost(host: String?): Boolean = runCatching {
-            (java.net.InetAddress.getByName(host) as? Inet4Address)?.let(::isRouterLanAddress) == true
-        }.getOrDefault(false)
-
-        private fun isRouterLanAddress(address: Inet4Address): Boolean {
-            val bytes = address.address
-            return bytes.size == 4 && (bytes[0].toInt() and 0xff) == 192 && (bytes[1].toInt() and 0xff) == 168
+        internal fun areOnSameRouterSubnet(local: Inet4Address, remote: Inet4Address, prefixLength: Int): Boolean {
+            if (prefixLength !in 0..32) return false
+            val localValue = local.address.fold(0L) { value, byte -> (value shl 8) or (byte.toInt() and 0xff).toLong() }
+            val remoteValue = remote.address.fold(0L) { value, byte -> (value shl 8) or (byte.toInt() and 0xff).toLong() }
+            val mask = if (prefixLength == 0) 0L else (0xffff_ffffL shl (32 - prefixLength)) and 0xffff_ffffL
+            return (localValue and mask) == (remoteValue and mask)
         }
     }
     private val folder = File(context.filesDir, "lan-share").apply { mkdirs() }
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
 
-    /** 分享服务只暴露在 Wi-Fi/以太网的 192.168.x.x 网络中，避免蜂窝网络误启动。 */
+    /** 分享服务只使用当前 Wi-Fi/以太网从路由器网关获得的 IPv4 子网。 */
     fun isOnLocalNetwork(): Boolean {
+        return routerIpv4Addresses().isNotEmpty()
+    }
+
+    /** 扫码地址必须和当前路由器网关的 IPv4 子网一致，不能硬编码某个地址段。 */
+    fun isRouterLanHost(host: String?): Boolean = runCatching {
+        val remote = java.net.InetAddress.getByName(host) as? Inet4Address ?: return@runCatching false
+        routerIpv4Addresses().any { local -> areOnSameRouterSubnet(local.address as Inet4Address, remote, local.prefixLength) }
+    }.getOrDefault(false)
+
+    private fun routerIpv4Addresses() = run {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivity.activeNetwork ?: return false
-        val capabilities = connectivity.getNetworkCapabilities(network) ?: return false
+        val network = connectivity.activeNetwork ?: return@run emptyList()
+        val capabilities = connectivity.getNetworkCapabilities(network) ?: return@run emptyList()
         if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return false
-        return connectivity.getLinkProperties(network)?.linkAddresses.orEmpty().any { address ->
-            (address.address as? Inet4Address)?.let(::isRouterLanAddress) == true
+            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return@run emptyList()
+        connectivity.getLinkProperties(network)?.linkAddresses.orEmpty().filter { address ->
+            (address.address as? Inet4Address)?.let { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isMulticastAddress } == true
         }
     }
 
@@ -64,10 +72,9 @@ class LanShareManager(private val context: Context) {
         } ?: error("无法启动局域网分享服务")
         server = running
         lastPort = running.listeningPort
-        val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val address = connectivity.activeNetwork?.let(connectivity::getLinkProperties)?.linkAddresses.orEmpty()
+        val address = routerIpv4Addresses()
             .mapNotNull { it.address as? Inet4Address }
-            .firstOrNull(::isRouterLanAddress)
+            .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
         return LanShareSession("http://$address:${running.listeningPort}")
     }
@@ -144,7 +151,7 @@ class LanShareManager(private val context: Context) {
     }
 
     private fun <T> request(session: LanShareSession, path: String, output: Boolean = false, block: (HttpURLConnection) -> T): T {
-        require(isRouterLanHost(Uri.parse(session.baseUrl).host)) { "分享地址无效" }
+        require(isRouterLanHost(Uri.parse(session.baseUrl).host)) { "分享地址不在当前路由器网关子网内" }
         val connection = (URL(session.baseUrl + path).openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000; readTimeout = 30_000; requestMethod = if (output) "POST" else "GET"; doOutput = output
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
