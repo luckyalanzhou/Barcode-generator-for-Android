@@ -14,8 +14,8 @@ android {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.9"
+        versionCode = 11
+        versionName = "1.0.10"
         if (providers.gradleProperty("versionCode").isPresent) versionCode = buildVersionCode
         if (providers.gradleProperty("versionName").isPresent) versionName = buildVersionName
     }
