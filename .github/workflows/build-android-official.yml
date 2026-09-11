@@ -2,6 +2,15 @@ name: Build Android Official APK
 
 on:
   workflow_dispatch:
+    inputs:
+      version_name:
+        description: "正式版版本号，例如 1.0.7"
+        required: true
+        type: string
+      version_code:
+        description: "正式版 versionCode，例如 8"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -49,9 +58,12 @@ jobs:
         id: app-version
         run: |
           set -euo pipefail
-          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/p' app/build.gradle.kts | head -n 1)"
-          test -n "$version_name" || { echo "::error::versionName not found"; exit 1; }
+          version_name="${{ inputs.version_name }}"
+          version_code="${{ inputs.version_code }}"
+          [[ "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::版本号必须是 x.y.z 格式"; exit 1; }
+          [[ "$version_code" =~ ^[1-9][0-9]*$ ]] || { echo "::error::versionCode 必须是正整数"; exit 1; }
           echo "version=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -73,7 +85,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleOfficialRelease --build-cache --parallel --max-workers=4 --stacktrace
+        run: ./gradlew assembleOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}" --build-cache --parallel --max-workers=4 --stacktrace
       - name: Prepare official APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
