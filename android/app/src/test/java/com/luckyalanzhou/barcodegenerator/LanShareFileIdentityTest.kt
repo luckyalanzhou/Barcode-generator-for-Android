@@ -6,9 +6,10 @@ import org.junit.Test
 
 class LanShareFileIdentityTest {
     @Test
-    fun lanShareAcceptsNonPrivateIpv4ButRejectsLoopback() {
-        assertEquals(true, LanShareManager.isLanShareHost("100.64.0.1"))
-        assertEquals(true, LanShareManager.isLanShareHost("203.0.113.1"))
+    fun lanShareAcceptsPrivateRouterIpv4ButRejectsPublicAndLoopback() {
+        assertEquals(true, LanShareManager.isLanShareHost("192.168.1.1"))
+        assertEquals(true, LanShareManager.isLanShareHost("10.0.0.1"))
+        assertEquals(false, LanShareManager.isLanShareHost("100.64.0.1"))
         assertEquals(false, LanShareManager.isLanShareHost("127.0.0.1"))
     }
 

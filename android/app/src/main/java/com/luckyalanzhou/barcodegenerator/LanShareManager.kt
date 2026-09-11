@@ -26,10 +26,10 @@ class LanShareManager(private val context: Context) {
         const val MAX_FILE_BYTES = 5L * 1024L * 1024L * 1024L
         const val MAX_ROOM_BYTES = 100L * 1024L * 1024L * 1024L
 
-        /** 局域网可能使用公网段或运营商内网段；只拒绝不能与其他设备通信的本机/保留地址。 */
+        /** 局域网分享只使用路由器分配的私有 IPv4 地址。 */
         fun isLanShareHost(host: String?): Boolean = runCatching {
             (java.net.InetAddress.getByName(host) as? Inet4Address)?.let {
-                !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isMulticastAddress
+                !it.isLoopbackAddress && it.isSiteLocalAddress
             } == true
         }.getOrDefault(false)
     }
@@ -37,7 +37,7 @@ class LanShareManager(private val context: Context) {
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
 
-    /** 分享服务只暴露在 Wi-Fi/以太网 IPv4 网络中，避免蜂窝网络误启动。 */
+    /** 分享服务只暴露在 Wi-Fi/以太网的私有 IPv4 网络中，避免蜂窝网络误启动。 */
     fun isOnLocalNetwork(): Boolean {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivity.activeNetwork ?: return false
@@ -45,7 +45,7 @@ class LanShareManager(private val context: Context) {
         if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
             !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return false
         return connectivity.getLinkProperties(network)?.linkAddresses.orEmpty().any { address ->
-            (address.address as? Inet4Address)?.let { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isMulticastAddress } == true
+            (address.address as? Inet4Address)?.let { !it.isLoopbackAddress && it.isSiteLocalAddress } == true
         }
     }
 
@@ -64,7 +64,7 @@ class LanShareManager(private val context: Context) {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val address = connectivity.activeNetwork?.let(connectivity::getLinkProperties)?.linkAddresses.orEmpty()
             .mapNotNull { it.address as? Inet4Address }
-            .firstOrNull { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isMulticastAddress }
+            .firstOrNull { !it.isLoopbackAddress && it.isSiteLocalAddress }
             ?.hostAddress ?: error("未连接到局域网")
         return LanShareSession("http://$address:${running.listeningPort}")
     }
