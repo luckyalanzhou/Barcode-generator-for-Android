@@ -5,7 +5,6 @@ import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
-import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -62,7 +61,7 @@ object FavoritesTransferManager {
                     val path = favoriteZipPath(favorite)
                     val directory = path.substringBeforeLast('/')
                     ensureZipDirectories(zip, directory, writtenDirectories)
-                    writeStoredEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
+                    writeZipEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
                 }
             }
         } ?: error("无法创建收藏备份文件")
@@ -176,23 +175,13 @@ object FavoritesTransferManager {
         var path = ""
         directory.split('/').filter { it.isNotBlank() }.forEach { part ->
             path = if (path.isBlank()) part else "$path/$part"
-            if (written.add(path)) writeStoredEntry(zip, "$path/", ByteArray(0))
+            if (written.add(path)) writeZipEntry(zip, "$path/", ByteArray(0))
         }
     }
 
-    /**
-     * Write entries with known size/CRC instead of Android's data descriptor.
-     * Some iOS Files versions reject archives whose central-directory offset is
-     * produced with a data descriptor, although desktop ZIP tools may recover it.
-     */
-    private fun writeStoredEntry(zip: ZipOutputStream, path: String, bytes: ByteArray) {
-        val crc = CRC32().apply { update(bytes) }.value
-        zip.putNextEntry(ZipEntry(path).apply {
-            method = ZipEntry.STORED
-            size = bytes.size.toLong()
-            compressedSize = bytes.size.toLong()
-            this.crc = crc
-        })
+    /** 使用标准 DEFLATED ZIP 条目，兼容 iOS 文件、Windows 资源管理器和 WinRAR。 */
+    private fun writeZipEntry(zip: ZipOutputStream, path: String, bytes: ByteArray) {
+        zip.putNextEntry(ZipEntry(path))
         zip.write(bytes)
         zip.closeEntry()
     }
