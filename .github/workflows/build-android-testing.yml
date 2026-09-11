@@ -1,4 +1,4 @@
-name: Build Android Testing APK
+name: Build Android Beta APK
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     if: github.ref_name == 'beta'
-    name: Assemble signed testing release APK
+    name: Assemble signed beta release APK
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -85,14 +85,14 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.jks
           test -s release.jks
           chmod 600 release.jks
-      - name: Build signed testing release
+      - name: Build signed beta release
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleBetaRelease --build-cache --parallel --max-workers=4 --stacktrace
-      - name: Prepare testing APK
+      - name: Prepare beta APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
         run: |
@@ -102,15 +102,15 @@ jobs:
           test -f "$source_apk" || { echo "::error::Testing APK not found"; exit 1; }
           mv "$source_apk" "$target_apk"
           ls -lh "$target_apk"
-      - name: Upload testing APK artifact
+      - name: Upload beta APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BarcodeGeneratorTest${{ steps.app-version.outputs.version }}-testing-build${{ github.run_number }}
+          name: BarcodeGeneratorTest${{ steps.app-version.outputs.version }}-beta-build${{ github.run_number }}
           path: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
-      - name: Publish testing GitHub Release
+      - name: Publish beta GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-test-v${{ steps.app-version.outputs.version }}
