@@ -5,18 +5,12 @@ import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
-import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-private const val INTERCHANGE_FORMAT = "BarcodeGeneratorInterchange"
-private const val INTERCHANGE_VERSION = 1
-private const val BACKUP_JSON_FILE = "barcode-generator-backup-android.json"
-private const val LEGACY_BACKUP_JSON_FILE = "barcode-generator-backup.json"
 private const val FAVORITES_DIRECTORY = "favorites"
 private const val MAX_BACKUP_INPUT_BYTES = 64 * 1024 * 1024
-private const val MAX_BACKUP_JSON_BYTES = 8 * 1024 * 1024
 private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
 private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32 * 1024 * 1024
 private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
@@ -71,43 +65,15 @@ object FavoritesTransferManager {
 
     fun restore(resolver: ContentResolver, uri: Uri): InterchangeBackup {
         val bytes = resolver.openInputStream(uri)?.use { readLimited(it, MAX_BACKUP_INPUT_BYTES) } ?: error("无法读取收藏备份文件")
-        if (bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) {
-            return extractBackupZip(bytes)
-        } else {
-            return parseBackupJson(bytes.toString(Charsets.UTF_8))
-        }
+        require(bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) { "仅支持逐收藏文件 ZIP 备份" }
+        return extractBackupZip(bytes)
     }
 
-    /** 空收藏组是导出端允许的状态；导入时保留其名称和文件夹，不能让它阻断整包备份。 */
-    internal fun parseBackupJson(json: String): InterchangeBackup {
-        val root = runCatching { JSONObject(json) }.getOrElse { error("收藏备份文件不是有效的 JSON 或 ZIP") }
-        require(root.optString("format") == INTERCHANGE_FORMAT && root.optInt("version") == INTERCHANGE_VERSION) { "不支持的跨平台收藏备份文件" }
-        val hasPayload = root.has("payload")
-        val payload = if (hasPayload) root.getString("payload") else root.toString()
-        if (hasPayload) require(root.optString("sha256").equals(sha256(payload), true)) { "收藏备份文件校验失败，可能已损坏" }
-        val data = if (hasPayload) JSONObject(payload) else root
-        val folders = data.optJSONArray("folders").toFolderPaths()
-        val favorites = data.optJSONArray("favorites").toObjects { value ->
-            val legacyPath = value.optString("folder", "").trim()
-            val rootFolder = value.optString("rootFolder", legacyPath.substringBefore('/')).trim()
-            val subFolder = value.optString("subFolder", legacyPath.substringAfter('/', "")).trim()
-            val name = value.optString("name").trim()
-            val texts = value.optJSONArray("texts").toStrings().map { it.trim() }.filter { it.isNotEmpty() }
-            require(name.isNotBlank()) { "跨平台收藏缺少文件名" }
-            require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
-            require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }
-            InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", "code128")), value.optLong("time", System.currentTimeMillis()), texts)
-        }
-        require(favorites.map { Triple(it.folder, it.name, it.texts) }.distinct().size == favorites.size) { "跨平台备份中包含重复收藏" }
-        return InterchangeBackup(favorites, folders)
-    }
-
-    /** 以收藏文件为唯一数据源读取新 ZIP；旧聚合清单仅作为向后兼容的回退。 */
+    /** 逐收藏文件是 ZIP 备份唯一的数据源。 */
     private fun extractBackupZip(bytes: ByteArray): InterchangeBackup {
         ZipInputStream(bytes.inputStream()).use { zip ->
             var entries = 0
             var uncompressed = 0
-            var legacyManifest: String? = null
             val favorites = mutableListOf<InterchangeFavorite>()
             val folders = linkedSetOf<String>()
             while (true) {
@@ -121,8 +87,6 @@ object FavoritesTransferManager {
                     favorites += favorite
                     if (favorite.rootFolder.isNotBlank()) folders += favorite.rootFolder
                     if (favorite.folder.isNotBlank()) folders += favorite.folder
-                } else if (!entry.isDirectory && entry.name.substringAfterLast('/') in setOf(BACKUP_JSON_FILE, LEGACY_BACKUP_JSON_FILE)) {
-                    legacyManifest = readLimited(zip, MAX_BACKUP_JSON_BYTES).toString(Charsets.UTF_8)
                 }
                 zip.closeEntry()
             }
@@ -130,7 +94,6 @@ object FavoritesTransferManager {
                 require(favorites.map { Triple(it.folder, it.name, it.texts) }.distinct().size == favorites.size) { "跨平台备份中包含重复收藏" }
                 return InterchangeBackup(favorites, folders.toList())
             }
-            legacyManifest?.let(::parseBackupJson)?.let { return it }
         }
         error("ZIP 备份中未找到收藏文件")
     }
@@ -209,17 +172,4 @@ object FavoritesTransferManager {
         "qr" -> "QR Code"; "code128" -> "Code 128-B"; "code39" -> "Code 39"; "ean13" -> "EAN-13"; "ean8" -> "EAN-8"; "upca" -> "UPC-A"; "itf14" -> "ITF-14"; else -> "Codabar"
     }
     private fun JSONArray?.toStrings(): List<String> = if (this == null) emptyList() else (0 until length()).map { getString(it) }
-    private fun <T> JSONArray?.toObjects(mapper: (JSONObject) -> T): List<T> = if (this == null) emptyList() else (0 until length()).map { mapper(getJSONObject(it)) }
-    private fun JSONArray?.toFolderPaths(): List<String> = if (this == null) emptyList() else (0 until length()).flatMap { index ->
-        when (val value = opt(index)) {
-            is String -> listOf(value)
-            is JSONObject -> {
-                val root = value.optString("name").trim()
-                val children = value.optJSONArray("children").toStrings().map { it.trim() }.filter { it.isNotBlank() }
-                listOf(root).filter { it.isNotBlank() } + children.map { child -> if (root.isBlank()) child else "$root/$child" }
-            }
-            else -> emptyList()
-        }
-    }.filter { it.isNotBlank() }.distinct()
-    private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 }
