@@ -325,9 +325,13 @@ internal fun MainActivity.scanWithCamera() {
 
 
 internal fun MainActivity.captureText() {
-        val activity = this
-        openCamera(45)
-    }
+        pendingCameraRequest = MainActivity.REQUEST_TEXT_CAMERA
+        if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
+            return
+        }
+        showTextCaptureCamera()
+}
 
 
 internal fun MainActivity.openCamera(requestCode: Int) {

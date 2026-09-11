@@ -350,7 +350,11 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 42) {
             if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-                if (pendingCameraRequest == REQUEST_LAN_SHARE_CAPTURE) openLanShareCamera() else launchCamera(pendingCameraRequest)
+                when (pendingCameraRequest) {
+                    REQUEST_LAN_SHARE_CAPTURE -> openLanShareCamera()
+                    REQUEST_TEXT_CAMERA -> showTextCaptureCamera()
+                    else -> launchCamera(pendingCameraRequest)
+                }
             } else {
                 toast("需要相机权限才能拍照识别")
             }
