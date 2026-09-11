@@ -1,7 +1,7 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 深色内容层减少蓝灰色调，避免看起来浑浊。 -->
-    <gradient android:angle="90" android:startColor="#F0191C21" android:centerColor="#EE171A1F" android:endColor="#EB15181C" />
-    <corners android:radius="22dp" />
-    <stroke android:width="1dp" android:color="#264B515A" />
+    <!-- 深色玻璃保留微弱顶部反光，避免内容层变成纯黑实心卡片。 -->
+    <gradient android:angle="90" android:startColor="#B83A3E46" android:centerColor="#8C292D34" android:endColor="#7021262C" />
+    <corners android:radius="24dp" />
+    <stroke android:width="1dp" android:color="#526E7682" />
     <padding android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp" />
 </shape>
