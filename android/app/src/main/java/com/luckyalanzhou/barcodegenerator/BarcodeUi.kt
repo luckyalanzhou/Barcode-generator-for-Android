@@ -1391,8 +1391,8 @@ internal fun MainActivity.showGenerate() {
              text = "+ 添加一行"
              setOnClickListener {
                  if (inputRows.size >= 100) { toast("最多保留 100 行输入框"); return@setOnClickListener }
-                 addInputRow(focus = true)
-                 inputScroll?.post { inputScroll?.fullScroll(View.FOCUS_DOWN) }
+                 val currentInput = inputRows.firstOrNull { it.hasFocus() }
+                 addInputRow(focus = true, after = currentInput)
              }
          }).apply { setBackgroundDrawable(glassButtonBackground()) }
          actionRow.addView(addButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { setMargins(0, 0, dp(6), 0) })
@@ -1445,7 +1445,7 @@ internal fun MainActivity.updateInputScrollHeight() {
          scroll.requestLayout()
      }
 
-internal fun MainActivity.addInputRow(value: String = "", focus: Boolean = false) {
+internal fun MainActivity.addInputRow(value: String = "", focus: Boolean = false, after: EditText? = null) {
         val container = runCatching { inputContainer }.getOrNull() ?: return
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1467,7 +1467,8 @@ internal fun MainActivity.addInputRow(value: String = "", focus: Boolean = false
         row.addView(inputActionButton("↑") { moveInputRow(edit, -1) })
         row.addView(inputActionButton("↓") { moveInputRow(edit, 1) })
         row.addView(deleteInputButton(onClick = { removeInputRow(edit) }, onLongClick = { confirmClearAllInputRows() }))
-        inputRows.add(edit)
+        val insertAt = after?.let { inputRows.indexOf(it) + 1 }?.takeIf { it > 0 } ?: inputRows.size
+        inputRows.add(insertAt, edit)
         edit.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -1477,12 +1478,16 @@ internal fun MainActivity.addInputRow(value: String = "", focus: Boolean = false
             override fun afterTextChanged(s: Editable?) = Unit
         })
         inputDraft = inputRows.map { it.text.toString() }.toMutableList()
-        container.addView(row, LinearLayout.LayoutParams(-1, dp(48)).apply { setMargins(0, 0, 0, dp(6)) })
+        container.addView(row, insertAt, LinearLayout.LayoutParams(-1, dp(48)).apply { setMargins(0, 0, 0, dp(6)) })
         container.requestLayout()
         updateInputScrollHeight()
         updateBatchGenerateButton()
         refreshInputActions()
-        if (focus) edit.post { edit.requestFocus(); edit.setSelection(edit.text.length) }
+        if (focus) edit.post {
+            edit.requestFocus()
+            edit.setSelection(edit.text.length)
+            inputScroll?.smoothScrollTo(0, row.top)
+        }
     }
 
 
