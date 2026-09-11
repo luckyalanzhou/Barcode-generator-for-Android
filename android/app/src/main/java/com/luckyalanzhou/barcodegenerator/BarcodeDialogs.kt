@@ -397,7 +397,7 @@ private fun MainActivity.createFavoritesDocumentExport() {
 }
 
 internal fun MainActivity.restoreFavoritesImport() {
-    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply { type = "*/*"; putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/json", "text/json")); addCategory(Intent.CATEGORY_OPENABLE); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, MainActivity.REQUEST_FAVORITES_IMPORT)
+    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply { type = "application/zip"; addCategory(Intent.CATEGORY_OPENABLE); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, MainActivity.REQUEST_FAVORITES_IMPORT)
 }
 
 internal fun MainActivity.exportFavorites(uri: Uri) {

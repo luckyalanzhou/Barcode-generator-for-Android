@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.net.Uri
+import android.util.Log
 import java.net.HttpURLConnection
 import java.net.URL
 import android.view.Gravity
@@ -227,26 +228,52 @@ class MainActivity : AppCompatActivity() {
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                settingsStore.load()
-                migrateLegacySettingsIfNeeded()
-                migrateLegacyDataIfNeeded()
-                loadItemsOnIo()
-                loadFavoriteGroupsOnIo()
-                loadFavoriteFoldersOnIo()
+            var startupError: Throwable? = null
+            try {
+                withContext(Dispatchers.IO) {
+                    settingsStore.load()
+                    migrateLegacySettingsIfNeeded()
+                    migrateLegacyDataIfNeeded()
+                    loadItemsOnIo()
+                    loadFavoriteGroupsOnIo()
+                    loadFavoriteFoldersOnIo()
+                }
+            } catch (error: Exception) {
+                // 数据层损坏或升级失败不能让 Activity 直接因未处理协程异常闪退；
+                // 保留默认内存状态，先让用户进入应用并看到可恢复的提示。
+                startupError = error
+                Log.e("BarcodeGenerator", "Startup data initialization failed", error)
             }
-            restoreLanShareAfterConfigurationChange()
-            // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
-            applyAppearance()
-            window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-            buildShell()
-            applyAppearance()
-            if (state != null && page == "generate") {
-                page = state.getString("page", "generate") ?: "generate"
-                settingsReturnPage = state.getString("settings_return_page", "generate") ?: "generate"
-                startupUpdateCheckStarted = state.getBoolean("startup_update_check_started", false)
+            try {
+                restoreLanShareAfterConfigurationChange()
+                // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
+                applyAppearance()
+                window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                buildShell()
+                applyAppearance()
+                if (state != null && page == "generate") {
+                    page = state.getString("page", "generate") ?: "generate"
+                    settingsReturnPage = state.getString("settings_return_page", "generate") ?: "generate"
+                    startupUpdateCheckStarted = state.getBoolean("startup_update_check_started", false)
+                }
+                render()
+            } catch (error: Exception) {
+                startupError = startupError ?: error
+                Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
             }
-            render()
+            if (!::rootLayout.isInitialized) {
+                setContentView(TextView(this@MainActivity).apply {
+                    text = "应用初始化失败，请重新打开应用"
+                    textSize = 17f
+                    setTextColor(Color.WHITE)
+                    setBackgroundColor(0xff10131b.toInt())
+                    setPadding(dp(24), dp(24), dp(24), dp(24))
+                })
+                return@launch
+            }
+            startupError?.let {
+                window.decorView.post { showIos26NoticeDialog("数据加载失败，已使用默认页面启动") }
+            }
             window.decorView.post {
                 if (!startupUpdateCheckStarted) {
                     startupUpdateCheckStarted = true
