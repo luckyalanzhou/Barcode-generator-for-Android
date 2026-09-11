@@ -15,8 +15,10 @@ private const val INTERCHANGE_VERSION = 1
 private const val BACKUP_JSON_FILE = "barcode-generator-backup-android.json"
 private const val LEGACY_BACKUP_JSON_FILE = "barcode-generator-backup.json"
 private const val FAVORITES_DIRECTORY = "favorites"
-private const val MAX_BACKUP_INPUT_BYTES = 4 * 1024 * 1024
+private const val MAX_BACKUP_INPUT_BYTES = 64 * 1024 * 1024
 private const val MAX_BACKUP_JSON_BYTES = 8 * 1024 * 1024
+private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
+private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32 * 1024 * 1024
 private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
 
 data class InterchangeFavorite(
@@ -44,30 +46,9 @@ object FavoritesTransferManager {
     fun export(resolver: ContentResolver, uri: Uri, groups: List<FavoriteGroupEntity>, links: List<FavoriteGroupItemEntity>, items: List<CodeItemEntity>, folders: List<FavoriteFolderEntity>) {
         val itemById = items.associateBy { it.id }
         val linksByGroup = links.groupBy { it.groupId }
-        val payload = JSONObject().apply {
-            put("folders", JSONArray().apply { folders.map { it.name }.distinct().filter { it.isNotBlank() }.forEach(::put) })
-            put("favorites", JSONArray().apply {
-                groups.forEach { group ->
-                    val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
-                    val types = groupItems.map { toTransferType(it.format) }.distinct()
-                    require(types.size <= 1) { "收藏“${group.name}”包含多种条码格式，暂不支持跨平台导出" }
-                    val parts = splitFolder(group.folder)
-                    put(JSONObject().apply {
-                        put("id", group.id.toString()); put("name", group.name); put("rootFolder", parts.first); put("subFolder", parts.second)
-                        put("type", types.firstOrNull() ?: "code128"); put("time", group.savedAt); put("texts", JSONArray(groupItems.map { it.text }))
-                    })
-                }
-            })
-        }.toString()
-        val root = JSONObject().apply {
-            put("format", INTERCHANGE_FORMAT); put("version", INTERCHANGE_VERSION); put("exportedAt", System.currentTimeMillis()); put("payload", payload); put("sha256", sha256(payload))
-        }
         resolver.openOutputStream(uri)?.use { output ->
             ZipOutputStream(output).use { zip ->
-                zip.putNextEntry(ZipEntry(BACKUP_JSON_FILE))
-                zip.write(root.toString().toByteArray(Charsets.UTF_8))
-                zip.closeEntry()
-                // 与 iOS 端保持一致：清单负责跨版本兼容，收藏本体按一级/二级目录逐文件保存。
+                // ZIP 只保留目录和每个收藏文件；不再写入包含全部收藏的聚合 JSON。
                 val writtenDirectories = mutableSetOf<String>()
                 groups.forEach { group ->
                     val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
@@ -90,12 +71,11 @@ object FavoritesTransferManager {
 
     fun restore(resolver: ContentResolver, uri: Uri): InterchangeBackup {
         val bytes = resolver.openInputStream(uri)?.use { readLimited(it, MAX_BACKUP_INPUT_BYTES) } ?: error("无法读取收藏备份文件")
-        val json = if (bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) {
-            extractBackupJson(bytes)
+        if (bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) {
+            return extractBackupZip(bytes)
         } else {
-            bytes.toString(Charsets.UTF_8)
+            return parseBackupJson(bytes.toString(Charsets.UTF_8))
         }
-        return parseBackupJson(json)
     }
 
     /** 空收藏组是导出端允许的状态；导入时保留其名称和文件夹，不能让它阻断整包备份。 */
@@ -122,20 +102,50 @@ object FavoritesTransferManager {
         return InterchangeBackup(favorites, folders)
     }
 
-    /** Reads the required JSON entry from a ZIP backup without extracting files to disk. */
-    private fun extractBackupJson(bytes: ByteArray): String {
+    /** 以收藏文件为唯一数据源读取新 ZIP；旧聚合清单仅作为向后兼容的回退。 */
+    private fun extractBackupZip(bytes: ByteArray): InterchangeBackup {
         ZipInputStream(bytes.inputStream()).use { zip ->
             var entries = 0
+            var uncompressed = 0
+            var legacyManifest: String? = null
+            val favorites = mutableListOf<InterchangeFavorite>()
+            val folders = linkedSetOf<String>()
             while (true) {
                 val entry = zip.nextEntry ?: break
                 require(++entries <= MAX_BACKUP_ZIP_ENTRIES) { "ZIP 备份包含过多文件" }
-                if (!entry.isDirectory && entry.name.substringAfterLast('/') in setOf(BACKUP_JSON_FILE, LEGACY_BACKUP_JSON_FILE)) {
-                    return readLimited(zip, MAX_BACKUP_JSON_BYTES).toString(Charsets.UTF_8)
+                if (!entry.isDirectory && entry.name.startsWith("$FAVORITES_DIRECTORY/") && entry.name.endsWith(".json")) {
+                    val content = readLimited(zip, MAX_BACKUP_FAVORITE_JSON_BYTES)
+                    uncompressed += content.size
+                    require(uncompressed <= MAX_BACKUP_UNCOMPRESSED_BYTES) { "收藏备份解压后内容超过 32 MB 限制" }
+                    val favorite = parseFavoriteJson(content.toString(Charsets.UTF_8))
+                    favorites += favorite
+                    if (favorite.rootFolder.isNotBlank()) folders += favorite.rootFolder
+                    if (favorite.folder.isNotBlank()) folders += favorite.folder
+                } else if (!entry.isDirectory && entry.name.substringAfterLast('/') in setOf(BACKUP_JSON_FILE, LEGACY_BACKUP_JSON_FILE)) {
+                    legacyManifest = readLimited(zip, MAX_BACKUP_JSON_BYTES).toString(Charsets.UTF_8)
                 }
                 zip.closeEntry()
             }
+            if (favorites.isNotEmpty()) {
+                require(favorites.map { Triple(it.folder, it.name, it.texts) }.distinct().size == favorites.size) { "跨平台备份中包含重复收藏" }
+                return InterchangeBackup(favorites, folders.toList())
+            }
+            legacyManifest?.let(::parseBackupJson)?.let { return it }
         }
-        error("ZIP 备份中缺少 $BACKUP_JSON_FILE")
+        error("ZIP 备份中未找到收藏文件")
+    }
+
+    private fun parseFavoriteJson(json: String): InterchangeFavorite {
+        val value = runCatching { JSONObject(json) }.getOrElse { error("收藏文件不是有效 JSON") }
+        val legacyPath = value.optString("folder", "").trim()
+        val rootFolder = value.optString("rootFolder", legacyPath.substringBefore('/')).trim()
+        val subFolder = value.optString("subFolder", legacyPath.substringAfter('/', "")).trim()
+        val name = value.optString("name").trim()
+        val texts = value.optJSONArray("texts").toStrings().map { it.trim() }.filter { it.isNotEmpty() }
+        require(name.isNotBlank()) { "收藏文件缺少文件名" }
+        require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
+        require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }
+        return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts)
     }
 
     private fun readLimited(input: java.io.InputStream, limit: Int): ByteArray {
