@@ -800,7 +800,14 @@ internal fun MainActivity.showSettings() {
             textRow("显示条码格式", showFormat)
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
-         addSpaced(groupCard(listOf(textRow("局域网文件分享", styleButton(Button(activity).apply { text = "启动"; minWidth = 0; minimumWidth = 0; setPadding(dp(12), dp(6), dp(12), dp(6)); setOnClickListener { enterLanShare() } }), trailingWidth = -2))), bottom = 12)
+        val toolRows = mutableListOf<View>()
+        toolRows += textRow("局域网文件分享", styleButton(Button(activity).apply {
+            text = "启动"
+            minWidth = 0
+            minimumWidth = 0
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setOnClickListener { enterLanShare() }
+        }), trailingWidth = -2)
         val versionLine = LinearLayout(this).apply {
              orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
              val info = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
@@ -825,7 +832,7 @@ internal fun MainActivity.showSettings() {
              addView(TextView(activity).apply { text = "关于"; this.textSize = 16f; setTypeface(null, Typeface.BOLD); setTextColor(primaryText()) })
              addView(versionLine, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(8), 0, 0) })
          }
-         addSpaced(groupCard(listOf(textRow("恢复默认设置", styleButton(Button(activity).apply {
+         toolRows += textRow("恢复默认设置", styleButton(Button(activity).apply {
              text = "恢复"
              minWidth = 0
              minimumWidth = 0
@@ -838,16 +845,17 @@ internal fun MainActivity.showSettings() {
                  persistSettings()
                  toast("已恢复条码默认设置")
              }
-         }), trailingWidth = -2))), bottom = 12)
+         }), trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
-              addSpaced(groupCard(listOf(textRow("调试日志", styleButton(Button(activity).apply {
+              toolRows += textRow("调试日志", styleButton(Button(activity).apply {
                   text = "导出"
                   minWidth = 0
                   minimumWidth = 0
                   setPadding(dp(12), dp(6), dp(12), dp(6))
                   setOnClickListener { shareDebugLog() }
-              }), trailingWidth = -2))), bottom = 12)
+              }), trailingWidth = -2)
           }
+        addSpaced(groupCard(toolRows), bottom = 12)
           // 整张“关于”卡片是一个安静的入口：在短时间内连点五次才打开彩蛋，日常浏览不会误触。
          var aboutTapCount = 0
          var lastAboutTapAt = 0L
@@ -982,11 +990,12 @@ internal fun MainActivity.showLanShare() {
             setImageResource(R.drawable.ic_qr_code); setColorFilter(0xff0a84ff.toInt())
             background = glassButtonBackground(); elevation = dp(2).toFloat(); clipToOutline = true
             isClickable = true; isFocusable = true; contentDescription = "显示二维码"
-            minimumWidth = dp(72); minimumHeight = dp(72)
-            setPadding(dp(16), dp(16), dp(16), dp(16))
+            // 60dp 的玻璃外框避免深色模式下被标题卡片边缘和阴影裁切；标题整块仍可点击。
+            minimumWidth = dp(60); minimumHeight = dp(60)
+            setPadding(dp(14), dp(14), dp(14), dp(14))
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setOnClickListener { toggleQr() }
-        }, LinearLayout.LayoutParams(dp(72), dp(72)))
+        }, LinearLayout.LayoutParams(dp(60), dp(60)))
     }, LinearLayout.LayoutParams(-1, dp(80)))
     val sessionState = lanShareSession
     content.addView(TextView(this).apply { tag = "lanShareStatus"; textSize = 15f; gravity = Gravity.CENTER; setPadding(0, dp(12), 0, dp(14)); updateLanShareConnectionStatus(this) })
