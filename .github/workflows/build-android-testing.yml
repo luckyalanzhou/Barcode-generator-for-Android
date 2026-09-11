@@ -114,7 +114,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-test-v${{ steps.app-version.outputs.version }}
-          name: Barcode Generator Testing v${{ steps.app-version.outputs.version }}
+          name: Barcode Generator Beta v${{ steps.app-version.outputs.version }}
           generate_release_notes: true
           files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
