@@ -406,14 +406,15 @@ class MainActivity : AppCompatActivity() {
             }
             else -> null
         }
+        if (bitmap == null) return
+        val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, pendingCameraFile) else bitmap
         pendingCameraUri = null
         pendingCameraFile?.delete()
         pendingCameraFile = null
-        if (bitmap == null) return
         when (requestCode) {
             43, 44 -> decodeBitmap(bitmap)?.let { inputRows.firstOrNull()?.setText(it) ?: addInputRow(it); toast("条码识别成功") } ?: toast("未识别到条码，请更换清晰图片")
             51 -> decodeBitmap(bitmap)?.let { joinLanShareSession(it) } ?: toast("未识别到分享二维码")
-            45, 46 -> recognizeText(bitmap)
+            45, 46 -> recognizeText(textBitmap)
         }
     }
 
