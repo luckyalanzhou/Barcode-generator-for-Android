@@ -1,4 +1,4 @@
-name: Build Android Official APK
+name: Build Android Release APK
 
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ concurrency:
 jobs:
   build:
     if: github.ref_name == 'main'
-    name: Assemble signed official release APK
+    name: Assemble signed release APK
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -79,14 +79,14 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.jks
           test -s release.jks
           chmod 600 release.jks
-      - name: Build signed official release
+      - name: Build signed release
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}" --build-cache --parallel --max-workers=4 --stacktrace
-      - name: Prepare official APK
+      - name: Prepare release APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
         run: |
@@ -96,15 +96,15 @@ jobs:
           test -f "$source_apk" || { echo "::error::Official APK not found"; exit 1; }
           mv "$source_apk" "$target_apk"
           ls -lh "$target_apk"
-      - name: Upload official APK artifact
+      - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BarcodeGenerator${{ steps.app-version.outputs.version }}-official-build${{ github.run_number }}
+          name: BarcodeGenerator${{ steps.app-version.outputs.version }}-release-build${{ github.run_number }}
           path: android/app/build/outputs/apk/official/release/BarcodeGenerator${{ steps.app-version.outputs.version }}.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
-      - name: Publish official GitHub Release
+      - name: Publish release GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-v${{ steps.app-version.outputs.version }}
