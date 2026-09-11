@@ -7,6 +7,8 @@ plugins {
 android {
     namespace = "com.luckyalanzhou.barcodegenerator"
     compileSdk = 35
+    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: 6
+    val buildVersionName = providers.gradleProperty("versionName").orNull ?: "1.0.5"
 
     defaultConfig {
         applicationId = "com.luckyalanzhou.barcodegenerator"
@@ -14,6 +16,8 @@ android {
         targetSdk = 35
         versionCode = 6
         versionName = "1.0.5"
+        if (providers.gradleProperty("versionCode").isPresent) versionCode = buildVersionCode
+        if (providers.gradleProperty("versionName").isPresent) versionName = buildVersionName
     }
 
     flavorDimensions += "channel"

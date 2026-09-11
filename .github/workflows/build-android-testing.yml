@@ -2,6 +2,12 @@ name: Build Android Testing APK
 
 on:
   workflow_dispatch:
+    inputs:
+      version_bump:
+        description: '测试版版本增量，例如 0.0.1 会将 1.0.5 构建为 1.0.6'
+        required: true
+        default: '0.0.1'
+        type: string
 
 permissions:
   contents: write
@@ -49,9 +55,19 @@ jobs:
         id: app-version
         run: |
           set -euo pipefail
-          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/p' app/build.gradle.kts | head -n 1)"
-          test -n "$version_name" || { echo "::error::versionName not found"; exit 1; }
+          base_version="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=.*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          base_code="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]*=.*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
+          bump="${{ inputs.version_bump }}"
+          IFS=. read -r base_major base_minor base_patch <<< "$base_version"
+          IFS=. read -r bump_major bump_minor bump_patch <<< "$bump"
+          for part in "$base_major" "$base_minor" "$base_patch" "$bump_major" "$bump_minor" "$bump_patch"; do
+            [[ "$part" =~ ^[0-9]+$ ]] || { echo "::error::版本号必须是 x.y.z 或增量 x.y.z"; exit 1; }
+          done
+          version_name="$((base_major + bump_major)).$((base_minor + bump_minor)).$((base_patch + bump_patch))"
+          version_code=$((base_code + 1))
+          echo "base=$base_version; bump=$bump; version=$version_name; versionCode=$version_code"
           echo "version=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -73,7 +89,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleBetaRelease --build-cache --parallel --max-workers=4 --stacktrace
+        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}" --build-cache --parallel --max-workers=4 --stacktrace
       - name: Prepare testing APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
