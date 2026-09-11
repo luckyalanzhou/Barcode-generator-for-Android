@@ -148,20 +148,20 @@ internal fun MainActivity.styleButton(button: Button, primary: Boolean = false) 
 
 internal fun MainActivity.glassButtonBackground() = GradientDrawable().apply {
     shape = GradientDrawable.RECTANGLE
-    cornerRadius = dp(18).toFloat()
+    cornerRadius = dp(20).toFloat()
     orientation = GradientDrawable.Orientation.TOP_BOTTOM
     // 次级玻璃保持中性，蓝色只用于选中态与主操作。
-    setColors(if (isDark()) intArrayOf(0x663D4249, 0x3D2E3238) else intArrayOf(0xB3FFFFFF.toInt(), 0x80F0F2F4.toInt()))
-    setStroke(dp(1), if (isDark()) 0x665E6670.toInt() else 0x80FFFFFF.toInt())
+    setColors(if (isDark()) intArrayOf(0x80474C55.toInt(), 0x4D2B3037) else intArrayOf(0xCCFFFFFF.toInt(), 0x80E9EDF2.toInt()))
+    setStroke(dp(1), if (isDark()) 0x806F7884.toInt() else 0x99FFFFFF.toInt())
 }
 
 internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
     dialog.window?.setBackgroundDrawable(GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = dp(28).toFloat()
+        cornerRadius = dp(30).toFloat()
         orientation = GradientDrawable.Orientation.TOP_BOTTOM
-        setColors(if (isDark()) intArrayOf(0xF0363A41.toInt(), 0xE62A2E34.toInt()) else intArrayOf(0xFAFFFFFF.toInt(), 0xE6EEF0F2.toInt()))
-        setStroke(dp(1), if (isDark()) 0x66737A84.toInt() else 0x99FFFFFF.toInt())
+        setColors(if (isDark()) intArrayOf(0xEE3B4048.toInt(), 0xD82A2E35.toInt()) else intArrayOf(0xF7FFFFFF.toInt(), 0xD9EEF2F5.toInt()))
+        setStroke(dp(1), if (isDark()) 0x887A8491.toInt() else 0xB3FFFFFF.toInt())
     })
     dialog.window?.decorView?.elevation = dp(14).toFloat()
     val actionColor = if (isDark()) 0xffa9c4ff.toInt() else 0xff2166d1.toInt()
@@ -1187,9 +1187,9 @@ private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Stri
 
 private fun MainActivity.liquidGlassCard() = GradientDrawable().apply {
     shape = GradientDrawable.RECTANGLE
-    cornerRadius = dp(24).toFloat()
-    setColor(if (isDark()) 0x662c2c2e else 0xcfffffff.toInt())
-    setStroke(dp(1), if (isDark()) 0x55ffffff else 0x99ffffff.toInt())
+    cornerRadius = dp(26).toFloat()
+    setColor(if (isDark()) 0x78363A42 else 0xBFFFFFFF.toInt())
+    setStroke(dp(1), if (isDark()) 0x707E8793 else 0xB3FFFFFF.toInt())
 }
 
 private fun formatLanShareSize(bytes: Long): String = if (bytes >= 1024L * 1024L) {
