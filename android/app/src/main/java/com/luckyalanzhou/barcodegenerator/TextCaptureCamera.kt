@@ -6,9 +6,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
-import android.os.Bundle
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.Surface
 import android.view.View
 import android.view.Window
@@ -25,6 +25,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /** App 内置的拍照取字相机，避免系统相机无法控制对焦和取景的问题。 */
@@ -39,7 +40,8 @@ internal fun MainActivity.showTextCaptureCamera() {
         scaleType = PreviewView.ScaleType.FILL_CENTER
     }
     root.addView(previewView, FrameLayout.LayoutParams(-1, -1))
-    root.addView(TextCaptureGuideView(this), FrameLayout.LayoutParams(-1, -1))
+    val guide = TextCaptureGuideView(this)
+    root.addView(guide, FrameLayout.LayoutParams(-1, -1))
 
     val title = TextView(this).apply {
         text = "拍照取字"
@@ -49,6 +51,19 @@ internal fun MainActivity.showTextCaptureCamera() {
         setPadding(dp(20), dp(18), dp(20), dp(10))
     }
     root.addView(title, FrameLayout.LayoutParams(-1, dp(58), Gravity.TOP))
+
+    val zoomLabel = TextView(this).apply {
+        text = "1.0×"
+        textSize = 14f
+        gravity = Gravity.CENTER
+        setTextColor(Color.WHITE)
+        setBackgroundColor(0x66000000)
+        setPadding(dp(10), 0, dp(10), 0)
+    }
+    root.addView(zoomLabel, FrameLayout.LayoutParams(dp(76), dp(42), Gravity.TOP or Gravity.END).apply {
+        topMargin = dp(12)
+        rightMargin = dp(14)
+    })
 
     val controls = FrameLayout(this).apply {
         setPadding(dp(20), dp(12), dp(20), dp(20))
@@ -103,12 +118,28 @@ internal fun MainActivity.showTextCaptureCamera() {
                 .build()
             provider.unbindAll()
             val camera = provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
+            val zoomState = camera.cameraInfo.zoomState.value
+            var zoomRatio = zoomState?.zoomRatio ?: 1f
+            fun updateZoom(delta: Float) {
+                val state = camera.cameraInfo.zoomState.value ?: return
+                zoomRatio = (zoomRatio + delta).coerceIn(state.minZoomRatio, state.maxZoomRatio)
+                camera.cameraControl.setZoomRatio(zoomRatio)
+                zoomLabel.text = String.format(Locale.US, "%.1f×", zoomRatio)
+            }
+            zoomLabel.setOnClickListener { updateZoom(0.5f) }
             camera.cameraControl.startFocusAndMetering(
                 FocusMeteringAction.Builder(previewView.meteringPointFactory.createPoint(0.5f, 0.5f))
                     .setAutoCancelDuration(3, TimeUnit.SECONDS).build()
             )
+            val scaleDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    updateZoom((detector.scaleFactor - 1f) * 2f)
+                    return true
+                }
+            })
             previewView.setOnTouchListener { _, event ->
-                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                scaleDetector.onTouchEvent(event)
+                if (event.actionMasked == MotionEvent.ACTION_UP && !scaleDetector.isInProgress) {
                     camera.cameraControl.startFocusAndMetering(
                         FocusMeteringAction.Builder(previewView.meteringPointFactory.createPoint(event.x, event.y))
                             .setAutoCancelDuration(3, TimeUnit.SECONDS).build()
@@ -126,7 +157,10 @@ internal fun MainActivity.showTextCaptureCamera() {
                             dialog.dismiss()
                             val bitmap = BitmapFactory.decodeFile(outputFile.absolutePath)
                             if (bitmap == null) toast("拍摄失败，请重试")
-                            else recognizeText(prepareTextBitmap(bitmap, outputFile))
+                            else {
+                                val prepared = prepareTextBitmap(bitmap, outputFile)
+                                recognizeText(cropTextBitmap(prepared, guide.frameForBitmap(prepared.width.toFloat() / prepared.height.coerceAtLeast(1))))
+                            }
                             outputFile.delete()
                         }
 
@@ -147,6 +181,9 @@ internal fun MainActivity.showTextCaptureCamera() {
 }
 
 private class TextCaptureGuideView(context: android.content.Context) : View(context) {
+    internal val frameNormalized = RectF(0.06f, 0.27f, 0.94f, 0.68f)
+    private var dragCorner = 0
+    private val handleRadius = 28f * resources.displayMetrics.density
     private val dim = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x66000000 }
     private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -163,12 +200,78 @@ private class TextCaptureGuideView(context: android.content.Context) : View(cont
         super.onDraw(canvas)
         val width = width.toFloat()
         val height = height.toFloat()
-        val frame = RectF(width * 0.06f, height * 0.27f, width * 0.94f, height * 0.68f)
+        val frame = RectF(width * frameNormalized.left, height * frameNormalized.top, width * frameNormalized.right, height * frameNormalized.bottom)
         canvas.drawRect(0f, 0f, width, frame.top, dim)
         canvas.drawRect(0f, frame.bottom, width, height, dim)
         canvas.drawRect(0f, frame.top, frame.left, frame.bottom, dim)
         canvas.drawRect(frame.right, frame.top, width, frame.bottom, dim)
         canvas.drawRoundRect(frame, 18f, 18f, border)
+        canvas.drawCircle(frame.left, frame.top, handleRadius / 2f, border)
+        canvas.drawCircle(frame.right, frame.top, handleRadius / 2f, border)
+        canvas.drawCircle(frame.left, frame.bottom, handleRadius / 2f, border)
+        canvas.drawCircle(frame.right, frame.bottom, handleRadius / 2f, border)
         canvas.drawText("让屏幕文字完整进入取景框", width / 2f, frame.bottom + 34f * resources.displayMetrics.density, label)
     }
+
+    /** 将铺满预览视图的取景框换算成实际 JPEG 的归一化坐标。 */
+    internal fun frameForBitmap(bitmapAspect: Float): RectF {
+        val viewAspect = width.toFloat() / height.coerceAtLeast(1).toFloat()
+        return if (viewAspect < bitmapAspect) {
+            val visibleWidth = viewAspect / bitmapAspect
+            val visibleLeft = (1f - visibleWidth) / 2f
+            RectF(
+                visibleLeft + frameNormalized.left * visibleWidth,
+                frameNormalized.top,
+                visibleLeft + frameNormalized.right * visibleWidth,
+                frameNormalized.bottom
+            )
+        } else {
+            val visibleHeight = bitmapAspect / viewAspect
+            val visibleTop = (1f - visibleHeight) / 2f
+            RectF(
+                frameNormalized.left,
+                visibleTop + frameNormalized.top * visibleHeight,
+                frameNormalized.right,
+                visibleTop + frameNormalized.bottom * visibleHeight
+            )
+        }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val x = event.x / width.coerceAtLeast(1).toFloat()
+        val y = event.y / height.coerceAtLeast(1).toFloat()
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                val corners = arrayOf(
+                    floatArrayOf(frameNormalized.left, frameNormalized.top),
+                    floatArrayOf(frameNormalized.right, frameNormalized.top),
+                    floatArrayOf(frameNormalized.left, frameNormalized.bottom),
+                    floatArrayOf(frameNormalized.right, frameNormalized.bottom)
+                )
+                dragCorner = corners.indexOfFirst { (x - it[0]) * width < handleRadius && (y - it[1]) * height < handleRadius && kotlin.math.abs(x - it[0]) * width < handleRadius && kotlin.math.abs(y - it[1]) * height < handleRadius } + 1
+                return dragCorner > 0
+            }
+            MotionEvent.ACTION_MOVE -> if (dragCorner > 0) {
+                val minSize = 0.22f
+                when (dragCorner) {
+                    1 -> { frameNormalized.left = x.coerceIn(0.02f, frameNormalized.right - minSize); frameNormalized.top = y.coerceIn(0.10f, frameNormalized.bottom - minSize) }
+                    2 -> { frameNormalized.right = x.coerceIn(frameNormalized.left + minSize, 0.98f); frameNormalized.top = y.coerceIn(0.10f, frameNormalized.bottom - minSize) }
+                    3 -> { frameNormalized.left = x.coerceIn(0.02f, frameNormalized.right - minSize); frameNormalized.bottom = y.coerceIn(frameNormalized.top + minSize, 0.90f) }
+                    4 -> { frameNormalized.right = x.coerceIn(frameNormalized.left + minSize, 0.98f); frameNormalized.bottom = y.coerceIn(frameNormalized.top + minSize, 0.90f) }
+                }
+                invalidate()
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragCorner > 0) { dragCorner = 0; return true }
+        }
+        return false
+    }
+}
+
+private fun cropTextBitmap(bitmap: android.graphics.Bitmap, normalized: RectF): android.graphics.Bitmap {
+    val left = (bitmap.width * normalized.left).toInt().coerceIn(0, bitmap.width - 1)
+    val top = (bitmap.height * normalized.top).toInt().coerceIn(0, bitmap.height - 1)
+    val right = (bitmap.width * normalized.right).toInt().coerceIn(left + 1, bitmap.width)
+    val bottom = (bitmap.height * normalized.bottom).toInt().coerceIn(top + 1, bitmap.height)
+    return runCatching { android.graphics.Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top) }.getOrDefault(bitmap)
 }
