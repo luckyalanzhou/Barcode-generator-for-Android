@@ -14,9 +14,10 @@ private const val INTERCHANGE_FORMAT = "BarcodeGeneratorInterchange"
 private const val INTERCHANGE_VERSION = 1
 private const val BACKUP_JSON_FILE = "barcode-generator-backup-android.json"
 private const val LEGACY_BACKUP_JSON_FILE = "barcode-generator-backup.json"
+private const val FAVORITES_DIRECTORY = "favorites"
 private const val MAX_BACKUP_INPUT_BYTES = 4 * 1024 * 1024
 private const val MAX_BACKUP_JSON_BYTES = 8 * 1024 * 1024
-private const val MAX_BACKUP_ZIP_ENTRIES = 16
+private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
 
 data class InterchangeFavorite(
     val id: String?,
@@ -61,12 +62,28 @@ object FavoritesTransferManager {
         val root = JSONObject().apply {
             put("format", INTERCHANGE_FORMAT); put("version", INTERCHANGE_VERSION); put("exportedAt", System.currentTimeMillis()); put("payload", payload); put("sha256", sha256(payload))
         }
-        val jsonBytes = root.toString().toByteArray(Charsets.UTF_8)
         resolver.openOutputStream(uri)?.use { output ->
             ZipOutputStream(output).use { zip ->
                 zip.putNextEntry(ZipEntry(BACKUP_JSON_FILE))
-                zip.write(jsonBytes)
+                zip.write(root.toString().toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
+                // 与 iOS 端保持一致：清单负责跨版本兼容，收藏本体按一级/二级目录逐文件保存。
+                val writtenDirectories = mutableSetOf<String>()
+                groups.forEach { group ->
+                    val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
+                    val types = groupItems.map { toTransferType(it.format) }.distinct()
+                    val parts = splitFolder(group.folder)
+                    val favorite = InterchangeFavorite(
+                        id = group.id.toString(), name = group.name, rootFolder = parts.first, subFolder = parts.second,
+                        type = types.firstOrNull() ?: "code128", time = group.savedAt, texts = groupItems.map { it.text }
+                    )
+                    val path = favoriteZipPath(favorite)
+                    val directory = path.substringBeforeLast('/')
+                    ensureZipDirectories(zip, directory, writtenDirectories)
+                    zip.putNextEntry(ZipEntry(path))
+                    zip.write(favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
+                    zip.closeEntry()
+                }
             }
         } ?: error("无法创建收藏备份文件")
     }
@@ -155,7 +172,25 @@ object FavoritesTransferManager {
     private fun splitFolder(folder: String): Pair<String, String> {
         val parts = folder.split('/').filter { it.isNotBlank() }
         require(parts.size <= 2) { "文件夹“$folder”超过两级，无法跨平台导出" }
+        parts.forEach { require(it != "." && it != ".." && !it.contains('\\')) { "文件夹“$folder”格式无效" } }
         return (parts.getOrNull(0) ?: "") to (parts.getOrNull(1) ?: "")
+    }
+    private fun favoriteJson(favorite: InterchangeFavorite) = JSONObject().apply {
+        put("id", favorite.id); put("name", favorite.name); put("rootFolder", favorite.rootFolder); put("subFolder", favorite.subFolder)
+        put("folder", favorite.folder); put("type", favorite.type); put("barcodeType", favorite.type); put("time", favorite.time); put("texts", JSONArray(favorite.texts))
+    }
+    internal fun favoriteZipPath(favorite: InterchangeFavorite): String {
+        val id = favorite.id?.takeIf { it.isNotBlank() } ?: error("收藏缺少文件标识")
+        return listOf(FAVORITES_DIRECTORY, favorite.rootFolder, favorite.subFolder, "$id.json")
+            .filter { it.isNotBlank() }
+            .joinToString("/")
+    }
+    private fun ensureZipDirectories(zip: ZipOutputStream, directory: String, written: MutableSet<String>) {
+        var path = ""
+        directory.split('/').filter { it.isNotBlank() }.forEach { part ->
+            path = if (path.isBlank()) part else "$path/$part"
+            if (written.add(path)) { zip.putNextEntry(ZipEntry("$path/")); zip.closeEntry() }
+        }
     }
     private fun toTransferType(format: String): String = when (format.trim().lowercase()) {
         "qr", "qr code" -> "qr"; "code128", "code 128-b" -> "code128"; "code39", "code 39" -> "code39"; "ean13", "ean-13" -> "ean13"; "ean8", "ean-8" -> "ean8"; "upca", "upc-a" -> "upca"; "itf14", "itf-14", "itf" -> "itf14"; "codabar" -> "codabar"; else -> error("不支持的条码格式：$format")

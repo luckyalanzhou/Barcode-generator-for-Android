@@ -6,6 +6,13 @@ import org.junit.Test
 
 class FavoritesTransferManagerTest {
     @Test
+    fun favoriteFileUsesPrimaryAndSecondaryFolderPath() {
+        val favorite = InterchangeFavorite("7", "收藏", "一级", "二级", "code128", 1L, listOf("123"))
+
+        assertEquals("favorites/一级/二级/7.json", FavoritesTransferManager.favoriteZipPath(favorite))
+    }
+
+    @Test
     fun emptyFavoriteGroupIsPreservedDuringImport() {
         val backup = InterchangeBackup(
             favorites = listOf(InterchangeFavorite(null, "95.7G203GC0E", "一级", "二级", "code128", 1L, emptyList())),
