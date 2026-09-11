@@ -967,7 +967,12 @@ internal fun MainActivity.showLanShare() {
             setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> view.animate().scaleX(0.96f).scaleY(0.96f).setDuration(80).start()
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> view.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
+                    MotionEvent.ACTION_UP -> {
+                        view.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
+                        view.performClick()
+                        return@setOnTouchListener true
+                    }
+                    MotionEvent.ACTION_CANCEL -> view.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
                 }
                 false
             }
@@ -1113,7 +1118,7 @@ internal fun MainActivity.openLanShareGallery() {
 }
 
 internal fun MainActivity.openLanShareGalleryPicker() {
-    startActivityForResult(Intent(Intent.ACTION_PICK).apply { type = "image/*"; data = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI; addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, MainActivity.REQUEST_LAN_SHARE_UPLOAD)
+    startActivityForResult(Intent(Intent.ACTION_PICK).apply { setDataAndType(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, MainActivity.REQUEST_LAN_SHARE_UPLOAD)
 }
 
 internal fun MainActivity.openLanShareFiles() {

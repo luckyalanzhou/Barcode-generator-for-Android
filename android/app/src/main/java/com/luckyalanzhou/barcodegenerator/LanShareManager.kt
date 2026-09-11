@@ -77,16 +77,16 @@ class LanShareManager(private val context: Context) {
         check(isOnLocalNetwork()) { "Error 当前不处于局域网" }
         stop()
         if (clearSharedFiles) clearFiles()
-        val ports = (18080..28080).filter { it != lastPort }.shuffled() + listOfNotNull(lastPort)
-        val running = ports.firstNotNullOfOrNull { port ->
-            runCatching { LanShareServer(port, folder, "").also { it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false) } }.getOrNull()
-        } ?: error("无法启动局域网分享服务")
-        server = running
-        lastPort = running.listeningPort
         val address = routerIpv4Addresses()
             .mapNotNull { it.address as? Inet4Address }
             .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
+        val ports = (18080..28080).filter { it != lastPort }.shuffled() + listOfNotNull(lastPort)
+        val running = ports.firstNotNullOfOrNull { port ->
+            runCatching { LanShareServer(port, folder).also { it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false) } }.getOrNull()
+        } ?: error("无法启动局域网分享服务")
+        server = running
+        lastPort = running.listeningPort
         return LanShareSession("http://$address:${running.listeningPort}")
     }
 
@@ -170,7 +170,7 @@ class LanShareManager(private val context: Context) {
         return try { val value = block(connection); if (connection.responseCode !in 200..299) error("连接失败：${connection.responseCode}"); value } finally { connection.disconnect() }
     }
 
-    private class LanShareServer(port: Int, private val folder: File, private val token: String) : NanoWSD(port) {
+    private class LanShareServer(port: Int, private val folder: File) : NanoWSD(port) {
         @Volatile private var lastBrowserRequestAt = 0L
         @Volatile private var fileVersion = 0L
         private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
