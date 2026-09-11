@@ -15,6 +15,7 @@ import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
@@ -60,7 +61,27 @@ internal fun MainActivity.showTextCaptureCamera() {
         setBackgroundColor(0x66000000)
         setPadding(dp(10), 0, dp(10), 0)
     }
-    root.addView(zoomLabel, FrameLayout.LayoutParams(dp(76), dp(42), Gravity.TOP or Gravity.END).apply {
+    val zoomOut = TextView(this).apply {
+        text = "−"
+        textSize = 22f
+        gravity = Gravity.CENTER
+        setTextColor(Color.WHITE)
+        setBackgroundColor(0x66000000)
+    }
+    val zoomIn = TextView(this).apply {
+        text = "+"
+        textSize = 22f
+        gravity = Gravity.CENTER
+        setTextColor(Color.WHITE)
+        setBackgroundColor(0x66000000)
+    }
+    val zoomControls = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        addView(zoomOut, LinearLayout.LayoutParams(dp(42), dp(42)))
+        addView(zoomLabel, LinearLayout.LayoutParams(dp(76), dp(42)).apply { setMargins(dp(2), 0, dp(2), 0) })
+        addView(zoomIn, LinearLayout.LayoutParams(dp(42), dp(42)))
+    }
+    root.addView(zoomControls, FrameLayout.LayoutParams(dp(164), dp(42), Gravity.TOP or Gravity.END).apply {
         topMargin = dp(12)
         rightMargin = dp(14)
     })
@@ -126,7 +147,9 @@ internal fun MainActivity.showTextCaptureCamera() {
                 camera.cameraControl.setZoomRatio(zoomRatio)
                 zoomLabel.text = String.format(Locale.US, "%.1f×", zoomRatio)
             }
-            zoomLabel.setOnClickListener { updateZoom(0.5f) }
+            zoomOut.setOnClickListener { updateZoom(-0.5f) }
+            zoomIn.setOnClickListener { updateZoom(0.5f) }
+            zoomLabel.setOnClickListener { camera.cameraControl.setZoomRatio(1f); zoomRatio = 1f; zoomLabel.text = "1.0×" }
             camera.cameraControl.startFocusAndMetering(
                 FocusMeteringAction.Builder(previewView.meteringPointFactory.createPoint(0.5f, 0.5f))
                     .setAutoCancelDuration(3, TimeUnit.SECONDS).build()
