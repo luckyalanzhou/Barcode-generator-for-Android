@@ -225,6 +225,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        DebugLog.initialize(applicationContext)
+        DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)
         lifecycleScope.launch {
@@ -243,6 +245,7 @@ class MainActivity : AppCompatActivity() {
                 // 保留默认内存状态，先让用户进入应用并看到可恢复的提示。
                 startupError = error
                 Log.e("BarcodeGenerator", "Startup data initialization failed", error)
+                DebugLog.record("startup", "data initialization failed", error)
             }
             try {
                 restoreLanShareAfterConfigurationChange()
@@ -260,6 +263,7 @@ class MainActivity : AppCompatActivity() {
             } catch (error: Exception) {
                 startupError = startupError ?: error
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
+                DebugLog.record("startup", "UI initialization failed", error)
             }
             if (!::rootLayout.isInitialized) {
                 setContentView(TextView(this@MainActivity).apply {

@@ -839,7 +839,16 @@ internal fun MainActivity.showSettings() {
                  toast("已恢复条码默认设置")
              }
          }), trailingWidth = -2))), bottom = 12)
-         // 整张“关于”卡片是一个安静的入口：在短时间内连点五次才打开彩蛋，日常浏览不会误触。
+          if (BuildConfig.DEBUG_LOG_EXPORT) {
+              addSpaced(groupCard(listOf(textRow("调试日志", styleButton(Button(activity).apply {
+                  text = "导出"
+                  minWidth = 0
+                  minimumWidth = 0
+                  setPadding(dp(12), dp(6), dp(12), dp(6))
+                  setOnClickListener { shareDebugLog() }
+              }), trailingWidth = -2))), bottom = 12)
+          }
+          // 整张“关于”卡片是一个安静的入口：在短时间内连点五次才打开彩蛋，日常浏览不会误触。
          var aboutTapCount = 0
          var lastAboutTapAt = 0L
          about.isClickable = true
