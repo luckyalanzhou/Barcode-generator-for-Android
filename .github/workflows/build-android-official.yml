@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: "正式版版本号，例如 1.0.7"
+        description: "正式版版本号，例如 1.0.0"
         required: true
         type: string
       version_code:
-        description: "正式版 versionCode，例如 8"
+        description: "正式版 versionCode，例如 1"
         required: true
         type: string
 
