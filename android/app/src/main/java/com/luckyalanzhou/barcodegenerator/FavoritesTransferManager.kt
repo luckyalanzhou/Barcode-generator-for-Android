@@ -5,6 +5,7 @@ import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -61,9 +62,7 @@ object FavoritesTransferManager {
                     val path = favoriteZipPath(favorite)
                     val directory = path.substringBeforeLast('/')
                     ensureZipDirectories(zip, directory, writtenDirectories)
-                    zip.putNextEntry(ZipEntry(path))
-                    zip.write(favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
-                    zip.closeEntry()
+                    writeStoredEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
                 }
             }
         } ?: error("无法创建收藏备份文件")
@@ -177,8 +176,25 @@ object FavoritesTransferManager {
         var path = ""
         directory.split('/').filter { it.isNotBlank() }.forEach { part ->
             path = if (path.isBlank()) part else "$path/$part"
-            if (written.add(path)) { zip.putNextEntry(ZipEntry("$path/")); zip.closeEntry() }
+            if (written.add(path)) writeStoredEntry(zip, "$path/", ByteArray(0))
         }
+    }
+
+    /**
+     * Write entries with known size/CRC instead of Android's data descriptor.
+     * Some iOS Files versions reject archives whose central-directory offset is
+     * produced with a data descriptor, although desktop ZIP tools may recover it.
+     */
+    private fun writeStoredEntry(zip: ZipOutputStream, path: String, bytes: ByteArray) {
+        val crc = CRC32().apply { update(bytes) }.value
+        zip.putNextEntry(ZipEntry(path).apply {
+            method = ZipEntry.STORED
+            size = bytes.size.toLong()
+            compressedSize = bytes.size.toLong()
+            this.crc = crc
+        })
+        zip.write(bytes)
+        zip.closeEntry()
     }
     private fun toTransferType(format: String): String = when (format.trim().lowercase()) {
         "qr", "qr code" -> "qr"; "code128", "code 128-b" -> "code128"; "code39", "code 39" -> "code39"; "ean13", "ean-13" -> "ean13"; "ean8", "ean-8" -> "ean8"; "upca", "upc-a" -> "upca"; "itf14", "itf-14", "itf" -> "itf14"; "codabar" -> "codabar"; else -> error("不支持的条码格式：$format")
