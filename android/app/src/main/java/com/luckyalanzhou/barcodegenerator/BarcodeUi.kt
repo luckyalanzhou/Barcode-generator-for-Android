@@ -1016,7 +1016,6 @@ internal fun MainActivity.showSettings() {
             background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
         }
         toolRows += textRow("局域网文件分享", toolActionButton("启动", buttonMinHeight = 40, horizontalPadding = 16) { enterLanShare() }, trailingWidth = dp(88))
-        toolRows += textRow("Compose 试用版", toolActionButton("打开", buttonMinHeight = 40, horizontalPadding = 16) { startActivity(Intent(activity, ComposePreviewActivity::class.java)) }, trailingWidth = dp(88))
         val versionLine = LinearLayout(this).apply {
              orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
              val info = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
