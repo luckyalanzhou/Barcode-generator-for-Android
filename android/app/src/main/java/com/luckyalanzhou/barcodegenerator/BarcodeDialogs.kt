@@ -488,7 +488,8 @@ internal fun MainActivity.prepareTextBitmap(bitmap: Bitmap, sourceFile: File?): 
 
 internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val activity = this
-        val enhanced = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val screenPrepared = prepareScreenOcrBitmap(bitmap)
+        val enhanced = screenPrepared.copy(Bitmap.Config.ARGB_8888, true)
         val matrix = ColorMatrix().apply { setSaturation(0f); val scale = 1.35f; val offset = -44.8f; set(floatArrayOf(scale, 0f, 0f, 0f, offset, 0f, scale, 0f, 0f, offset, 0f, 0f, scale, 0f, offset, 0f, 0f, 0f, 1f, 0f)) }
         Canvas(enhanced).drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) })
         val code128Mode = formats.getOrNull(formatSpinner.selectedItemPosition)?.second == BarcodeFormat.CODE_128
@@ -499,6 +500,7 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         }
         val primaryTask = recognizer.process(InputImage.fromBitmap(enhanced, 0))
         // 第二路保留较自然的灰度和笔画，专门用于处理 Code 128 中 O/0、I/1、S/5 的竞争结果。
+        // 第二路使用未模糊的原始裁剪图，保留细小字符、空格和行尾字符。
         val secondaryTask = recognizer.process(InputImage.fromBitmap(bitmap, 0))
         Tasks.whenAllSuccess<Text>(listOf(primaryTask, secondaryTask))
             .addOnSuccessListener { results ->
@@ -517,7 +519,11 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
                 }
             }
             .addOnFailureListener { toast("文字识别失败，请重试") }
-            .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
+            .addOnCompleteListener {
+                recognizer.close()
+                enhanced.recycle()
+                if (screenPrepared !== bitmap) screenPrepared.recycle()
+            }
     }
 
 /** Code 128 表格模式：保留 NA 以及编码内部的空格，只在明确的数字位置修正常见混淆字符。 */

@@ -227,7 +227,8 @@ internal fun MainActivity.showTextCaptureCamera() {
                             else {
                                 val prepared = prepareTextBitmap(bitmap, outputFile)
                                 val cropped = cropTextBitmap(prepared, guide.frameForBitmap(prepared.width.toFloat() / prepared.height.coerceAtLeast(1)))
-                                recognizeText(prepareScreenOcrBitmap(cropped))
+                                // 保留原始裁剪图交给第二路 OCR；屏幕去摩尔纹图只作为增强候选，避免小字被统一模糊掉。
+                                recognizeText(cropped)
                             }
                             outputFile.delete()
                         }
@@ -348,7 +349,7 @@ private fun cropTextBitmap(bitmap: android.graphics.Bitmap, normalized: RectF): 
  * 屏幕像素网格会制造高频摩尔纹。先适度降采样，再做一次高斯低通，
  * 让网格纹理变弱而不把表格文字锐化成更明显的伪影。
  */
-private fun prepareScreenOcrBitmap(bitmap: android.graphics.Bitmap): android.graphics.Bitmap {
+internal fun prepareScreenOcrBitmap(bitmap: android.graphics.Bitmap): android.graphics.Bitmap {
     var source = bitmap
     val longest = maxOf(source.width, source.height)
     if (longest > 1400) {
