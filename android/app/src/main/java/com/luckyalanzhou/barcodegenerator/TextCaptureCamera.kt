@@ -29,6 +29,9 @@ import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -108,12 +111,29 @@ internal fun MainActivity.showTextCaptureCamera() {
     dialog.setOnDismissListener { previewView.controller = null }
     dialog.show()
     dialog.window?.apply {
+        WindowCompat.setDecorFitsSystemWindows(this, false)
         setBackgroundDrawableResource(android.R.color.black)
         setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
         addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        statusBarColor = Color.BLACK
-        navigationBarColor = Color.BLACK
+        statusBarColor = Color.TRANSPARENT
+        navigationBarColor = Color.TRANSPARENT
+        decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
     }
+    ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+        title.setPadding(dp(20), dp(18) + bars.top, dp(20), dp(10))
+        (controls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+            params.bottomMargin = dp(12) + bars.bottom
+            controls.layoutParams = params
+        }
+        (zoomButton.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+            params.bottomMargin = dp(132) + bars.bottom
+            zoomButton.layoutParams = params
+        }
+        insets
+    }
+    ViewCompat.requestApplyInsets(root)
 
     val outputFile = File.createTempFile("barcode_text_capture_", ".jpg", cacheDir)
     val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
