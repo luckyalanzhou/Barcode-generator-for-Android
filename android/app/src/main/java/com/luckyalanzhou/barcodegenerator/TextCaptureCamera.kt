@@ -55,53 +55,24 @@ internal fun MainActivity.showTextCaptureCamera() {
     }
     root.addView(title, FrameLayout.LayoutParams(-1, dp(58), Gravity.TOP))
 
-    val currentZoomLabel = TextView(this).apply {
-        text = "当前 1.0×"
-        textSize = 14f
+    val zoomPresets = listOf(1f, 2f, 3f)
+    val zoomButton = TextView(this).apply {
+        text = "1×"
+        textSize = 15f
         gravity = Gravity.CENTER
         setTextColor(Color.WHITE)
         setShadowLayer(5f, 0f, 1f, Color.BLACK)
-        setPadding(dp(8), 0, dp(8), dp(4))
+        isClickable = true
     }
-    val zoomPresets = listOf(1f, 2f, 3f)
-    val zoomButtons = mutableListOf<TextView>()
-    fun zoomChip(selected: Boolean) = android.graphics.drawable.GradientDrawable().apply {
+    fun zoomChip() = android.graphics.drawable.GradientDrawable().apply {
         shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-        cornerRadius = dp(16).toFloat()
-        setColor(if (selected) 0xff0a84ff.toInt() else 0x66000000)
-        setStroke(dp(1), if (selected) 0x99FFFFFF.toInt() else 0x66FFFFFF)
+        cornerRadius = dp(20).toFloat()
+        setColor(0x99000000.toInt())
+        setStroke(dp(1), 0x99FFFFFF.toInt())
     }
-    val zoomPresetRow = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER
-        setPadding(dp(3), dp(3), dp(3), dp(3))
-        background = android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-            cornerRadius = dp(20).toFloat()
-            setColor(0x66000000)
-        }
-        zoomPresets.forEachIndexed { index, preset ->
-            val button = TextView(this@showTextCaptureCamera).apply {
-                text = "${preset.toInt()}×"
-                textSize = 14f
-                gravity = Gravity.CENTER
-                setTextColor(Color.WHITE)
-                background = zoomChip(index == 0)
-                isClickable = true
-            }
-            zoomButtons += button
-            addView(button, LinearLayout.LayoutParams(dp(48), dp(34)).apply { if (index > 0) setMargins(dp(3), 0, 0, 0) })
-        }
-    }
-    val zoomPanel = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        addView(currentZoomLabel, LinearLayout.LayoutParams(-1, dp(24)))
-        addView(zoomPresetRow, LinearLayout.LayoutParams(-2, dp(40)))
-    }
-    root.addView(zoomPanel, FrameLayout.LayoutParams(dp(164), dp(70), Gravity.TOP or Gravity.END).apply {
-        topMargin = dp(12)
-        rightMargin = dp(14)
+    zoomButton.background = zoomChip()
+    root.addView(zoomButton, FrameLayout.LayoutParams(dp(72), dp(42), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+        bottomMargin = dp(120)
     })
 
     val controls = FrameLayout(this).apply {
@@ -170,10 +141,10 @@ internal fun MainActivity.showTextCaptureCamera() {
             )
             var zoomRatio = initialZoomRatio
             fun renderZoom(value: Float) {
-                currentZoomLabel.text = String.format(Locale.US, "当前 %.1f×", value)
-                zoomButtons.forEachIndexed { index, button ->
-                    val selected = kotlin.math.abs(value - zoomPresets[index]) < 0.05f
-                    button.background = zoomChip(selected)
+                zoomButton.text = if (kotlin.math.abs(value - value.toInt()) < 0.05f) {
+                    String.format(Locale.US, "%.0f×", value)
+                } else {
+                    String.format(Locale.US, "%.1f×", value)
                 }
             }
             fun updateZoom(delta: Float) {
@@ -182,13 +153,13 @@ internal fun MainActivity.showTextCaptureCamera() {
                 camera.cameraControl.setZoomRatio(zoomRatio)
                 renderZoom(zoomRatio)
             }
-            zoomButtons.forEachIndexed { index, button ->
-                button.setOnClickListener {
-                    val state = camera.cameraInfo.zoomState.value ?: return@setOnClickListener
-                    zoomRatio = zoomPresets[index].coerceIn(state.minZoomRatio, state.maxZoomRatio)
-                    camera.cameraControl.setZoomRatio(zoomRatio)
-                    renderZoom(zoomRatio)
-                }
+            var zoomPresetIndex = 0
+            zoomButton.setOnClickListener {
+                val state = camera.cameraInfo.zoomState.value ?: return@setOnClickListener
+                zoomPresetIndex = (zoomPresetIndex + 1) % zoomPresets.size
+                zoomRatio = zoomPresets[zoomPresetIndex].coerceIn(state.minZoomRatio, state.maxZoomRatio)
+                camera.cameraControl.setZoomRatio(zoomRatio)
+                renderZoom(zoomRatio)
             }
             // 每次重新进入拍照页都把实际相机焦段明确设回初始值，避免复用旧 ZoomState 导致
             // 界面显示 3×、镜头实际仍是 1×。界面只跟随 CameraX 回报的实际值更新。
