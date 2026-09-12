@@ -352,7 +352,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
                 when (pendingCameraRequest) {
                     REQUEST_LAN_SHARE_CAPTURE -> openLanShareCamera()
-                    REQUEST_TEXT_CAMERA -> showTextCaptureCamera()
+                    REQUEST_TEXT_CAMERA -> launchCamera(REQUEST_TEXT_CAMERA)
                     else -> launchCamera(pendingCameraRequest)
                 }
             } else {
