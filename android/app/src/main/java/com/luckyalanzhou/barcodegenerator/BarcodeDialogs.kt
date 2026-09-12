@@ -528,9 +528,9 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
 
 /** Code 128 表格模式：保留 OCR 原始字符、NA 以及编码内部的空格，不擅自替换混淆字符。 */
 private fun normalizeCode128Table(text: String): String = text.lineSequence()
-    .map { it.trim().uppercase(Locale.ROOT) }
+    .map { it.trim() }
     .filter { line ->
-        line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it == ' ' || it in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-" })
+        line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it == ' ' || it.isLetter() || it == '.' || it == '-' })
     }
     .joinToString("\n")
 
