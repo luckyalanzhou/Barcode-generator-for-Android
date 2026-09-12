@@ -513,11 +513,19 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
                 recognizer.process(InputImage.fromBitmap(rowSources[index], 0))
             )
         }
-        Tasks.whenAllSuccess<Text>(tasks)
-            .addOnSuccessListener { results ->
-                val merged = (results.indices step 2)
-                    .map { index -> mergeOcrCandidates(results[index], results[index + 1]) }
-                    .joinToString("\n")
+        // 某一行或某一路 OCR 失败时仍保留其它成功行，不能让单个失败任务导致整张表失败。
+        Tasks.whenAllComplete(tasks)
+            .addOnSuccessListener { completed ->
+                val merged = (rowSources.indices).mapNotNull { rowIndex ->
+                    val primary = completed.getOrNull(rowIndex * 2)?.result as? Text
+                    val secondary = completed.getOrNull(rowIndex * 2 + 1)?.result as? Text
+                    when {
+                        primary != null && secondary != null -> mergeOcrCandidates(primary, secondary)
+                        primary != null -> primary.text
+                        secondary != null -> secondary.text
+                        else -> null
+                    }
+                }.joinToString("\n")
                 val selectedFormat = formats.getOrNull(formatSpinner.selectedItemPosition)?.second
                 val text = when {
                     code128Mode -> normalizeCode128Table(merged)
