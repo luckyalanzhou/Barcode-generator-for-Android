@@ -270,7 +270,7 @@ class MainActivity : AppCompatActivity() {
                     text = "应用初始化失败，请重新打开应用"
                     textSize = 17f
                     setTextColor(Color.WHITE)
-                    setBackgroundColor(0xff10131b.toInt())
+                    setBackgroundColor(appBackground())
                     setPadding(dp(24), dp(24), dp(24), dp(24))
                 })
                 return@launch
