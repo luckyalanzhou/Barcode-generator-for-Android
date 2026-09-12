@@ -543,9 +543,17 @@ private fun normalizeCode128Line(raw: String): String {
     val chars = line.toCharArray()
     // 表格编码的点号前通常是纯数字字段；只在该字段内做 O/0、I/1、S/5、B/8 等纠错。
     for (index in 0 until dot) chars[index] = code128Digit(chars[index])
-    // 点号后的第一位仍是数字字段，后续字符可能是真实字母，因此不扩大替换范围。
+    // 点号后的第一位仍是数字字段。
     val firstAfterDot = dot + 1
     if (firstAfterDot < chars.size) chars[firstAfterDot] = code128Digit(chars[firstAfterDot])
+    // 混合字段中的 O/0、I/1 等容易互相误识别；只有当混淆字符紧邻数字时才纠正，
+    // 例如 PO09 -> P009、LGO0G -> LG00G，避免无条件替换真正的字母 O。
+    for (index in firstAfterDot + 1 until chars.size) {
+        val value = chars[index]
+        val adjacentToDigit = (index > firstAfterDot && chars[index - 1].isDigit()) ||
+            (index + 1 < chars.size && chars[index + 1].isDigit())
+        if (adjacentToDigit) chars[index] = code128Digit(value)
+    }
     return String(chars)
 }
 
