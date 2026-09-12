@@ -15,3 +15,6 @@ android/local.properties
 *.aab
 *.jks
 *.keystore
+
+# Local-only build helper; never commit or push it
+android/local-build.ps1
