@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,8 +9,30 @@ plugins {
 android {
     namespace = "com.luckyalanzhou.barcodegenerator"
     compileSdk = 35
-    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: 6
-    val buildVersionName = providers.gradleProperty("versionName").orNull ?: "1.0.5"
+    // 本地构建可通过 LOCAL_AUTO_VERSION=true 启用独立版本计数器。
+    // 计数文件在 D 盘，GitHub Actions 不设置该变量，因此不会影响远程版本号。
+    val localAutoVersionEnabled = System.getenv("LOCAL_AUTO_VERSION") == "true"
+    val localVersionFilePath = System.getenv("LOCAL_VERSION_FILE")
+    val localBuildTask = gradle.startParameter.taskNames.any { task ->
+        task.contains("assemble", ignoreCase = true) || task.contains("bundle", ignoreCase = true)
+    }
+    val localVersionCode = if (localAutoVersionEnabled && localBuildTask && !providers.gradleProperty("versionCode").isPresent) {
+        val versionFile = localVersionFilePath?.let { path -> File(path) }
+        if (versionFile != null) {
+            val fallback = System.getenv("LOCAL_VERSION_BASE")?.toIntOrNull() ?: 33
+            val current = versionFile.takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: fallback
+            val next = current + 1
+            versionFile.parentFile?.mkdirs()
+            versionFile.writeText(next.toString())
+            next
+        } else {
+            null
+        }
+    } else {
+        null
+    }
+    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: localVersionCode ?: 6
+    val buildVersionName = providers.gradleProperty("versionName").orNull ?: localVersionCode?.let { "1.0.${it}-local" } ?: "1.0.5"
 
     defaultConfig {
         applicationId = "com.luckyalanzhou.barcodegenerator"
@@ -16,8 +40,8 @@ android {
         targetSdk = 35
         versionCode = 11
         versionName = "1.0.10"
-        if (providers.gradleProperty("versionCode").isPresent) versionCode = buildVersionCode
-        if (providers.gradleProperty("versionName").isPresent) versionName = buildVersionName
+        if (providers.gradleProperty("versionCode").isPresent || localVersionCode != null) versionCode = buildVersionCode
+        if (providers.gradleProperty("versionName").isPresent || localVersionCode != null) versionName = buildVersionName
     }
 
     flavorDimensions += "channel"
