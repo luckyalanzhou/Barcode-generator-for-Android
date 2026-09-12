@@ -135,6 +135,8 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
     val status = TextView(this).apply { text = "准备下载…"; textSize = 14f; setTextColor(secondaryText()); setPadding(0, dp(10), 0, 0) }
     val dialog = AlertDialog.Builder(this).create()
+    var job: kotlinx.coroutines.Job? = null
+    val cancelButton = updateActionButton("取消下载") { job?.cancel(); dialog.dismiss() }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(22), dp(22), dp(22), dp(16))
@@ -144,12 +146,10 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         addView(updateDivider(), LinearLayout.LayoutParams(-1, dp(1)))
         addView(LinearLayout(this@downloadAndInstall).apply {
             gravity = Gravity.CENTER
-            addView(updateActionButton("取消下载") { }, LinearLayout.LayoutParams(-2, dp(38)))
+            addView(cancelButton, LinearLayout.LayoutParams(-2, dp(38)))
         }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(16) })
     }
     dialog.setView(box)
-    var job: kotlinx.coroutines.Job? = null
-    dialog.setOnShowListener { (box.getChildAt(box.childCount - 1) as Button).setOnClickListener { job?.cancel(); dialog.dismiss() } }
     showIos26Dialog(dialog)
     job = lifecycleScope.launch(Dispatchers.IO) {
         val temp = File(cacheDir, "barcode-generator-update.apk.part")
