@@ -153,7 +153,7 @@ internal fun MainActivity.showTextCaptureCamera() {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
             val captureBuilder = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .setTargetRotation(previewView.display?.rotation ?: Surface.ROTATION_0)
                 .setFlashMode(ImageCapture.FLASH_MODE_OFF)
             Camera2Interop.Extender(captureBuilder).apply {
