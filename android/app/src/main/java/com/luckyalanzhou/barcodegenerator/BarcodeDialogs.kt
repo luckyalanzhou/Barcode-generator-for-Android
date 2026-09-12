@@ -520,11 +520,11 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
 
-/** Code 128 表格模式：保留 NA 这类表格内容，清掉 OCR 在同一编码中误插入的空格，只保留像编码的行。 */
+/** Code 128 表格模式：保留 NA 以及编码内部的空格，只清理行首尾空白。 */
 private fun normalizeCode128Table(text: String): String = text.lineSequence()
-    .map { it.trim().replace(Regex("\\s+"), "").uppercase(Locale.ROOT) }
+    .map { it.trim().uppercase(Locale.ROOT) }
     .filter { line ->
-        line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-" })
+        line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it == ' ' || it in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-" })
     }
     .joinToString("\n")
 
