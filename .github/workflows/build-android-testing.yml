@@ -22,15 +22,15 @@ jobs:
         shell: bash
     env:
       GRADLE_OPTS: >-
-        -Dorg.gradle.jvmargs=-Xmx4g
+        -Dorg.gradle.jvmargs=-Xmx6g -XX:+UseParallelGC
         -Dfile.encoding=UTF-8
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
         -Dorg.gradle.configuration-cache=true
-        -Dorg.gradle.vfs.watch=true
+        -Dorg.gradle.vfs.watch=false
         -Dkotlin.incremental=true
-        -Dkapt.incremental.apt=true
-        -Dkapt.include.compile.classpath=false
+        -Dksp.incremental=true
+        -Dkotlin.compiler.plugins.strongSkipping=true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -95,7 +95,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}" --build-cache --parallel --max-workers=4
+        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
