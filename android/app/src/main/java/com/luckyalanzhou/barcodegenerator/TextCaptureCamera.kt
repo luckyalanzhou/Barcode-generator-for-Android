@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.app.Dialog
+import android.hardware.camera2.CaptureRequest
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -22,6 +23,7 @@ import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
@@ -129,14 +131,20 @@ internal fun MainActivity.showTextCaptureCamera() {
     cameraProviderFuture.addListener({
         runCatching {
             val provider = cameraProviderFuture.get()
-            val preview = Preview.Builder().setTargetAspectRatio(androidx.camera.core.AspectRatio.RATIO_4_3).build().also {
+            val previewBuilder = Preview.Builder().setTargetAspectRatio(androidx.camera.core.AspectRatio.RATIO_4_3)
+            Camera2Interop.Extender(previewBuilder).setCaptureRequestOption(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_AUTO)
+            val preview = previewBuilder.build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
-            val capture = ImageCapture.Builder()
+            val captureBuilder = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 .setTargetRotation(previewView.display?.rotation ?: Surface.ROTATION_0)
                 .setFlashMode(ImageCapture.FLASH_MODE_OFF)
-                .build()
+            Camera2Interop.Extender(captureBuilder).apply {
+                setCaptureRequestOption(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_AUTO)
+                setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+            }
+            val capture = captureBuilder.build()
             provider.unbindAll()
             val camera = provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
             val zoomState = camera.cameraInfo.zoomState.value
@@ -301,38 +309,38 @@ private fun cropTextBitmap(bitmap: android.graphics.Bitmap, normalized: RectF): 
 }
 
 /**
- * 屏幕像素网格会制造高频摩尔纹。先适度降采样，再做一次保边低通，
+ * 屏幕像素网格会制造高频摩尔纹。先适度降采样，再做一次高斯低通，
  * 让网格纹理变弱而不把表格文字锐化成更明显的伪影。
  */
 private fun prepareScreenOcrBitmap(bitmap: android.graphics.Bitmap): android.graphics.Bitmap {
     var source = bitmap
     val longest = maxOf(source.width, source.height)
-    if (longest > 1800) {
-        val scale = 1800f / longest.toFloat()
+    if (longest > 1400) {
+        val scale = 1400f / longest.toFloat()
         source = android.graphics.Bitmap.createScaledBitmap(source, (source.width * scale).toInt().coerceAtLeast(1), (source.height * scale).toInt().coerceAtLeast(1), true)
     }
-    if (source.width < 900 || source.height < 600) return source
+    if (source.width < 700 || source.height < 500) return source
     val width = source.width
     val height = source.height
     val input = IntArray(width * height)
     val output = IntArray(width * height)
     source.getPixels(input, 0, width, 0, 0, width, height)
-    for (y in 1 until height - 1) {
-        for (x in 1 until width - 1) {
+    val kernel = intArrayOf(1, 4, 6, 4, 1)
+    for (y in 2 until height - 2) {
+        for (x in 2 until width - 2) {
             var red = 0
             var green = 0
             var blue = 0
-            for (dy in -1..1) for (dx in -1..1) {
-                val weight = if (dx == 0 && dy == 0) 4 else if (dx == 0 || dy == 0) 2 else 1
+            for (dy in -2..2) for (dx in -2..2) {
+                val weight = kernel[dx + 2] * kernel[dy + 2]
                 val color = input[(y + dy) * width + x + dx]
                 red += android.graphics.Color.red(color) * weight
                 green += android.graphics.Color.green(color) * weight
                 blue += android.graphics.Color.blue(color) * weight
             }
-            output[y * width + x] = android.graphics.Color.rgb(red / 16, green / 16, blue / 16)
+            output[y * width + x] = android.graphics.Color.rgb(red / 256, green / 256, blue / 256)
         }
     }
-    for (x in 0 until width) { output[x] = input[x]; output[(height - 1) * width + x] = input[(height - 1) * width + x] }
-    for (y in 0 until height) { output[y * width] = input[y * width]; output[y * width + width - 1] = input[y * width + width - 1] }
+    for (y in 0 until height) for (x in 0 until width) if (x < 2 || y < 2 || x >= width - 2 || y >= height - 2) output[y * width + x] = input[y * width + x]
     return android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888).also { it.setPixels(output, 0, width, 0, 0, width, height) }
 }
