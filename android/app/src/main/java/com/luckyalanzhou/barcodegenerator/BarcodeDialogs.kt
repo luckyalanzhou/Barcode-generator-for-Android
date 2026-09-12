@@ -82,6 +82,7 @@ private fun MainActivity.updateActionButton(label: String, primary: Boolean = fa
         text = label
         textSize = 14f
         minWidth = 0; minimumWidth = 0
+        minHeight = 0; minimumHeight = 0
         isAllCaps = false
         setPadding(dp(6), 0, dp(6), 0)
         setTextColor(if (primary) Color.WHITE else primaryText())
@@ -118,10 +119,10 @@ private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: 
         addView(LinearLayout(this@showUpdateAvailableDialog).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
-            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { rightMargin = dp(6) })
-            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
-            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { leftMargin = dp(6) })
-        }, LinearLayout.LayoutParams(-1, dp(58)))
+            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(4) })
+            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4); rightMargin = dp(4) })
+            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4) })
+        }, LinearLayout.LayoutParams(-1, dp(54)))
     }
     dialog.setView(box)
     dialog.setOnCancelListener { updateDialogShowing = false }
@@ -141,7 +142,10 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(14) })
         addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
         addView(updateDivider(), LinearLayout.LayoutParams(-1, dp(1)))
-        addView(updateActionButton("取消下载") { }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(16) })
+        addView(LinearLayout(this@downloadAndInstall).apply {
+            gravity = Gravity.CENTER
+            addView(updateActionButton("取消下载") { }, LinearLayout.LayoutParams(-2, dp(38)))
+        }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(16) })
     }
     dialog.setView(box)
     var job: kotlinx.coroutines.Job? = null
