@@ -87,8 +87,8 @@ internal fun MainActivity.updateTopTabSelection() {
         // 选中项自身抬升，玻璃表面在图文下方绘制，不会遮挡图标或文字。
         tab.setBackgroundResource(if (isSelected && !tabGlassDragActive) R.drawable.bg_tab_selected else R.drawable.bg_tab)
         // 保持很轻的悬浮距离，避免变成厚重的实体按钮。
-        tab.elevation = if (isSelected && !tabGlassDragActive) dp(3).toFloat() else 0f
-        tab.translationZ = if (isSelected && !tabGlassDragActive) dp(1).toFloat() else 0f
+        tab.elevation = if (isSelected && !tabGlassDragActive) dp(1).toFloat() else 0f
+        tab.translationZ = 0f
         if (isSelected && !tabGlassDragActive) {
             // 激活背景轻微压缩后拉伸，模拟果冻吸附到当前 Tab 的回弹。
             tab.animate().cancel()
@@ -173,7 +173,7 @@ internal fun MainActivity.styleButton(button: Button, primary: Boolean = false) 
         setPadding(dp(8), dp(6), dp(8), dp(6))
         setTextColor(if (primary) Color.WHITE else if (isDark()) 0xffd7e3f5.toInt() else 0xff2453a6.toInt())
         stateListAnimator = null
-        elevation = dp(1).toFloat()
+        elevation = 0f
         // 所有通用按钮共享轻微压下与回弹，模拟玻璃受触时的柔软反馈。
         setOnTouchListener { view, event ->
             when (event.actionMasked) {
@@ -206,7 +206,7 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
         setColor(if (isDark()) 0xff1c1c1e.toInt() else 0xffffffff.toInt())
         setStroke(dp(1), if (isDark()) 0xff3a3a3c.toInt() else 0xffd8d8dc.toInt())
     })
-    dialog.window?.decorView?.elevation = dp(14).toFloat()
+    dialog.window?.decorView?.elevation = dp(6).toFloat()
     val actionColor = if (isDark()) 0xffa9c4ff.toInt() else 0xff2166d1.toInt()
     val dialogTitleId = resources.getIdentifier("alertTitle", "id", "android")
     dialog.findViewById<TextView>(dialogTitleId)?.apply {
@@ -278,7 +278,7 @@ internal fun MainActivity.contentCard(): LinearLayout = LinearLayout(this).apply
         setPadding(dp(14), dp(10), dp(14), dp(10))
         // 所有页面卡片统一使用动态液态玻璃，避免设置页仍显示固定浅色卡片。
         background = liquidGlassCard()
-        elevation = 0.5f * resources.displayMetrics.density
+        elevation = 0f
         clipToOutline = true
 }
 
@@ -399,7 +399,7 @@ internal fun MainActivity.buildShell() {
                 tab.scaleX = 1f + 0.075f * lensStrength
                 tab.scaleY = 1f + 0.075f * lensStrength
                 tab.translationY = -dp(1).toFloat() * lensStrength
-                tab.elevation = dp(5).toFloat() * lensStrength
+                tab.elevation = dp(2).toFloat() * lensStrength
             }
         }
         fun clearTabGlassMagnification(animated: Boolean) {
@@ -696,7 +696,7 @@ internal fun MainActivity.showMaterialDropdown(
         isOutsideTouchable = true
         isFocusable = true
         isClippingEnabled = true
-        elevation = dp(10).toFloat()
+        elevation = dp(6).toFloat()
     }
     if (forceBelowAnchor) {
         // 弹窗内的 View 使用屏幕坐标会产生偏差；由系统直接相对控件定位，确保紧贴“选择文件夹”项的下边缘。
@@ -787,7 +787,7 @@ internal fun MainActivity.showMaterialMultiDropdown(
         isOutsideTouchable = true
         isFocusable = true
         isClippingEnabled = true
-        elevation = dp(10).toFloat()
+        elevation = dp(6).toFloat()
     }
     popup.showAsDropDown(anchor, left - location[0], dp(6))
     menu.alpha = 0f
@@ -977,7 +977,7 @@ internal fun MainActivity.showSettings() {
         }
         fun groupCard(rows: List<View>): LinearLayout = contentCard().apply {
              orientation = LinearLayout.VERTICAL
-             elevation = 0.5f * resources.displayMetrics.density
+             elevation = 0f
              setPadding(dp(8), dp(4), dp(8), dp(4))
              rows.forEachIndexed { index, row ->
                  addView(row, LinearLayout.LayoutParams(-1, dp(48)))
@@ -1187,7 +1187,7 @@ internal fun MainActivity.showLanShare() {
     }
     content.addView(LinearLayout(this).apply {
         isClickable = true; isFocusable = true; setOnClickListener { toggleQr() }
-        gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = liquidGlassCard(); elevation = dp(3).toFloat(); clipToOutline = true
+        gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = liquidGlassCard(); elevation = dp(1).toFloat(); clipToOutline = true
         addView(Space(this@showLanShare), LinearLayout.LayoutParams(dp(64), dp(64)))
         addView(TextView(this@showLanShare).apply { text = "文件传输"; textSize = 20f; gravity = Gravity.CENTER; setTypeface(null, Typeface.BOLD); setTextColor(shareTitle) }, LinearLayout.LayoutParams(0, dp(64), 1f))
         addView(ImageButton(this@showLanShare).apply {
@@ -1195,7 +1195,7 @@ internal fun MainActivity.showLanShare() {
             imageTintList = ColorStateList.valueOf(if (isDark()) 0xff8fc1ff.toInt() else 0xff0a84ff.toInt())
             // 保留 60dp 点击区域，收紧可见外框和图标比例，二维码图形更清晰。
             background = glassButtonBackground().apply { cornerRadius = dp(16).toFloat() }
-            elevation = dp(2).toFloat(); clipToOutline = true
+            elevation = dp(1).toFloat(); clipToOutline = true
             isClickable = true; isFocusable = true; contentDescription = "显示二维码"
             // 60dp 的玻璃外框避免深色模式下被标题卡片边缘和阴影裁切；标题整块仍可点击。
             minimumWidth = dp(60); minimumHeight = dp(60)
@@ -1270,7 +1270,7 @@ private fun MainActivity.renderLanShareFileList(list: LinearLayout) {
         val imageFile = (lanShareManager.localFile(file.id) ?: lanSharePreviewFiles[file.id])?.takeIf { isLanShareImageName(file.name) }
         list.addView(LinearLayout(this).apply { tag = file.id
             gravity = if (mine) Gravity.END else Gravity.START; setPadding(0, dp(4), 0, dp(4))
-            val bubble = LinearLayout(this@renderLanShareFileList).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = 0.5f * resources.displayMetrics.density; clipToOutline = true
+            val bubble = LinearLayout(this@renderLanShareFileList).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = 0f; clipToOutline = true
                 if (imageFile == null) addView(ImageView(this@renderLanShareFileList).apply { setImageResource(R.drawable.ic_attachment); setColorFilter(if (mine) Color.WHITE else if (isDark()) 0xffd0d6e4.toInt() else 0xff52627a.toInt()); contentDescription = "文件附件" }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(10) })
                 val details = LinearLayout(this@renderLanShareFileList).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, 0, dp(6), 0) }
                 imageFile?.let { source -> decodeLanSharePreview(source)?.let { bitmap ->
@@ -1385,7 +1385,7 @@ private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Stri
         orientation = LinearLayout.VERTICAL
         setPadding(dp(7), dp(7), dp(7), dp(7))
         background = liquidGlassCard()
-        elevation = dp(12).toFloat()
+         elevation = dp(6).toFloat()
         options.forEach { (label, action) ->
             addView(TextView(this@showLanSharePopup).apply { text = label; textSize = 15f; gravity = Gravity.CENTER; setTextColor(primaryText()); setBackgroundColor(Color.TRANSPARENT); isClickable = true; setOnClickListener { action(); popup.dismiss() } }, LinearLayout.LayoutParams(dp(114), dp(36)).apply { setMargins(0, dp(1), 0, dp(1)) })
             if (label != options.last().first) addView(View(this@showLanSharePopup).apply { setBackgroundColor(if (isDark()) 0x33ffffff else 0x33475b7a) }, LinearLayout.LayoutParams(dp(102), dp(1)).apply { setMargins(dp(6), 0, dp(6), 0) })
@@ -1394,7 +1394,7 @@ private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Stri
     popup = PopupWindow(panel, popupWidth, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         isOutsideTouchable = true
-        elevation = dp(12).toFloat()
+         elevation = dp(6).toFloat()
     }
     panel.measure(View.MeasureSpec.makeMeasureSpec(popupWidth, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
     val location = IntArray(2); anchor.getLocationOnScreen(location)
