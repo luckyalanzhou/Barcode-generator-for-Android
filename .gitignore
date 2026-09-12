@@ -1,0 +1,17 @@
+# Android/Gradle local build output and caches
+.gradle/
+android/.gradle/
+android/.gradle-local/
+android/build/
+android/app/build/
+android/local.properties
+
+# Local IDE files
+.idea/
+*.iml
+
+# Local packages and signing material
+*.apk
+*.aab
+*.jks
+*.keystore
