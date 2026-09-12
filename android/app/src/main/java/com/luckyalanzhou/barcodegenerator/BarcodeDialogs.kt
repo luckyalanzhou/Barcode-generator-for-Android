@@ -520,7 +520,7 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
 
-/** Code 128 表格模式：忽略空值 NA，清掉 OCR 在同一编码中误插入的空格，只保留像编码的行。 */
+/** Code 128 表格模式：保留 NA 这类表格内容，清掉 OCR 在同一编码中误插入的空格，只保留像编码的行。 */
 private fun normalizeCode128Table(text: String): String = text.lineSequence()
     .map { it.trim().replace(Regex("\\s+"), "").uppercase(Locale.ROOT) }
     .filter { line ->
