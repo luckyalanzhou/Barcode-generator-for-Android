@@ -531,7 +531,42 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
                     val normalizedRows = rowTexts.map { normalizeCode128Table(it).trim() }
                     val failedRow = normalizedRows.indexOfFirst { it.isEmpty() }
                     if (failedRow >= 0) {
-                        toast("第 ${failedRow + 1} 行识别失败，请完整拍摄后重试")
+                        val rows = normalizedRows.toMutableList()
+                        fun requestManualRow() {
+                            val rowIndex = rows.indexOfFirst { it.isEmpty() }
+                            if (rowIndex < 0) {
+                                importRecognizedText(rows.joinToString("\n"))
+                                toast("已补充识别失败的行，并按行添加到输入框")
+                                return
+                            }
+                            val input = activity.inputField("条码内容", rowTexts[rowIndex].trim())
+                            val container = LinearLayout(activity).apply {
+                                orientation = LinearLayout.VERTICAL
+                                setPadding(activity.dp(24), activity.dp(4), activity.dp(24), 0)
+                                addView(input, LinearLayout.LayoutParams(-1, activity.dp(52)))
+                            }
+                            val dialog = AlertDialog.Builder(activity)
+                                .setTitle("第 ${rowIndex + 1} 行识别失败")
+                                .setMessage("请手动核对并输入这一行，确认后才会导入整张表。")
+                                .setView(container)
+                                .setNegativeButton("取消", null)
+                                .setPositiveButton("确认", null)
+                                .create()
+                            dialog.setOnShowListener {
+                                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                                    val value = normalizeCode128Table(input.text.toString()).trim()
+                                    if (value.isEmpty()) {
+                                        input.error = "请输入有效的条码内容"
+                                    } else {
+                                        rows[rowIndex] = value
+                                        dialog.dismiss()
+                                        requestManualRow()
+                                    }
+                                }
+                            }
+                            showIos26Dialog(dialog)
+                        }
+                        requestManualRow()
                         return@addOnSuccessListener
                     }
                     normalizedRows.joinToString("\n")
