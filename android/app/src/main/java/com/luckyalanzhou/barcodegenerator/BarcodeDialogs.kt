@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import com.google.mlkit.vision.text.Text
 import com.google.android.gms.tasks.Tasks
@@ -490,7 +491,12 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val enhanced = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         val matrix = ColorMatrix().apply { setSaturation(0f); val scale = 1.35f; val offset = -44.8f; set(floatArrayOf(scale, 0f, 0f, 0f, offset, 0f, scale, 0f, 0f, offset, 0f, 0f, scale, 0f, offset, 0f, 0f, 0f, 1f, 0f)) }
         Canvas(enhanced).drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) })
-        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+        val code128Mode = formats.getOrNull(formatSpinner.selectedItemPosition)?.second == BarcodeFormat.CODE_128
+        val recognizer = if (code128Mode) {
+            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        } else {
+            TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+        }
         val primaryTask = recognizer.process(InputImage.fromBitmap(enhanced, 0))
         // 第二路保留较自然的灰度和笔画，专门用于处理 Code 128 中 O/0、I/1、S/5 的竞争结果。
         val secondaryTask = recognizer.process(InputImage.fromBitmap(bitmap, 0))
@@ -498,7 +504,11 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnSuccessListener { results ->
                 val merged = mergeOcrCandidates(results[0], results[1])
                 val selectedFormat = formats.getOrNull(formatSpinner.selectedItemPosition)?.second
-                val text = if (selectedFormat in setOf(BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.ITF)) normalizeNumericO(merged) else merged
+                val text = when {
+                    code128Mode -> normalizeCode128Table(merged)
+                    selectedFormat in setOf(BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.ITF) -> normalizeNumericO(merged)
+                    else -> merged
+                }
                 val normalizedText = text.trim()
                 if (normalizedText.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
                 else {
@@ -509,6 +519,14 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnFailureListener { toast("文字识别失败，请重试") }
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
+
+/** Code 128 表格模式：忽略空值 NA，清掉 OCR 在同一编码中误插入的空格，只保留像编码的行。 */
+private fun normalizeCode128Table(text: String): String = text.lineSequence()
+    .map { it.trim().replace(Regex("\\s+"), "").uppercase(Locale.ROOT) }
+    .filter { line ->
+        line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-" })
+    }
+    .joinToString("\n")
 
 private data class OcrLineCandidate(val text: String, val confidence: List<Float>, val averageConfidence: Float)
 
