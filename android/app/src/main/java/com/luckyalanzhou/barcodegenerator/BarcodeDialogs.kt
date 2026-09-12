@@ -526,9 +526,9 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             }
     }
 
-/** Code 128 表格模式：保留 OCR 原始字符、NA 以及编码内部的空格，不擅自替换混淆字符。 */
+/** Code 128 表格模式：该表格约定不使用字母 O，因此将 OCR 的 O/o 安全纠正为数字 0。 */
 private fun normalizeCode128Table(text: String): String = text.lineSequence()
-    .map { it.trim() }
+    .map { it.trim().replace('O', '0').replace('o', '0') }
     .filter { line ->
         line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it == ' ' || it.isLetter() || it == '.' || it == '-' })
     }
