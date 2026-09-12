@@ -956,9 +956,9 @@ internal fun MainActivity.showSettings() {
             text = label
             minWidth = 0
             minimumWidth = 0
-            minHeight = dp(44)
-            minimumHeight = dp(44)
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            minHeight = dp(48)
+            minimumHeight = dp(48)
+            setPadding(dp(14), dp(9), dp(14), dp(9))
             setOnClickListener { action() }
         }).apply {
             // 工具按钮保留玻璃质感，但减少胶囊感并稍微放大外框。
@@ -1000,8 +1000,8 @@ internal fun MainActivity.showSettings() {
          val backupActions = LinearLayout(activity).apply {
              orientation = LinearLayout.HORIZONTAL
              gravity = Gravity.CENTER_VERTICAL
-             addView(toolActionButton("导入") { restoreFavoritesImport() }, LinearLayout.LayoutParams(-2, dp(44)))
-             addView(toolActionButton("导出") { createFavoritesExport() }, LinearLayout.LayoutParams(-2, dp(44)).apply { leftMargin = dp(6) })
+             addView(toolActionButton("导入") { restoreFavoritesImport() }, LinearLayout.LayoutParams(-2, dp(48)))
+             addView(toolActionButton("导出") { createFavoritesExport() }, LinearLayout.LayoutParams(-2, dp(48)).apply { leftMargin = dp(6) })
          }
          toolRows += textRow("收藏备份", backupActions, trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
