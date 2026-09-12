@@ -16,6 +16,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.*
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.RippleDrawable
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.SwitchCompat
 import android.widget.PopupWindow
@@ -67,19 +68,36 @@ internal fun MainActivity.updateTopTabSelection() {
         val isSelected = tab.tag == selected
         tab.findViewWithTag<TextView>("tabLabel")?.setTextColor(if (isSelected) selectedColor else unselectedColor)
         tab.findViewWithTag<ImageView>("tabIcon")?.apply {
-            setImageResource(if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int])
+            val iconResource = if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int]
+            setImageResource(iconResource)
             setColorFilter(if (isSelected) selectedColor else unselectedColor)
             animate().cancel()
-            animate().scaleX(if (isSelected) 1.08f else 1f).scaleY(if (isSelected) 1.08f else 1f)
-                .translationY(if (isSelected) -dp(1).toFloat() else 0f)
-                .setDuration(if (isSelected) 180 else 120)
-                .setInterpolator(OvershootInterpolator(0.75f)).start()
+            // 图标切换采用“收缩-注入-回弹”：线性图标切换为面性图标时不会闪现。
+            if (isSelected) {
+                scaleX = 0.86f; scaleY = 0.86f; alpha = 0.55f
+                animate().scaleX(1.12f).scaleY(1.12f).alpha(1f).setDuration(150)
+                    .setInterpolator(OvershootInterpolator(1.1f)).withEndAction {
+                        animate().scaleX(1.06f).scaleY(1.06f).setDuration(100).start()
+                    }.start()
+            } else {
+                animate().scaleX(1f).scaleY(1f).alpha(0.82f).setDuration(130).start()
+            }
+            translationY = if (isSelected) -dp(1).toFloat() else 0f
         }
         // 选中项自身抬升，玻璃表面在图文下方绘制，不会遮挡图标或文字。
         tab.setBackgroundResource(if (isSelected && !tabGlassDragActive) R.drawable.bg_tab_selected else R.drawable.bg_tab)
         // 保持很轻的悬浮距离，避免变成厚重的实体按钮。
         tab.elevation = if (isSelected && !tabGlassDragActive) dp(3).toFloat() else 0f
         tab.translationZ = if (isSelected && !tabGlassDragActive) dp(1).toFloat() else 0f
+        if (isSelected && !tabGlassDragActive) {
+            // 激活背景轻微压缩后拉伸，模拟果冻吸附到当前 Tab 的回弹。
+            tab.animate().cancel()
+            tab.scaleX = 0.97f; tab.scaleY = 0.97f
+            tab.animate().scaleX(1.035f).scaleY(1.035f).setDuration(150)
+                .setInterpolator(OvershootInterpolator(1.15f)).withEndAction {
+                    tab.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                }.start()
+        }
     }
 }
 
@@ -260,7 +278,7 @@ internal fun MainActivity.contentCard(): LinearLayout = LinearLayout(this).apply
         setPadding(dp(14), dp(10), dp(14), dp(10))
         // 所有页面卡片统一使用动态液态玻璃，避免设置页仍显示固定浅色卡片。
         background = liquidGlassCard()
-        elevation = dp(2).toFloat()
+        elevation = 0.5f * resources.displayMetrics.density
         clipToOutline = true
 }
 
@@ -456,6 +474,12 @@ internal fun MainActivity.buildShell() {
                 tag = index; orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
                 setPadding(0, dp(3), 0, dp(3))
                 isClickable = true; isFocusable = true; contentDescription = description
+                // 原生 Ripple 只作为轻触反馈，范围裁剪在当前 Tab 内，不改变底部布局。
+                foreground = RippleDrawable(
+                    ColorStateList.valueOf(if (isDark()) 0x336f9fff else 0x244080c8),
+                    null,
+                    GradientDrawable().apply { shape = GradientDrawable.RECTANGLE; cornerRadius = dp(23).toFloat(); setColor(Color.WHITE) }
+                )
                 setOnClickListener { activateTab(index) }
                 setOnTouchListener { view, event ->
                     when (event.actionMasked) {
@@ -485,6 +509,7 @@ internal fun MainActivity.buildShell() {
                             true
                         }
                         MotionEvent.ACTION_UP -> {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             if (isDraggingTab) view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                             finishDragGlass(isDraggingTab)
                             if (!isDraggingTab) view.performClick()
@@ -952,7 +977,7 @@ internal fun MainActivity.showSettings() {
         }
         fun groupCard(rows: List<View>): LinearLayout = contentCard().apply {
              orientation = LinearLayout.VERTICAL
-             elevation = dp(2).toFloat()
+             elevation = 0.5f * resources.displayMetrics.density
              setPadding(dp(8), dp(4), dp(8), dp(4))
              rows.forEachIndexed { index, row ->
                  addView(row, LinearLayout.LayoutParams(-1, dp(48)))
@@ -1195,7 +1220,7 @@ internal fun MainActivity.showLanShare() {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(8), dp(8), dp(8), dp(8))
         background = liquidGlassCard()
-        elevation = dp(4).toFloat()
+        elevation = dp(1).toFloat()
         clipToOutline = true
         addView(ImageButton(this@showLanShare).apply {
             setImageResource(R.drawable.ic_attachment)
@@ -1245,7 +1270,7 @@ private fun MainActivity.renderLanShareFileList(list: LinearLayout) {
         val imageFile = (lanShareManager.localFile(file.id) ?: lanSharePreviewFiles[file.id])?.takeIf { isLanShareImageName(file.name) }
         list.addView(LinearLayout(this).apply { tag = file.id
             gravity = if (mine) Gravity.END else Gravity.START; setPadding(0, dp(4), 0, dp(4))
-            val bubble = LinearLayout(this@renderLanShareFileList).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = dp(2).toFloat(); clipToOutline = true
+            val bubble = LinearLayout(this@renderLanShareFileList).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(if (imageFile == null) 12 else 6), dp(if (imageFile == null) 8 else 6), dp(if (imageFile == null) 10 else 6), dp(if (imageFile == null) 8 else 6)); background = liquidGlassCard().apply { setColor(if (mine) (if (isDark()) 0x7a0a84ff else 0x660a84ff) else if (isDark()) 0x662c2c2e else 0xcfffffff.toInt()) }; elevation = 0.5f * resources.displayMetrics.density; clipToOutline = true
                 if (imageFile == null) addView(ImageView(this@renderLanShareFileList).apply { setImageResource(R.drawable.ic_attachment); setColorFilter(if (mine) Color.WHITE else if (isDark()) 0xffd0d6e4.toInt() else 0xff52627a.toInt()); contentDescription = "文件附件" }, LinearLayout.LayoutParams(dp(26), dp(26)).apply { rightMargin = dp(10) })
                 val details = LinearLayout(this@renderLanShareFileList).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, 0, dp(6), 0) }
                 imageFile?.let { source -> decodeLanSharePreview(source)?.let { bitmap ->
