@@ -492,7 +492,7 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
         recognizer.process(image)
             .addOnSuccessListener { result ->
-                val text = result.text.trim()
+                val text = normalizeNumericO(result.text).trim()
                 if (text.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
                 else {
                     importRecognizedText(text)
@@ -502,6 +502,18 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnFailureListener { toast("文字识别失败，请重试") }
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
+
+/** OCR 在屏幕数字字体中容易把 0 识别成 O；只修正纯数字/ O 的连续字段，避免误伤真正的字母 O。 */
+private fun normalizeNumericO(text: String): String = text
+    .lineSequence()
+    .map { line ->
+        line.replace(Regex("[A-Za-z0-9]+")) { token ->
+            if (token.value.any { it == 'O' || it == 'o' } && token.value.all { it.isDigit() || it == 'O' || it == 'o' }) {
+                token.value.replace('O', '0').replace('o', '0')
+            } else token.value
+        }
+    }
+    .joinToString("\n")
 
 
 internal fun MainActivity.importRecognizedText(text: String) {
