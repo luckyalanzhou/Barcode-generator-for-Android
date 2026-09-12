@@ -723,7 +723,11 @@ internal fun MainActivity.showMaterialMultiDropdown(
     val frame = Rect()
     anchor.getWindowVisibleDisplayFrame(frame)
     val metrics = resources.displayMetrics
-    val width = dp(300).coerceAtMost((metrics.widthPixels - dp(32)).coerceAtLeast(dp(1)))
+    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * resources.displayMetrics.scaledDensity }
+    val longestLabel = options.maxOfOrNull { labelPaint.measureText(it) } ?: 0f
+    val contentWidth = longestLabel.roundToInt() + dp(16) * 2 + dp(28) + dp(4)
+    val maxWidth = (metrics.widthPixels - dp(32)).coerceAtLeast(dp(1))
+    val width = contentWidth.coerceIn(dp(150).coerceAtMost(maxWidth), maxWidth)
     val height = options.size * dp(40) + dp(4)
     val location = IntArray(2)
     anchor.getLocationOnScreen(location)
@@ -993,8 +997,13 @@ internal fun MainActivity.showSettings() {
                  persistSettings()
                  toast("已恢复条码默认设置")
               }, trailingWidth = -2)
-         toolRows += textRow("导入收藏", toolActionButton("导入") { restoreFavoritesImport() }, trailingWidth = -2)
-         toolRows += textRow("导出收藏", toolActionButton("导出") { createFavoritesExport() }, trailingWidth = -2)
+         val backupActions = LinearLayout(activity).apply {
+             orientation = LinearLayout.HORIZONTAL
+             gravity = Gravity.CENTER_VERTICAL
+             addView(toolActionButton("导入") { restoreFavoritesImport() }, LinearLayout.LayoutParams(-2, dp(44)))
+             addView(toolActionButton("导出") { createFavoritesExport() }, LinearLayout.LayoutParams(-2, dp(44)).apply { leftMargin = dp(6) })
+         }
+         toolRows += textRow("收藏备份", backupActions, trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
               toolRows += textRow("调试日志", toolActionButton("导出") { shareDebugLog() }, trailingWidth = -2)
           }
@@ -1101,7 +1110,7 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
              setTextColor(primaryText())
              setBackgroundDrawable(glassButtonBackground().apply { cornerRadius = dp(14).toFloat() })
              setOnClickListener { dialog.dismiss() }
-         }), LinearLayout.LayoutParams(-2, dp(44)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(10) })
+         }), LinearLayout.LayoutParams(-2, dp(44)).apply { gravity = Gravity.END; topMargin = dp(10) })
     }
     dialog.setView(box)
     showIos26Dialog(dialog, compact = true)
