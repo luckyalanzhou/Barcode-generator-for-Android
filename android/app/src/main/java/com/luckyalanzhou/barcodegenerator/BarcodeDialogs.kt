@@ -526,49 +526,13 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             }
     }
 
-/** Code 128 表格模式：保留 NA 以及编码内部的空格，只在明确的数字位置修正常见混淆字符。 */
+/** Code 128 表格模式：保留 OCR 原始字符、NA 以及编码内部的空格，不擅自替换混淆字符。 */
 private fun normalizeCode128Table(text: String): String = text.lineSequence()
-    .map { normalizeCode128Line(it) }
+    .map { it.trim().uppercase(Locale.ROOT) }
     .filter { line ->
         line == "NA" || (line.length >= 6 && line.any(Char::isDigit) && line.any(Char::isLetter) && line.all { it.isDigit() || it == ' ' || it in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-" })
     }
     .joinToString("\n")
-
-private fun normalizeCode128Line(raw: String): String {
-    val line = raw.trim().uppercase(Locale.ROOT)
-    if (line == "NA") return line
-    val dot = line.indexOf('.')
-    if (dot <= 0) return line
-
-    val chars = line.toCharArray()
-    // 表格编码的点号前通常是纯数字字段；只在该字段内做 O/0、I/1、S/5、B/8 等纠错。
-    for (index in 0 until dot) chars[index] = code128Digit(chars[index])
-    // 点号后的第一位仍是数字字段。
-    val firstAfterDot = dot + 1
-    if (firstAfterDot < chars.size) chars[firstAfterDot] = code128Digit(chars[firstAfterDot])
-    // 混合字段中目前只纠正有明确证据的 O/0；S、B 可能是真实字母，不能盲目改成 5、8。
-    // 例如 PO09 -> P009、LGO0G -> LG00G，同时保留 80S01 和 PB03。
-    for (index in firstAfterDot + 1 until chars.size) {
-        val value = chars[index]
-        val adjacentToDigit = (index > firstAfterDot && chars[index - 1].isDigit()) ||
-            (index + 1 < chars.size && chars[index + 1].isDigit())
-        if (adjacentToDigit) chars[index] = code128MixedFieldDigit(value)
-    }
-    return String(chars)
-}
-
-private fun code128Digit(value: Char): Char = when (value) {
-    'O', 'Q', 'D' -> '0'
-    'I', 'L' -> '1'
-    'S' -> '5'
-    'B' -> '8'
-    else -> value
-}
-
-private fun code128MixedFieldDigit(value: Char): Char = when (value) {
-    'O', 'Q', 'D' -> '0'
-    else -> value
-}
 
 private data class OcrLineCandidate(val text: String, val confidence: List<Float>, val averageConfidence: Float)
 
