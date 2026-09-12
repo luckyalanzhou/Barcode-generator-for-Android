@@ -87,7 +87,8 @@ internal fun MainActivity.isDark() = style.colorScheme == "dark" || (style.color
 
 
 
-internal fun MainActivity.appBackground() = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
+// iOS 18 风格使用清晰的系统分组背景，避免全局过度透明。
+internal fun MainActivity.appBackground() = if (isDark()) 0xff000000.toInt() else 0xfff2f2f7.toInt()
 internal fun MainActivity.primaryText() = if (isDark()) 0xfff2f4f7.toInt() else 0xff172033.toInt()
 
 
@@ -167,29 +168,25 @@ internal fun MainActivity.styleButton(button: Button, primary: Boolean = false) 
 
 internal fun MainActivity.glassButtonBackground() = GradientDrawable().apply {
     shape = GradientDrawable.RECTANGLE
-    cornerRadius = dp(20).toFloat()
-    orientation = GradientDrawable.Orientation.TOP_BOTTOM
-    // 次级按钮使用低饱和蓝灰玻璃，深浅色模式下都能和页面背景保持层次。
-    setColors(if (isDark()) intArrayOf(0x80576A82.toInt(), 0x4D3A485B) else intArrayOf(0xEAEAF3FF.toInt(), 0xD8D8E7F7.toInt()))
-    setStroke(dp(1), if (isDark()) 0x806F8AA8.toInt() else 0xB3FFFFFF.toInt())
+    cornerRadius = dp(14).toFloat()
+    setColor(if (isDark()) 0xff2c2c2e.toInt() else 0xffffffff.toInt())
+    setStroke(dp(1), if (isDark()) 0xff3a3a3c.toInt() else 0xffd8d8dc.toInt())
 }
 
 internal fun MainActivity.glassPrimaryButtonBackground() = GradientDrawable().apply {
     shape = GradientDrawable.RECTANGLE
-    cornerRadius = dp(20).toFloat()
-    orientation = GradientDrawable.Orientation.TOP_BOTTOM
-    setColors(if (isDark()) intArrayOf(0xFF4C91F5.toInt(), 0xFF1E61C8.toInt()) else intArrayOf(0xFF4C8FF7.toInt(), 0xFF246DD8.toInt()))
-    setStroke(dp(1), if (isDark()) 0x668FC2FF else 0x66FFFFFF)
+    cornerRadius = dp(14).toFloat()
+    setColor(if (isDark()) 0xff0a84ff.toInt() else 0xff007aff.toInt())
+    setStroke(dp(1), if (isDark()) 0xff4da3ff.toInt() else 0xff007aff.toInt())
 }
 
 internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
     dialog.window?.setDimAmount(if (isDark()) 0.48f else 0.34f)
     dialog.window?.setBackgroundDrawable(GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = dp(28).toFloat()
-        orientation = GradientDrawable.Orientation.TOP_BOTTOM
-        setColors(if (isDark()) intArrayOf(0xEE3B4048.toInt(), 0xD82A2E35.toInt()) else intArrayOf(0xF7FFFFFF.toInt(), 0xD9EEF2F5.toInt()))
-        setStroke(dp(1), if (isDark()) 0x887A8491.toInt() else 0xB3FFFFFF.toInt())
+        cornerRadius = dp(20).toFloat()
+        setColor(if (isDark()) 0xff1c1c1e.toInt() else 0xffffffff.toInt())
+        setStroke(dp(1), if (isDark()) 0xff3a3a3c.toInt() else 0xffd8d8dc.toInt())
     })
     dialog.window?.decorView?.elevation = dp(14).toFloat()
     val actionColor = if (isDark()) 0xffa9c4ff.toInt() else 0xff2166d1.toInt()
@@ -284,7 +281,7 @@ internal fun MainActivity.buildShell() {
         val navigationBar = if (navigationBarId > 0) resources.getDimensionPixelSize(navigationBarId) else 0
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(p, p + statusBar, p, dp(10) + navigationBar); gravity = Gravity.CENTER_HORIZONTAL }
         rootLayout = root
-        root.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt())
+        root.setBackgroundColor(appBackground())
         val title = TextView(this).apply { text = "条码生成器"; textSize = 25f; gravity = Gravity.CENTER_VERTICAL; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.025f; includeFontPadding = false; setTextColor(primaryText()) }
         appTitle = title
         val header = LinearLayout(this).apply {
@@ -592,7 +589,7 @@ internal fun MainActivity.showAppChrome(visible: Boolean) {
         runCatching { topNav.visibility = if (visible) View.VISIBLE else View.GONE }
         runCatching { pageScroll?.isVerticalScrollBarEnabled = false; pageScroll?.overScrollMode = View.OVER_SCROLL_NEVER; pageScroll?.isEnabled = visible || page == "lanShare" }
         runCatching { lanShareComposer?.visibility = if (!visible && page == "lanShare") View.VISIBLE else View.GONE }
-        if (!visible) runCatching { rootLayout.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()) }
+        if (!visible) runCatching { rootLayout.setBackgroundColor(appBackground()) }
         if (visible) runCatching {
             content.setPadding(0, 0, 0, 0)
             content.setBackgroundColor(Color.TRANSPARENT)
@@ -833,8 +830,8 @@ internal fun MainActivity.showSettings() {
         val draft = style.copy().apply { barHeight = barHeight.coerceIn(30, 150); barWidth = barWidth.coerceIn(120f, 360f); textSize = textSize.coerceIn(10f, 24f); margin = margin.coerceIn(0, 40) }
         content.removeAllViews()
         content.setPadding(dp(8), dp(4), dp(8), dp(18))
-        content.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt())
-        rootLayout.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt())
+        content.setBackgroundColor(appBackground())
+        rootLayout.setBackgroundColor(appBackground())
         fun sectionLabel(text: String) = TextView(this).apply {
             this.text = text; textSize = 12f; letterSpacing = 0.055f; includeFontPadding = false
             setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); setTextColor(secondaryText())
@@ -1381,9 +1378,9 @@ private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Stri
 
 private fun MainActivity.liquidGlassCard() = GradientDrawable().apply {
     shape = GradientDrawable.RECTANGLE
-    cornerRadius = dp(26).toFloat()
-    setColor(if (isDark()) 0x78363A42 else 0xBFFFFFFF.toInt())
-    setStroke(dp(1), if (isDark()) 0x707E8793 else 0xB3FFFFFF.toInt())
+    cornerRadius = dp(18).toFloat()
+    setColor(if (isDark()) 0xff1c1c1e.toInt() else 0xffffffff.toInt())
+    setStroke(dp(1), if (isDark()) 0xff3a3a3c.toInt() else 0xffd8d8dc.toInt())
 }
 
 private fun formatLanShareSize(bytes: Long): String = if (bytes >= 1024L * 1024L) {
@@ -1563,7 +1560,7 @@ internal fun MainActivity.applyAppearance() {
 
 /** 在主题重建完成后再次同步系统栏，避免切换模式时短暂沿用旧颜色或旧图标明暗。 */
 internal fun MainActivity.syncSystemBars() {
-        val background = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
+        val background = appBackground()
         window.decorView.systemUiVisibility = if (isDark()) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         window.statusBarColor = background
         window.navigationBarColor = background
@@ -1607,7 +1604,7 @@ internal fun MainActivity.showGenerate() {
              overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
             isFillViewport = true
             isNestedScrollingEnabled = false
-            setBackgroundResource(R.drawable.bg_card)
+            setBackgroundDrawable(liquidGlassCard())
             setPadding(dp(14), dp(10), dp(14), dp(10))
             addView(inputContainer)
             setOnTouchListener { view, event ->
@@ -1655,7 +1652,7 @@ internal fun MainActivity.showGenerate() {
           pendingGenerateFormat = null
           val formatCard = LinearLayout(this).apply {
               orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-              setPadding(dp(14), dp(4), dp(14), dp(4)); setBackgroundResource(R.drawable.bg_card)
+              setPadding(dp(14), dp(4), dp(14), dp(4)); setBackgroundDrawable(liquidGlassCard())
           }
           formatCard.addView(TextView(activity).apply { text = "条码类型"; textSize = 16f; gravity = Gravity.CENTER_VERTICAL; setTypeface(null, Typeface.BOLD); setTextColor(primaryText()); setPadding(dp(18), 0, 0, 0) }, LinearLayout.LayoutParams(0, dp(52), 1f))
            formatCard.addView(formatSpinner, LinearLayout.LayoutParams(dp(150), dp(44)))
@@ -1886,8 +1883,8 @@ internal fun MainActivity.showResults() {
         val resultBackground = if (isDark()) appBackground() else Color.WHITE
         content.setBackgroundColor(resultBackground)
         rootLayout.setBackgroundColor(resultBackground)
-        window.statusBarColor = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
-        window.navigationBarColor = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
+        window.statusBarColor = appBackground()
+        window.navigationBarColor = appBackground()
         if (resultItems.isEmpty()) {
             addSpaced(sectionTitle("生成结果"), bottom = 6)
             addSpaced(TextView(this).apply { text = "暂无生成结果"; textSize = 17f; gravity = Gravity.CENTER; setTextColor(secondaryText()); setPadding(0, dp(40), 0, dp(40)) }, bottom = 0)
@@ -2138,10 +2135,10 @@ internal fun MainActivity.showFavoriteGroups() {
         val activity = this
         content.removeAllViews()
         content.setPadding(0, 0, 0, dp(20))
-        content.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt())
-        rootLayout.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt())
-        window.statusBarColor = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
-        window.navigationBarColor = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
+        content.setBackgroundColor(appBackground())
+        rootLayout.setBackgroundColor(appBackground())
+        window.statusBarColor = appBackground()
+        window.navigationBarColor = appBackground()
 
         search = EditText(this).apply {
             hint = "搜索名称、文件夹或内容"; textSize = 17f; setSingleLine(true)
