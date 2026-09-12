@@ -225,6 +225,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        DebugLog.initialize(applicationContext)
+        DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)
         lifecycleScope.launch {
@@ -243,6 +245,7 @@ class MainActivity : AppCompatActivity() {
                 // 保留默认内存状态，先让用户进入应用并看到可恢复的提示。
                 startupError = error
                 Log.e("BarcodeGenerator", "Startup data initialization failed", error)
+                DebugLog.record("startup", "data initialization failed", error)
             }
             try {
                 restoreLanShareAfterConfigurationChange()
@@ -260,13 +263,14 @@ class MainActivity : AppCompatActivity() {
             } catch (error: Exception) {
                 startupError = startupError ?: error
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
+                DebugLog.record("startup", "UI initialization failed", error)
             }
             if (!::rootLayout.isInitialized) {
                 setContentView(TextView(this@MainActivity).apply {
                     text = "应用初始化失败，请重新打开应用"
                     textSize = 17f
                     setTextColor(Color.WHITE)
-                    setBackgroundColor(0xff10131b.toInt())
+                    setBackgroundColor(appBackground())
                     setPadding(dp(24), dp(24), dp(24), dp(24))
                 })
                 return@launch
@@ -346,7 +350,11 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 42) {
             if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-                if (pendingCameraRequest == REQUEST_LAN_SHARE_CAPTURE) openLanShareCamera() else launchCamera(pendingCameraRequest)
+                when (pendingCameraRequest) {
+                    REQUEST_LAN_SHARE_CAPTURE -> openLanShareCamera()
+                    REQUEST_TEXT_CAMERA -> launchCamera(REQUEST_TEXT_CAMERA)
+                    else -> launchCamera(pendingCameraRequest)
+                }
             } else {
                 toast("需要相机权限才能拍照识别")
             }
@@ -402,14 +410,15 @@ class MainActivity : AppCompatActivity() {
             }
             else -> null
         }
+        if (bitmap == null) return
+        val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, pendingCameraFile) else bitmap
         pendingCameraUri = null
         pendingCameraFile?.delete()
         pendingCameraFile = null
-        if (bitmap == null) return
         when (requestCode) {
             43, 44 -> decodeBitmap(bitmap)?.let { inputRows.firstOrNull()?.setText(it) ?: addInputRow(it); toast("条码识别成功") } ?: toast("未识别到条码，请更换清晰图片")
             51 -> decodeBitmap(bitmap)?.let { joinLanShareSession(it) } ?: toast("未识别到分享二维码")
-            45, 46 -> recognizeText(bitmap)
+            45, 46 -> recognizeText(textBitmap)
         }
     }
 

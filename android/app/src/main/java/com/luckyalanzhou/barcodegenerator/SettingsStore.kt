@@ -30,20 +30,34 @@ class SettingsStore(private val context: Context) {
         val MARGIN = intPreferencesKey("style_margin")
         val SHOW_FORMAT = booleanPreferencesKey("style_show_format")
         val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
+        val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
+        const val OCR_REPLACE_O_ZERO = 1
+        const val OCR_REPLACE_I_ONE = 1 shl 1
+        const val OCR_REPLACE_S_FIVE = 1 shl 2
+        const val OCR_REPLACE_B_EIGHT = 1 shl 3
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var cachedValues: Preferences = emptyPreferences()
+    @Volatile private var ocrConfusionReplacementMask = 0
 
     suspend fun load() {
         cachedValues = context.settingsDataStore.data.first()
+        ocrConfusionReplacementMask = cachedValues[OCR_CONFUSION_REPLACEMENT_MASK] ?: 0
     }
 
     fun <T> get(key: Preferences.Key<T>, default: T): T = cachedValues[key] ?: default
 
     fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = error }
+
+    fun getOcrConfusionReplacementMask(): Int = ocrConfusionReplacementMask
+
+    fun setOcrConfusionReplacementMask(mask: Int): Job {
+        ocrConfusionReplacementMask = mask
+        return write { it[OCR_CONFUSION_REPLACEMENT_MASK] = mask }
+    }
 
     fun saveStyle(style: StyleSettings): Job = write {
         it[BAR_COLOR] = style.barColor; it[BG_COLOR] = style.bgColor; it[SHOW_TEXT] = style.showText

@@ -87,7 +87,9 @@ class LanShareManager(private val context: Context) {
         } ?: error("无法启动局域网分享服务")
         server = running
         lastPort = running.listeningPort
-        return LanShareSession("http://$address:${running.listeningPort}")
+        val session = LanShareSession("http://$address:${running.listeningPort}")
+        DebugLog.record("lan", "server started address=${session.baseUrl}")
+        return session
     }
 
     fun restart(): LanShareSession {
@@ -122,13 +124,17 @@ class LanShareManager(private val context: Context) {
             setFixedLengthStreamingMode(header.size.toLong() + size + footer.size)
         }
         try {
+            var copiedBytes = 0L
             connection.outputStream.buffered().use { output ->
                 output.write(header)
-                context.contentResolver.openInputStream(uri)?.use { it.copyTo(output, 16 * 1024) } ?: error("无法读取附件")
+                context.contentResolver.openInputStream(uri)?.use { copiedBytes = it.copyTo(output, 16 * 1024) } ?: error("无法读取附件")
                 output.write(footer)
             }
+            require(copiedBytes == size) { "附件读取不完整：$copiedBytes/$size 字节" }
             if (connection.responseCode !in 200..299) error("上传失败：${connection.responseCode}")
-            return connection.inputStream.bufferedReader().use { it.readText().trim() }
+            return connection.inputStream.bufferedReader().use { it.readText().trim() }.also {
+                DebugLog.record("lan", "file uploaded name=$name size=$size")
+            }
                 .ifBlank { error("上传完成但未收到文件标识") }
         } finally { connection.disconnect() }
     }
@@ -147,13 +153,16 @@ class LanShareManager(private val context: Context) {
         try {
             connection.outputStream.buffered().use { output -> output.write(header); output.write(body); output.write(footer) }
             if (connection.responseCode !in 200..299) error("发送失败：${connection.responseCode}")
-            return connection.inputStream.bufferedReader().use { it.readText().trim() }
+            return connection.inputStream.bufferedReader().use { it.readText().trim() }.also {
+                DebugLog.record("lan", "text sent length=${body.size}")
+            }
                 .ifBlank { error("发送完成但未收到文件标识") }
         } finally { connection.disconnect() }
     }
 
     fun download(session: LanShareSession, id: String, destination: Uri) = request(session, "/api/download/${Uri.encode(id)}") { connection ->
         context.contentResolver.openOutputStream(destination)?.use { output -> connection.inputStream.use { it.copyTo(output) } } ?: error("无法写入文件")
+        DebugLog.record("lan", "file downloaded id=$id")
     }
 
     fun downloadPreview(session: LanShareSession, id: String, destination: File) = request(session, "/api/download/${Uri.encode(id)}") { connection ->
@@ -295,11 +304,18 @@ class LanShareManager(private val context: Context) {
                     session.method == Method.GET && requestPath.startsWith("/api/download/") -> {
                         val file = sharedFile(folder, Uri.decode(requestPath.substringAfterLast('/')))
                         if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
-                        else newFixedLengthResponse(Response.Status.OK, mimeTypeForName(file.name), FileInputStream(file), file.length()).apply { addHeader("Content-Disposition", "${if (mimeTypeForName(file.name).startsWith("image/")) "inline" else "attachment"}; filename=\"${toLanShareFile(file, "peer").name}\"") }
+                        else newFixedLengthResponse(Response.Status.OK, mimeTypeForName(file.name), FileInputStream(file), file.length()).apply {
+                            addHeader("Content-Length", file.length().toString())
+                            addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
+                            addHeader("Content-Disposition", "${if (mimeTypeForName(file.name).startsWith("image/")) "inline" else "attachment"}; filename=\"${toLanShareFile(file, "peer").name}\"")
+                        }
                     }
                     else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "not found")
                 }
-            } catch (_: Exception) { newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败") }
+            } catch (error: Exception) {
+                DebugLog.record("lan-server", "request failed uri=${session.uri}", error)
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
+            }
         }
 
     }
