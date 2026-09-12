@@ -159,9 +159,10 @@ internal fun MainActivity.glassButtonBackground() = GradientDrawable().apply {
 }
 
 internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
+    dialog.window?.setDimAmount(if (isDark()) 0.48f else 0.34f)
     dialog.window?.setBackgroundDrawable(GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = dp(30).toFloat()
+        cornerRadius = dp(28).toFloat()
         orientation = GradientDrawable.Orientation.TOP_BOTTOM
         setColors(if (isDark()) intArrayOf(0xEE3B4048.toInt(), 0xD82A2E35.toInt()) else intArrayOf(0xF7FFFFFF.toInt(), 0xD9EEF2F5.toInt()))
         setStroke(dp(1), if (isDark()) 0x887A8491.toInt() else 0xB3FFFFFF.toInt())
@@ -204,8 +205,15 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
 internal fun MainActivity.showIos26Dialog(dialog: AlertDialog, compact: Boolean = false): AlertDialog {
     dialog.show()
     applyIos26DialogStyle(dialog)
-    // Android 默认对话框在不同系统版本宽度差异较大；紧凑弹窗统一按屏幕宽度居中。
-    val width = (resources.displayMetrics.widthPixels * if (compact) 0.82f else 0.9f).roundToInt()
+    // 统一限制弹窗宽度：手机上保持适度留白，大屏上不铺满；同时保留输入和长文本所需的最小宽度。
+    val screenWidth = resources.displayMetrics.widthPixels
+    val preferredWidth = (screenWidth * if (compact) 0.82f else 0.88f).roundToInt()
+    val availableWidth = (screenWidth - dp(24)).coerceAtLeast(1)
+    val minWidth = dp(280).coerceAtMost(availableWidth)
+    val maxWidth = dp(420).coerceAtMost(availableWidth)
+    val dialogMaxWidth = if (compact) dp(360) else dp(400)
+    val upperWidth = dialogMaxWidth.coerceAtMost(maxWidth)
+    val width = preferredWidth.coerceIn(minWidth.coerceAtMost(upperWidth), upperWidth)
     dialog.window?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
     dialog.window?.setGravity(Gravity.CENTER)
     return dialog
@@ -1092,12 +1100,12 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
              textSize = 15f
              minWidth = 0; minimumWidth = 0
              isAllCaps = false
-             // 文字两侧约 3mm 的玻璃边距；按钮本身仍覆盖整个可见外框区域。
-             setPadding(dp(11), dp(10), dp(11), dp(10))
+             // 保持与其他弹窗一致的紧凑按钮边距。
+             setPadding(dp(8), dp(6), dp(8), dp(6))
              setTextColor(primaryText())
              setBackgroundDrawable(glassButtonBackground())
              setOnClickListener { dialog.dismiss() }
-         }), LinearLayout.LayoutParams(-2, dp(48)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(16) })
+         }), LinearLayout.LayoutParams(-2, dp(40)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(14) })
     }
     dialog.setView(box)
     showIos26Dialog(dialog, compact = true)
