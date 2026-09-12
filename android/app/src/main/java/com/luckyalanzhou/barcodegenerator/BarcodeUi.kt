@@ -124,7 +124,7 @@ internal fun MainActivity.switchTopTabBySwipe(deltaX: Float) {
 
 
 internal fun MainActivity.styleButton(button: Button, primary: Boolean = false) = button.apply {
-        setBackgroundResource(if (primary) R.drawable.bg_button_primary else R.drawable.bg_button)
+        background = if (primary) glassPrimaryButtonBackground() else glassButtonBackground()
         // 以 Android 系统字实现接近 iOS 的清晰、略带强调的按钮文字，不嵌入受限字体。
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         textSize = 15f
@@ -153,9 +153,17 @@ internal fun MainActivity.glassButtonBackground() = GradientDrawable().apply {
     shape = GradientDrawable.RECTANGLE
     cornerRadius = dp(20).toFloat()
     orientation = GradientDrawable.Orientation.TOP_BOTTOM
-    // 次级玻璃保持中性，蓝色只用于选中态与主操作。
-    setColors(if (isDark()) intArrayOf(0x80474C55.toInt(), 0x4D2B3037) else intArrayOf(0xCCFFFFFF.toInt(), 0x80E9EDF2.toInt()))
-    setStroke(dp(1), if (isDark()) 0x806F7884.toInt() else 0x99FFFFFF.toInt())
+    // 次级按钮使用低饱和蓝灰玻璃，深浅色模式下都能和页面背景保持层次。
+    setColors(if (isDark()) intArrayOf(0x80576A82.toInt(), 0x4D3A485B) else intArrayOf(0xEAEAF3FF.toInt(), 0xD8D8E7F7.toInt()))
+    setStroke(dp(1), if (isDark()) 0x806F8AA8.toInt() else 0xB3FFFFFF.toInt())
+}
+
+internal fun MainActivity.glassPrimaryButtonBackground() = GradientDrawable().apply {
+    shape = GradientDrawable.RECTANGLE
+    cornerRadius = dp(20).toFloat()
+    orientation = GradientDrawable.Orientation.TOP_BOTTOM
+    setColors(if (isDark()) intArrayOf(0xFF4C91F5.toInt(), 0xFF1E61C8.toInt()) else intArrayOf(0xFF4C8FF7.toInt(), 0xFF246DD8.toInt()))
+    setStroke(dp(1), if (isDark()) 0x668FC2FF else 0x66FFFFFF)
 }
 
 internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
@@ -848,7 +856,7 @@ internal fun MainActivity.showSettings() {
                 intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
             )
         }
-        val ocrReplacementLabels = arrayOf("字母 O → 数字 0", "字母 I → 数字 1", "字母 S → 数字 5", "字母 B → 数字 8")
+        val ocrReplacementLabels = arrayOf("O → 0", "I → 1", "S → 5", "B → 8")
         val ocrReplacementBits = intArrayOf(
             SettingsStore.OCR_REPLACE_O_ZERO,
             SettingsStore.OCR_REPLACE_I_ONE,
