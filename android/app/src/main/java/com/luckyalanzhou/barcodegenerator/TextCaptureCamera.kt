@@ -193,10 +193,6 @@ internal fun MainActivity.showTextCaptureCamera() {
             // 每次重新进入拍照页都把实际相机焦段明确设回初始值，避免复用旧 ZoomState 导致
             // 界面显示 3×、镜头实际仍是 1×。界面只跟随 CameraX 回报的实际值更新。
             camera.cameraControl.setZoomRatio(initialZoomRatio)
-            camera.cameraInfo.zoomState.observe(this) { state ->
-                zoomRatio = state.zoomRatio
-                renderZoom(state.zoomRatio)
-            }
             renderZoom(initialZoomRatio)
             camera.cameraControl.startFocusAndMetering(
                 FocusMeteringAction.Builder(previewView.meteringPointFactory.createPoint(0.5f, 0.5f))
