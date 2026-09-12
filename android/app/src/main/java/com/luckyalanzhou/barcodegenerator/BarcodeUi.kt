@@ -132,9 +132,10 @@ internal fun MainActivity.styleButton(button: Button, primary: Boolean = false) 
         includeFontPadding = false
         gravity = Gravity.CENTER
         isAllCaps = false
-        minHeight = dp(48)
-        minimumHeight = dp(48)
-        setPadding(dp(14), dp(10), dp(14), dp(10))
+        // 约 2mm 的文字外边距（8dp）；避免按钮边框远大于文字。
+        minHeight = dp(40)
+        minimumHeight = dp(40)
+        setPadding(dp(8), dp(6), dp(8), dp(6))
         setTextColor(if (primary) Color.WHITE else if (isDark()) 0xffd7e3f5.toInt() else 0xff2453a6.toInt())
         stateListAnimator = null
         elevation = dp(1).toFloat()
@@ -189,6 +190,13 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             letterSpacing = -0.01f
             isAllCaps = false
+            // Android 默认按钮有较大的最小宽度；清除后让可见边框贴近文字，
+            // 同时保留整块按钮的点击区域。
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = dp(36)
+            minimumHeight = dp(36)
+            setPadding(dp(8), dp(4), dp(8), dp(4))
         }
     }
 }
@@ -662,6 +670,78 @@ internal fun MainActivity.showFormatPopup(anchor: View) = showMaterialDropdown(a
     formatSpinner.setSelection(index)
 }
 
+/** 锚定在设置项下方的多选下拉菜单；每项独立切换，点击外部关闭。 */
+internal fun MainActivity.showMaterialMultiDropdown(
+    anchor: View,
+    options: List<String>,
+    selected: Set<Int>,
+    onChanged: (Set<Int>) -> Unit
+) {
+    val menu = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(2), dp(2), dp(2), dp(2))
+    }
+    var popup: PopupWindow? = null
+    val selectedItems = selected.toMutableSet()
+    options.forEachIndexed { index, label ->
+        val check = TextView(this).apply {
+            text = if (index in selectedItems) "✓" else ""
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(if (isDark()) 0xffb8c9ff.toInt() else 0xff367be8.toInt())
+            setPadding(dp(8), 0, 0, 0)
+        }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), 0, dp(16), 0)
+            setOnClickListener {
+                if (!selectedItems.add(index)) selectedItems.remove(index)
+                check.text = if (index in selectedItems) "✓" else ""
+                onChanged(selectedItems.toSet())
+            }
+        }
+        row.addView(TextView(this).apply {
+            text = label
+            textSize = 15f
+            gravity = Gravity.CENTER_VERTICAL
+            setSingleLine(true)
+            setTextColor(primaryText())
+        }, LinearLayout.LayoutParams(0, dp(40), 1f))
+        row.addView(check, LinearLayout.LayoutParams(dp(28), dp(40)))
+        menu.addView(row)
+        if (index < options.lastIndex) menu.addView(View(this).apply { setBackgroundColor(if (isDark()) 0x33ffffff else 0x33475b7a) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(16), 0, dp(16), 0) })
+    }
+    val frame = Rect()
+    anchor.getWindowVisibleDisplayFrame(frame)
+    val metrics = resources.displayMetrics
+    val width = dp(300).coerceAtMost((metrics.widthPixels - dp(32)).coerceAtLeast(dp(1)))
+    val height = options.size * dp(40) + dp(4)
+    val location = IntArray(2)
+    anchor.getLocationOnScreen(location)
+    val left = location[0].coerceIn(frame.left + dp(16), frame.right - width - dp(16))
+    popup = PopupWindow(menu, width, height, true).apply {
+        setBackgroundDrawable(getDrawable(R.drawable.bg_popup))
+        isOutsideTouchable = true
+        isFocusable = true
+        isClippingEnabled = true
+        elevation = dp(10).toFloat()
+    }
+    popup.showAsDropDown(anchor, left - location[0], dp(6))
+    menu.alpha = 0f
+    menu.scaleX = 0.94f
+    menu.scaleY = 0.94f
+    menu.translationY = -dp(4).toFloat()
+    menu.post {
+        menu.pivotX = width / 2f
+        menu.pivotY = 0f
+        menu.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f)
+            .setDuration(180)
+            .setInterpolator(android.view.animation.DecelerateInterpolator(1.45f))
+            .start()
+    }
+}
+
 internal fun MainActivity.formatSpinnerAdapter(): ArrayAdapter<String> {
     val activity = this
     return object : ArrayAdapter<String>(activity, android.R.layout.simple_spinner_item, formats.map { it.first }) {
@@ -769,25 +849,31 @@ internal fun MainActivity.showSettings() {
         }
         fun updateOcrReplacementValue(mask: Int) {
             val selected = ocrReplacementLabels.mapIndexedNotNull { index, label -> if (mask and ocrReplacementBits[index] != 0) label.substringBefore("：") else null }
-            ocrReplacementValue.text = if (selected.isEmpty()) "关闭" else selected.joinToString("、")
+            ocrReplacementValue.text = when (selected.size) {
+                0 -> "关闭"
+                1 -> selected.first()
+                ocrReplacementLabels.size -> "全部启用"
+                else -> "已启用 ${selected.size} 项"
+            }
+            // 视觉上保持紧凑，辅助功能仍能读出完整的替换规则。
+            ocrReplacementValue.contentDescription = if (selected.isEmpty()) {
+                "强制替换混淆字符：关闭"
+            } else {
+                "强制替换混淆字符：${selected.joinToString("、")}"
+            }
         }
         updateOcrReplacementValue(settingsStore.getOcrConfusionReplacementMask())
         ocrReplacementValue.setOnClickListener {
             val current = settingsStore.getOcrConfusionReplacementMask()
-            val checked = ocrReplacementBits.map { current and it != 0 }.toBooleanArray()
-            AlertDialog.Builder(activity)
-                .setTitle("强制替换混淆字符")
-                .setMultiChoiceItems(ocrReplacementLabels, checked) { _, which, enabled ->
-                    checked[which] = enabled
-                }
-                .setNegativeButton("取消", null)
-                .setPositiveButton("完成") { _, _ ->
-                    val mask = checked.mapIndexed { index, enabled -> if (enabled) ocrReplacementBits[index] else 0 }.sum()
-                    settingsStore.setOcrConfusionReplacementMask(mask)
-                    updateOcrReplacementValue(mask)
-                }
-                .create()
-                .also { showIos26Dialog(it) }
+            showMaterialMultiDropdown(
+                ocrReplacementValue,
+                ocrReplacementLabels.toList(),
+                ocrReplacementBits.indices.filter { current and ocrReplacementBits[it] != 0 }.toSet()
+            ) { selected ->
+                val mask = selected.sumOf { ocrReplacementBits[it] }
+                settingsStore.setOcrConfusionReplacementMask(mask)
+                updateOcrReplacementValue(mask)
+            }
         }
          val textSizeSeekBar = SeekBar(this).apply { max = 14; progress = (draft.textSize.roundToInt() - 10).coerceIn(0, 14) }
         val barHeight = SeekBar(this).apply { max = 120; progress = (draft.barHeight - 30).coerceIn(0, 120) }
@@ -858,7 +944,7 @@ internal fun MainActivity.showSettings() {
             text = "启动"
             minWidth = 0
             minimumWidth = 0
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setPadding(dp(8), dp(6), dp(8), dp(6))
             setOnClickListener { enterLanShare() }
         }), trailingWidth = -2)
         val versionLine = LinearLayout(this).apply {
@@ -889,7 +975,7 @@ internal fun MainActivity.showSettings() {
              text = "恢复"
              minWidth = 0
              minimumWidth = 0
-             setPadding(dp(12), dp(6), dp(12), dp(6))
+             setPadding(dp(8), dp(6), dp(8), dp(6))
              setOnClickListener {
                  textSizeSeekBar.progress = 4
                  barHeight.progress = 25
@@ -904,7 +990,7 @@ internal fun MainActivity.showSettings() {
                   text = "导出"
                   minWidth = 0
                   minimumWidth = 0
-                  setPadding(dp(12), dp(6), dp(12), dp(6))
+                  setPadding(dp(8), dp(6), dp(8), dp(6))
                   setOnClickListener { shareDebugLog() }
               }), trailingWidth = -2)
           }
