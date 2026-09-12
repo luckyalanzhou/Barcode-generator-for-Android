@@ -546,13 +546,13 @@ private fun normalizeCode128Line(raw: String): String {
     // 点号后的第一位仍是数字字段。
     val firstAfterDot = dot + 1
     if (firstAfterDot < chars.size) chars[firstAfterDot] = code128Digit(chars[firstAfterDot])
-    // 混合字段中的 O/0、I/1 等容易互相误识别；只有当混淆字符紧邻数字时才纠正，
-    // 例如 PO09 -> P009、LGO0G -> LG00G，避免无条件替换真正的字母 O。
+    // 混合字段中目前只纠正有明确证据的 O/0；S、B 可能是真实字母，不能盲目改成 5、8。
+    // 例如 PO09 -> P009、LGO0G -> LG00G，同时保留 80S01 和 PB03。
     for (index in firstAfterDot + 1 until chars.size) {
         val value = chars[index]
         val adjacentToDigit = (index > firstAfterDot && chars[index - 1].isDigit()) ||
             (index + 1 < chars.size && chars[index + 1].isDigit())
-        if (adjacentToDigit) chars[index] = code128Digit(value)
+        if (adjacentToDigit) chars[index] = code128MixedFieldDigit(value)
     }
     return String(chars)
 }
@@ -562,6 +562,11 @@ private fun code128Digit(value: Char): Char = when (value) {
     'I', 'L' -> '1'
     'S' -> '5'
     'B' -> '8'
+    else -> value
+}
+
+private fun code128MixedFieldDigit(value: Char): Char = when (value) {
+    'O', 'Q', 'D' -> '0'
     else -> value
 }
 
