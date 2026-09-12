@@ -333,7 +333,7 @@ internal fun MainActivity.captureText() {
             requestPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
             return
         }
-        showTextCaptureCamera()
+        launchCamera(MainActivity.REQUEST_TEXT_CAMERA)
 }
 
 
