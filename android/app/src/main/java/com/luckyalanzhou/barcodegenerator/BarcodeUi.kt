@@ -848,7 +848,7 @@ internal fun MainActivity.showSettings() {
                 intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
             )
         }
-        val ocrReplacementLabels = arrayOf("O → 0", "I / l → 1", "S → 5", "B → 8")
+        val ocrReplacementLabels = arrayOf("字母 O → 数字 0", "字母 I → 数字 1", "字母 S → 数字 5", "字母 B → 数字 8")
         val ocrReplacementBits = intArrayOf(
             SettingsStore.OCR_REPLACE_O_ZERO,
             SettingsStore.OCR_REPLACE_I_ONE,
@@ -870,9 +870,9 @@ internal fun MainActivity.showSettings() {
             }
             // 视觉上保持紧凑，辅助功能仍能读出完整的替换规则。
             ocrReplacementValue.contentDescription = if (selected.isEmpty()) {
-                "强制替换混淆字符：关闭"
+                "OCR 字符纠错：关闭"
             } else {
-                "强制替换混淆字符：${selected.joinToString("、")}"
+                "OCR 字符纠错：${selected.joinToString("、")}"
             }
         }
         updateOcrReplacementValue(settingsStore.getOcrConfusionReplacementMask())
@@ -949,7 +949,7 @@ internal fun MainActivity.showSettings() {
             compactSliderRow("文字大小", textSizeSeekBar) { "${10 + it} sp" }, compactSliderRow("条码高度", barHeight) { "${30 + it} dp" },
             compactSliderRow("条码宽度", barWidth) { "${120 + it} dp" }, compactSliderRow("条码间距", margin) { "$it dp" },
             textRow("显示条码格式", showFormat),
-            textRow("强制替换混淆字符", ocrReplacementValue)
+            textRow("OCR 字符纠错", ocrReplacementValue)
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
         val toolRows = mutableListOf<View>()
