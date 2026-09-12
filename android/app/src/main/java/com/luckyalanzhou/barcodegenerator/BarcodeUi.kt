@@ -843,7 +843,7 @@ internal fun MainActivity.showSettings() {
                 intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
             )
         }
-        val ocrReplacementLabels = arrayOf("O / 0：字母 O 替换为数字 0", "I / 1：字母 I、l 替换为数字 1", "S / 5：字母 S 替换为数字 5", "B / 8：字母 B 替换为数字 8")
+        val ocrReplacementLabels = arrayOf("O → 0", "I / l → 1", "S → 5", "B → 8")
         val ocrReplacementBits = intArrayOf(
             SettingsStore.OCR_REPLACE_O_ZERO,
             SettingsStore.OCR_REPLACE_I_ONE,
@@ -856,7 +856,7 @@ internal fun MainActivity.showSettings() {
             setBackgroundResource(R.drawable.bg_input)
         }
         fun updateOcrReplacementValue(mask: Int) {
-            val selected = ocrReplacementLabels.mapIndexedNotNull { index, label -> if (mask and ocrReplacementBits[index] != 0) label.substringBefore("：") else null }
+            val selected = ocrReplacementLabels.mapIndexedNotNull { index, label -> if (mask and ocrReplacementBits[index] != 0) label else null }
             ocrReplacementValue.text = when (selected.size) {
                 0 -> "关闭"
                 1 -> selected.first()
@@ -948,13 +948,19 @@ internal fun MainActivity.showSettings() {
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
         val toolRows = mutableListOf<View>()
-        toolRows += textRow("局域网文件分享", styleButton(Button(activity).apply {
-            text = "启动"
+        fun toolActionButton(label: String, action: () -> Unit) = styleButton(Button(activity).apply {
+            text = label
             minWidth = 0
             minimumWidth = 0
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            setOnClickListener { enterLanShare() }
-        }), trailingWidth = -2)
+            minHeight = dp(44)
+            minimumHeight = dp(44)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setOnClickListener { action() }
+        }).apply {
+            // 工具按钮保留玻璃质感，但减少胶囊感并稍微放大外框。
+            background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
+        }
+        toolRows += textRow("局域网文件分享", toolActionButton("启动") { enterLanShare() }, trailingWidth = -2)
         val versionLine = LinearLayout(this).apply {
              orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
              val info = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
@@ -979,28 +985,18 @@ internal fun MainActivity.showSettings() {
              addView(TextView(activity).apply { text = "关于"; this.textSize = 16f; setTypeface(null, Typeface.BOLD); setTextColor(primaryText()) })
              addView(versionLine, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(8), 0, 0) })
          }
-         toolRows += textRow("恢复默认设置", styleButton(Button(activity).apply {
-             text = "恢复"
-             minWidth = 0
-             minimumWidth = 0
-             setPadding(dp(8), dp(6), dp(8), dp(6))
-             setOnClickListener {
+         toolRows += textRow("恢复默认设置", toolActionButton("恢复") {
                  textSizeSeekBar.progress = 4
                  barHeight.progress = 25
                  barWidth.progress = 80
                  margin.progress = 4
                  persistSettings()
                  toast("已恢复条码默认设置")
-             }
-         }), trailingWidth = -2)
+              }, trailingWidth = -2)
+         toolRows += textRow("导入收藏", toolActionButton("导入") { restoreFavoritesImport() }, trailingWidth = -2)
+         toolRows += textRow("导出收藏", toolActionButton("导出") { createFavoritesExport() }, trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
-              toolRows += textRow("调试日志", styleButton(Button(activity).apply {
-                  text = "导出"
-                  minWidth = 0
-                  minimumWidth = 0
-                  setPadding(dp(8), dp(6), dp(8), dp(6))
-                  setOnClickListener { shareDebugLog() }
-              }), trailingWidth = -2)
+              toolRows += textRow("调试日志", toolActionButton("导出") { shareDebugLog() }, trailingWidth = -2)
           }
         addSpaced(groupCard(toolRows), bottom = 12)
           // 整张“关于”卡片是一个安静的入口：在短时间内连点五次才打开彩蛋，日常浏览不会误触。
@@ -1084,28 +1080,28 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(dp(24), dp(26), dp(24), dp(16))
+        setPadding(dp(18), dp(18), dp(18), dp(10))
         addView(TextView(this@showIos26NoticeDialog).apply {
             text = message
             textSize = 16f
             gravity = Gravity.CENTER
             includeFontPadding = false
             setTextColor(primaryText())
-        }, LinearLayout.LayoutParams(-1, dp(34)))
+        }, LinearLayout.LayoutParams(-1, dp(30)))
         addView(View(this@showIos26NoticeDialog).apply {
             setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
-        }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(12), 0, 0) })
+        }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(8), 0, 0) })
          addView(styleButton(Button(this@showIos26NoticeDialog).apply {
              text = "确定"
              textSize = 15f
              minWidth = 0; minimumWidth = 0
              isAllCaps = false
              // 保持与其他弹窗一致的紧凑按钮边距。
-             setPadding(dp(8), dp(6), dp(8), dp(6))
+             setPadding(dp(10), dp(7), dp(10), dp(7))
              setTextColor(primaryText())
-             setBackgroundDrawable(glassButtonBackground())
+             setBackgroundDrawable(glassButtonBackground().apply { cornerRadius = dp(14).toFloat() })
              setOnClickListener { dialog.dismiss() }
-         }), LinearLayout.LayoutParams(-2, dp(40)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(14) })
+         }), LinearLayout.LayoutParams(-2, dp(44)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(10) })
     }
     dialog.setView(box)
     showIos26Dialog(dialog, compact = true)
@@ -1369,13 +1365,28 @@ internal fun MainActivity.showLanShareQrDialog() {
     val session = lanShareSession
     if (!lanShareIsHost || session == null) { toast("请先创建分享房间"); return }
     val matrix = MultiFormatWriter().encode(session.baseUrl, BarcodeFormat.QR_CODE, dp(260), dp(260))
-    val bitmap = Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image -> for (x in 0 until matrix.width) for (y in 0 until matrix.height) image.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE) }
+    val qrForeground = if (isDark()) 0xff111318.toInt() else Color.BLACK
+    val qrBackground = if (isDark()) 0xfff1f3f6.toInt() else Color.WHITE
+    val bitmap = Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image -> for (x in 0 until matrix.width) for (y in 0 until matrix.height) image.setPixel(x, y, if (matrix[x, y]) qrForeground else qrBackground) }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(18), dp(8), dp(18), dp(4))
+        setPadding(dp(18), dp(20), dp(18), dp(12))
+        addView(ImageView(this@showLanShareQrDialog).apply {
+            setImageBitmap(bitmap)
+            contentDescription = "局域网分享二维码"
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setBackgroundColor(qrBackground)
+        }, LinearLayout.LayoutParams(-1, dp(280)))
         addView(LinearLayout(this@showLanShareQrDialog).apply {
             gravity = Gravity.CENTER_VERTICAL
-            addView(TextView(this@showLanShareQrDialog).apply { text = "扫码加入"; textSize = 18f; setTypeface(null, Typeface.BOLD); setTextColor(primaryText()) }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            addView(TextView(this@showLanShareQrDialog).apply {
+                text = session.baseUrl
+                gravity = Gravity.CENTER
+                setTextColor(secondaryText())
+                setTextIsSelectable(true)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+            }, LinearLayout.LayoutParams(0, dp(42), 1f))
             addView(ImageButton(this@showLanShareQrDialog).apply {
                 setImageResource(R.drawable.ic_copy)
                 setColorFilter(if (isDark()) Color.WHITE else 0xff334155.toInt())
@@ -1385,12 +1396,10 @@ internal fun MainActivity.showLanShareQrDialog() {
                     (getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("局域网传输地址", session.baseUrl))
                     toast("已复制局域网传输地址")
                 }
-            }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        }, LinearLayout.LayoutParams(-1, dp(48)))
-        addView(ImageView(this@showLanShareQrDialog).apply { setImageBitmap(bitmap); contentDescription = "局域网分享二维码"; setPadding(dp(8), dp(4), dp(8), dp(4)) }, LinearLayout.LayoutParams(-1, dp(280)))
-        addView(TextView(this@showLanShareQrDialog).apply { text = "局域网传输地址：${session.baseUrl}"; gravity = Gravity.CENTER; setTextColor(secondaryText()); setPadding(dp(8), dp(4), dp(8), dp(10)); setTextIsSelectable(true) }, LinearLayout.LayoutParams(-1, -2))
+            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+        }, LinearLayout.LayoutParams(-1, dp(42)))
     }
-    val dialog = AlertDialog.Builder(this).setView(box).setPositiveButton("关闭", null).create()
+    val dialog = AlertDialog.Builder(this).setView(box).create()
     dialog.setCanceledOnTouchOutside(true)
     dialog.setOnCancelListener { lanShareQrVisible = false }
     dialog.setOnDismissListener { lanShareQrVisible = false }
@@ -2078,20 +2087,6 @@ internal fun MainActivity.showFavoriteGroups() {
         rootLayout.setBackgroundColor(if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt())
         window.statusBarColor = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
         window.navigationBarColor = if (isDark()) 0xff10131b.toInt() else 0xfff4f6fb.toInt()
-
-        val transferPanel = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, 0)
-            val exportSlot = FrameLayout(activity).apply {
-                addView(styleButton(Button(activity).apply { text = "导出收藏"; textSize = 15f; minWidth = 0; minimumWidth = 0; setPadding(dp(10), 0, dp(10), 0); setOnClickListener { createFavoritesExport() } }).apply { setBackgroundDrawable(glassButtonBackground()) }, FrameLayout.LayoutParams(-2, dp(46), Gravity.CENTER))
-            }
-            val importSlot = FrameLayout(activity).apply {
-                addView(styleButton(Button(activity).apply { text = "导入收藏"; textSize = 15f; minWidth = 0; minimumWidth = 0; setPadding(dp(10), 0, dp(10), 0); setOnClickListener { restoreFavoritesImport() } }).apply { setBackgroundDrawable(glassButtonBackground()) }, FrameLayout.LayoutParams(-2, dp(46), Gravity.CENTER))
-            }
-            addView(importSlot, LinearLayout.LayoutParams(0, dp(46), 1f))
-            addView(exportSlot, LinearLayout.LayoutParams(0, dp(46), 1f))
-        }
-        addSpaced(transferPanel, bottom = 12)
 
         search = EditText(this).apply {
             hint = "⌕  搜索名称、文件夹或内容"; textSize = 17f; setSingleLine(true)
