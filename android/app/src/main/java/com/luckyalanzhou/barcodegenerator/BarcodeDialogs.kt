@@ -488,23 +488,36 @@ internal fun MainActivity.prepareTextBitmap(bitmap: Bitmap, sourceFile: File?): 
 
 internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val activity = this
-        val screenPrepared = prepareScreenOcrBitmap(bitmap)
-        val enhanced = screenPrepared.copy(Bitmap.Config.ARGB_8888, true)
-        val matrix = ColorMatrix().apply { setSaturation(0f); val scale = 1.35f; val offset = -44.8f; set(floatArrayOf(scale, 0f, 0f, 0f, offset, 0f, scale, 0f, 0f, offset, 0f, 0f, scale, 0f, offset, 0f, 0f, 0f, 1f, 0f)) }
-        Canvas(enhanced).drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) })
         val code128Mode = formats.getOrNull(formatSpinner.selectedItemPosition)?.second == BarcodeFormat.CODE_128
         val recognizer = if (code128Mode) {
             TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         } else {
             TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
         }
-        val primaryTask = recognizer.process(InputImage.fromBitmap(enhanced, 0))
-        // 第二路保留较自然的灰度和笔画，专门用于处理 Code 128 中 O/0、I/1、S/5 的竞争结果。
-        // 第二路使用未模糊的原始裁剪图，保留细小字符、空格和行尾字符。
-        val secondaryTask = recognizer.process(InputImage.fromBitmap(bitmap, 0))
-        Tasks.whenAllSuccess<Text>(listOf(primaryTask, secondaryTask))
+        val rowSources = if (code128Mode) splitCode128Rows(bitmap).ifEmpty { listOf(bitmap) } else listOf(bitmap)
+        val preparedImages = rowSources.map { prepareScreenOcrBitmap(it) }
+        val enhancedImages = preparedImages.map { source ->
+            source.copy(Bitmap.Config.ARGB_8888, true).also { enhanced ->
+                val matrix = ColorMatrix().apply {
+                    setSaturation(0f)
+                    val scale = 1.35f
+                    val offset = -44.8f
+                    set(floatArrayOf(scale, 0f, 0f, 0f, offset, 0f, 0f, scale, 0f, 0f, offset, 0f, 0f, scale, 0f, offset, 0f, 0f, 0f, 1f))
+                }
+                Canvas(enhanced).drawBitmap(source, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) })
+            }
+        }
+        val tasks = preparedImages.indices.flatMap { index ->
+            listOf(
+                recognizer.process(InputImage.fromBitmap(enhancedImages[index], 0)),
+                recognizer.process(InputImage.fromBitmap(rowSources[index], 0))
+            )
+        }
+        Tasks.whenAllSuccess<Text>(tasks)
             .addOnSuccessListener { results ->
-                val merged = mergeOcrCandidates(results[0], results[1])
+                val merged = (results.indices step 2)
+                    .map { index -> mergeOcrCandidates(results[index], results[index + 1]) }
+                    .joinToString("\n")
                 val selectedFormat = formats.getOrNull(formatSpinner.selectedItemPosition)?.second
                 val text = when {
                     code128Mode -> normalizeCode128Table(merged)
@@ -521,10 +534,50 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnFailureListener { toast("文字识别失败，请重试") }
             .addOnCompleteListener {
                 recognizer.close()
-                enhanced.recycle()
-                if (screenPrepared !== bitmap) screenPrepared.recycle()
+                enhancedImages.forEach { it.recycle() }
+                preparedImages.forEachIndexed { index, image -> if (image !== rowSources[index]) image.recycle() }
+                rowSources.forEach { if (it !== bitmap) it.recycle() }
             }
     }
+
+/** 检测表格横线，把屏幕表格拆成单行，避免整张表 OCR 时相邻行和横线互相干扰。 */
+private fun splitCode128Rows(bitmap: Bitmap): List<Bitmap> {
+    if (bitmap.width < 160 || bitmap.height < 160) return emptyList()
+    val pixels = IntArray(bitmap.width)
+    val step = (bitmap.width / 260).coerceAtLeast(2)
+    val ratios = FloatArray(bitmap.height)
+    for (y in 0 until bitmap.height) {
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, y, bitmap.width, 1)
+        var dark = 0
+        var samples = 0
+        for (x in bitmap.width / 20 until bitmap.width * 19 / 20 step step) {
+            val color = pixels[x]
+            val luminance = Color.red(color) * 0.299f + Color.green(color) * 0.587f + Color.blue(color) * 0.114f
+            if (luminance < 175f) dark++
+            samples++
+        }
+        ratios[y] = dark.toFloat() / samples.coerceAtLeast(1)
+    }
+    val lineCenters = mutableListOf<Int>()
+    var start = -1
+    for (y in ratios.indices) {
+        if (ratios[y] >= 0.52f) {
+            if (start < 0) start = y
+        } else if (start >= 0) {
+            if (y - start >= 2) lineCenters += (start + y - 1) / 2
+            start = -1
+        }
+    }
+    if (start >= 0 && ratios.size - start >= 2) lineCenters += (start + ratios.lastIndex) / 2
+    if (lineCenters.size < 2) return emptyList()
+    val boundaries = listOf(0) + lineCenters + listOf(bitmap.height)
+    return boundaries.zipWithNext().mapNotNull { (topBoundary, bottomBoundary) ->
+        val top = (topBoundary + 4).coerceAtLeast(0)
+        val bottom = (bottomBoundary - 4).coerceAtMost(bitmap.height)
+        if (bottom - top < 24) null
+        else runCatching { Bitmap.createBitmap(bitmap, 0, top, bitmap.width, bottom - top) }.getOrNull()
+    }
+}
 
 /** Code 128 表格模式：该表格约定不使用字母 O，因此将 OCR 的 O/o 安全纠正为数字 0。 */
 private fun normalizeCode128Table(text: String): String = text.lineSequence()
