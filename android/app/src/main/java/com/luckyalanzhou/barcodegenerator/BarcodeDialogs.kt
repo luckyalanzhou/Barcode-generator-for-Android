@@ -24,6 +24,8 @@ import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import com.google.mlkit.vision.text.Text
+import com.google.android.gms.tasks.Tasks
 import com.google.zxing.*
 import com.google.zxing.common.HybridBinarizer
 import org.json.*
@@ -488,20 +490,58 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val enhanced = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         val matrix = ColorMatrix().apply { setSaturation(0f); val scale = 1.35f; val offset = -44.8f; set(floatArrayOf(scale, 0f, 0f, 0f, offset, 0f, scale, 0f, 0f, offset, 0f, 0f, scale, 0f, offset, 0f, 0f, 0f, 1f, 0f)) }
         Canvas(enhanced).drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) })
-        val image = InputImage.fromBitmap(enhanced, 0)
         val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-        recognizer.process(image)
-            .addOnSuccessListener { result ->
-                val text = normalizeNumericO(result.text).trim()
-                if (text.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
+        val primaryTask = recognizer.process(InputImage.fromBitmap(enhanced, 0))
+        // 第二路保留较自然的灰度和笔画，专门用于处理 Code 128 中 O/0、I/1、S/5 的竞争结果。
+        val secondaryTask = recognizer.process(InputImage.fromBitmap(bitmap, 0))
+        Tasks.whenAllSuccess<Text>(listOf(primaryTask, secondaryTask))
+            .addOnSuccessListener { results ->
+                val merged = mergeOcrCandidates(results[0], results[1])
+                val selectedFormat = formats.getOrNull(formatSpinner.selectedItemPosition)?.second
+                val text = if (selectedFormat in setOf(BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.ITF)) normalizeNumericO(merged) else merged
+                val normalizedText = text.trim()
+                if (normalizedText.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
                 else {
-                    importRecognizedText(text)
+                    importRecognizedText(normalizedText)
                     toast("文字识别成功，已按行添加到输入框")
                 }
             }
             .addOnFailureListener { toast("文字识别失败，请重试") }
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
+
+private data class OcrLineCandidate(val text: String, val confidence: List<Float>, val averageConfidence: Float)
+
+private fun ocrLines(result: Text): List<OcrLineCandidate> = result.textBlocks.flatMap { block -> block.lines }.map { line ->
+    val symbols = line.elements.flatMap { it.symbols }
+    val confidence = symbols.map { it.confidence }
+    OcrLineCandidate(line.text, confidence, confidence.filter { it > 0f }.average().toFloat().takeUnless { it.isNaN() } ?: line.confidence)
+}
+
+/** 以字符位置和 ML Kit 字符置信度合并两次 OCR，避免 Code 128 的相似字符被盲目替换。 */
+private fun mergeOcrCandidates(primary: Text, secondary: Text): String {
+    val first = ocrLines(primary)
+    val second = ocrLines(secondary)
+    if (first.isEmpty()) return secondary.text
+    if (second.isEmpty()) return primary.text
+    return first.mapIndexed { index, left ->
+        val right = second.getOrNull(index) ?: return@mapIndexed left.text
+        if (left.text == right.text) return@mapIndexed left.text
+        if (left.text.length != right.text.length) return@mapIndexed if (left.averageConfidence >= right.averageConfidence) left.text else right.text
+        buildString(left.text.length) {
+            left.text.indices.forEach { position ->
+                val leftChar = left.text[position]
+                val rightChar = right.text[position]
+                if (leftChar == rightChar) append(leftChar)
+                else {
+                    val leftConfidence = left.confidence.getOrNull(position) ?: left.averageConfidence
+                    val rightConfidence = right.confidence.getOrNull(position) ?: right.averageConfidence
+                    append(if (rightConfidence > leftConfidence) rightChar else leftChar)
+                }
+            }
+        }
+    }.joinToString("\n")
+}
 
 /** OCR 在屏幕数字字体中容易把 0 识别成 O；只修正纯数字/ O 的连续字段，避免误伤真正的字母 O。 */
 private fun normalizeNumericO(text: String): String = text
