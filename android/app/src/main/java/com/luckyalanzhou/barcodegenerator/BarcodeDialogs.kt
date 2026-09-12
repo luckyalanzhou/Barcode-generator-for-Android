@@ -143,7 +143,6 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         addView(TextView(this@downloadAndInstall).apply { text = "下载更新"; textSize = 20f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); includeFontPadding = false; setTextColor(primaryText()) }, LinearLayout.LayoutParams(-1, dp(30)))
         addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(14) })
         addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
-        addView(updateDivider(), LinearLayout.LayoutParams(-1, dp(1)))
         addView(LinearLayout(this@downloadAndInstall).apply {
             gravity = Gravity.CENTER
             addView(cancelButton, LinearLayout.LayoutParams(-2, dp(38)))
