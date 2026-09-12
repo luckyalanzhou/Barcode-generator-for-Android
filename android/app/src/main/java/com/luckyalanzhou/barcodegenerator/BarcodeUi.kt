@@ -755,6 +755,40 @@ internal fun MainActivity.showSettings() {
                 intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
             )
         }
+        val ocrReplacementLabels = arrayOf("O / 0：字母 O 替换为数字 0", "I / 1：字母 I、l 替换为数字 1", "S / 5：字母 S 替换为数字 5", "B / 8：字母 B 替换为数字 8")
+        val ocrReplacementBits = intArrayOf(
+            SettingsStore.OCR_REPLACE_O_ZERO,
+            SettingsStore.OCR_REPLACE_I_ONE,
+            SettingsStore.OCR_REPLACE_S_FIVE,
+            SettingsStore.OCR_REPLACE_B_EIGHT
+        )
+        val ocrReplacementValue = TextView(activity).apply {
+            gravity = Gravity.CENTER
+            setTextColor(primaryText())
+            setBackgroundResource(R.drawable.bg_input)
+        }
+        fun updateOcrReplacementValue(mask: Int) {
+            val selected = ocrReplacementLabels.mapIndexedNotNull { index, label -> if (mask and ocrReplacementBits[index] != 0) label.substringBefore("：") else null }
+            ocrReplacementValue.text = if (selected.isEmpty()) "关闭" else selected.joinToString("、")
+        }
+        updateOcrReplacementValue(settingsStore.getOcrConfusionReplacementMask())
+        ocrReplacementValue.setOnClickListener {
+            val current = settingsStore.getOcrConfusionReplacementMask()
+            val checked = ocrReplacementBits.map { current and it != 0 }.toBooleanArray()
+            AlertDialog.Builder(activity)
+                .setTitle("强制替换混淆字符")
+                .setMultiChoiceItems(ocrReplacementLabels, checked) { _, which, enabled ->
+                    checked[which] = enabled
+                }
+                .setNegativeButton("取消", null)
+                .setPositiveButton("完成") { _, _ ->
+                    val mask = checked.mapIndexed { index, enabled -> if (enabled) ocrReplacementBits[index] else 0 }.sum()
+                    settingsStore.setOcrConfusionReplacementMask(mask)
+                    updateOcrReplacementValue(mask)
+                }
+                .create()
+                .also { showIos26Dialog(it) }
+        }
          val textSizeSeekBar = SeekBar(this).apply { max = 14; progress = (draft.textSize.roundToInt() - 10).coerceIn(0, 14) }
         val barHeight = SeekBar(this).apply { max = 120; progress = (draft.barHeight - 30).coerceIn(0, 120) }
         val barWidth = SeekBar(this).apply { max = 240; progress = (draft.barWidth.roundToInt() - 120).coerceIn(0, 240) }
@@ -815,7 +849,8 @@ internal fun MainActivity.showSettings() {
          addSpaced(groupCard(listOf(
             compactSliderRow("文字大小", textSizeSeekBar) { "${10 + it} sp" }, compactSliderRow("条码高度", barHeight) { "${30 + it} dp" },
             compactSliderRow("条码宽度", barWidth) { "${120 + it} dp" }, compactSliderRow("条码间距", margin) { "$it dp" },
-            textRow("显示条码格式", showFormat)
+            textRow("显示条码格式", showFormat),
+            textRow("强制替换混淆字符", ocrReplacementValue)
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
         val toolRows = mutableListOf<View>()

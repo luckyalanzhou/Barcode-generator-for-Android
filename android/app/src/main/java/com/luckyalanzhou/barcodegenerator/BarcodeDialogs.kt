@@ -488,7 +488,8 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
         recognizer.process(image)
             .addOnSuccessListener { results ->
-                val normalizedText = results.text.trim()
+                val recognizedText = forceOcrConfusionReplacement(results.text, settingsStore.getOcrConfusionReplacementMask())
+                val normalizedText = recognizedText.trim()
                 if (normalizedText.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
                 else {
                     importRecognizedText(normalizedText)
@@ -498,6 +499,17 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
             .addOnFailureListener { toast("文字识别失败，请重试") }
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
+
+/** 可选的数字优先纠错：只在用户主动开启时，将常见 OCR 混淆字符改为数字。 */
+private fun forceOcrConfusionReplacement(text: String, mask: Int): String = text.map { char ->
+    when {
+        char in "Oo" && mask and SettingsStore.OCR_REPLACE_O_ZERO != 0 -> '0'
+        char in "Iil" && mask and SettingsStore.OCR_REPLACE_I_ONE != 0 -> '1'
+        char in "Ss" && mask and SettingsStore.OCR_REPLACE_S_FIVE != 0 -> '5'
+        char in "Bb" && mask and SettingsStore.OCR_REPLACE_B_EIGHT != 0 -> '8'
+        else -> char
+    }
+}.joinToString("")
 
 
 internal fun MainActivity.importRecognizedText(text: String) {
