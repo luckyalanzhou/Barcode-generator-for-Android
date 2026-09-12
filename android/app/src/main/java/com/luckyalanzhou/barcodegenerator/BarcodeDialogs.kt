@@ -513,24 +513,34 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
                 recognizer.process(InputImage.fromBitmap(rowSources[index], 0))
             )
         }
-        // 某一行或某一路 OCR 失败时仍保留其它成功行，不能让单个失败任务导致整张表失败。
+        // 单路 OCR 失败可以用另一条路兜底，但每一行都必须最终识别成功；不允许部分导入。
         Tasks.whenAllComplete(tasks)
             .addOnSuccessListener { completed ->
-                val merged = (rowSources.indices).mapNotNull { rowIndex ->
+                val rowTexts = rowSources.indices.map { rowIndex ->
                     val primary = completed.getOrNull(rowIndex * 2)?.result as? Text
                     val secondary = completed.getOrNull(rowIndex * 2 + 1)?.result as? Text
                     when {
                         primary != null && secondary != null -> mergeOcrCandidates(primary, secondary)
                         primary != null -> primary.text
                         secondary != null -> secondary.text
-                        else -> null
+                        else -> ""
                     }
-                }.joinToString("\n")
+                }
                 val selectedFormat = formats.getOrNull(formatSpinner.selectedItemPosition)?.second
-                val text = when {
-                    code128Mode -> normalizeCode128Table(merged)
-                    selectedFormat in setOf(BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.ITF) -> normalizeNumericO(merged)
-                    else -> merged
+                val text = if (code128Mode) {
+                    val normalizedRows = rowTexts.map { normalizeCode128Table(it).trim() }
+                    val failedRow = normalizedRows.indexOfFirst { it.isEmpty() }
+                    if (failedRow >= 0) {
+                        toast("第 ${failedRow + 1} 行识别失败，请完整拍摄后重试")
+                        return@addOnSuccessListener
+                    }
+                    normalizedRows.joinToString("\n")
+                } else {
+                    val merged = rowTexts.joinToString("\n")
+                    when {
+                        selectedFormat in setOf(BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.ITF) -> normalizeNumericO(merged)
+                        else -> merged
+                    }
                 }
                 val normalizedText = text.trim()
                 if (normalizedText.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
