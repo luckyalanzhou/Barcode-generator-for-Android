@@ -49,6 +49,14 @@ internal fun MainActivity.tabPageIndex(): Int = when (page) {
         else -> 0
     }
 
+private val bottomTabIcons = intArrayOf(
+    R.drawable.ic_tab_barcode, R.drawable.ic_tab_history, R.drawable.ic_tab_favorite, R.drawable.ic_tab_settings
+)
+private val bottomTabSelectedIcons = intArrayOf(
+    R.drawable.ic_tab_barcode_selected, R.drawable.ic_tab_history_selected,
+    R.drawable.ic_tab_favorite_selected, R.drawable.ic_tab_settings_selected
+)
+
 
 internal fun MainActivity.updateTopTabSelection() {
     val selected = tabPageIndex()
@@ -58,7 +66,15 @@ internal fun MainActivity.updateTopTabSelection() {
     topTabButtons.forEach { tab ->
         val isSelected = tab.tag == selected
         tab.findViewWithTag<TextView>("tabLabel")?.setTextColor(if (isSelected) selectedColor else unselectedColor)
-        tab.findViewWithTag<ImageView>("tabIcon")?.setColorFilter(if (isSelected) selectedColor else unselectedColor)
+        tab.findViewWithTag<ImageView>("tabIcon")?.apply {
+            setImageResource(if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int])
+            setColorFilter(if (isSelected) selectedColor else unselectedColor)
+            animate().cancel()
+            animate().scaleX(if (isSelected) 1.08f else 1f).scaleY(if (isSelected) 1.08f else 1f)
+                .translationY(if (isSelected) -dp(1).toFloat() else 0f)
+                .setDuration(if (isSelected) 180 else 120)
+                .setInterpolator(OvershootInterpolator(0.75f)).start()
+        }
         // 选中项自身抬升，玻璃表面在图文下方绘制，不会遮挡图标或文字。
         tab.setBackgroundResource(if (isSelected && !tabGlassDragActive) R.drawable.bg_tab_selected else R.drawable.bg_tab)
         // 保持很轻的悬浮距离，避免变成厚重的实体按钮。
@@ -245,8 +261,11 @@ internal fun MainActivity.sectionTitle(text: String, subtitle: String? = null): 
 internal fun MainActivity.contentCard(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(10), dp(14), dp(10))
-        setBackgroundResource(R.drawable.bg_card)
-    }
+        // 所有页面卡片统一使用动态液态玻璃，避免设置页仍显示固定浅色卡片。
+        background = liquidGlassCard()
+        elevation = dp(2).toFloat()
+        clipToOutline = true
+}
 
 
 internal fun MainActivity.addSpaced(view: View, top: Int = 0, bottom: Int = 10) {
@@ -824,10 +843,10 @@ internal fun MainActivity.showSettings() {
         fun sliderRow(title: String, seekBar: SeekBar, valueText: (Int) -> String): LinearLayout {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), 0, dp(8), 0) }
             val titleView = TextView(this).apply { text = title; textSize = 16f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTypeface(Typeface.create("sans-serif", Typeface.NORMAL)); setTextColor(primaryText()) }
-            val value = TextView(this).apply { text = valueText(seekBar.progress); textSize = 14f; setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL or Gravity.END; includeFontPadding = false; setSingleLine(true); setTextColor(if (isDark()) 0xffa9c4ff.toInt() else 0xff2864d7.toInt()) }
+            val value = TextView(this).apply { text = valueText(seekBar.progress); textSize = 15f; setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL or Gravity.END; includeFontPadding = false; setSingleLine(true); setTextColor(if (isDark()) 0xffb8ccff.toInt() else 0xff2864d7.toInt()) }
             row.addView(titleView, LinearLayout.LayoutParams(dp(88), dp(48)))
             row.addView(seekBar, LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(2), 0, dp(8), 0) })
-            row.addView(value, LinearLayout.LayoutParams(dp(60), dp(48)))
+            row.addView(value, LinearLayout.LayoutParams(dp(72), dp(48)))
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) { value.text = valueText(progress); if (fromUser) (bar.tag as? ((Int) -> Unit))?.invoke(progress) }
             override fun onStartTrackingTouch(bar: SeekBar) = Unit
@@ -843,9 +862,10 @@ internal fun MainActivity.showSettings() {
             // 51x31dp 的胶囊比例接近 iOS 设置开关，SwitchCompat 自带平滑滑块动画。
             showText = false
             isChecked = draft.showFormat
-            minWidth = dp(51)
-            minimumWidth = dp(51)
-            minimumHeight = dp(31)
+            minWidth = dp(58)
+            minimumWidth = dp(58)
+            minHeight = dp(34)
+            minimumHeight = dp(34)
             setPadding(0, 0, 0, 0)
             thumbTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -1385,20 +1405,19 @@ internal fun MainActivity.joinLanShareSession(value: String) {
 internal fun MainActivity.showLanShareQrDialog() {
     val session = lanShareSession
     if (!lanShareIsHost || session == null) { toast("请先创建分享房间"); return }
-    val matrix = MultiFormatWriter().encode(session.baseUrl, BarcodeFormat.QR_CODE, dp(240), dp(240))
+    // 缩小二维码内部默认静区，保留可可靠识别所需的最小留白，避免白色方块过大。
+    val matrix = MultiFormatWriter().encode(session.baseUrl, BarcodeFormat.QR_CODE, dp(240), dp(240), mapOf(EncodeHintType.MARGIN to 1))
     val qrForeground = if (isDark()) 0xff111318.toInt() else Color.BLACK
     val qrBackground = if (isDark()) 0xfff1f3f6.toInt() else Color.WHITE
     val bitmap = Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image -> for (x in 0 until matrix.width) for (y in 0 until matrix.height) image.setPixel(x, y, if (matrix[x, y]) qrForeground else qrBackground) }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(18), dp(20), dp(18), dp(12))
+        setPadding(dp(12), dp(14), dp(12), dp(10))
         addView(ImageView(this@showLanShareQrDialog).apply {
             setImageBitmap(bitmap)
             contentDescription = "局域网分享二维码"
-            // 保留二维码自身的静区，减少外层额外白边，避免白色方块显得过大。
-            setPadding(dp(6), dp(6), dp(6), dp(6))
             setBackgroundColor(qrBackground)
-        }, LinearLayout.LayoutParams(-1, dp(252)))
+        }, LinearLayout.LayoutParams(-1, dp(240)))
         addView(LinearLayout(this@showLanShareQrDialog).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(TextView(this@showLanShareQrDialog).apply {
@@ -2043,10 +2062,16 @@ internal fun MainActivity.addHistoryRow(batch: List<CodeItem>, time: Long) {
         }
     }
 
+    val firstCodePreview = orderedBatch.firstOrNull()?.text?.let { value ->
+        if (value.length > 8) value.take(8) + "..." else value
+    }.orEmpty()
     row.addView(TextView(this).apply {
-        text = "${orderedBatch.size}个条码"
+        text = "${orderedBatch.size}条：$firstCodePreview"
         textSize = 16f
         gravity = Gravity.CENTER_VERTICAL
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        includeFontPadding = false
         setTextColor(primaryText())
     }, LinearLayout.LayoutParams(0, dp(40), 1f))
 
@@ -2224,11 +2249,15 @@ private fun MainActivity.addTreeHeader(container: LinearLayout, label: String, f
     header.addView(TextView(this).apply { text = label; textSize = if (isRoot) 18f else 17f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTextColor(color) }, LinearLayout.LayoutParams(0, rowHeight, 1f))
     header.addView(TextView(this).apply { text = "$count"; textSize = 13f; gravity = Gravity.CENTER; includeFontPadding = false; setTextColor(secondaryText()) }, LinearLayout.LayoutParams(dp(28), rowHeight))
     header.addView(TextView(this).apply { tag = "folderArrow"; text = "›"; textSize = 22f; gravity = Gravity.CENTER; includeFontPadding = false; rotation = if (collapsed) 0f else 90f; setTextColor(secondaryText()) }, LinearLayout.LayoutParams(dp(25), rowHeight))
-    header.addView(TextView(this).apply {
-        text = "⋯"; textSize = 21f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); gravity = Gravity.CENTER; setTextColor(secondaryText()); setPadding(0, 0, 0, dp(4)); isClickable = true; isFocusable = true
-        if (isRoot) setBackgroundDrawable(glassButtonBackground())
+    header.addView(ImageButton(this).apply {
+        setImageResource(R.drawable.ic_action_edit)
+        imageTintList = ColorStateList.valueOf(if (isDark()) 0xffb8ccff.toInt() else 0xff2166d1.toInt())
+        contentDescription = "编辑文件夹"
+        setPadding(dp(8), dp(8), dp(8), dp(8))
+        background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
+        isClickable = true; isFocusable = true
         setOnClickListener { showTreeFolderMenu(this, folder, level) }
-    }, LinearLayout.LayoutParams(dp(if (isRoot) 38 else 34), dp(if (isRoot) 38 else 34)).apply { setMargins(dp(2), 0, 0, 0) })
+    }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { setMargins(dp(2), 0, 0, 0) })
     container.addView(header, LinearLayout.LayoutParams(-1, dp(if (isRoot) 50 else 43)).apply { setMargins(dp(if (isRoot) 0 else 10), 0, dp(if (isRoot) 0 else 4), dp(if (isRoot) 7 else 1)) })
 }
 
@@ -2257,7 +2286,15 @@ private fun MainActivity.addTreeFile(container: LinearLayout, group: FavoriteGro
     // 收藏文件名固定为绿色，与两级文件夹形成稳定的三级视觉关系。
     row.addView(TextView(this).apply { text = group.name; textSize = 17f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTextColor(color) }, LinearLayout.LayoutParams(0, dp(44), 1f))
     row.addView(TextView(this).apply { text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)); textSize = 11f; gravity = Gravity.CENTER_VERTICAL; setTextColor(secondaryText()) }, LinearLayout.LayoutParams(dp(78), dp(44)))
-    row.addView(styleButton(Button(this).apply { text = "⋯"; textSize = 20f; setTextColor(secondaryText()); setPadding(0, 0, 0, 0); setOnClickListener { showFavoriteFileMenu(this, group, groupItems) } }).apply { setBackgroundDrawable(glassButtonBackground()) }, LinearLayout.LayoutParams(dp(42), dp(42)))
+    row.addView(ImageButton(this).apply {
+        setImageResource(R.drawable.ic_action_edit)
+        imageTintList = ColorStateList.valueOf(if (isDark()) 0xffb8ccff.toInt() else 0xff2166d1.toInt())
+        contentDescription = "编辑收藏文件"
+        setPadding(dp(8), dp(8), dp(8), dp(8))
+        background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
+        isClickable = true; isFocusable = true
+        setOnClickListener { showFavoriteFileMenu(this, group, groupItems) }
+    }, LinearLayout.LayoutParams(dp(40), dp(40)))
     // 文件为内容层，沿父文件夹缩进并保留平整材质，不再与文件夹头部争夺玻璃层级。
     container.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(if (level <= 1) 16 else 38), 0, dp(4), dp(6)) })
 }
