@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.*
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
@@ -81,6 +82,7 @@ private fun MainActivity.updateActionButton(label: String, primary: Boolean = fa
         text = label
         textSize = 14f
         minWidth = 0; minimumWidth = 0
+        minHeight = 0; minimumHeight = 0
         isAllCaps = false
         setPadding(dp(6), 0, dp(6), 0)
         setTextColor(if (primary) Color.WHITE else primaryText())
@@ -117,10 +119,10 @@ private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: 
         addView(LinearLayout(this@showUpdateAvailableDialog).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
-            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { rightMargin = dp(6) })
-            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
-            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { leftMargin = dp(6) })
-        }, LinearLayout.LayoutParams(-1, dp(58)))
+            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(4) })
+            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4); rightMargin = dp(4) })
+            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4) })
+        }, LinearLayout.LayoutParams(-1, dp(54)))
     }
     dialog.setView(box)
     dialog.setOnCancelListener { updateDialogShowing = false }
@@ -133,18 +135,20 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
     val status = TextView(this).apply { text = "准备下载…"; textSize = 14f; setTextColor(secondaryText()); setPadding(0, dp(10), 0, 0) }
     val dialog = AlertDialog.Builder(this).create()
+    var job: kotlinx.coroutines.Job? = null
+    val cancelButton = updateActionButton("取消下载") { job?.cancel(); dialog.dismiss() }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(22), dp(22), dp(22), dp(16))
         addView(TextView(this@downloadAndInstall).apply { text = "下载更新"; textSize = 20f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); includeFontPadding = false; setTextColor(primaryText()) }, LinearLayout.LayoutParams(-1, dp(30)))
         addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(14) })
         addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
-        addView(updateDivider(), LinearLayout.LayoutParams(-1, dp(1)))
-        addView(updateActionButton("取消下载") { }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(16) })
+        addView(LinearLayout(this@downloadAndInstall).apply {
+            gravity = Gravity.CENTER
+            addView(cancelButton, LinearLayout.LayoutParams(-2, dp(38)))
+        }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(16) })
     }
     dialog.setView(box)
-    var job: kotlinx.coroutines.Job? = null
-    dialog.setOnShowListener { (box.getChildAt(box.childCount - 1) as Button).setOnClickListener { job?.cancel(); dialog.dismiss() } }
     showIos26Dialog(dialog)
     job = lifecycleScope.launch(Dispatchers.IO) {
         val temp = File(cacheDir, "barcode-generator-update.apk.part")
@@ -325,8 +329,8 @@ internal fun MainActivity.scanWithCamera() {
 
 internal fun MainActivity.captureText() {
         val activity = this
-        openCamera(45)
-    }
+        openCamera(MainActivity.REQUEST_TEXT_CAMERA)
+}
 
 
 internal fun MainActivity.openCamera(requestCode: Int) {
@@ -448,6 +452,36 @@ internal fun MainActivity.pickBarcodeImage() { startActivityForResult(Intent(Int
 internal fun MainActivity.pickTextImage() { startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*"; addCategory(Intent.CATEGORY_OPENABLE) }, 46) }
 
 
+/**
+ * 拍摄电脑屏幕时相机经常把方向写在 EXIF 中，且原图可能大到让 OCR 处理变慢。
+ * 先按 EXIF 校正，再限制最长边，保证屏幕文字以正确方向和稳定尺寸交给 ML Kit。
+ */
+internal fun MainActivity.prepareTextBitmap(bitmap: Bitmap, sourceFile: File?): Bitmap {
+    var prepared = bitmap
+    val orientation = sourceFile?.let {
+        runCatching { ExifInterface(it.absolutePath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+            .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+    } ?: ExifInterface.ORIENTATION_NORMAL
+    val rotation = when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 90f
+        ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+        ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 270f
+        else -> 0f
+    }
+    if (rotation != 0f) {
+        prepared = runCatching {
+            Bitmap.createBitmap(prepared, 0, 0, prepared.width, prepared.height, Matrix().apply { postRotate(rotation) }, true)
+        }.getOrDefault(prepared)
+    }
+    val longest = maxOf(prepared.width, prepared.height)
+    if (longest > 2400) {
+        val scale = 2400f / longest.toFloat()
+        prepared = Bitmap.createScaledBitmap(prepared, (prepared.width * scale).roundToInt(), (prepared.height * scale).roundToInt(), true)
+    }
+    return prepared
+}
+
+
 internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val activity = this
         val enhanced = bitmap.copy(Bitmap.Config.ARGB_8888, true)
@@ -456,17 +490,29 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         val image = InputImage.fromBitmap(enhanced, 0)
         val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
         recognizer.process(image)
-            .addOnSuccessListener { result ->
-                val text = result.text.trim()
-                if (text.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
+            .addOnSuccessListener { results ->
+                val recognizedText = forceOcrConfusionReplacement(results.text, settingsStore.getOcrConfusionReplacementMask())
+                val normalizedText = recognizedText.trim()
+                if (normalizedText.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
                 else {
-                    importRecognizedText(text)
+                    importRecognizedText(normalizedText)
                     toast("文字识别成功，已按行添加到输入框")
                 }
             }
             .addOnFailureListener { toast("文字识别失败，请重试") }
             .addOnCompleteListener { recognizer.close(); enhanced.recycle() }
     }
+
+/** 可选的数字优先纠错：只在用户主动开启时，将常见 OCR 混淆字符改为数字。 */
+private fun forceOcrConfusionReplacement(text: String, mask: Int): String = text.map { char ->
+    when {
+        char in "Oo" && mask and SettingsStore.OCR_REPLACE_O_ZERO != 0 -> '0'
+        char in "Iil" && mask and SettingsStore.OCR_REPLACE_I_ONE != 0 -> '1'
+        char in "Ss" && mask and SettingsStore.OCR_REPLACE_S_FIVE != 0 -> '5'
+        char in "Bb" && mask and SettingsStore.OCR_REPLACE_B_EIGHT != 0 -> '8'
+        else -> char
+    }
+}.joinToString("")
 
 
 internal fun MainActivity.importRecognizedText(text: String) {

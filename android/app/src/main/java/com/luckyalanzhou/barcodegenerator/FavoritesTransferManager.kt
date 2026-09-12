@@ -5,10 +5,10 @@ import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
-import java.util.zip.CRC32
-import java.util.zip.ZipEntry
+import java.io.Closeable
+import java.io.OutputStream
 import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
+import java.util.zip.CRC32
 
 private const val FAVORITES_DIRECTORY = "favorites"
 private const val MAX_BACKUP_INPUT_BYTES = 64 * 1024 * 1024
@@ -42,7 +42,7 @@ object FavoritesTransferManager {
         val itemById = items.associateBy { it.id }
         val linksByGroup = links.groupBy { it.groupId }
         resolver.openOutputStream(uri)?.use { output ->
-            ZipOutputStream(output).use { zip ->
+            PortableZipWriter(output).use { zip ->
                 // ZIP 只保留目录和每个收藏文件；不再写入包含全部收藏的聚合 JSON。
                 val writtenDirectories = mutableSetOf<String>()
                 ensureZipDirectories(zip, FAVORITES_DIRECTORY, writtenDirectories)
@@ -62,7 +62,7 @@ object FavoritesTransferManager {
                     val path = favoriteZipPath(favorite)
                     val directory = path.substringBeforeLast('/')
                     ensureZipDirectories(zip, directory, writtenDirectories)
-                    writeStoredEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
+                    writeZipEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
                 }
             }
         } ?: error("无法创建收藏备份文件")
@@ -172,30 +172,15 @@ object FavoritesTransferManager {
             .filter { it.isNotBlank() }
             .joinToString("/")
     }
-    private fun ensureZipDirectories(zip: ZipOutputStream, directory: String, written: MutableSet<String>) {
+    private fun ensureZipDirectories(zip: PortableZipWriter, directory: String, written: MutableSet<String>) {
         var path = ""
         directory.split('/').filter { it.isNotBlank() }.forEach { part ->
             path = if (path.isBlank()) part else "$path/$part"
-            if (written.add(path)) writeStoredEntry(zip, "$path/", ByteArray(0))
+            if (written.add(path)) writeZipEntry(zip, "$path/", ByteArray(0))
         }
     }
 
-    /**
-     * Write entries with known size/CRC instead of Android's data descriptor.
-     * Some iOS Files versions reject archives whose central-directory offset is
-     * produced with a data descriptor, although desktop ZIP tools may recover it.
-     */
-    private fun writeStoredEntry(zip: ZipOutputStream, path: String, bytes: ByteArray) {
-        val crc = CRC32().apply { update(bytes) }.value
-        zip.putNextEntry(ZipEntry(path).apply {
-            method = ZipEntry.STORED
-            size = bytes.size.toLong()
-            compressedSize = bytes.size.toLong()
-            this.crc = crc
-        })
-        zip.write(bytes)
-        zip.closeEntry()
-    }
+    private fun writeZipEntry(zip: PortableZipWriter, path: String, bytes: ByteArray) = zip.writeEntry(path, bytes)
     private fun toTransferType(format: String): String = when (format.trim().lowercase()) {
         "qr", "qr code" -> "qr"; "code128", "code 128-b" -> "code128"; "code39", "code 39" -> "code39"; "ean13", "ean-13" -> "ean13"; "ean8", "ean-8" -> "ean8"; "upca", "upc-a" -> "upca"; "itf14", "itf-14", "itf" -> "itf14"; "codabar" -> "codabar"; else -> error("不支持的条码格式：$format")
     }
@@ -203,4 +188,49 @@ object FavoritesTransferManager {
         "qr" -> "QR Code"; "code128" -> "Code 128-B"; "code39" -> "Code 39"; "ean13" -> "EAN-13"; "ean8" -> "EAN-8"; "upca" -> "UPC-A"; "itf14" -> "ITF-14"; else -> "Codabar"
     }
     private fun JSONArray?.toStrings(): List<String> = if (this == null) emptyList() else (0 until length()).map { getString(it) }
+}
+
+/** 手写标准 ZIP 头和中央目录，避免 Android 历史 ZipOutputStream 偏移兼容问题。 */
+private class PortableZipWriter(private val output: OutputStream) : Closeable {
+    private data class Entry(val name: ByteArray, val crc: Long, val size: Long, val offset: Long, val directory: Boolean)
+    private val entries = mutableListOf<Entry>()
+    private var offset = 0L
+    private var closed = false
+
+    fun writeEntry(path: String, bytes: ByteArray) {
+        check(!closed) { "ZIP writer is closed" }
+        val name = path.toByteArray(Charsets.UTF_8)
+        val crc = CRC32().apply { update(bytes) }.value
+        val entryOffset = offset
+        writeU32(0x04034b50L); writeU16(20); writeU16(0x0800); writeU16(0)
+        writeU16(0); writeU16(0); writeU32(crc); writeU32(bytes.size.toLong()); writeU32(bytes.size.toLong())
+        writeU16(name.size); writeU16(0); writeBytes(name); writeBytes(bytes)
+        entries += Entry(name, crc, bytes.size.toLong(), entryOffset, path.endsWith('/'))
+    }
+
+    override fun close() {
+        if (closed) return
+        closed = true
+        val centralOffset = offset
+        entries.forEach { entry ->
+            writeU32(0x02014b50L); writeU16(20); writeU16(20); writeU16(0x0800); writeU16(0)
+            writeU16(0); writeU16(0); writeU32(entry.crc); writeU32(entry.size); writeU32(entry.size)
+            writeU16(entry.name.size); writeU16(0); writeU16(0); writeU16(0); writeU16(0)
+            writeU32(if (entry.directory) 0x10L else 0L); writeU32(entry.offset); writeBytes(entry.name)
+        }
+        val centralSize = offset - centralOffset
+        writeU32(0x06054b50L); writeU16(0); writeU16(0); writeU16(entries.size); writeU16(entries.size)
+        writeU32(centralSize); writeU32(centralOffset); writeU16(0)
+        output.flush()
+    }
+
+    private fun writeU16(value: Int) = writeU16(value.toLong())
+    private fun writeU16(value: Long) {
+        output.write((value and 0xff).toInt()); output.write(((value ushr 8) and 0xff).toInt()); offset += 2
+    }
+    private fun writeU32(value: Long) {
+        output.write((value and 0xff).toInt()); output.write(((value ushr 8) and 0xff).toInt())
+        output.write(((value ushr 16) and 0xff).toInt()); output.write(((value ushr 24) and 0xff).toInt()); offset += 4
+    }
+    private fun writeBytes(bytes: ByteArray) { output.write(bytes); offset += bytes.size }
 }

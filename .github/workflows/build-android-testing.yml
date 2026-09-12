@@ -22,12 +22,15 @@ jobs:
         shell: bash
     env:
       GRADLE_OPTS: >-
-        -Dorg.gradle.jvmargs=-Xmx4g
+        -Dorg.gradle.jvmargs=-Xmx6g -XX:+UseParallelGC
         -Dfile.encoding=UTF-8
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
+        -Dorg.gradle.configuration-cache=true
+        -Dorg.gradle.vfs.watch=false
         -Dkotlin.incremental=true
-        -Dkapt.incremental.apt=true
+        -Dksp.incremental=true
+        -Dkotlin.compiler.plugins.strongSkipping=true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -42,6 +45,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-cleanup: never
+          cache-read-only: false
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
@@ -49,8 +53,9 @@ jobs:
         id: app-version
         run: |
           set -euo pipefail
-          base_version="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=.*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
-          base_code="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]*=.*[[:space:]]([0-9]+)[[:space:]]*$/\1/p' app/build.gradle.kts | head -n 1)"
+          test -f beta-version.properties || { echo "::error::beta-version.properties not found"; exit 1; }
+          base_version="$(sed -nE 's/^versionName=([^[:space:]]+)$/\1/p' beta-version.properties)"
+          base_code="$(sed -nE 's/^versionCode=([0-9]+)$/\1/p' beta-version.properties)"
           test -n "$base_version" || { echo "::error::versionName not found"; exit 1; }
           test -n "$base_code" || { echo "::error::versionCode not found"; exit 1; }
           IFS=. read -r major minor patch <<< "$base_version"
@@ -59,12 +64,11 @@ jobs:
           done
           version_name="$major.$minor.$((patch + 1))"
           version_code=$((base_code + 1))
-          sed -i -E "s/^([[:space:]]*versionCode = )[0-9]+/\1${version_code}/" app/build.gradle.kts
-          sed -i -E "s/^([[:space:]]*versionName = \")[^\"]+(\".*)$/\1${version_name}\2/" app/build.gradle.kts
-          # The version commit belongs only to beta; main is never changed by this workflow.
+          printf 'versionName=%s\nversionCode=%s\n' "$version_name" "$version_code" > beta-version.properties
+          # Keep version state separate from Gradle build scripts so configuration cache remains reusable.
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/build.gradle.kts
+          git add beta-version.properties
           git commit -m "beta: 自动升级版本到 ${version_name}"
           git push origin HEAD:beta
           echo "base=$base_version; version=$version_name; versionCode=$version_code"
@@ -91,7 +95,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleBetaRelease --build-cache --parallel --max-workers=4 --stacktrace
+        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
