@@ -262,6 +262,18 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
             elevation = 0f
         }
     }
+    // 系统按钮栏默认会把相邻按钮贴得过近；只在同一弹窗存在多个按钮时增加间距。
+    val dialogButtons = listOf(AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL, AlertDialog.BUTTON_POSITIVE)
+        .mapNotNull { dialog.getButton(it)?.takeIf { button -> button.visibility == View.VISIBLE } }
+    if (dialogButtons.size > 1) {
+        dialogButtons.forEachIndexed { index, button ->
+            (button.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
+                marginStart = if (index == 0) 0 else dp(6)
+                marginEnd = if (index == dialogButtons.lastIndex) 0 else dp(6)
+                button.layoutParams = this
+            }
+        }
+    }
 }
 
 internal fun MainActivity.showIos26Dialog(dialog: AlertDialog, compact: Boolean = false): AlertDialog {
@@ -1243,7 +1255,7 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         "模拟下载进度" to { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true) },
         "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", "关闭", null, "重新下载") },
         "模拟二维码弹窗" to { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
-        "模拟附件选项" to { attachmentAnchor?.let { anchor -> showLanSharePopup(anchor, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {})) } },
+        "模拟附件选项" to { attachmentAnchor?.let { anchor -> showLanSharePopup(anchor, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {}), showMetrics = true) } },
         "模拟文件夹编辑" to { showFolderEditor("示例文件夹") {} },
         "模拟导入确认" to { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
         "模拟导出结果" to { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
@@ -1284,7 +1296,19 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
             setPadding(0, dp(12), 0, 0)
         })
     }
-    val scroll = ScrollView(this).apply {
+    val scroll = object : ScrollView(this) {
+        // 测试项目很多时限制弹窗高度，剩余内容在弹窗内部滚动，避免撑满屏幕。
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val maxHeight = dp(420)
+            val availableHeight = MeasureSpec.getSize(heightMeasureSpec)
+            val constrainedHeight = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) {
+                maxHeight
+            } else {
+                availableHeight.coerceAtMost(maxHeight)
+            }
+            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(constrainedHeight, MeasureSpec.AT_MOST))
+        }
+    }.apply {
         isFillViewport = true
         isScrollbarFadingEnabled = true
         addView(box)
@@ -1340,6 +1364,37 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
 }
 
 private fun Float.formatOneDecimal() = "%.1f".format(this)
+
+/** Beta 模拟专用参数面板：紧贴真实弹窗或菜单下方，不参与真实功能。 */
+private fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
+    val metrics = TextView(this).apply {
+        textSize = 11f
+        includeFontPadding = false
+        setTextColor(secondaryText())
+        setPadding(dp(12), dp(9), dp(12), dp(9))
+        background = liquidGlassCard()
+    }
+    val popup = PopupWindow(metrics, dp(280), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
+        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        elevation = dp(4).toFloat()
+        isOutsideTouchable = false
+    }
+    popup.setOnDismissListener { onDismiss?.invoke() }
+    anchor.post {
+        if (!anchor.isShown) return@post
+        val density = resources.displayMetrics.density
+        val location = IntArray(2)
+        anchor.getLocationOnScreen(location)
+        metrics.text = listOf(
+            "弹窗：$label",
+            "位置：x=${location[0]}px/${(location[0] / density).formatOneDecimal()}dp y=${location[1]}px/${(location[1] / density).formatOneDecimal()}dp",
+            "尺寸：w=${anchor.width}px/${(anchor.width / density).formatOneDecimal()}dp h=${anchor.height}px/${(anchor.height / density).formatOneDecimal()}dp",
+            "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整块"
+        ).joinToString("\n")
+        popup.showAtLocation(anchor, Gravity.TOP or Gravity.START, location[0], location[1] + anchor.height + dp(4))
+    }
+    return popup
+}
 
 /** 只读显示当前 UI 的关键参数，方便在真机上调整弹窗和控件外观。 */
 private fun MainActivity.showUiParameterDialog() {
@@ -1600,7 +1655,7 @@ internal fun MainActivity.uploadSelectedLanShareFile() {
     uploadLanShareFile(uri, temporaryFile)
 }
 
-private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<String, () -> Unit>>) {
+private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<String, () -> Unit>>, showMetrics: Boolean = false) {
     lateinit var popup: PopupWindow
     val popupWidth = dp(128)
     val panel = LinearLayout(this).apply {
@@ -1621,6 +1676,10 @@ private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Stri
     panel.measure(View.MeasureSpec.makeMeasureSpec(popupWidth, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
     val location = IntArray(2); anchor.getLocationOnScreen(location)
     popup.showAtLocation(anchor, Gravity.TOP or Gravity.START, (location[0] - dp(8)).coerceAtLeast(dp(4)), (location[1] - panel.measuredHeight - dp(16)).coerceAtLeast(dp(8)))
+    if (showMetrics) {
+        val metricsPopup = showSimulationMetrics(panel, "附件选项")
+        popup.setOnDismissListener { metricsPopup.dismiss() }
+    }
 }
 
 private fun MainActivity.liquidGlassCard() = GradientDrawable().apply {
@@ -1691,7 +1750,8 @@ internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession
     val dialog = AlertDialog.Builder(this).setView(box).create()
     dialog.setCanceledOnTouchOutside(true)
     dialog.setOnCancelListener { if (!simulated) lanShareQrVisible = false }
-    dialog.setOnDismissListener { if (!simulated) lanShareQrVisible = false }
+    val metricsPopup = if (simulated) showSimulationMetrics(box, "二维码弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss(); if (!simulated) lanShareQrVisible = false }
     showIos26Dialog(dialog)
 }
 

@@ -194,7 +194,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
             withContext(Dispatchers.Main) { dialog.dismiss(); installApk(official) }
         } catch (error: Exception) {
             temp.delete()
-            withContext(Dispatchers.Main) { dialog.dismiss(); if (error !is kotlinx.coroutines.CancellationException) { val reason = error.message ?: "未知错误"; settingsStore.setUpdateError(reason); AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason).setNegativeButton("关闭", null).setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }.create().also { showIos26Dialog(it) } } }
+            withContext(Dispatchers.Main) { dialog.dismiss(); if (error !is kotlinx.coroutines.CancellationException) { val reason = error.message ?: "未知错误"; settingsStore.setUpdateError(reason); AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason).setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }.create().also { showIos26Dialog(it) } } }
         } finally { connection?.disconnect(); withContext(Dispatchers.Main) { updateDownloadRunning = false } }
     }
 }
