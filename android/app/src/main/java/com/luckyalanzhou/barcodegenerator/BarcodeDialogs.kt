@@ -115,7 +115,6 @@ internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl:
             setTextColor(secondaryText())
             setPadding(0, dp(8), 0, dp(16))
         }, LinearLayout.LayoutParams(-1, -2))
-        addView(updateDivider(), LinearLayout.LayoutParams(-1, dp(1)))
         addView(LinearLayout(this@showUpdateAvailableDialog).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
