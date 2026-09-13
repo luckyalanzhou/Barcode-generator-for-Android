@@ -910,13 +910,16 @@ internal fun MainActivity.showSettings() {
          val appearance = Spinner(this).apply { adapter = ArrayAdapter(activity, android.R.layout.simple_spinner_dropdown_item, listOf("跟随系统", "浅色", "深色")); setSelection(listOf("system", "light", "dark").indexOf(draft.colorScheme).coerceAtLeast(0)); gravity = Gravity.CENTER; setBackgroundResource(R.drawable.bg_input) }
          val appearanceValue = TextView(activity).apply { text = listOf("跟随系统", "浅色", "深色")[appearance.selectedItemPosition]; gravity = Gravity.CENTER; setTextColor(primaryText()); setBackgroundResource(R.drawable.bg_input); setOnClickListener { view -> showMaterialDropdown(view, listOf("跟随系统", "浅色", "深色"), selectedIndex = appearance.selectedItemPosition) { index -> (view as TextView).text = listOf("跟随系统", "浅色", "深色")[index]; appearance.setSelection(index); persistSettingsAction?.invoke() } } }
         val showFormat = SwitchCompat(this).apply {
-            // 51x31dp 的胶囊比例接近 iOS 设置开关，SwitchCompat 自带平滑滑块动画。
+            // 保持设置行和卡片尺寸不变，只放大开关本体；SwitchCompat 自带平滑滑块动画。
             showText = false
             isChecked = draft.showFormat
             minWidth = dp(58)
             minimumWidth = dp(58)
             minHeight = dp(34)
             minimumHeight = dp(34)
+            // 视觉放大但不改变父布局测量尺寸，避免该设置卡片变高。
+            scaleX = 1.12f
+            scaleY = 1.12f
             setPadding(0, 0, 0, 0)
             thumbTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -1027,7 +1030,7 @@ internal fun MainActivity.showSettings() {
          addSpaced(groupCard(listOf(
             compactSliderRow("文字大小", textSizeSeekBar) { "${10 + it} sp" }, compactSliderRow("条码高度", barHeight) { "${30 + it} dp" },
             compactSliderRow("条码宽度", barWidth) { "${120 + it} dp" }, compactSliderRow("条码间距", margin) { "$it dp" },
-            textRow("显示条码格式", showFormat),
+            textRow("条码格式", showFormat),
             textRow("OCR 字符纠错", ocrReplacementValue)
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
