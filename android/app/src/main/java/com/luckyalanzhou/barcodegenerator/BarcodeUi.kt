@@ -1222,7 +1222,8 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         },
         "测试最新版本提示" to { showIos26NoticeDialog("测试：当前已是最新版本") },
         "测试错误提示" to { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示") },
-        "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() }
+        "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() },
+        "查看 UI 参数" to { showUiParameterDialog() }
     )
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -1254,6 +1255,54 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         })
     }
     showIos26Dialog(AlertDialog.Builder(this).setView(box).setPositiveButton("关闭", null).create(), compact = true)
+}
+
+/** 只读显示当前 UI 的关键参数，方便在真机上调整弹窗和控件外观。 */
+private fun MainActivity.showUiParameterDialog() {
+    fun color(value: Int) = "#%08X".format(value.toLong() and 0xffffffffL)
+    val details = listOf(
+        "字体" to "sans-serif / sans-serif-medium",
+        "正文 / 设置项字号" to "16sp",
+        "按钮字号" to "15sp",
+        "弹窗标题字号" to "20sp",
+        "弹窗圆角" to "20dp",
+        "按钮圆角" to "14dp",
+        "按钮边框" to "1dp",
+        "弹窗边框" to "1dp",
+        "弹窗阴影" to "6dp",
+        "通用按钮高度" to "40dp",
+        "设置行高度" to "48dp",
+        "显示条码格式开关" to "58×34dp，视觉缩放 1.12×",
+        "开关点击范围" to "保持整行可点击",
+        "按钮按下动画" to "90ms，缩放 0.975×",
+        "按钮回弹动画" to "180ms，Overshoot 0.7",
+        "当前主文字颜色" to color(primaryText()),
+        "当前次要文字颜色" to color(secondaryText()),
+        "当前模式" to if (isDark()) "深色" else "浅色"
+    )
+    val content = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(8), dp(20), dp(8))
+        details.forEach { (label, value) ->
+            addView(LinearLayout(this@showUiParameterDialog).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(5), 0, dp(5))
+                addView(TextView(this@showUiParameterDialog).apply {
+                    text = label
+                    textSize = 13f
+                    setTextColor(primaryText())
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(TextView(this@showUiParameterDialog).apply {
+                    text = value
+                    textSize = 12f
+                    gravity = Gravity.END
+                    setTextColor(secondaryText())
+                }, LinearLayout.LayoutParams(-2, -2))
+            })
+        }
+    }
+    val scroll = ScrollView(this).apply { addView(content) }
+    showIos26Dialog(AlertDialog.Builder(this).setTitle("UI 参数").setView(scroll).setPositiveButton("关闭", null).create())
 }
 
 internal fun MainActivity.showLanShare() {
