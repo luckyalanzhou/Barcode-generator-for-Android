@@ -96,7 +96,7 @@ private fun MainActivity.updateDivider() = View(this).apply {
     setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
 }
 
-private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?) {
+internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?, simulateOnly: Boolean = false, showMetrics: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -119,17 +119,20 @@ private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: 
         addView(LinearLayout(this@showUpdateAvailableDialog).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
-            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(4) })
-            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4); rightMargin = dp(4) })
-            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4) })
+            // 三个按钮保持完整点击区域，并通过更大的外边距拉开视觉间距。
+            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(8) })
+            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8); rightMargin = dp(8) })
+            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); if (!simulateOnly) downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8) })
         }, LinearLayout.LayoutParams(-1, dp(54)))
     }
     dialog.setView(box)
     dialog.setOnCancelListener { updateDialogShowing = false }
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "发现新版本弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
 }
 
-internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256) {
+internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256, simulateOnly: Boolean = false, showMetrics: Boolean = false) {
     if (updateDownloadRunning) return
     updateDownloadRunning = true
     val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
@@ -139,18 +142,28 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     val cancelButton = updateActionButton("取消下载") { job?.cancel(); dialog.dismiss() }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(22), dp(22), dp(22), dp(16))
+        // 下载进度弹窗保持紧凑，减少标题、进度和按钮之间的无效留白。
+        setPadding(dp(22), dp(16), dp(22), dp(10))
         addView(TextView(this@downloadAndInstall).apply { text = "下载更新"; textSize = 20f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); includeFontPadding = false; setTextColor(primaryText()) }, LinearLayout.LayoutParams(-1, dp(30)))
-        addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(14) })
-        addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
+        addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(10) })
+        addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         addView(LinearLayout(this@downloadAndInstall).apply {
             // “取消下载”按钮靠右排列，按钮本身仍保持完整点击范围。
             gravity = Gravity.END or Gravity.CENTER_VERTICAL
             addView(cancelButton, LinearLayout.LayoutParams(-2, dp(38)))
-        }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(16) })
+        }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(8) })
     }
     dialog.setView(box)
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "下载进度弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog)
+    if (simulateOnly) {
+        progress.isIndeterminate = false
+        progress.progress = 50
+        status.text = "已下载 50%（模拟）"
+        updateDownloadRunning = false
+        return
+    }
     job = lifecycleScope.launch(Dispatchers.IO) {
         val temp = File(cacheDir, "barcode-generator-update.apk.part")
         val official = File(cacheDir, "barcode-generator-update.apk")
@@ -185,7 +198,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
             withContext(Dispatchers.Main) { dialog.dismiss(); installApk(official) }
         } catch (error: Exception) {
             temp.delete()
-            withContext(Dispatchers.Main) { dialog.dismiss(); if (error !is kotlinx.coroutines.CancellationException) { val reason = error.message ?: "未知错误"; settingsStore.setUpdateError(reason); AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason).setNegativeButton("关闭", null).setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }.create().also { showIos26Dialog(it) } } }
+            withContext(Dispatchers.Main) { dialog.dismiss(); if (error !is kotlinx.coroutines.CancellationException) { val reason = error.message ?: "未知错误"; settingsStore.setUpdateError(reason); AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason).setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }.create().also { showIos26Dialog(it) } } }
         } finally { connection?.disconnect(); withContext(Dispatchers.Main) { updateDownloadRunning = false } }
     }
 }
@@ -533,7 +546,7 @@ internal fun MainActivity.decodeBitmap(bitmap: Bitmap): String? = try {
     } catch (_: Exception) { null }
 
 
-internal fun MainActivity.showFolderEditor(initial: String = "", onSaved: (String) -> Unit) {
+internal fun MainActivity.showFolderEditor(initial: String = "", showMetrics: Boolean = false, onSaved: (String) -> Unit) {
         val input = inputField("文件夹名称", initial)
         val box = LinearLayout(this).apply { setPadding(dp(24), dp(8), dp(24), 0); addView(input, LinearLayout.LayoutParams(-1, dp(50))) }
         val dialog = AlertDialog.Builder(this).setTitle(if (initial.isBlank()) "新建文件夹" else "重命名文件夹").setView(box).setNegativeButton("取消", null).setPositiveButton("保存", null).create()
@@ -545,6 +558,8 @@ internal fun MainActivity.showFolderEditor(initial: String = "", onSaved: (Strin
                 onSaved(name); dialog.dismiss()
             }
         }
+        val metricsPopup = if (showMetrics) showSimulationMetrics(box, "文件夹编辑弹窗") else null
+        dialog.setOnDismissListener { metricsPopup?.dismiss() }
         showIos26Dialog(dialog)
     }
 

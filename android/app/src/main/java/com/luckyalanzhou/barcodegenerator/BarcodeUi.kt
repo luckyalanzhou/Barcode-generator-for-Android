@@ -256,6 +256,22 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
             minHeight = dp(36)
             minimumHeight = dp(36)
             setPadding(dp(8), dp(4), dp(8), dp(4))
+            // 标准弹窗按钮也使用统一的轻量玻璃外框；可见边框与整块点击区域一致。
+            background = glassButtonBackground().apply { cornerRadius = dp(12).toFloat() }
+            stateListAnimator = null
+            elevation = 0f
+        }
+    }
+    // 系统按钮栏默认会把相邻按钮贴得过近；只在同一弹窗存在多个按钮时增加间距。
+    val dialogButtons = listOf(AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL, AlertDialog.BUTTON_POSITIVE)
+        .mapNotNull { dialog.getButton(it)?.takeIf { button -> button.visibility == View.VISIBLE } }
+    if (dialogButtons.size > 1) {
+        dialogButtons.forEachIndexed { index, button ->
+            (button.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
+                marginStart = if (index == 0) 0 else dp(6)
+                marginEnd = if (index == dialogButtons.lastIndex) 0 else dp(6)
+                button.layoutParams = this
+            }
         }
     }
 }
@@ -910,13 +926,16 @@ internal fun MainActivity.showSettings() {
          val appearance = Spinner(this).apply { adapter = ArrayAdapter(activity, android.R.layout.simple_spinner_dropdown_item, listOf("跟随系统", "浅色", "深色")); setSelection(listOf("system", "light", "dark").indexOf(draft.colorScheme).coerceAtLeast(0)); gravity = Gravity.CENTER; setBackgroundResource(R.drawable.bg_input) }
          val appearanceValue = TextView(activity).apply { text = listOf("跟随系统", "浅色", "深色")[appearance.selectedItemPosition]; gravity = Gravity.CENTER; setTextColor(primaryText()); setBackgroundResource(R.drawable.bg_input); setOnClickListener { view -> showMaterialDropdown(view, listOf("跟随系统", "浅色", "深色"), selectedIndex = appearance.selectedItemPosition) { index -> (view as TextView).text = listOf("跟随系统", "浅色", "深色")[index]; appearance.setSelection(index); persistSettingsAction?.invoke() } } }
         val showFormat = SwitchCompat(this).apply {
-            // 51x31dp 的胶囊比例接近 iOS 设置开关，SwitchCompat 自带平滑滑块动画。
+            // 保持设置行和卡片尺寸不变，只放大开关本体；SwitchCompat 自带平滑滑块动画。
             showText = false
             isChecked = draft.showFormat
             minWidth = dp(58)
             minimumWidth = dp(58)
             minHeight = dp(34)
             minimumHeight = dp(34)
+            // 视觉放大但不改变父布局测量尺寸，避免该设置卡片变高。
+            scaleX = 1.12f
+            scaleY = 1.12f
             setPadding(0, 0, 0, 0)
             thumbTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -926,6 +945,12 @@ internal fun MainActivity.showSettings() {
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
             )
+        }
+        // 为放大后的开关提供独立承载区域，避免视觉缩放超出原测量边界被裁切。
+        val showFormatSlot = FrameLayout(activity).apply {
+            clipChildren = false
+            clipToPadding = false
+            addView(showFormat, FrameLayout.LayoutParams(-2, -1, Gravity.END or Gravity.CENTER_VERTICAL))
         }
         val ocrReplacementLabels = arrayOf("O → 0", "I → 1", "S → 5", "B → 8")
         val ocrReplacementBits = intArrayOf(
@@ -1027,7 +1052,7 @@ internal fun MainActivity.showSettings() {
          addSpaced(groupCard(listOf(
             compactSliderRow("文字大小", textSizeSeekBar) { "${10 + it} sp" }, compactSliderRow("条码高度", barHeight) { "${30 + it} dp" },
             compactSliderRow("条码宽度", barWidth) { "${120 + it} dp" }, compactSliderRow("条码间距", margin) { "$it dp" },
-            textRow("显示条码格式", showFormat),
+            textRow("条码格式", showFormatSlot),
             textRow("OCR 字符纠错", ocrReplacementValue)
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
@@ -1086,6 +1111,7 @@ internal fun MainActivity.showSettings() {
          }
          toolRows += textRow("收藏备份", backupActions, trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
+              toolRows += textRow("功能自检", toolActionButton("打开", buttonMinHeight = 40, horizontalPadding = 16) { showFeatureSelfTestDialog() }, trailingWidth = dp(88))
               toolRows += textRow("调试日志", toolActionButton("导出", buttonMinHeight = 40, horizontalPadding = 16) { shareDebugLog() }, trailingWidth = dp(88))
           }
         addSpaced(groupCard(toolRows), bottom = 12)
@@ -1136,7 +1162,8 @@ internal fun MainActivity.enterLanShare() {
 }
 
 /** 局域网不可用时使用独立的紧凑玻璃提示，避免被普通 Toast 忽略。 */
-internal fun MainActivity.showLanShareNetworkErrorDialog() {
+internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = false) {
+    val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
@@ -1157,15 +1184,27 @@ internal fun MainActivity.showLanShareNetworkErrorDialog() {
             setTextColor(secondaryText())
             setPadding(0, dp(8), 0, dp(6))
         }, LinearLayout.LayoutParams(-1, dp(38)))
-        addView(View(this@showLanShareNetworkErrorDialog).apply {
-            setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
-        }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(10), 0, 0) })
+        addView(styleButton(Button(this@showLanShareNetworkErrorDialog).apply {
+            text = "确定"
+            textSize = 15f
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = dp(40)
+            minimumHeight = dp(40)
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setTextColor(primaryText())
+            background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
+            setOnClickListener { dialog.dismiss() }
+        }), LinearLayout.LayoutParams(dp(76), dp(40)).apply { gravity = Gravity.END; topMargin = dp(8) })
     }
-    showIos26Dialog(AlertDialog.Builder(this).setView(box).setPositiveButton("确定", null).create(), compact = true)
+    dialog.setView(box)
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "局域网错误弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
+    showIos26Dialog(dialog, compact = true)
 }
 
 /** 用于短提示的紧凑居中 Liquid Glass 弹窗。 */
-internal fun MainActivity.showIos26NoticeDialog(message: String) {
+internal fun MainActivity.showIos26NoticeDialog(message: String, showMetrics: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -1177,7 +1216,7 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
             gravity = Gravity.CENTER
             includeFontPadding = false
             setTextColor(primaryText())
-        }, LinearLayout.LayoutParams(-1, dp(30)))
+        }, LinearLayout.LayoutParams(-1, -2))
          addView(styleButton(Button(this@showIos26NoticeDialog).apply {
              text = "确定"
              textSize = 15f
@@ -1193,7 +1232,137 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
          }), LinearLayout.LayoutParams(dp(76), dp(44)).apply { gravity = Gravity.END; topMargin = dp(10) })
     }
     dialog.setView(box)
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "提示弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
+}
+
+/** 显示弹窗目录中的模拟状态；按钮只关闭弹窗，不执行任何真实操作。 */
+internal fun MainActivity.showSimulatedDialog(title: String, message: String, negative: String?, neutral: String?, positive: String?) {
+    val metricsView = TextView(this).apply {
+        text = "正在测量布局…"
+        textSize = 11f
+        includeFontPadding = false
+        setTextColor(secondaryText())
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = liquidGlassCard()
+    }
+    // 模拟弹窗直接复用正式弹窗的标题、正文和按钮容器，避免两套布局产生偏差。
+    val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message)
+    negative?.let { builder.setNegativeButton(it, null) }
+    neutral?.let { builder.setNeutralButton(it, null) }
+    positive?.let { builder.setPositiveButton(it, null) }
+    val dialog = showIos26Dialog(builder.create())
+    val metricsPopup = PopupWindow(metricsView, dp(280), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
+        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        elevation = dp(4).toFloat()
+        isOutsideTouchable = false
+    }
+    dialog.setOnDismissListener { metricsPopup.dismiss() }
+    dialog.window?.decorView?.post {
+        val density = resources.displayMetrics.density
+        fun metric(value: Int) = "${value}px/${(value / density).formatOneDecimal()}dp"
+        fun bounds(view: View): String {
+            val location = IntArray(2)
+            view.getLocationInWindow(location)
+            return "x=${metric(location[0])} y=${metric(location[1])} w=${metric(view.width)} h=${metric(view.height)}"
+        }
+        val titleId = resources.getIdentifier("alertTitle", "id", "android")
+        val titleView = if (titleId != 0) dialog.findViewById<TextView>(titleId) else null
+        val messageView = dialog.findViewById<TextView>(android.R.id.message)
+        metricsView.text = listOf(
+            "弹窗：${dialog.window?.decorView?.width ?: 0}×${dialog.window?.decorView?.height ?: 0}",
+            "标题：${titleView?.let(::bounds) ?: "系统标题"}，字号 ${titleView?.let { it.textSize / resources.displayMetrics.scaledDensity } ?: 20f}sp",
+            "内容：${messageView?.let(::bounds) ?: "系统正文"}，字号 ${messageView?.let { it.textSize / resources.displayMetrics.scaledDensity } ?: 15f}sp",
+            "参数：正式弹窗布局，按钮圆角 14dp，边框 1dp，阴影 6dp",
+            "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整行"
+        ).joinToString("\n")
+        // 以真实弹窗内容作为锚点，避免测试中心窗口的坐标覆盖真实弹窗位置。
+        val dialogView = dialog.findViewById<View>(android.R.id.content)
+            ?: dialog.window?.decorView
+            ?: return@post
+        metricsPopup.showAsDropDown(dialogView, 0, dp(4))
+    }
+}
+
+private fun Float.formatOneDecimal() = "%.1f".format(this)
+
+/** Beta 模拟专用参数面板：紧贴真实弹窗或菜单下方，不参与真实功能。 */
+internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
+    val metrics = TextView(this).apply {
+        textSize = 11f
+        includeFontPadding = false
+        setTextColor(secondaryText())
+        setPadding(dp(12), dp(9), dp(12), dp(9))
+        background = liquidGlassCard()
+    }
+    val popup = PopupWindow(metrics, dp(280), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
+        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        elevation = dp(4).toFloat()
+        isOutsideTouchable = false
+    }
+    popup.setOnDismissListener { onDismiss?.invoke() }
+    anchor.post {
+        if (!anchor.isShown) return@post
+        val density = resources.displayMetrics.density
+        metrics.text = listOf(
+            "弹窗：$label",
+            "位置：相对真实弹窗下方 ${4}dp",
+            "尺寸：w=${anchor.width}px/${(anchor.width / density).formatOneDecimal()}dp h=${anchor.height}px/${(anchor.height / density).formatOneDecimal()}dp",
+            "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整块"
+        ).joinToString("\n")
+        // 使用真实视图锚定，避免宿主测试中心窗口参与坐标计算。
+        popup.showAsDropDown(anchor, 0, dp(4))
+    }
+    return popup
+}
+
+/** 只读显示当前 UI 的关键参数，方便在真机上调整弹窗和控件外观。 */
+internal fun MainActivity.showUiParameterDialog() {
+    fun color(value: Int) = "#%08X".format(value.toLong() and 0xffffffffL)
+    val details = listOf(
+        "字体" to "sans-serif / sans-serif-medium",
+        "正文 / 设置项字号" to "16sp",
+        "按钮字号" to "15sp",
+        "弹窗标题字号" to "20sp",
+        "弹窗圆角" to "20dp",
+        "按钮圆角" to "14dp",
+        "按钮边框" to "1dp",
+        "弹窗边框" to "1dp",
+        "弹窗阴影" to "6dp",
+        "通用按钮高度" to "40dp",
+        "设置行高度" to "48dp",
+        "显示条码格式开关" to "58×34dp，视觉缩放 1.12×",
+        "开关点击范围" to "保持整行可点击",
+        "按钮按下动画" to "90ms，缩放 0.975×",
+        "按钮回弹动画" to "180ms，Overshoot 0.7",
+        "当前主文字颜色" to color(primaryText()),
+        "当前次要文字颜色" to color(secondaryText()),
+        "当前模式" to if (isDark()) "深色" else "浅色"
+    )
+    val content = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(8), dp(20), dp(8))
+        details.forEach { (label, value) ->
+            addView(LinearLayout(this@showUiParameterDialog).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(5), 0, dp(5))
+                addView(TextView(this@showUiParameterDialog).apply {
+                    text = label
+                    textSize = 13f
+                    setTextColor(primaryText())
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(TextView(this@showUiParameterDialog).apply {
+                    text = value
+                    textSize = 12f
+                    gravity = Gravity.END
+                    setTextColor(secondaryText())
+                }, LinearLayout.LayoutParams(-2, -2))
+            })
+        }
+    }
+    val scroll = ScrollView(this).apply { addView(content) }
+    showIos26Dialog(AlertDialog.Builder(this).setTitle("UI 参数").setView(scroll).setPositiveButton("关闭", null).create())
 }
 
 internal fun MainActivity.showLanShare() {
@@ -1407,7 +1576,7 @@ internal fun MainActivity.uploadSelectedLanShareFile() {
     uploadLanShareFile(uri, temporaryFile)
 }
 
-private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<String, () -> Unit>>) {
+internal fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<String, () -> Unit>>, showMetrics: Boolean = false) {
     lateinit var popup: PopupWindow
     val popupWidth = dp(128)
     val panel = LinearLayout(this).apply {
@@ -1428,6 +1597,10 @@ private fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Stri
     panel.measure(View.MeasureSpec.makeMeasureSpec(popupWidth, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
     val location = IntArray(2); anchor.getLocationOnScreen(location)
     popup.showAtLocation(anchor, Gravity.TOP or Gravity.START, (location[0] - dp(8)).coerceAtLeast(dp(4)), (location[1] - panel.measuredHeight - dp(16)).coerceAtLeast(dp(8)))
+    if (showMetrics) {
+        val metricsPopup = showSimulationMetrics(panel, "附件选项")
+        popup.setOnDismissListener { metricsPopup.dismiss() }
+    }
 }
 
 private fun MainActivity.liquidGlassCard() = GradientDrawable().apply {
@@ -1453,9 +1626,10 @@ internal fun MainActivity.joinLanShareSession(value: String) {
     refreshLanShareFiles()
 }
 
-internal fun MainActivity.showLanShareQrDialog() {
-    val session = lanShareSession
-    if (!lanShareIsHost || session == null) { toast("请先创建分享房间"); return }
+internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession? = null) {
+    val simulated = simulatedSession != null
+    val session = simulatedSession ?: lanShareSession
+    if ((!lanShareIsHost && !simulated) || session == null) { toast("请先创建分享房间"); return }
     // 缩小二维码内部默认静区，保留可可靠识别所需的最小留白，避免白色方块过大。
     val matrix = MultiFormatWriter().encode(session.baseUrl, BarcodeFormat.QR_CODE, dp(240), dp(240), mapOf(EncodeHintType.MARGIN to 1))
     val qrForeground = if (isDark()) 0xff111318.toInt() else Color.BLACK
@@ -1496,8 +1670,9 @@ internal fun MainActivity.showLanShareQrDialog() {
     }
     val dialog = AlertDialog.Builder(this).setView(box).create()
     dialog.setCanceledOnTouchOutside(true)
-    dialog.setOnCancelListener { lanShareQrVisible = false }
-    dialog.setOnDismissListener { lanShareQrVisible = false }
+    dialog.setOnCancelListener { if (!simulated) lanShareQrVisible = false }
+    val metricsPopup = if (simulated) showSimulationMetrics(box, "二维码弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss(); if (!simulated) lanShareQrVisible = false }
     showIos26Dialog(dialog)
 }
 
