@@ -139,15 +139,16 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     val cancelButton = updateActionButton("取消下载") { job?.cancel(); dialog.dismiss() }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(22), dp(22), dp(22), dp(16))
+        // 下载进度弹窗保持紧凑，减少标题、进度和按钮之间的无效留白。
+        setPadding(dp(22), dp(16), dp(22), dp(10))
         addView(TextView(this@downloadAndInstall).apply { text = "下载更新"; textSize = 20f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); includeFontPadding = false; setTextColor(primaryText()) }, LinearLayout.LayoutParams(-1, dp(30)))
-        addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(14) })
-        addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
+        addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(10) })
+        addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         addView(LinearLayout(this@downloadAndInstall).apply {
             // “取消下载”按钮靠右排列，按钮本身仍保持完整点击范围。
             gravity = Gravity.END or Gravity.CENTER_VERTICAL
             addView(cancelButton, LinearLayout.LayoutParams(-2, dp(38)))
-        }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(16) })
+        }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(8) })
     }
     dialog.setView(box)
     showIos26Dialog(dialog)

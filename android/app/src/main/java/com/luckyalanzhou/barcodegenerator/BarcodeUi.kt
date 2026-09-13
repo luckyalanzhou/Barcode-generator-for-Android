@@ -930,6 +930,12 @@ internal fun MainActivity.showSettings() {
                 intArrayOf(0xff34c759.toInt(), if (isDark()) 0xff4b5058.toInt() else 0xffd1d5db.toInt())
             )
         }
+        // 为放大后的开关提供独立承载区域，避免视觉缩放超出原测量边界被裁切。
+        val showFormatSlot = FrameLayout(activity).apply {
+            clipChildren = false
+            clipToPadding = false
+            addView(showFormat, FrameLayout.LayoutParams(-2, -1, Gravity.END or Gravity.CENTER_VERTICAL))
+        }
         val ocrReplacementLabels = arrayOf("O → 0", "I → 1", "S → 5", "B → 8")
         val ocrReplacementBits = intArrayOf(
             SettingsStore.OCR_REPLACE_O_ZERO,
@@ -1030,7 +1036,7 @@ internal fun MainActivity.showSettings() {
          addSpaced(groupCard(listOf(
             compactSliderRow("文字大小", textSizeSeekBar) { "${10 + it} sp" }, compactSliderRow("条码高度", barHeight) { "${30 + it} dp" },
             compactSliderRow("条码宽度", barWidth) { "${120 + it} dp" }, compactSliderRow("条码间距", margin) { "$it dp" },
-            textRow("条码格式", showFormat),
+            textRow("条码格式", showFormatSlot),
             textRow("OCR 字符纠错", ocrReplacementValue)
         )), bottom = 12)
         addSpaced(sectionLabel("工具"), bottom = 2)
