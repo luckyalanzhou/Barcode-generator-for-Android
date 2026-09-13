@@ -1282,12 +1282,58 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
 
 /** 显示弹窗目录中的模拟状态；按钮只关闭弹窗，不执行任何真实操作。 */
 private fun MainActivity.showSimulatedDialog(title: String, message: String, negative: String?, neutral: String?, positive: String?) {
-    val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message)
+    val titleView = TextView(this).apply {
+        text = title
+        textSize = 20f
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        includeFontPadding = false
+        setTextColor(primaryText())
+    }
+    val messageView = TextView(this).apply {
+        text = message
+        textSize = 15f
+        includeFontPadding = false
+        setTextColor(secondaryText())
+        setPadding(0, dp(10), 0, 0)
+    }
+    val metricsView = TextView(this).apply {
+        text = "正在测量布局…"
+        textSize = 11f
+        includeFontPadding = false
+        setTextColor(secondaryText())
+        setPadding(0, dp(12), 0, 0)
+    }
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(16), dp(20), dp(8))
+        addView(titleView, LinearLayout.LayoutParams(-1, -2))
+        addView(messageView, LinearLayout.LayoutParams(-1, -2))
+        addView(metricsView, LinearLayout.LayoutParams(-1, -2))
+    }
+    val builder = AlertDialog.Builder(this).setView(box)
     negative?.let { builder.setNegativeButton(it, null) }
     neutral?.let { builder.setNeutralButton(it, null) }
     positive?.let { builder.setPositiveButton(it, null) }
-    showIos26Dialog(builder.create())
+    val dialog = showIos26Dialog(builder.create())
+    box.post {
+        val density = resources.displayMetrics.density
+        fun metric(value: Int) = "${value}px/${(value / density).formatOneDecimal()}dp"
+        fun bounds(view: View): String {
+            val location = IntArray(2)
+            view.getLocationInWindow(location)
+            return "x=${metric(location[0])} y=${metric(location[1])} w=${metric(view.width)} h=${metric(view.height)}"
+        }
+        metricsView.text = listOf(
+            "弹窗：${dialog.window?.decorView?.width ?: 0}×${dialog.window?.decorView?.height ?: 0}",
+            "标题：${bounds(titleView)}，字号 ${titleView.textSize / resources.displayMetrics.scaledDensity}sp",
+            "内容：${bounds(messageView)}，字号 ${messageView.textSize / resources.displayMetrics.scaledDensity}sp",
+            "参数：内边距 20/16/20/8dp，按钮圆角 14dp，边框 1dp，阴影 6dp",
+            "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整行"
+        ).joinToString("\n")
+    }
 }
+
+private fun Float.formatOneDecimal() = "%.1f".format(this)
 
 /** 只读显示当前 UI 的关键参数，方便在真机上调整弹窗和控件外观。 */
 private fun MainActivity.showUiParameterDialog() {
