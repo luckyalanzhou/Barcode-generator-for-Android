@@ -1301,20 +1301,26 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
         textSize = 11f
         includeFontPadding = false
         setTextColor(secondaryText())
-        setPadding(0, dp(12), 0, 0)
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = liquidGlassCard()
     }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(20), dp(16), dp(20), dp(8))
         addView(titleView, LinearLayout.LayoutParams(-1, -2))
         addView(messageView, LinearLayout.LayoutParams(-1, -2))
-        addView(metricsView, LinearLayout.LayoutParams(-1, -2))
     }
     val builder = AlertDialog.Builder(this).setView(box)
     negative?.let { builder.setNegativeButton(it, null) }
     neutral?.let { builder.setNeutralButton(it, null) }
     positive?.let { builder.setPositiveButton(it, null) }
     val dialog = showIos26Dialog(builder.create())
+    val metricsPopup = PopupWindow(metricsView, dp(280), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
+        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        elevation = dp(4).toFloat()
+        isOutsideTouchable = false
+    }
+    dialog.setOnDismissListener { metricsPopup.dismiss() }
     box.post {
         val density = resources.displayMetrics.density
         fun metric(value: Int) = "${value}px/${(value / density).formatOneDecimal()}dp"
@@ -1330,6 +1336,10 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
             "参数：内边距 20/16/20/8dp，按钮圆角 14dp，边框 1dp，阴影 6dp",
             "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整行"
         ).joinToString("\n")
+        val dialogView = dialog.window?.decorView ?: return@post
+        val location = IntArray(2)
+        dialogView.getLocationOnScreen(location)
+        metricsPopup.showAtLocation(dialogView, Gravity.TOP or Gravity.START, location[0], location[1] + dialogView.height + dp(8))
     }
 }
 
