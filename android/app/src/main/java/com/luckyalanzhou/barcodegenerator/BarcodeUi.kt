@@ -1264,8 +1264,8 @@ internal fun MainActivity.showSimulatedDialog(title: String, message: String, ne
         setStroke(dp(2), if (isDark()) 0xff64a9ff.toInt() else 0xff1677ff.toInt())
         cornerRadius = dp(12).toFloat()
     }
-    var selectionAnchor: View? = null
-    metricsPopup.setOnDismissListener { selectionAnchor?.overlay?.remove(selection) }
+    var cleanupInspector: (() -> Unit)? = null
+    metricsPopup.setOnDismissListener { cleanupInspector?.invoke() }
     dialog.setOnDismissListener { metricsPopup.dismiss() }
     dialog.window?.decorView?.post {
         val density = resources.displayMetrics.density
@@ -1289,14 +1289,63 @@ internal fun MainActivity.showSimulatedDialog(title: String, message: String, ne
         val dialogView = dialog.findViewById<View>(android.R.id.content)
             ?: dialog.window?.decorView
             ?: return@post
-        selectionAnchor = dialogView
-        dialogView.overlay.add(selection)
-        selection.setBounds(0, 0, dialogView.width, dialogView.height)
+        cleanupInspector = installSimulationInspector(dialogView, metricsView, title, selection)
         metricsPopup.showAsDropDown(dialogView, 0, dp(4))
     }
 }
 
 private fun Float.formatOneDecimal() = "%.1f".format(this)
+
+/** 为 Beta 测试中心框选当前点击的弹窗元素，并持续显示该元素的布局数据。 */
+private fun MainActivity.installSimulationInspector(root: View, metrics: TextView, label: String, selection: GradientDrawable): () -> Unit {
+    var selected: View? = null
+    fun describe(view: View): String {
+        val density = resources.displayMetrics.density
+        val location = IntArray(2)
+        view.getLocationInWindow(location)
+        val text = (view as? TextView)?.text?.toString()?.takeIf { it.isNotBlank() }
+        val id = if (view.id != View.NO_ID) resources.getResourceEntryName(view.id) else "无"
+        val params = view.layoutParams
+        val margins = (params as? ViewGroup.MarginLayoutParams)?.let { "${it.leftMargin},${it.topMargin},${it.rightMargin},${it.bottomMargin}" } ?: "无"
+        return listOf(
+            "弹窗：$label",
+            "元素：${view.javaClass.simpleName}，id=$id",
+            "文字：${text ?: "无"}",
+            "位置：x=${location[0]}px/${(location[0] / density).formatOneDecimal()}dp y=${location[1]}px/${(location[1] / density).formatOneDecimal()}dp",
+            "尺寸：w=${view.width}px/${(view.width / density).formatOneDecimal()}dp h=${view.height}px/${(view.height / density).formatOneDecimal()}dp",
+            "内边距：${view.paddingLeft},${view.paddingTop},${view.paddingRight},${view.paddingBottom}px",
+            "外边距：$margins，字号 ${(view as? TextView)?.textSize?.div(resources.displayMetrics.scaledDensity)?.formatOneDecimal() ?: "无"}sp",
+            "状态：可见=${view.visibility == View.VISIBLE} 可点击=${view.isClickable} 可用=${view.isEnabled}"
+        ).joinToString("\n")
+    }
+    fun select(view: View) {
+        selected?.overlay?.remove(selection)
+        selected = view
+        view.overlay.add(selection)
+        selection.setBounds(0, 0, view.width, view.height)
+        metrics.text = describe(view)
+    }
+    fun visit(view: View) {
+        view.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_UP) select(view)
+            false
+        }
+        if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
+    }
+    root.post {
+        if (!root.isShown) return@post
+        visit(root)
+        select(root)
+    }
+    return {
+        selected?.overlay?.remove(selection)
+        fun clear(view: View) {
+            view.setOnTouchListener(null)
+            if (view is ViewGroup) for (index in 0 until view.childCount) clear(view.getChildAt(index))
+        }
+        clear(root)
+    }
+}
 
 /** Beta 模拟专用参数面板：紧贴真实弹窗或菜单下方，不参与真实功能。 */
 internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
@@ -1318,22 +1367,12 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
         setStroke(dp(2), if (isDark()) 0xff64a9ff.toInt() else 0xff1677ff.toInt())
         cornerRadius = dp(12).toFloat()
     }
-    popup.setOnDismissListener {
-        anchor.overlay.remove(selection)
-        onDismiss?.invoke()
-    }
+    var cleanupInspector: (() -> Unit)? = null
+    popup.setOnDismissListener { cleanupInspector?.invoke(); onDismiss?.invoke() }
     anchor.post {
         if (!anchor.isShown) return@post
-        val density = resources.displayMetrics.density
-        metrics.text = listOf(
-            "弹窗：$label",
-            "位置：相对真实弹窗下方 ${4}dp",
-            "尺寸：w=${anchor.width}px/${(anchor.width / density).formatOneDecimal()}dp h=${anchor.height}px/${(anchor.height / density).formatOneDecimal()}dp",
-            "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整块"
-        ).joinToString("\n")
         // 使用真实视图锚定，避免宿主测试中心窗口参与坐标计算。
-        anchor.overlay.add(selection)
-        selection.setBounds(0, 0, anchor.width, anchor.height)
+        cleanupInspector = installSimulationInspector(anchor, metrics, label, selection)
         popup.showAsDropDown(anchor, 0, dp(4))
     }
     return popup
