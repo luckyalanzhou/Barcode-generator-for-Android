@@ -1237,8 +1237,8 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         "模拟发现新版本" to { showSimulatedDialog("发现新版本", "检测到版本 9.9.9，是否立即更新？", "忽略更新", "稍后更新", "立即更新") },
         "模拟下载进度" to { showSimulatedDialog("下载更新", "已下载 50%\n正在下载…", null, null, "取消下载") },
         "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", "关闭", null, "重新下载") },
-        "模拟二维码弹窗" to { showSimulatedDialog("局域网文件传输", "▦\n\n扫码加入房间", null, null, "复制") },
-        "模拟附件选项" to { showSimulatedDialog("选择附件", "照片图库\n────────\n拍摄图片\n────────\n选择文件", "取消", null, null) },
+        "模拟二维码弹窗" to { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
+        "模拟附件选项" to { showLanSharePopup(content, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {})) },
         "模拟文件夹编辑" to { showSimulatedDialog("编辑文件夹", "文件夹名称\n一级文件夹 / 二级文件夹", "取消", null, "保存") },
         "模拟导入确认" to { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
         "模拟导出结果" to { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
@@ -1282,20 +1282,6 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
 
 /** 显示弹窗目录中的模拟状态；按钮只关闭弹窗，不执行任何真实操作。 */
 private fun MainActivity.showSimulatedDialog(title: String, message: String, negative: String?, neutral: String?, positive: String?) {
-    val titleView = TextView(this).apply {
-        text = title
-        textSize = 20f
-        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        includeFontPadding = false
-        setTextColor(primaryText())
-    }
-    val messageView = TextView(this).apply {
-        text = message
-        textSize = 15f
-        includeFontPadding = false
-        setTextColor(secondaryText())
-        setPadding(0, dp(10), 0, 0)
-    }
     val metricsView = TextView(this).apply {
         text = "正在测量布局…"
         textSize = 11f
@@ -1304,13 +1290,8 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
         setPadding(dp(12), dp(10), dp(12), dp(10))
         background = liquidGlassCard()
     }
-    val box = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(20), dp(16), dp(20), dp(8))
-        addView(titleView, LinearLayout.LayoutParams(-1, -2))
-        addView(messageView, LinearLayout.LayoutParams(-1, -2))
-    }
-    val builder = AlertDialog.Builder(this).setView(box)
+    // 模拟弹窗直接复用正式弹窗的标题、正文和按钮容器，避免两套布局产生偏差。
+    val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message)
     negative?.let { builder.setNegativeButton(it, null) }
     neutral?.let { builder.setNeutralButton(it, null) }
     positive?.let { builder.setPositiveButton(it, null) }
@@ -1329,11 +1310,14 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
             view.getLocationInWindow(location)
             return "x=${metric(location[0])} y=${metric(location[1])} w=${metric(view.width)} h=${metric(view.height)}"
         }
+        val titleId = resources.getIdentifier("alertTitle", "id", "android")
+        val titleView = if (titleId != 0) dialog.findViewById<TextView>(titleId) else null
+        val messageView = dialog.findViewById<TextView>(android.R.id.message)
         metricsView.text = listOf(
             "弹窗：${dialog.window?.decorView?.width ?: 0}×${dialog.window?.decorView?.height ?: 0}",
-            "标题：${bounds(titleView)}，字号 ${titleView.textSize / resources.displayMetrics.scaledDensity}sp",
-            "内容：${bounds(messageView)}，字号 ${messageView.textSize / resources.displayMetrics.scaledDensity}sp",
-            "参数：内边距 20/16/20/8dp，按钮圆角 14dp，边框 1dp，阴影 6dp",
+            "标题：${titleView?.let(::bounds) ?: "系统标题"}，字号 ${titleView?.let { it.textSize / resources.displayMetrics.scaledDensity } ?: 20f}sp",
+            "内容：${messageView?.let(::bounds) ?: "系统正文"}，字号 ${messageView?.let { it.textSize / resources.displayMetrics.scaledDensity } ?: 15f}sp",
+            "参数：正式弹窗布局，按钮圆角 14dp，边框 1dp，阴影 6dp",
             "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整行"
         ).joinToString("\n")
         val dialogView = dialog.window?.decorView ?: return@post
@@ -1650,9 +1634,10 @@ internal fun MainActivity.joinLanShareSession(value: String) {
     refreshLanShareFiles()
 }
 
-internal fun MainActivity.showLanShareQrDialog() {
-    val session = lanShareSession
-    if (!lanShareIsHost || session == null) { toast("请先创建分享房间"); return }
+internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession? = null) {
+    val simulated = simulatedSession != null
+    val session = simulatedSession ?: lanShareSession
+    if ((!lanShareIsHost && !simulated) || session == null) { toast("请先创建分享房间"); return }
     // 缩小二维码内部默认静区，保留可可靠识别所需的最小留白，避免白色方块过大。
     val matrix = MultiFormatWriter().encode(session.baseUrl, BarcodeFormat.QR_CODE, dp(240), dp(240), mapOf(EncodeHintType.MARGIN to 1))
     val qrForeground = if (isDark()) 0xff111318.toInt() else Color.BLACK
@@ -1693,8 +1678,8 @@ internal fun MainActivity.showLanShareQrDialog() {
     }
     val dialog = AlertDialog.Builder(this).setView(box).create()
     dialog.setCanceledOnTouchOutside(true)
-    dialog.setOnCancelListener { lanShareQrVisible = false }
-    dialog.setOnDismissListener { lanShareQrVisible = false }
+    dialog.setOnCancelListener { if (!simulated) lanShareQrVisible = false }
+    dialog.setOnDismissListener { if (!simulated) lanShareQrVisible = false }
     showIos26Dialog(dialog)
 }
 
