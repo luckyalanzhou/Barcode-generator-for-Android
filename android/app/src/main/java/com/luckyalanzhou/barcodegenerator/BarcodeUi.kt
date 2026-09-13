@@ -397,7 +397,17 @@ internal fun MainActivity.buildShell() {
             val current = tabPageIndex()
             if (index != current) pendingPageTransitionDirection = if (index > current) 1 else -1
             if (index == 3) openSettings()
-            else if (page != tabPages[index]) { if (page == "lanShare") closeLanShare(); page = tabPages[index]; render() }
+            else if (page != tabPages[index]) {
+                if (page == "lanShare") closeLanShare()
+                if (index == 0) {
+                    // 从收藏/收藏结果页切回普通生成页时清除编辑收藏上下文，避免新结果返回收藏页。
+                    selectedFavoriteGroup = null
+                    resultsReturnPage = "generate"
+                    showingHistoryResult = false
+                }
+                page = tabPages[index]
+                render()
+            }
             else updateTopTabSelection()
         }
         var touchDownX = 0f
