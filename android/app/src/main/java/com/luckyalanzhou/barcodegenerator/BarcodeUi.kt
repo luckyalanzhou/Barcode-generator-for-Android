@@ -1095,6 +1095,7 @@ internal fun MainActivity.showSettings() {
          }
          toolRows += textRow("收藏备份", backupActions, trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
+              toolRows += textRow("功能自检", toolActionButton("打开", buttonMinHeight = 40, horizontalPadding = 16) { showFeatureSelfTestDialog() }, trailingWidth = dp(88))
               toolRows += textRow("调试日志", toolActionButton("导出", buttonMinHeight = 40, horizontalPadding = 16) { shareDebugLog() }, trailingWidth = dp(88))
           }
         addSpaced(groupCard(toolRows), bottom = 12)
@@ -1186,7 +1187,7 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
             gravity = Gravity.CENTER
             includeFontPadding = false
             setTextColor(primaryText())
-        }, LinearLayout.LayoutParams(-1, dp(30)))
+        }, LinearLayout.LayoutParams(-1, -2))
          addView(styleButton(Button(this@showIos26NoticeDialog).apply {
              text = "确定"
              textSize = 15f
@@ -1203,6 +1204,56 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
     }
     dialog.setView(box)
     showIos26Dialog(dialog, compact = true)
+}
+
+/** Beta 专用功能自检面板：提供可重复触发的界面状态测试，不改变正式版行为。 */
+internal fun MainActivity.showFeatureSelfTestDialog() {
+    if (!BuildConfig.DEBUG_LOG_EXPORT) return
+    val checks = listOf(
+        "本地自检" to {
+            val result = listOf(
+                "版本信息：${BuildConfig.VERSION_NAME}",
+                "条码格式校验：可用",
+                "设置存储：可用",
+                "收藏数据层：可用",
+                "调试日志：已启用"
+            ).joinToString("\n")
+            showIos26NoticeDialog("功能自检结果\n$result")
+        },
+        "测试最新版本提示" to { showIos26NoticeDialog("测试：当前已是最新版本") },
+        "测试错误提示" to { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示") },
+        "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() }
+    )
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(8), dp(20), dp(8))
+        addView(TextView(this@showFeatureSelfTestDialog).apply {
+            text = "Beta 测试中心"
+            textSize = 14f
+            includeFontPadding = false
+            setTextColor(secondaryText())
+            setPadding(0, 0, 0, dp(8))
+        })
+        checks.forEachIndexed { index, (label, action) ->
+            addView(styleButton(Button(this@showFeatureSelfTestDialog).apply {
+                text = label
+                isAllCaps = false
+                minWidth = 0
+                minimumWidth = 0
+                setOnClickListener { action() }
+            }), LinearLayout.LayoutParams(-1, dp(42)).apply {
+                if (index > 0) topMargin = dp(6)
+            })
+        }
+        addView(TextView(this@showFeatureSelfTestDialog).apply {
+            text = "相机、系统权限、局域网连接和 APK 安装仍需在真实设备上验证。"
+            textSize = 12f
+            includeFontPadding = false
+            setTextColor(secondaryText())
+            setPadding(0, dp(12), 0, 0)
+        })
+    }
+    showIos26Dialog(AlertDialog.Builder(this).setView(box).setPositiveButton("关闭", null).create(), compact = true)
 }
 
 internal fun MainActivity.showLanShare() {
