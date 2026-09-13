@@ -1253,7 +1253,7 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() },
         "模拟发现新版本" to { showUpdateAvailableDialog("9.9.9", "https://example.invalid/update.apk", null, null, simulateOnly = true) },
         "模拟下载进度" to { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true) },
-        "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", "关闭", null, "重新下载") },
+        "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", null, null, "重新下载") },
         "模拟二维码弹窗" to { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
         "模拟附件选项" to { attachmentAnchor?.let { anchor -> showLanSharePopup(anchor, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {}), showMetrics = true) } },
         "模拟文件夹编辑" to { showFolderEditor("示例文件夹") {} },
