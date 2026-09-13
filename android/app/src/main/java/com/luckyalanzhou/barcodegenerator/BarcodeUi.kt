@@ -1258,6 +1258,14 @@ internal fun MainActivity.showSimulatedDialog(title: String, message: String, ne
         elevation = dp(4).toFloat()
         isOutsideTouchable = false
     }
+    val selection = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        setColor(Color.TRANSPARENT)
+        setStroke(dp(2), if (isDark()) 0xff64a9ff.toInt() else 0xff1677ff.toInt())
+        cornerRadius = dp(12).toFloat()
+    }
+    var selectionAnchor: View? = null
+    metricsPopup.setOnDismissListener { selectionAnchor?.overlay?.remove(selection) }
     dialog.setOnDismissListener { metricsPopup.dismiss() }
     dialog.window?.decorView?.post {
         val density = resources.displayMetrics.density
@@ -1281,6 +1289,9 @@ internal fun MainActivity.showSimulatedDialog(title: String, message: String, ne
         val dialogView = dialog.findViewById<View>(android.R.id.content)
             ?: dialog.window?.decorView
             ?: return@post
+        selectionAnchor = dialogView
+        dialogView.overlay.add(selection)
+        selection.setBounds(0, 0, dialogView.width, dialogView.height)
         metricsPopup.showAsDropDown(dialogView, 0, dp(4))
     }
 }
@@ -1301,7 +1312,16 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
         elevation = dp(4).toFloat()
         isOutsideTouchable = false
     }
-    popup.setOnDismissListener { onDismiss?.invoke() }
+    val selection = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        setColor(Color.TRANSPARENT)
+        setStroke(dp(2), if (isDark()) 0xff64a9ff.toInt() else 0xff1677ff.toInt())
+        cornerRadius = dp(12).toFloat()
+    }
+    popup.setOnDismissListener {
+        anchor.overlay.remove(selection)
+        onDismiss?.invoke()
+    }
     anchor.post {
         if (!anchor.isShown) return@post
         val density = resources.displayMetrics.density
@@ -1312,6 +1332,8 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
             "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整块"
         ).joinToString("\n")
         // 使用真实视图锚定，避免宿主测试中心窗口参与坐标计算。
+        anchor.overlay.add(selection)
+        selection.setBounds(0, 0, anchor.width, anchor.height)
         popup.showAsDropDown(anchor, 0, dp(4))
     }
     return popup
