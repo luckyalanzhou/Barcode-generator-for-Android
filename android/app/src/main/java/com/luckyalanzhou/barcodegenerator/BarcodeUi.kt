@@ -1216,7 +1216,7 @@ internal fun MainActivity.showLanShare() {
     }
     content.addView(LinearLayout(this).apply {
         isClickable = true; isFocusable = true; setOnClickListener { toggleQr() }
-        gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = liquidGlassCard(); elevation = dp(1).toFloat(); clipToOutline = true
+        gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = liquidGlassCard(); elevation = 0f; clipToOutline = true
         addView(Space(this@showLanShare), LinearLayout.LayoutParams(dp(64), dp(64)))
         addView(TextView(this@showLanShare).apply { text = "文件传输"; textSize = 20f; gravity = Gravity.CENTER; setTypeface(null, Typeface.BOLD); setTextColor(shareTitle) }, LinearLayout.LayoutParams(0, dp(64), 1f))
         addView(ImageButton(this@showLanShare).apply {
@@ -1224,7 +1224,7 @@ internal fun MainActivity.showLanShare() {
             imageTintList = ColorStateList.valueOf(if (isDark()) 0xff8fc1ff.toInt() else 0xff0a84ff.toInt())
             // 保留 60dp 点击区域，收紧可见外框和图标比例，二维码图形更清晰。
             background = glassButtonBackground().apply { cornerRadius = dp(16).toFloat() }
-            elevation = dp(1).toFloat(); clipToOutline = true
+            elevation = 0f; clipToOutline = true
             isClickable = true; isFocusable = true; contentDescription = "显示二维码"
             // 60dp 的玻璃外框避免深色模式下被标题卡片边缘和阴影裁切；标题整块仍可点击。
             minimumWidth = dp(60); minimumHeight = dp(60)
@@ -1249,7 +1249,7 @@ internal fun MainActivity.showLanShare() {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(8), dp(8), dp(8), dp(8))
         background = liquidGlassCard()
-        elevation = dp(1).toFloat()
+        elevation = 0f
         clipToOutline = true
         addView(ImageButton(this@showLanShare).apply {
             setImageResource(R.drawable.ic_attachment)
