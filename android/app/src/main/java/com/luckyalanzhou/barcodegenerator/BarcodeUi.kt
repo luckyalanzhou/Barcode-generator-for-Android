@@ -1302,7 +1302,7 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
         isOutsideTouchable = false
     }
     dialog.setOnDismissListener { metricsPopup.dismiss() }
-    box.post {
+    dialog.window?.decorView?.post {
         val density = resources.displayMetrics.density
         fun metric(value: Int) = "${value}px/${(value / density).formatOneDecimal()}dp"
         fun bounds(view: View): String {
