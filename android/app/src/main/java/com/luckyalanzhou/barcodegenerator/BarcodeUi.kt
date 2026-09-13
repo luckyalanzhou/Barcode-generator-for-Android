@@ -1147,6 +1147,7 @@ internal fun MainActivity.enterLanShare() {
 
 /** 局域网不可用时使用独立的紧凑玻璃提示，避免被普通 Toast 忽略。 */
 internal fun MainActivity.showLanShareNetworkErrorDialog() {
+    val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
@@ -1167,11 +1168,21 @@ internal fun MainActivity.showLanShareNetworkErrorDialog() {
             setTextColor(secondaryText())
             setPadding(0, dp(8), 0, dp(6))
         }, LinearLayout.LayoutParams(-1, dp(38)))
-        addView(View(this@showLanShareNetworkErrorDialog).apply {
-            setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
-        }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(10), 0, 0) })
+        addView(styleButton(Button(this@showLanShareNetworkErrorDialog).apply {
+            text = "确定"
+            textSize = 15f
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = dp(40)
+            minimumHeight = dp(40)
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setTextColor(primaryText())
+            background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
+            setOnClickListener { dialog.dismiss() }
+        }), LinearLayout.LayoutParams(dp(76), dp(40)).apply { gravity = Gravity.END; topMargin = dp(8) })
     }
-    showIos26Dialog(AlertDialog.Builder(this).setView(box).setPositiveButton("确定", null).create(), compact = true)
+    dialog.setView(box)
+    showIos26Dialog(dialog, compact = true)
 }
 
 /** 用于短提示的紧凑居中 Liquid Glass 弹窗。 */
@@ -1223,6 +1234,18 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         "测试最新版本提示" to { showIos26NoticeDialog("测试：当前已是最新版本") },
         "测试错误提示" to { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示") },
         "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() },
+        "模拟发现新版本" to { showSimulatedDialog("发现新版本", "检测到版本 9.9.9，是否立即更新？", "忽略更新", "稍后更新", "立即更新") },
+        "模拟下载进度" to { showSimulatedDialog("下载更新", "已下载 50%\n正在下载…", null, null, "取消下载") },
+        "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", "关闭", null, "重新下载") },
+        "模拟二维码弹窗" to { showSimulatedDialog("局域网文件传输", "▦\n\n扫码加入房间", null, null, "复制") },
+        "模拟附件选项" to { showSimulatedDialog("选择附件", "照片图库\n────────\n拍摄图片\n────────\n选择文件", "取消", null, null) },
+        "模拟文件夹编辑" to { showSimulatedDialog("编辑文件夹", "文件夹名称\n一级文件夹 / 二级文件夹", "取消", null, "保存") },
+        "模拟导入确认" to { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
+        "模拟导出结果" to { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
+        "模拟删除确认" to { showSimulatedDialog("删除收藏", "确定删除此收藏吗？", "取消", null, "删除") },
+        "模拟覆盖确认" to { showSimulatedDialog("覆盖收藏", "同名收藏已存在，是否覆盖？", "取消", null, "覆盖") },
+        "模拟权限提示" to { showSimulatedDialog("需要权限", "需要相机权限才能拍摄图片", "取消", null, "去设置") },
+        "模拟安装权限" to { showSimulatedDialog("需要允许安装未知应用", "请在系统设置中允许安装应用更新", "取消", null, "去设置") },
         "查看 UI 参数" to { showUiParameterDialog() }
     )
     val box = LinearLayout(this).apply {
@@ -1255,6 +1278,15 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         })
     }
     showIos26Dialog(AlertDialog.Builder(this).setView(box).setPositiveButton("关闭", null).create(), compact = true)
+}
+
+/** 显示弹窗目录中的模拟状态；按钮只关闭弹窗，不执行任何真实操作。 */
+private fun MainActivity.showSimulatedDialog(title: String, message: String, negative: String?, neutral: String?, positive: String?) {
+    val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message)
+    negative?.let { builder.setNegativeButton(it, null) }
+    neutral?.let { builder.setNeutralButton(it, null) }
+    positive?.let { builder.setPositiveButton(it, null) }
+    showIos26Dialog(builder.create())
 }
 
 /** 只读显示当前 UI 的关键参数，方便在真机上调整弹窗和控件外观。 */
