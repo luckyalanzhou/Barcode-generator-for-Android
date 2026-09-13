@@ -1220,6 +1220,7 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
 /** Beta 专用功能自检面板：提供可重复触发的界面状态测试，不改变正式版行为。 */
 internal fun MainActivity.showFeatureSelfTestDialog() {
     if (!BuildConfig.DEBUG_LOG_EXPORT) return
+    var attachmentAnchor: View? = null
     val checks = listOf(
         "本地自检" to {
             val result = listOf(
@@ -1234,12 +1235,12 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         "测试最新版本提示" to { showIos26NoticeDialog("测试：当前已是最新版本") },
         "测试错误提示" to { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示") },
         "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() },
-        "模拟发现新版本" to { showSimulatedDialog("发现新版本", "检测到版本 9.9.9，是否立即更新？", "忽略更新", "稍后更新", "立即更新") },
-        "模拟下载进度" to { showSimulatedDialog("下载更新", "已下载 50%\n正在下载…", null, null, "取消下载") },
+        "模拟发现新版本" to { showUpdateAvailableDialog("9.9.9", "https://example.invalid/update.apk", null, null, simulateOnly = true) },
+        "模拟下载进度" to { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true) },
         "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", "关闭", null, "重新下载") },
         "模拟二维码弹窗" to { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
-        "模拟附件选项" to { showLanSharePopup(content, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {})) },
-        "模拟文件夹编辑" to { showSimulatedDialog("编辑文件夹", "文件夹名称\n一级文件夹 / 二级文件夹", "取消", null, "保存") },
+        "模拟附件选项" to { attachmentAnchor?.let { anchor -> showLanSharePopup(anchor, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {})) } },
+        "模拟文件夹编辑" to { showFolderEditor("示例文件夹") {} },
         "模拟导入确认" to { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
         "模拟导出结果" to { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
         "模拟删除确认" to { showSimulatedDialog("删除收藏", "确定删除此收藏吗？", "取消", null, "删除") },
@@ -1259,13 +1260,15 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
             setPadding(0, 0, 0, dp(8))
         })
         checks.forEachIndexed { index, (label, action) ->
-            addView(styleButton(Button(this@showFeatureSelfTestDialog).apply {
+            val testButton = styleButton(Button(this@showFeatureSelfTestDialog).apply {
                 text = label
                 isAllCaps = false
                 minWidth = 0
                 minimumWidth = 0
                 setOnClickListener { action() }
-            }), LinearLayout.LayoutParams(-1, dp(42)).apply {
+            })
+            if (label == "模拟附件选项") attachmentAnchor = testButton
+            addView(testButton, LinearLayout.LayoutParams(-1, dp(42)).apply {
                 if (index > 0) topMargin = dp(6)
             })
         }
@@ -1277,7 +1280,12 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
             setPadding(0, dp(12), 0, 0)
         })
     }
-    showIos26Dialog(AlertDialog.Builder(this).setView(box).setPositiveButton("关闭", null).create(), compact = true)
+    val scroll = ScrollView(this).apply {
+        isFillViewport = true
+        isScrollbarFadingEnabled = true
+        addView(box)
+    }
+    showIos26Dialog(AlertDialog.Builder(this).setView(scroll).setPositiveButton("关闭", null).create(), compact = true)
 }
 
 /** 显示弹窗目录中的模拟状态；按钮只关闭弹窗，不执行任何真实操作。 */

@@ -96,7 +96,7 @@ private fun MainActivity.updateDivider() = View(this).apply {
     setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
 }
 
-private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?) {
+internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?, simulateOnly: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -121,7 +121,7 @@ private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: 
             setPadding(0, dp(16), 0, 0)
             addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(4) })
             addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4); rightMargin = dp(4) })
-            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4) })
+            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); if (!simulateOnly) downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4) })
         }, LinearLayout.LayoutParams(-1, dp(54)))
     }
     dialog.setView(box)
@@ -129,7 +129,7 @@ private fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: 
     showIos26Dialog(dialog, compact = true)
 }
 
-internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256) {
+internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256, simulateOnly: Boolean = false) {
     if (updateDownloadRunning) return
     updateDownloadRunning = true
     val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
@@ -152,6 +152,13 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     }
     dialog.setView(box)
     showIos26Dialog(dialog)
+    if (simulateOnly) {
+        progress.isIndeterminate = false
+        progress.progress = 50
+        status.text = "已下载 50%（模拟）"
+        updateDownloadRunning = false
+        return
+    }
     job = lifecycleScope.launch(Dispatchers.IO) {
         val temp = File(cacheDir, "barcode-generator-update.apk.part")
         val official = File(cacheDir, "barcode-generator-update.apk")
