@@ -144,7 +144,8 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         addView(progress, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(14) })
         addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
         addView(LinearLayout(this@downloadAndInstall).apply {
-            gravity = Gravity.CENTER
+            // “取消下载”按钮靠右排列，按钮本身仍保持完整点击范围。
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
             addView(cancelButton, LinearLayout.LayoutParams(-2, dp(38)))
         }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(16) })
     }
