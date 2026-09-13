@@ -1296,6 +1296,9 @@ internal fun MainActivity.showSimulatedDialog(title: String, message: String, ne
 
 private fun Float.formatOneDecimal() = "%.1f".format(this)
 
+private fun View.maxWidthOrUnset() = (this as? TextView)?.maxWidth ?: -1
+private fun View.maxHeightOrUnset() = (this as? TextView)?.maxHeight ?: -1
+
 /** 为 Beta 测试中心框选当前点击的弹窗元素，并持续显示该元素的布局数据。 */
 private fun MainActivity.installSimulationInspector(root: View, metrics: TextView, label: String, selection: GradientDrawable): () -> Unit {
     var selected: View? = null
@@ -1315,7 +1318,10 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
             "尺寸：w=${view.width}px/${(view.width / density).formatOneDecimal()}dp h=${view.height}px/${(view.height / density).formatOneDecimal()}dp",
             "内边距：${view.paddingLeft},${view.paddingTop},${view.paddingRight},${view.paddingBottom}px",
             "外边距：$margins，字号 ${(view as? TextView)?.textSize?.div(resources.displayMetrics.scaledDensity)?.formatOneDecimal() ?: "无"}sp",
-            "状态：可见=${view.visibility == View.VISIBLE} 可点击=${view.isClickable} 可用=${view.isEnabled}"
+            "外观：背景=${view.background?.javaClass?.simpleName ?: "无"} 前景=${view.foreground?.javaClass?.simpleName ?: "无"} 透明度=${view.alpha.formatOneDecimal()}",
+            "变换：旋转=${view.rotation.formatOneDecimal()}° 缩放=${view.scaleX.formatOneDecimal()}×${view.scaleY.formatOneDecimal()}× 阴影=${(view.elevation / density).formatOneDecimal()}dp",
+            "约束：最小=${view.minimumWidth}px×${view.minimumHeight}px，最大=${view.maxWidthOrUnset()}×${view.maxHeightOrUnset()}",
+            "状态：可见=${view.visibility == View.VISIBLE} 可点击=${view.isClickable} 可用=${view.isEnabled} 可聚焦=${view.isFocusable}"
         ).joinToString("\n")
     }
     fun select(view: View) {
@@ -1324,6 +1330,7 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
         view.overlay.add(selection)
         selection.setBounds(0, 0, view.width, view.height)
         metrics.text = describe(view)
+        // 数据面板固定在真实弹窗整体下方，仅选框跟随当前元素移动。
     }
     fun visit(view: View) {
         // 普通文本元素开启系统选择能力；按钮仍由检查器拦截，避免触发原操作。
