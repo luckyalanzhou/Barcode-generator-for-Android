@@ -1162,7 +1162,7 @@ internal fun MainActivity.enterLanShare() {
 }
 
 /** 局域网不可用时使用独立的紧凑玻璃提示，避免被普通 Toast 忽略。 */
-internal fun MainActivity.showLanShareNetworkErrorDialog() {
+internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -1198,11 +1198,13 @@ internal fun MainActivity.showLanShareNetworkErrorDialog() {
         }), LinearLayout.LayoutParams(dp(76), dp(40)).apply { gravity = Gravity.END; topMargin = dp(8) })
     }
     dialog.setView(box)
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "局域网错误弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
 }
 
 /** 用于短提示的紧凑居中 Liquid Glass 弹窗。 */
-internal fun MainActivity.showIos26NoticeDialog(message: String) {
+internal fun MainActivity.showIos26NoticeDialog(message: String, showMetrics: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -1230,6 +1232,8 @@ internal fun MainActivity.showIos26NoticeDialog(message: String) {
          }), LinearLayout.LayoutParams(dp(76), dp(44)).apply { gravity = Gravity.END; topMargin = dp(10) })
     }
     dialog.setView(box)
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "提示弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
 }
 
@@ -1248,15 +1252,15 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
             ).joinToString("\n")
             showIos26NoticeDialog("功能自检结果\n$result")
         },
-        "测试最新版本提示" to { showIos26NoticeDialog("测试：当前已是最新版本") },
-        "测试错误提示" to { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示") },
-        "测试局域网未连接提示" to { showLanShareNetworkErrorDialog() },
-        "模拟发现新版本" to { showUpdateAvailableDialog("9.9.9", "https://example.invalid/update.apk", null, null, simulateOnly = true) },
-        "模拟下载进度" to { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true) },
+        "测试最新版本提示" to { showIos26NoticeDialog("测试：当前已是最新版本", showMetrics = true) },
+        "测试错误提示" to { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示", showMetrics = true) },
+        "测试局域网未连接提示" to { showLanShareNetworkErrorDialog(showMetrics = true) },
+        "模拟发现新版本" to { showUpdateAvailableDialog("9.9.9", "https://example.invalid/update.apk", null, null, simulateOnly = true, showMetrics = true) },
+        "模拟下载进度" to { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true, showMetrics = true) },
         "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", null, null, "重新下载") },
         "模拟二维码弹窗" to { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
         "模拟附件选项" to { attachmentAnchor?.let { anchor -> showLanSharePopup(anchor, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {}), showMetrics = true) } },
-        "模拟文件夹编辑" to { showFolderEditor("示例文件夹") {} },
+        "模拟文件夹编辑" to { showFolderEditor("示例文件夹", showMetrics = true) {} },
         "模拟导入确认" to { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
         "模拟导出结果" to { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
         "模拟删除确认" to { showSimulatedDialog("删除收藏", "确定删除此收藏吗？", "取消", null, "删除") },
@@ -1366,7 +1370,7 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
 private fun Float.formatOneDecimal() = "%.1f".format(this)
 
 /** Beta 模拟专用参数面板：紧贴真实弹窗或菜单下方，不参与真实功能。 */
-private fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
+internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
     val metrics = TextView(this).apply {
         textSize = 11f
         includeFontPadding = false

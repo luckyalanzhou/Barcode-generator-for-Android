@@ -96,7 +96,7 @@ private fun MainActivity.updateDivider() = View(this).apply {
     setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
 }
 
-internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?, simulateOnly: Boolean = false) {
+internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?, simulateOnly: Boolean = false, showMetrics: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -127,10 +127,12 @@ internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl:
     }
     dialog.setView(box)
     dialog.setOnCancelListener { updateDialogShowing = false }
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "发现新版本弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
 }
 
-internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256, simulateOnly: Boolean = false) {
+internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256, simulateOnly: Boolean = false, showMetrics: Boolean = false) {
     if (updateDownloadRunning) return
     updateDownloadRunning = true
     val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
@@ -152,6 +154,8 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(8) })
     }
     dialog.setView(box)
+    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "下载进度弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog)
     if (simulateOnly) {
         progress.isIndeterminate = false
@@ -542,7 +546,7 @@ internal fun MainActivity.decodeBitmap(bitmap: Bitmap): String? = try {
     } catch (_: Exception) { null }
 
 
-internal fun MainActivity.showFolderEditor(initial: String = "", onSaved: (String) -> Unit) {
+internal fun MainActivity.showFolderEditor(initial: String = "", showMetrics: Boolean = false, onSaved: (String) -> Unit) {
         val input = inputField("文件夹名称", initial)
         val box = LinearLayout(this).apply { setPadding(dp(24), dp(8), dp(24), 0); addView(input, LinearLayout.LayoutParams(-1, dp(50))) }
         val dialog = AlertDialog.Builder(this).setTitle(if (initial.isBlank()) "新建文件夹" else "重命名文件夹").setView(box).setNegativeButton("取消", null).setPositiveButton("保存", null).create()
@@ -554,6 +558,8 @@ internal fun MainActivity.showFolderEditor(initial: String = "", onSaved: (Strin
                 onSaved(name); dialog.dismiss()
             }
         }
+        val metricsPopup = if (showMetrics) showSimulationMetrics(box, "文件夹编辑弹窗") else null
+        dialog.setOnDismissListener { metricsPopup?.dismiss() }
         showIos26Dialog(dialog)
     }
 
