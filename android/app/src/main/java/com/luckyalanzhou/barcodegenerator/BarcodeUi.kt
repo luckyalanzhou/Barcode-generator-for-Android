@@ -1327,8 +1327,10 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
     }
     fun visit(view: View) {
         view.setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_UP) select(view)
-            false
+            if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_UP) select(view)
+            // 模拟检查期间拦截弹窗内部可点击元素，避免点击按钮执行真实操作或关闭弹窗。
+            // 点击弹窗外部仍交给 Dialog/PopupWindow 处理，因此仍可退出。
+            if (view.isClickable && event.actionMasked != MotionEvent.ACTION_CANCEL) true else false
         }
         if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
     }
