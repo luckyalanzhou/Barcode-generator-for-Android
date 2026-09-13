@@ -1995,13 +1995,16 @@ internal fun MainActivity.showResults() {
                 val isCode128 = item.format == "Code 128-B"
                 if (isCode128) {
                     val barHeightPx = dp(activity.style.barHeight.coerceIn(30, 150).coerceAtLeast(1)).coerceAtMost(barcode.height)
+                    // 仅 Code 128-B 使用设置中的固定宽度；其他条码格式保持原有自适应布局。
                     val desiredWidth = dp(activity.style.barWidth.roundToInt().coerceIn(120, 360)).coerceAtLeast(1)
                     val textEnabled = true
                     val label = if (activity.style.showFormat) "${item.text} · ${item.format}" else item.text
                     // encode() 的 Bitmap 可能还包含文字。这里只取纯条码区域，文字交给独立 TextView，
                     // 从根上避免文字和条码共享同一个 Canvas 而发生重叠。
                     val sourceTop = 0
-                    val barOnly = Bitmap.createBitmap(barcode, 0, sourceTop, barcode.width, barHeightPx)
+                    // ZXing 会根据内容长度留下不同的左右空白；只裁剪 Code 128-B 的有效条纹区域，
+                    // 再由固定宽度的 ImageView 统一显示，避免同一结果页中出现宽窄不一。
+                    val barOnly = trimBarcodeHorizontal(Bitmap.createBitmap(barcode, 0, sourceTop, barcode.width, barHeightPx))
                     val labelView = TextView(activity).apply {
                         text = label
                         textSize = activity.style.textSize.coerceIn(10f, 24f)
@@ -2494,8 +2497,30 @@ internal fun MainActivity.encode(text: String, format: BarcodeFormat): Bitmap? =
                 if (matrix[x, y]) canvas.drawRect(x.toFloat(), y.toFloat(), (x + 1).toFloat(), (y + 1).toFloat(), paint)
             }
         }
-        bitmap
-    } catch (_: Exception) { null }
+    bitmap
+} catch (_: Exception) { null }
+
+/** 裁掉纯条码 Bitmap 的左右空白；仅供 Code 128-B 结果页使用。 */
+private fun trimBarcodeHorizontal(source: Bitmap): Bitmap {
+    var left = source.width
+    var right = -1
+    for (x in 0 until source.width) {
+        var hasBar = false
+        for (y in 0 until source.height) {
+            val pixel = source.getPixel(x, y)
+            val luminance = (Color.red(pixel) * 299 + Color.green(pixel) * 587 + Color.blue(pixel) * 114) / 1000
+            if (Color.alpha(pixel) > 0 && luminance < 200) {
+                hasBar = true
+                break
+            }
+        }
+        if (hasBar) {
+            left = minOf(left, x)
+            right = maxOf(right, x)
+        }
+    }
+    return if (right >= left) Bitmap.createBitmap(source, left, 0, right - left + 1, source.height) else source
+}
 
 internal fun MainActivity.dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
