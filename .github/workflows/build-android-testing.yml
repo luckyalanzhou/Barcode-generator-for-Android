@@ -66,8 +66,8 @@ jobs:
           version_code=$((base_code + 1))
           printf 'versionName=%s\nversionCode=%s\n' "$version_name" "$version_code" > beta-version.properties
           # Keep version state separate from Gradle build scripts so configuration cache remains reusable.
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "luckyalanzhou"
+          git config user.email "zhiminzhou1@gmail.com"
           git add beta-version.properties
           git commit -m "beta: 自动升级版本到 ${version_name}"
           git push origin HEAD:beta
