@@ -1360,10 +1360,11 @@ private fun MainActivity.showSimulatedDialog(title: String, message: String, neg
             "参数：正式弹窗布局，按钮圆角 14dp，边框 1dp，阴影 6dp",
             "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整行"
         ).joinToString("\n")
-        val dialogView = dialog.window?.decorView ?: return@post
-        val location = IntArray(2)
-        dialogView.getLocationOnScreen(location)
-        metricsPopup.showAtLocation(dialogView, Gravity.TOP or Gravity.START, location[0], location[1] + dialogView.height + dp(8))
+        // 以真实弹窗内容作为锚点，避免测试中心窗口的坐标覆盖真实弹窗位置。
+        val dialogView = dialog.findViewById<View>(android.R.id.content)
+            ?: dialog.window?.decorView
+            ?: return@post
+        metricsPopup.showAsDropDown(dialogView, 0, dp(4))
     }
 }
 
@@ -1387,15 +1388,14 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
     anchor.post {
         if (!anchor.isShown) return@post
         val density = resources.displayMetrics.density
-        val location = IntArray(2)
-        anchor.getLocationOnScreen(location)
         metrics.text = listOf(
             "弹窗：$label",
-            "位置：x=${location[0]}px/${(location[0] / density).formatOneDecimal()}dp y=${location[1]}px/${(location[1] / density).formatOneDecimal()}dp",
+            "位置：相对真实弹窗下方 ${4}dp",
             "尺寸：w=${anchor.width}px/${(anchor.width / density).formatOneDecimal()}dp h=${anchor.height}px/${(anchor.height / density).formatOneDecimal()}dp",
             "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整块"
         ).joinToString("\n")
-        popup.showAtLocation(anchor, Gravity.TOP or Gravity.START, location[0], location[1] + anchor.height + dp(4))
+        // 使用真实视图锚定，避免宿主测试中心窗口参与坐标计算。
+        popup.showAsDropDown(anchor, 0, dp(4))
     }
     return popup
 }
