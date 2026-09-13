@@ -256,6 +256,10 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
             minHeight = dp(36)
             minimumHeight = dp(36)
             setPadding(dp(8), dp(4), dp(8), dp(4))
+            // 标准弹窗按钮也使用统一的轻量玻璃外框；可见边框与整块点击区域一致。
+            background = glassButtonBackground().apply { cornerRadius = dp(12).toFloat() }
+            stateListAnimator = null
+            elevation = 0f
         }
     }
 }

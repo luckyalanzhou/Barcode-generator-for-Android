@@ -119,9 +119,10 @@ internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl:
         addView(LinearLayout(this@showUpdateAvailableDialog).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
-            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(4) })
-            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4); rightMargin = dp(4) })
-            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); if (!simulateOnly) downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(4) })
+            // 三个按钮保持完整点击区域，并通过更大的外边距拉开视觉间距。
+            addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(8) })
+            addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8); rightMargin = dp(8) })
+            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); if (!simulateOnly) downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8) })
         }, LinearLayout.LayoutParams(-1, dp(54)))
     }
     dialog.setView(box)
