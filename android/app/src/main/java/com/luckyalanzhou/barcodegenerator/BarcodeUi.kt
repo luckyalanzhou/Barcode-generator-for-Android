@@ -19,6 +19,9 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.RippleDrawable
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.SwitchCompat
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import android.widget.PopupWindow
 import androidx.lifecycle.lifecycleScope
 import androidx.core.content.FileProvider
@@ -58,6 +61,30 @@ private val bottomTabSelectedIcons = intArrayOf(
     R.drawable.ic_tab_favorite_selected, R.drawable.ic_tab_settings_selected
 )
 
+/** 使用真实弹簧驱动缩放，不使用 Bounce/OvershootInterpolator。 */
+private fun springScale(view: View, start: Float, peak: Float, settle: Float = 1f) {
+    val x = SpringAnimation(view, DynamicAnimation.SCALE_X)
+    val y = SpringAnimation(view, DynamicAnimation.SCALE_Y)
+    fun force(finalPosition: Float) = SpringForce(finalPosition).apply {
+        // 低阻尼 + 中低刚度，产生轻微果冻回弹，但不会长时间晃动。
+        dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+        // AndroidX 没有 MEDIUM_LOW 常量，600f 是 LOW(200) 与 MEDIUM(1500) 之间的中低刚度。
+        stiffness = 600f
+    }
+    x.spring = force(peak)
+    y.spring = force(peak)
+    x.addEndListener { _, canceled, _, _ ->
+        if (!canceled && settle != peak) {
+            SpringAnimation(view, DynamicAnimation.SCALE_X).apply { spring = force(settle); start() }
+            SpringAnimation(view, DynamicAnimation.SCALE_Y).apply { spring = force(settle); start() }
+        }
+    }
+    x.cancel(); y.cancel()
+    view.scaleX = start
+    view.scaleY = start
+    x.start(); y.start()
+}
+
 
 internal fun MainActivity.updateTopTabSelection() {
     val selected = tabPageIndex()
@@ -71,16 +98,13 @@ internal fun MainActivity.updateTopTabSelection() {
             val iconResource = if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int]
             setImageResource(iconResource)
             setColorFilter(if (isSelected) selectedColor else unselectedColor)
-            animate().cancel()
             // 图标切换采用“收缩-注入-回弹”：线性图标切换为面性图标时不会闪现。
             if (isSelected) {
-                scaleX = 0.86f; scaleY = 0.86f; alpha = 0.55f
-                animate().scaleX(1.12f).scaleY(1.12f).alpha(1f).setDuration(150)
-                    .setInterpolator(OvershootInterpolator(1.1f)).withEndAction {
-                        animate().scaleX(1.06f).scaleY(1.06f).setDuration(100).start()
-                    }.start()
+                alpha = 1f
+                springScale(this, start = 0.86f, peak = 1.12f, settle = 1.06f)
             } else {
-                animate().scaleX(1f).scaleY(1f).alpha(0.82f).setDuration(130).start()
+                alpha = 0.82f
+                springScale(this, start = scaleX, peak = 1f)
             }
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         }
@@ -91,12 +115,7 @@ internal fun MainActivity.updateTopTabSelection() {
         tab.translationZ = 0f
         if (isSelected && !tabGlassDragActive) {
             // 激活背景轻微压缩后拉伸，模拟果冻吸附到当前 Tab 的回弹。
-            tab.animate().cancel()
-            tab.scaleX = 0.97f; tab.scaleY = 0.97f
-            tab.animate().scaleX(1.035f).scaleY(1.035f).setDuration(150)
-                .setInterpolator(OvershootInterpolator(1.15f)).withEndAction {
-                    tab.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                }.start()
+            springScale(tab, start = 0.97f, peak = 1.035f)
         }
     }
 }
@@ -378,7 +397,17 @@ internal fun MainActivity.buildShell() {
             val current = tabPageIndex()
             if (index != current) pendingPageTransitionDirection = if (index > current) 1 else -1
             if (index == 3) openSettings()
-            else if (page != tabPages[index]) { if (page == "lanShare") closeLanShare(); page = tabPages[index]; render() }
+            else if (page != tabPages[index]) {
+                if (page == "lanShare") closeLanShare()
+                if (index == 0) {
+                    // 从收藏/收藏结果页切回普通生成页时清除编辑收藏上下文，避免新结果返回收藏页。
+                    selectedFavoriteGroup = null
+                    resultsReturnPage = "generate"
+                    showingHistoryResult = false
+                }
+                page = tabPages[index]
+                render()
+            }
             else updateTopTabSelection()
         }
         var touchDownX = 0f
@@ -1434,12 +1463,15 @@ internal fun MainActivity.showLanShareQrDialog() {
     val bitmap = Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image -> for (x in 0 until matrix.width) for (y in 0 until matrix.height) image.setPixel(x, y, if (matrix[x, y]) qrForeground else qrBackground) }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(12), dp(14), dp(12), dp(10))
+        // 二维码弹窗只保留必要的安全留白，减少左右白边；弹窗本身仍保留圆角和系统最小宽度。
+        gravity = Gravity.CENTER_HORIZONTAL
+        setPadding(0, dp(14), 0, dp(10))
         addView(ImageView(this@showLanShareQrDialog).apply {
             setImageBitmap(bitmap)
             contentDescription = "局域网分享二维码"
             setBackgroundColor(qrBackground)
-        }, LinearLayout.LayoutParams(-1, dp(240)))
+            scaleType = ImageView.ScaleType.CENTER
+        }, LinearLayout.LayoutParams(dp(240), dp(240)))
         addView(LinearLayout(this@showLanShareQrDialog).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(TextView(this@showLanShareQrDialog).apply {
@@ -1460,7 +1492,7 @@ internal fun MainActivity.showLanShareQrDialog() {
                     toast("已复制局域网传输地址")
                 }
             }, LinearLayout.LayoutParams(dp(42), dp(42)))
-        }, LinearLayout.LayoutParams(-1, dp(42)))
+        }, LinearLayout.LayoutParams(dp(240), dp(42)))
     }
     val dialog = AlertDialog.Builder(this).setView(box).create()
     dialog.setCanceledOnTouchOutside(true)
@@ -1973,13 +2005,16 @@ internal fun MainActivity.showResults() {
                 val isCode128 = item.format == "Code 128-B"
                 if (isCode128) {
                     val barHeightPx = dp(activity.style.barHeight.coerceIn(30, 150).coerceAtLeast(1)).coerceAtMost(barcode.height)
+                    // 仅 Code 128-B 使用设置中的固定宽度；其他条码格式保持原有自适应布局。
                     val desiredWidth = dp(activity.style.barWidth.roundToInt().coerceIn(120, 360)).coerceAtLeast(1)
                     val textEnabled = true
                     val label = if (activity.style.showFormat) "${item.text} · ${item.format}" else item.text
                     // encode() 的 Bitmap 可能还包含文字。这里只取纯条码区域，文字交给独立 TextView，
                     // 从根上避免文字和条码共享同一个 Canvas 而发生重叠。
                     val sourceTop = 0
-                    val barOnly = Bitmap.createBitmap(barcode, 0, sourceTop, barcode.width, barHeightPx)
+                    // ZXing 会根据内容长度留下不同的左右空白；只裁剪 Code 128-B 的有效条纹区域，
+                    // 再由固定宽度的 ImageView 统一显示，避免同一结果页中出现宽窄不一。
+                    val barOnly = trimBarcodeHorizontal(Bitmap.createBitmap(barcode, 0, sourceTop, barcode.width, barHeightPx))
                     val labelView = TextView(activity).apply {
                         text = label
                         textSize = activity.style.textSize.coerceIn(10f, 24f)
@@ -2472,8 +2507,30 @@ internal fun MainActivity.encode(text: String, format: BarcodeFormat): Bitmap? =
                 if (matrix[x, y]) canvas.drawRect(x.toFloat(), y.toFloat(), (x + 1).toFloat(), (y + 1).toFloat(), paint)
             }
         }
-        bitmap
-    } catch (_: Exception) { null }
+    bitmap
+} catch (_: Exception) { null }
+
+/** 裁掉纯条码 Bitmap 的左右空白；仅供 Code 128-B 结果页使用。 */
+private fun trimBarcodeHorizontal(source: Bitmap): Bitmap {
+    var left = source.width
+    var right = -1
+    for (x in 0 until source.width) {
+        var hasBar = false
+        for (y in 0 until source.height) {
+            val pixel = source.getPixel(x, y)
+            val luminance = (Color.red(pixel) * 299 + Color.green(pixel) * 587 + Color.blue(pixel) * 114) / 1000
+            if (Color.alpha(pixel) > 0 && luminance < 200) {
+                hasBar = true
+                break
+            }
+        }
+        if (hasBar) {
+            left = minOf(left, x)
+            right = maxOf(right, x)
+        }
+    }
+    return if (right >= left) Bitmap.createBitmap(source, left, 0, right - left + 1, source.height) else source
+}
 
 internal fun MainActivity.dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
