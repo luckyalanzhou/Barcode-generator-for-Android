@@ -1191,9 +1191,10 @@ internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = 
         }), LinearLayout.LayoutParams(dp(76), dp(40)).apply { gravity = Gravity.END; topMargin = dp(8) })
     }
     dialog.setView(box)
-    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "局域网错误弹窗") else null
-    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
+    // 必须在真实弹窗完成 show 并确定最终尺寸后定位数据面板，避免数据面板覆盖弹窗。
+    val metricsPopup = if (showMetrics) showSimulationMetrics(dialog.window?.decorView ?: box, "局域网错误弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
 }
 
 /** 用于短提示的紧凑居中 Liquid Glass 弹窗。 */
@@ -1225,66 +1226,22 @@ internal fun MainActivity.showIos26NoticeDialog(message: String, showMetrics: Bo
          }), LinearLayout.LayoutParams(dp(76), dp(44)).apply { gravity = Gravity.END; topMargin = dp(10) })
     }
     dialog.setView(box)
-    val metricsPopup = if (showMetrics) showSimulationMetrics(box, "提示弹窗") else null
-    dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog, compact = true)
+    // 以实际弹窗 decorView 为锚点，保证检查数据永远显示在弹窗完整底部。
+    val metricsPopup = if (showMetrics) showSimulationMetrics(dialog.window?.decorView ?: box, "提示弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
 }
 
-/** 显示弹窗目录中的模拟状态；按钮只关闭弹窗，不执行任何真实操作。 */
-internal fun MainActivity.showSimulatedDialog(title: String, message: String, negative: String?, neutral: String?, positive: String?) {
-    val metricsView = TextView(this).apply {
-        text = "正在测量布局…"
-        textSize = 11f
-        includeFontPadding = false
-        setTextColor(secondaryText())
-        setPadding(dp(12), dp(10), dp(12), dp(10))
-        background = liquidGlassCard()
-    }
-    // 模拟弹窗直接复用正式弹窗的标题、正文和按钮容器，避免两套布局产生偏差。
+/** 显示弹窗目录中的模拟状态；模拟弹窗和真实弹窗共用统一样式及数据检查器。 */
+internal fun MainActivity.showSimulatedDialog(title: String, message: String, negative: String?, neutral: String?, positive: String?, showMetrics: Boolean = true) {
     val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message)
     negative?.let { builder.setNegativeButton(it, null) }
     neutral?.let { builder.setNeutralButton(it, null) }
     positive?.let { builder.setPositiveButton(it, null) }
+    // 通用确认类弹窗与正式弹窗一样使用标准宽度；紧凑弹窗由各自的真实实现决定。
     val dialog = showIos26Dialog(builder.create())
-    val metricsPopup = PopupWindow(metricsView, dp(280), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
-        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        elevation = dp(4).toFloat()
-        isOutsideTouchable = false
-    }
-    val selection = GradientDrawable().apply {
-        shape = GradientDrawable.RECTANGLE
-        setColor(Color.TRANSPARENT)
-        setStroke(dp(2), if (isDark()) 0xff64a9ff.toInt() else 0xff1677ff.toInt())
-        cornerRadius = dp(12).toFloat()
-    }
-    var cleanupInspector: (() -> Unit)? = null
-    metricsPopup.setOnDismissListener { cleanupInspector?.invoke() }
-    dialog.setOnDismissListener { metricsPopup.dismiss() }
-    dialog.window?.decorView?.post {
-        val density = resources.displayMetrics.density
-        fun metric(value: Int) = "${value}px/${(value / density).formatOneDecimal()}dp"
-        fun bounds(view: View): String {
-            val location = IntArray(2)
-            view.getLocationInWindow(location)
-            return "x=${metric(location[0])} y=${metric(location[1])} w=${metric(view.width)} h=${metric(view.height)}"
-        }
-        val titleId = resources.getIdentifier("alertTitle", "id", "android")
-        val titleView = if (titleId != 0) dialog.findViewById<TextView>(titleId) else null
-        val messageView = dialog.findViewById<TextView>(android.R.id.message)
-        metricsView.text = listOf(
-            "弹窗：${dialog.window?.decorView?.width ?: 0}×${dialog.window?.decorView?.height ?: 0}",
-            "标题：${titleView?.let(::bounds) ?: "系统标题"}，字号 ${titleView?.let { it.textSize / resources.displayMetrics.scaledDensity } ?: 20f}sp",
-            "内容：${messageView?.let(::bounds) ?: "系统正文"}，字号 ${messageView?.let { it.textSize / resources.displayMetrics.scaledDensity } ?: 15f}sp",
-            "参数：正式弹窗布局，按钮圆角 14dp，边框 1dp，阴影 6dp",
-            "模式：${if (isDark()) "深色" else "浅色"}，点击范围：整行"
-        ).joinToString("\n")
-        // 以真实弹窗内容作为锚点，避免测试中心窗口的坐标覆盖真实弹窗位置。
-        val dialogView = dialog.findViewById<View>(android.R.id.content)
-            ?: dialog.window?.decorView
-            ?: return@post
-        cleanupInspector = installSimulationInspector(dialogView, metricsView, title, selection)
-        metricsPopup.showAsDropDown(dialogView, 0, dp(4))
-    }
+    val metricsPopup = if (showMetrics) showSimulationMetrics(dialog.window?.decorView ?: return, title) else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss() }
 }
 
 private fun Float.formatOneDecimal() = "%.1f".format(this)
@@ -1911,9 +1868,9 @@ internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession
     val dialog = AlertDialog.Builder(this).setView(box).create()
     dialog.setCanceledOnTouchOutside(true)
     dialog.setOnCancelListener { if (!simulated) lanShareQrVisible = false }
-    val metricsPopup = if (simulated) showSimulationMetrics(box, "二维码弹窗") else null
-    dialog.setOnDismissListener { metricsPopup?.dismiss(); if (!simulated) lanShareQrVisible = false }
     showIos26Dialog(dialog)
+    val metricsPopup = if (simulated) showSimulationMetrics(dialog.window?.decorView ?: box, "二维码弹窗") else null
+    dialog.setOnDismissListener { metricsPopup?.dismiss(); if (!simulated) lanShareQrVisible = false }
 }
 
 internal fun MainActivity.startLanShareAutoRefresh() {
