@@ -596,13 +596,14 @@ internal fun MainActivity.render() {
             "history" -> "历史记录"
             "favorites", "favoriteDetail" -> "收藏"
             "settings" -> "设置"
+            "betaTestCenter" -> "Beta 测试中心"
             "lanShare" -> "局域网分享"
             else -> "条码生成器"
         }
         // 所有页面统一使用纯文字居中标题，不显示标题前的图标。
         appHeader.getChildAt(0)?.visibility = View.GONE
-        showAppChrome(page !in listOf("results", "favoriteDetail", "lanShare"))
-        when (page) { "history" -> content.post { showList(false) }; "favorites" -> showFavoriteGroups(); "favoriteDetail" -> showFavoriteDetail(); "results" -> showResults(); "settings" -> showSettings(); "lanShare" -> showLanShare(); else -> showGenerate() }
+        showAppChrome(page !in listOf("results", "favoriteDetail", "lanShare", "betaTestCenter"))
+        when (page) { "history" -> content.post { showList(false) }; "favorites" -> showFavoriteGroups(); "favoriteDetail" -> showFavoriteDetail(); "results" -> showResults(); "settings" -> showSettings(); "lanShare" -> showLanShare(); "betaTestCenter" -> renderBetaTestCenterPage(); else -> showGenerate() }
         content.clearAnimation()
         content.alpha = 1f
         // 设置项触发重绘时可能打断上一次上弹动画；先清除残留的属性动画状态，避免整页持续下移。
@@ -1112,7 +1113,6 @@ internal fun MainActivity.showSettings() {
          toolRows += textRow("收藏备份", backupActions, trailingWidth = -2)
           if (BuildConfig.DEBUG_LOG_EXPORT) {
               toolRows += textRow("功能自检", toolActionButton("打开", buttonMinHeight = 40, horizontalPadding = 16) { showFeatureSelfTestDialog() }, trailingWidth = dp(88))
-              toolRows += textRow("调试日志", toolActionButton("导出", buttonMinHeight = 40, horizontalPadding = 16) { shareDebugLog() }, trailingWidth = dp(88))
           }
         addSpaced(groupCard(toolRows), bottom = 12)
           // 整张“关于”卡片是一个安静的入口：在短时间内连点五次才打开彩蛋，日常浏览不会误触。
@@ -1292,8 +1292,72 @@ private fun Float.formatOneDecimal() = "%.1f".format(this)
 private fun View.maxWidthOrUnset() = (this as? TextView)?.maxWidth ?: -1
 private fun View.maxHeightOrUnset() = (this as? TextView)?.maxHeight ?: -1
 
+/** Beta 测试中心的八方向尺寸控制层；仅覆盖选中的弹窗元素，不进入正式版界面。 */
+private class SimulationResizeOverlay(
+    context: Context,
+    private val density: Float,
+    private val darkMode: () -> Boolean,
+    private val onResize: (View, Float, Float, Float, Float) -> Unit
+) : View(context) {
+    var target: View? = null
+        set(value) { field = value; invalidate() }
+    private var handle = -1
+    private var downX = 0f
+    private var downY = 0f
+    private var startWidth = 0
+    private var startHeight = 0
+    private var startTx = 0f
+    private var startTy = 0f
+    private val radius get() = 6f * density
+    private fun targetRect(): RectF? {
+        val view = target ?: return null
+        val a = IntArray(2); val b = IntArray(2)
+        view.getLocationOnScreen(a); getLocationOnScreen(b)
+        return RectF((a[0] - b[0]).toFloat(), (a[1] - b[1]).toFloat(), (a[0] - b[0] + view.width).toFloat(), (a[1] - b[1] + view.height).toFloat())
+    }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val rect = targetRect() ?: return
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (darkMode()) 0xff7db7ff.toInt() else 0xff1677ff.toInt(); style = Paint.Style.FILL }
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paint.color; style = Paint.Style.STROKE; strokeWidth = 1.5f * density }
+        canvas.drawRect(rect, stroke)
+        val xs = floatArrayOf(rect.left, rect.centerX(), rect.right)
+        val ys = floatArrayOf(rect.top, rect.centerY(), rect.bottom)
+        for (y in ys) for (x in xs) canvas.drawCircle(x, y, radius, paint)
+    }
+    private fun hit(x: Float, y: Float): Int {
+        val rect = targetRect() ?: return -1
+        val points = arrayOf(floatArrayOf(rect.left, rect.top), floatArrayOf(rect.centerX(), rect.top), floatArrayOf(rect.right, rect.top), floatArrayOf(rect.left, rect.centerY()), floatArrayOf(rect.right, rect.centerY()), floatArrayOf(rect.left, rect.bottom), floatArrayOf(rect.centerX(), rect.bottom), floatArrayOf(rect.right, rect.bottom))
+        return points.indexOfFirst { kotlin.math.abs(x - it[0]) <= radius * 2.2f && kotlin.math.abs(y - it[1]) <= radius * 2.2f }
+    }
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val view = target ?: return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                handle = hit(event.x, event.y)
+                if (handle < 0) return false
+                downX = event.x; downY = event.y; startWidth = view.width; startHeight = view.height; startTx = view.translationX; startTy = view.translationY
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> if (handle >= 0) {
+                val dx = event.x - downX; val dy = event.y - downY
+                val left = handle == 0 || handle == 3 || handle == 5
+                val top = handle <= 2
+                val right = handle == 2 || handle == 4 || handle == 7
+                val bottom = handle >= 5
+                val width = (startWidth + if (right) dx else if (left) -dx else 0f).roundToInt().coerceAtLeast((16 * density).roundToInt())
+                val height = (startHeight + if (bottom) dy else if (top) -dy else 0f).roundToInt().coerceAtLeast((16 * density).roundToInt())
+                onResize(view, width.toFloat(), height.toFloat(), startTx + if (left) dx else 0f, startTy + if (top) dy else 0f)
+                invalidate(); return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { handle = -1; invalidate(); return true }
+        }
+        return handle >= 0
+    }
+}
+
 /** 为 Beta 测试中心框选当前点击的弹窗元素，并持续显示该元素的布局数据。 */
-private fun MainActivity.installSimulationInspector(root: View, metrics: TextView, label: String, selection: GradientDrawable): () -> Unit {
+private fun MainActivity.installSimulationInspector(root: View, metrics: TextView, label: String, selection: GradientDrawable, onSelected: (View) -> Unit = {}): () -> Unit {
     var selected: View? = null
     fun describe(view: View): String {
         val density = resources.displayMetrics.density
@@ -1317,12 +1381,20 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
             "状态：可见=${view.visibility == View.VISIBLE} 可点击=${view.isClickable} 可用=${view.isEnabled} 可聚焦=${view.isFocusable}"
         ).joinToString("\n")
     }
+    val resizeOverlay = (root as? ViewGroup)?.let { parent ->
+        SimulationResizeOverlay(this, resources.displayMetrics.density, { isDark() }) { view, width, height, tx, ty ->
+            view.layoutParams = view.layoutParams?.apply { this.width = width.roundToInt(); this.height = height.roundToInt() }
+            view.translationX = tx; view.translationY = ty; view.requestLayout(); metrics.text = describe(view)
+        }.also { overlay -> parent.addView(overlay, ViewGroup.LayoutParams(-1, -1)) }
+    }
     fun select(view: View) {
         selected?.overlay?.remove(selection)
         selected = view
         view.overlay.add(selection)
         selection.setBounds(0, 0, view.width, view.height)
+        resizeOverlay?.target = view
         metrics.text = describe(view)
+        onSelected(view)
         // 数据面板固定在真实弹窗整体下方，仅选框跟随当前元素移动。
     }
     fun visit(view: View) {
@@ -1344,6 +1416,7 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
     }
     return {
         selected?.overlay?.remove(selection)
+        resizeOverlay?.let { overlay -> (overlay.parent as? ViewGroup)?.removeView(overlay) }
         fun clear(view: View) {
             view.setOnTouchListener(null)
             if (view is ViewGroup) for (index in 0 until view.childCount) clear(view.getChildAt(index))
@@ -1352,16 +1425,79 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
     }
 }
 
+/** Beta 调整面板：编辑当前选中元素的常用布局、文字和外观数据。 */
+private fun MainActivity.showSimulationElementEditor(view: View) {
+    val fields = linkedMapOf<String, EditText>()
+    fun field(name: String, value: String): EditText = EditText(this).apply {
+        setText(value); setSelectAllOnFocus(true); setSingleLine(true); textSize = 13f
+        setPadding(dp(8), 0, dp(8), 0); fields[name] = this
+    }
+    fun row(left: String, leftValue: String, right: String, rightValue: String): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        addView(TextView(this@showSimulationElementEditor).apply { text = left; setTextColor(secondaryText()); gravity = Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(dp(62), dp(42)))
+        addView(field(left, leftValue), LinearLayout.LayoutParams(0, dp(42), 1f))
+        addView(TextView(this@showSimulationElementEditor).apply { text = right; setTextColor(secondaryText()); gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), 0, 0, 0) }, LinearLayout.LayoutParams(dp(62), dp(42)))
+        addView(field(right, rightValue), LinearLayout.LayoutParams(0, dp(42), 1f))
+    }
+    val params = view.layoutParams
+    val margins = (params as? ViewGroup.MarginLayoutParams)
+    val density = resources.displayMetrics.density
+    fun px(value: Int) = (value / density).formatOneDecimal()
+    val content = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(18), dp(10), dp(18), dp(8))
+        addView(TextView(this@showSimulationElementEditor).apply { text = "调整选中元素"; textSize = 18f; setTextColor(primaryText()) })
+        addView(row("宽度dp", px(params?.width ?: view.width), "高度dp", px(params?.height ?: view.height)))
+        addView(row("位移Xdp", px(view.translationX.roundToInt()), "位移Ydp", px(view.translationY.roundToInt())))
+        addView(row("左边距", px(margins?.leftMargin ?: 0), "右边距", px(margins?.rightMargin ?: 0)))
+        addView(row("上边距", px(margins?.topMargin ?: 0), "下边距", px(margins?.bottomMargin ?: 0)))
+        addView(row("左内距", px(view.paddingLeft), "右内距", px(view.paddingRight)))
+        addView(row("上内距", px(view.paddingTop), "下内距", px(view.paddingBottom)))
+        addView(row("字号sp", (view as? TextView)?.textSize?.div(resources.displayMetrics.scaledDensity)?.formatOneDecimal() ?: "0", "透明度", view.alpha.formatOneDecimal()))
+        addView(row("旋转°", view.rotation.formatOneDecimal(), "圆角dp", ((view.background as? GradientDrawable)?.cornerRadius ?: 0f).div(density).formatOneDecimal()))
+        addView(row("缩放X", view.scaleX.formatOneDecimal(), "缩放Y", view.scaleY.formatOneDecimal()))
+        addView(row("最小宽dp", px(view.minimumWidth), "最小高dp", px(view.minimumHeight)))
+    }
+    val dialog = AlertDialog.Builder(this).setView(ScrollView(this).apply { addView(content) }).setNegativeButton("取消", null).setPositiveButton("应用", null).create()
+    dialog.setOnShowListener {
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            fun number(name: String, fallback: Float) = fields[name]?.text?.toString()?.toFloatOrNull() ?: fallback
+            fun dpValue(name: String, fallback: Int) = dp(number(name, fallback / density).roundToInt())
+            val width = dpValue("宽度dp", params?.width ?: view.width)
+            val height = dpValue("高度dp", params?.height ?: view.height)
+            view.layoutParams = (view.layoutParams ?: ViewGroup.LayoutParams(width, height)).apply {
+                this.width = width; this.height = height
+                (this as? ViewGroup.MarginLayoutParams)?.let {
+                    it.leftMargin = dpValue("左边距", it.leftMargin); it.rightMargin = dpValue("右边距", it.rightMargin)
+                    it.topMargin = dpValue("上边距", it.topMargin); it.bottomMargin = dpValue("下边距", it.bottomMargin)
+                }
+            }
+            view.setPadding(dpValue("左内距", view.paddingLeft), dpValue("上内距", view.paddingTop), dpValue("右内距", view.paddingRight), dpValue("下内距", view.paddingBottom))
+            (view as? TextView)?.textSize = number("字号sp", 0f)
+            view.alpha = number("透明度", view.alpha).coerceIn(0f, 1f); view.rotation = number("旋转°", view.rotation)
+            view.translationX = dpValue("位移Xdp", (view.translationX / density).roundToInt()).toFloat()
+            view.translationY = dpValue("位移Ydp", (view.translationY / density).roundToInt()).toFloat()
+            view.scaleX = number("缩放X", view.scaleX); view.scaleY = number("缩放Y", view.scaleY)
+            view.minimumWidth = dpValue("最小宽dp", view.minimumWidth); view.minimumHeight = dpValue("最小高dp", view.minimumHeight)
+            (view.background as? GradientDrawable)?.cornerRadius = dpValue("圆角dp", 0).toFloat()
+            view.requestLayout(); dialog.dismiss()
+        }
+    }
+    showIos26Dialog(dialog, compact = true)
+}
+
 /** Beta 模拟专用参数面板：紧贴真实弹窗或菜单下方，不参与真实功能。 */
 internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
+    var selectedView: View? = null
     val metrics = TextView(this).apply {
-        textSize = 11f
-        includeFontPadding = false
-        setTextColor(secondaryText())
-        setPadding(dp(12), dp(9), dp(12), dp(9))
-        background = liquidGlassCard()
+        textSize = 11f; includeFontPadding = false; setTextColor(secondaryText()); setPadding(dp(12), dp(9), dp(12), dp(9))
+        background = liquidGlassCard(); setTextIsSelectable(true)
     }
-    val popup = PopupWindow(metrics, dp(280), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
+    val panel = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; setPadding(0, 0, 0, dp(4)); addView(metrics)
+        addView(styleButton(Button(this@showSimulationMetrics).apply { text = "调整选中元素"; isAllCaps = false; setOnClickListener { selectedView?.let { showSimulationElementEditor(it) } } }), LinearLayout.LayoutParams(-1, dp(40)))
+    }
+    val popup = PopupWindow(panel, dp(300), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         elevation = dp(4).toFloat()
         isOutsideTouchable = false
@@ -1377,7 +1513,7 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
     anchor.post {
         if (!anchor.isShown) return@post
         // 使用真实视图锚定，避免宿主测试中心窗口参与坐标计算。
-        cleanupInspector = installSimulationInspector(anchor, metrics, label, selection)
+        cleanupInspector = installSimulationInspector(anchor, metrics, label, selection) { selectedView = it }
         popup.showAsDropDown(anchor, 0, dp(4))
     }
     return popup

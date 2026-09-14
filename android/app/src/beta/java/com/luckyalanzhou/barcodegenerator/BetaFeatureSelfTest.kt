@@ -7,12 +7,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** Beta 专用功能自检面板；正式版不编译此功能。 */
-internal fun MainActivity.showBetaFeatureSelfTest() {
+/** Beta 专用测试中心页面；正式版不编译此功能。 */
+internal fun MainActivity.renderBetaTestCenterPageImpl() {
     var attachmentAnchor: View? = null
     val checks = listOf(
         "本地自检" to {
-            val result = listOf(
+        val result = listOf(
                 "版本信息：${BuildConfig.VERSION_NAME}",
                 "条码格式校验：可用",
                 "设置存储：可用",
@@ -41,7 +41,7 @@ internal fun MainActivity.showBetaFeatureSelfTest() {
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(20), dp(8), dp(20), dp(8))
-        addView(TextView(this@showBetaFeatureSelfTest).apply {
+        addView(TextView(this@renderBetaTestCenterPageImpl).apply {
             text = "Beta 测试中心"
             textSize = 14f
             includeFontPadding = false
@@ -49,7 +49,7 @@ internal fun MainActivity.showBetaFeatureSelfTest() {
             setPadding(0, 0, 0, dp(8))
         })
         checks.forEachIndexed { index, (label, action) ->
-            val testButton = styleButton(Button(this@showBetaFeatureSelfTest).apply {
+            val testButton = styleButton(Button(this@renderBetaTestCenterPageImpl).apply {
                 text = label
                 isAllCaps = false
                 minWidth = 0
@@ -61,7 +61,7 @@ internal fun MainActivity.showBetaFeatureSelfTest() {
                 if (index > 0) topMargin = dp(6)
             })
         }
-        addView(TextView(this@showBetaFeatureSelfTest).apply {
+        addView(TextView(this@renderBetaTestCenterPageImpl).apply {
             text = "相机、系统权限、局域网连接和 APK 安装仍需在真实设备上验证。"
             textSize = 12f
             includeFontPadding = false
@@ -81,5 +81,10 @@ internal fun MainActivity.showBetaFeatureSelfTest() {
         isScrollbarFadingEnabled = true
         addView(box)
     }
-    showIos26Dialog(AlertDialog.Builder(this).setView(scroll).setPositiveButton("关闭", null).create(), compact = true)
+    content.removeAllViews()
+    content.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+    content.addView(styleButton(Button(this).apply {
+        text = "导出调试日志"; isAllCaps = false
+        setOnClickListener { shareDebugLog() }
+    }), LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(8) })
 }

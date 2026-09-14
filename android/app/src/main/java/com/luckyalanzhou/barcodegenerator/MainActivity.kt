@@ -316,6 +316,7 @@ class MainActivity : AppCompatActivity() {
         }
         when (page) {
             "settings" -> { page = settingsReturnPage; render() }
+            "betaTestCenter" -> { page = "settings"; render() }
             "lanShare" -> { closeLanShare(); page = "settings"; render() }
             "favoriteDetail" -> { page = "favorites"; render() }
             "results" -> { page = resultsReturnPage; render() }
