@@ -160,7 +160,7 @@ class MainActivity : AppCompatActivity() {
         set(value) { viewModel.updateDownloadRunning = value }
     internal var inputScroll: ScrollView? = null
 
-    /** 生成页专用显示设置：窗口亮度 75%，最多保持亮屏 5 分钟，不修改系统全局设置。 */
+    /** 条码结果页专用显示设置：窗口亮度 75%，最多保持亮屏 5 分钟，不修改系统全局设置。 */
     internal fun syncBarcodeDisplaySettings(isBarcodePage: Boolean) {
         if (!isBarcodePage) {
             restoreBarcodeDisplaySettings()
@@ -178,9 +178,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 生成页每次触摸都重新获得 5 分钟亮屏时间；无操作后恢复系统熄屏规则。 */
+    /** 条码结果页每次触摸都重新获得 5 分钟亮屏时间；无操作后恢复系统熄屏规则。 */
     private fun refreshBarcodeDisplayTimeout() {
-        if (page != "generate") return
+        if (page != "results") return
         syncBarcodeDisplaySettings(true)
         barcodeDisplayHandler.removeCallbacks(barcodeDisplayTimeout)
         barcodeDisplayHandler.postDelayed(barcodeDisplayTimeout, 5 * 60 * 1000L)
