@@ -1,11 +1,17 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.Intent
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.content.FileProvider
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 
 /** Beta 专用测试中心页面；正式版不编译此功能。 */
 internal fun MainActivity.renderBetaTestCenterPageImpl() {
@@ -84,7 +90,33 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
     content.removeAllViews()
     content.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
     content.addView(styleButton(Button(this).apply {
+        text = "导出 UI 调整数据"; isAllCaps = false
+        setOnClickListener { shareBetaUiAdjustments() }
+    }), LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(8) })
+    content.addView(styleButton(Button(this).apply {
         text = "导出调试日志"; isAllCaps = false
         setOnClickListener { shareDebugLog() }
     }), LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(8) })
+}
+
+/** 导出当前会话中已应用的全部 UI 调整，供电脑脚本导入 Beta 源码。 */
+private fun MainActivity.shareBetaUiAdjustments() {
+    val root = JSONObject().apply {
+        put("version", 1)
+        put("variant", "beta")
+        put("adjustments", JSONArray().apply {
+            betaUiAdjustments.values.forEach { item -> put(JSONObject().apply {
+                put("key", item.key); put("widthDp", item.widthDp); put("heightDp", item.heightDp)
+                put("translationXDp", item.translationXDp); put("translationYDp", item.translationYDp)
+                put("marginLeftDp", item.marginLeftDp); put("marginTopDp", item.marginTopDp); put("marginRightDp", item.marginRightDp); put("marginBottomDp", item.marginBottomDp)
+                put("paddingLeftDp", item.paddingLeftDp); put("paddingTopDp", item.paddingTopDp); put("paddingRightDp", item.paddingRightDp); put("paddingBottomDp", item.paddingBottomDp)
+                put("textSizeSp", item.textSizeSp); put("alpha", item.alpha); put("rotation", item.rotation); put("scaleX", item.scaleX); put("scaleY", item.scaleY)
+                put("minimumWidthDp", item.minimumWidthDp); put("minimumHeightDp", item.minimumHeightDp); put("cornerRadiusDp", item.cornerRadiusDp)
+            }) }
+        })
+    }
+    val file = File(cacheDir, "ui-config-beta.json").apply { writeText(root.toString(2), Charsets.UTF_8) }
+    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+    val intent = Intent(Intent.ACTION_SEND).apply { type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); putExtra(Intent.EXTRA_TITLE, file.name); clipData = ClipData.newRawUri(file.name, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+    startActivity(Intent.createChooser(intent, "导出 UI 调整数据"))
 }

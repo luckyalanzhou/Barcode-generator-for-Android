@@ -65,6 +65,31 @@ data class StyleSettings(
     var colorScheme: String = "system"
 )
 
+/** Beta 测试中心导出的运行时 UI 调整；正式版不读取该数据。 */
+internal data class UiAdjustment(
+    val key: String,
+    var widthDp: Float,
+    var heightDp: Float,
+    var translationXDp: Float,
+    var translationYDp: Float,
+    var marginLeftDp: Float,
+    var marginTopDp: Float,
+    var marginRightDp: Float,
+    var marginBottomDp: Float,
+    var paddingLeftDp: Float,
+    var paddingTopDp: Float,
+    var paddingRightDp: Float,
+    var paddingBottomDp: Float,
+    var textSizeSp: Float,
+    var alpha: Float,
+    var rotation: Float,
+    var scaleX: Float,
+    var scaleY: Float,
+    var minimumWidthDp: Float,
+    var minimumHeightDp: Float,
+    var cornerRadiusDp: Float
+)
+
 data class CodeItem(
     val id: Long,
     var text: String,
@@ -96,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         "EAN-8" to BarcodeFormat.EAN_8, "UPC-A" to BarcodeFormat.UPC_A,
         "ITF-14" to BarcodeFormat.ITF, "Codabar" to BarcodeFormat.CODABAR
     )
+    internal val betaUiAdjustments = linkedMapOf<String, UiAdjustment>()
     internal val items = mutableListOf<CodeItem>()
     internal val favoriteGroups = mutableListOf<FavoriteGroup>()
     internal val favoriteFolders = mutableListOf<String>()
