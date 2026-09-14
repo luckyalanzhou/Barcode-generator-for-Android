@@ -590,6 +590,7 @@ internal fun MainActivity.render() {
         isRenderingUi = true
         try {
         val activity = this
+        syncBarcodeDisplaySettings(page == "generate")
         updateTopTabSelection()
         // 顶部标题随当前 Tab 同步更新，并参与下方统一的页面过渡动画。
         appTitle.text = when (page) {

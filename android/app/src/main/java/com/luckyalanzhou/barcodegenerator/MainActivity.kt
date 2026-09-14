@@ -84,6 +84,11 @@ data class FavoriteGroup(
 )
 
 class MainActivity : AppCompatActivity() {
+    private val barcodeDisplayHandler = Handler(Looper.getMainLooper())
+    private var barcodeDisplayModeActive = false
+    private var barcodePreviousBrightness = -1f
+    private var barcodePreviousKeepScreenOn = false
+    private val barcodeDisplayTimeout = Runnable { restoreBarcodeDisplaySettings() }
     internal var fireworksOverlay: View? = null
     internal var fireworksPreviousStatusBarColor: Int? = null
     internal var fireworksPreviousNavigationBarColor: Int? = null
@@ -154,6 +159,47 @@ class MainActivity : AppCompatActivity() {
         get() = viewModel.updateDownloadRunning
         set(value) { viewModel.updateDownloadRunning = value }
     internal var inputScroll: ScrollView? = null
+
+    /** 生成页专用显示设置：窗口亮度 75%，最多保持亮屏 5 分钟，不修改系统全局设置。 */
+    internal fun syncBarcodeDisplaySettings(isBarcodePage: Boolean) {
+        if (!isBarcodePage) {
+            restoreBarcodeDisplaySettings()
+            return
+        }
+        if (!barcodeDisplayModeActive) {
+            val attributes = window.attributes
+            barcodePreviousBrightness = attributes.screenBrightness
+            barcodePreviousKeepScreenOn = (attributes.flags and android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0
+            barcodeDisplayModeActive = true
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            attributes.screenBrightness = 0.75f
+            window.attributes = attributes
+            barcodeDisplayHandler.postDelayed(barcodeDisplayTimeout, 5 * 60 * 1000L)
+        }
+    }
+
+    /** 生成页每次触摸都重新获得 5 分钟亮屏时间；无操作后恢复系统熄屏规则。 */
+    private fun refreshBarcodeDisplayTimeout() {
+        if (page != "generate") return
+        syncBarcodeDisplaySettings(true)
+        barcodeDisplayHandler.removeCallbacks(barcodeDisplayTimeout)
+        barcodeDisplayHandler.postDelayed(barcodeDisplayTimeout, 5 * 60 * 1000L)
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) refreshBarcodeDisplayTimeout()
+        return super.dispatchTouchEvent(event)
+    }
+
+    private fun restoreBarcodeDisplaySettings() {
+        if (!barcodeDisplayModeActive) return
+        barcodeDisplayHandler.removeCallbacks(barcodeDisplayTimeout)
+        if (barcodePreviousKeepScreenOn) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.attributes = window.attributes.apply { screenBrightness = barcodePreviousBrightness }
+        barcodeDisplayModeActive = false
+        barcodePreviousBrightness = -1f
+    }
     internal var batchGenerateButton: Button? = null
     internal var pageScroll: ScrollView? = null
     internal lateinit var formatSpinner: Spinner
@@ -325,6 +371,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        restoreBarcodeDisplaySettings()
         val session = lanShareSession
         if (isChangingConfigurations && session != null) {
             stopLanShareAutoRefresh()
