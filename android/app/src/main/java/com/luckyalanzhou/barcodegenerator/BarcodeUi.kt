@@ -1362,7 +1362,10 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
             "状态：可见=${view.visibility == View.VISIBLE} 可点击=${view.isClickable} 可用=${view.isEnabled} 可聚焦=${view.isFocusable}"
         ).joinToString("\n")
     }
-    val resizeOverlay = (root as? ViewGroup)?.let { parent ->
+    // 不能把 MATCH_PARENT 控制层直接加入 Dialog DecorView：DecorView 会把它当作内容参与测量，
+    // 结果会把模拟弹窗撑成全屏。优先挂到弹窗实际内容容器，控制点仍覆盖弹窗内部。
+    val overlayParent = root.findViewById<ViewGroup>(android.R.id.content) ?: (root as? ViewGroup)
+    val resizeOverlay = overlayParent?.let { parent ->
         SimulationResizeOverlay(this, resources.displayMetrics.density, { isDark() }) { view, width, height, tx, ty ->
             view.layoutParams = view.layoutParams?.apply { this.width = width.roundToInt(); this.height = height.roundToInt() }
             view.translationX = tx; view.translationY = ty; view.requestLayout(); metrics.text = describe(view)

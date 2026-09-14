@@ -77,14 +77,8 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
             setPadding(0, dp(12), 0, 0)
         })
     }
-    val scroll = object : ScrollView(this) {
-        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            val maxHeight = dp(420)
-            val availableHeight = MeasureSpec.getSize(heightMeasureSpec)
-            val constrainedHeight = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) maxHeight else availableHeight.coerceAtMost(maxHeight)
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(constrainedHeight, MeasureSpec.AT_MOST))
-        }
-    }.apply {
+    // 列表占满测试中心的剩余空间；项目超出可用高度时由 ScrollView 自然滚动，避免固定高度造成底部空白。
+    val scroll = ScrollView(this).apply {
         isFillViewport = true
         isScrollbarFadingEnabled = true
         addView(box)
