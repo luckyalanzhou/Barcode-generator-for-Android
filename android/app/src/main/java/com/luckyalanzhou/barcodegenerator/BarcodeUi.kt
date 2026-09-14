@@ -2255,7 +2255,8 @@ internal fun MainActivity.showResults() {
                     val sourceTop = 0
                     // ZXing 会根据内容长度留下不同的左右空白；只裁剪 Code 128-B 的有效条纹区域，
                     // 再由固定宽度的 ImageView 统一显示，避免同一结果页中出现宽窄不一。
-                    val barOnly = trimBarcodeHorizontal(Bitmap.createBitmap(barcode, 0, sourceTop, barcode.width, barHeightPx))
+                    // 裁剪后补回白色静区；深色页面也必须使用黑条白底，供外部扫描器读取。
+                    val barOnly = addBarcodeQuietZone(trimBarcodeHorizontal(Bitmap.createBitmap(barcode, 0, sourceTop, barcode.width, barHeightPx)))
                     val labelView = TextView(activity).apply {
                         text = label
                         textSize = activity.style.textSize.coerceIn(10f, 24f)
@@ -2736,7 +2737,8 @@ internal fun MainActivity.encode(text: String, format: BarcodeFormat): Bitmap? =
         val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, mapOf(EncodeHintType.MARGIN to 0))
         // 编码函数只返回纯条码 Bitmap；人类可读文字由结果页的独立 TextView 绘制。
         // 这里不能把文字画进 Bitmap，否则历史、预览、分享等路径会再次出现条码内嵌文字。
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // 不使用抗锯齿绘制条纹，避免相邻黑白模块出现灰边。
+        val paint = Paint().apply {
             setColor(if (activity.isDark()) Color.BLACK else activity.style.barColor)
         }
         val bitmap = Bitmap.createBitmap(width, barcodeHeight, Bitmap.Config.ARGB_8888)
@@ -2748,7 +2750,8 @@ internal fun MainActivity.encode(text: String, format: BarcodeFormat): Bitmap? =
                 if (matrix[x, y]) canvas.drawRect(x.toFloat(), y.toFloat(), (x + 1).toFloat(), (y + 1).toFloat(), paint)
             }
         }
-    bitmap
+    // 所有 Code 128 输出路径（结果页、预览、保存、分享）统一保留白色静区。
+    if (code128) addBarcodeQuietZone(bitmap) else bitmap
 } catch (_: Exception) { null }
 
 /** 裁掉纯条码 Bitmap 的左右空白；仅供 Code 128-B 结果页使用。 */
@@ -2771,6 +2774,17 @@ private fun trimBarcodeHorizontal(source: Bitmap): Bitmap {
         }
     }
     return if (right >= left) Bitmap.createBitmap(source, left, 0, right - left + 1, source.height) else source
+}
+
+/** 为屏幕和分享图片保留白色静区，满足外部扫描器对 Code 128 quiet zone 的要求。 */
+private fun addBarcodeQuietZone(source: Bitmap): Bitmap {
+    val quiet = maxOf(8, source.height / 4)
+    val result = Bitmap.createBitmap(source.width + quiet * 2, source.height, Bitmap.Config.ARGB_8888)
+    Canvas(result).apply {
+        drawColor(Color.WHITE)
+        drawBitmap(source, quiet.toFloat(), 0f, Paint())
+    }
+    return result
 }
 
 internal fun MainActivity.dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
