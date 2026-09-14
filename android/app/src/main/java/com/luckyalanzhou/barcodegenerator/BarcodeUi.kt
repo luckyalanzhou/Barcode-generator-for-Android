@@ -1250,95 +1250,7 @@ private fun View.maxWidthOrUnset() = (this as? TextView)?.maxWidth ?: -1
 private fun View.maxHeightOrUnset() = (this as? TextView)?.maxHeight ?: -1
 
 /** Beta 测试中心的八方向尺寸控制层；仅覆盖选中的弹窗元素，不进入正式版界面。 */
-private class SimulationResizeOverlay(
-    context: Context,
-    private val density: Float,
-    private val darkMode: () -> Boolean,
-    private val onResize: (View, Float, Float, Float, Float) -> Unit
-) : View(context) {
-    var target: View? = null
-        set(value) { field = value; invalidate() }
-    private var handle = -1
-    private var downX = 0f
-    private var downY = 0f
-    private var startWidth = 0
-    private var startHeight = 0
-    private var startTx = 0f
-    private var startTy = 0f
-    private val radius get() = 6f * density
-    private fun targetRect(): RectF? {
-        val view = target ?: return null
-        val a = IntArray(2); val b = IntArray(2)
-        view.getLocationOnScreen(a); getLocationOnScreen(b)
-        return RectF((a[0] - b[0]).toFloat(), (a[1] - b[1]).toFloat(), (a[0] - b[0] + view.width).toFloat(), (a[1] - b[1] + view.height).toFloat())
-    }
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val rect = targetRect() ?: return
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (darkMode()) 0xff7db7ff.toInt() else 0xff1677ff.toInt(); style = Paint.Style.FILL }
-        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paint.color; style = Paint.Style.STROKE; strokeWidth = 1.5f * density }
-        canvas.drawRect(rect, stroke)
-        val xs = floatArrayOf(rect.left, rect.centerX(), rect.right)
-        val ys = floatArrayOf(rect.top, rect.centerY(), rect.bottom)
-        for (y in ys) for (x in xs) canvas.drawCircle(x, y, radius, paint)
-    }
-    private fun hit(x: Float, y: Float): Int {
-        val rect = targetRect() ?: return -1
-        val points = arrayOf(floatArrayOf(rect.left, rect.top), floatArrayOf(rect.centerX(), rect.top), floatArrayOf(rect.right, rect.top), floatArrayOf(rect.left, rect.centerY()), floatArrayOf(rect.right, rect.centerY()), floatArrayOf(rect.left, rect.bottom), floatArrayOf(rect.centerX(), rect.bottom), floatArrayOf(rect.right, rect.bottom))
-        return points.indexOfFirst { kotlin.math.abs(x - it[0]) <= radius * 2.2f && kotlin.math.abs(y - it[1]) <= radius * 2.2f }
-    }
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        val view = target ?: return false
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                handle = hit(event.x, event.y)
-                if (handle < 0) return false
-                downX = event.x; downY = event.y; startWidth = view.width; startHeight = view.height; startTx = view.translationX; startTy = view.translationY
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> if (handle >= 0) {
-                val dx = event.x - downX; val dy = event.y - downY
-                val left = handle == 0 || handle == 3 || handle == 5
-                val top = handle <= 2
-                val right = handle == 2 || handle == 4 || handle == 7
-                val bottom = handle >= 5
-                val width = (startWidth + if (right) dx else if (left) -dx else 0f).roundToInt().coerceAtLeast((16 * density).roundToInt())
-                val height = (startHeight + if (bottom) dy else if (top) -dy else 0f).roundToInt().coerceAtLeast((16 * density).roundToInt())
-                onResize(view, width.toFloat(), height.toFloat(), startTx + if (left) dx else 0f, startTy + if (top) dy else 0f)
-                invalidate(); return true
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { handle = -1; invalidate(); return true }
-        }
-        return handle >= 0
-    }
-}
-
-/** 为 Beta 测试中心框选当前点击的弹窗元素，并持续显示该元素的布局数据。 */
-private fun MainActivity.applyGeneratedUiOverride(view: View, key: String) {
-    runCatching {
-        val holder = Class.forName("com.luckyalanzhou.barcodegenerator.UiOverridesGenerated").getField("INSTANCE").get(null)
-        @Suppress("UNCHECKED_CAST")
-        val values = holder.javaClass.getMethod("getValues").invoke(holder) as? Map<String, UiAdjustment>
-        val item = values?.get(key) ?: return
-        val density = resources.displayMetrics.density
-        view.layoutParams = view.layoutParams?.apply {
-            width = (item.widthDp * density).roundToInt(); height = (item.heightDp * density).roundToInt()
-            (this as? ViewGroup.MarginLayoutParams)?.let {
-                it.leftMargin = (item.marginLeftDp * density).roundToInt(); it.topMargin = (item.marginTopDp * density).roundToInt()
-                it.rightMargin = (item.marginRightDp * density).roundToInt(); it.bottomMargin = (item.marginBottomDp * density).roundToInt()
-            }
-        }
-        view.setPadding((item.paddingLeftDp * density).roundToInt(), (item.paddingTopDp * density).roundToInt(), (item.paddingRightDp * density).roundToInt(), (item.paddingBottomDp * density).roundToInt())
-        (view as? TextView)?.textSize = item.textSizeSp * resources.displayMetrics.scaledDensity
-        view.alpha = item.alpha; view.rotation = item.rotation; view.scaleX = item.scaleX; view.scaleY = item.scaleY
-        view.translationX = item.translationXDp * density; view.translationY = item.translationYDp * density
-        view.minimumWidth = (item.minimumWidthDp * density).roundToInt(); view.minimumHeight = (item.minimumHeightDp * density).roundToInt()
-        (view.background as? GradientDrawable)?.cornerRadius = item.cornerRadiusDp * density
-        view.requestLayout()
-    }
-}
-
-private fun MainActivity.installSimulationInspector(root: View, metrics: TextView, label: String, selection: GradientDrawable, onSelected: (View) -> Unit = {}): () -> Unit {
+private fun MainActivity.installSimulationInspector(root: View, metrics: TextView, label: String, selection: GradientDrawable): () -> Unit {
     var selected: View? = null
     fun describe(view: View): String {
         val density = resources.displayMetrics.density
@@ -1362,25 +1274,12 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
             "状态：可见=${view.visibility == View.VISIBLE} 可点击=${view.isClickable} 可用=${view.isEnabled} 可聚焦=${view.isFocusable}"
         ).joinToString("\n")
     }
-    // 不能把 MATCH_PARENT 控制层直接加入 Dialog DecorView：DecorView 会把它当作内容参与测量，
-    // 结果会把模拟弹窗撑成全屏。优先挂到弹窗实际内容容器，控制点仍覆盖弹窗内部。
-    val overlayParent = root.findViewById<ViewGroup>(android.R.id.content) ?: (root as? ViewGroup)
-    val resizeOverlay = overlayParent?.let { parent ->
-        SimulationResizeOverlay(this, resources.displayMetrics.density, { isDark() }) { view, width, height, tx, ty ->
-            view.layoutParams = view.layoutParams?.apply { this.width = width.roundToInt(); this.height = height.roundToInt() }
-            view.translationX = tx; view.translationY = ty; view.requestLayout(); metrics.text = describe(view)
-        }.also { overlay -> parent.addView(overlay, ViewGroup.LayoutParams(-1, -1)) }
-    }
     fun select(view: View) {
-        applyGeneratedUiOverride(view, "$label|${view.javaClass.simpleName}|${(view as? TextView)?.text ?: "无"}")
         selected?.overlay?.remove(selection)
         selected = view
         view.overlay.add(selection)
         selection.setBounds(0, 0, view.width, view.height)
-        resizeOverlay?.target = view
         metrics.text = describe(view)
-        onSelected(view)
-        // 数据面板固定在真实弹窗整体下方，仅选框跟随当前元素移动。
     }
     fun visit(view: View) {
         // 普通文本元素开启系统选择能力；按钮仍由检查器拦截，避免触发原操作。
@@ -1401,7 +1300,6 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
     }
     return {
         selected?.overlay?.remove(selection)
-        resizeOverlay?.let { overlay -> (overlay.parent as? ViewGroup)?.removeView(overlay) }
         fun clear(view: View) {
             view.setOnTouchListener(null)
             if (view is ViewGroup) for (index in 0 until view.childCount) clear(view.getChildAt(index))
@@ -1410,89 +1308,15 @@ private fun MainActivity.installSimulationInspector(root: View, metrics: TextVie
     }
 }
 
-/** Beta 调整面板：编辑当前选中元素的常用布局、文字和外观数据。 */
-private fun MainActivity.showSimulationElementEditor(view: View, adjustmentKey: String) {
-    val fields = linkedMapOf<String, EditText>()
-    fun field(name: String, value: String): EditText = EditText(this).apply {
-        setText(value); setSelectAllOnFocus(true); setSingleLine(true); textSize = 13f
-        setPadding(dp(8), 0, dp(8), 0); fields[name] = this
-    }
-    fun row(left: String, leftValue: String, right: String, rightValue: String): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        addView(TextView(this@showSimulationElementEditor).apply { text = left; setTextColor(secondaryText()); gravity = Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(dp(62), dp(42)))
-        addView(field(left, leftValue), LinearLayout.LayoutParams(0, dp(42), 1f))
-        addView(TextView(this@showSimulationElementEditor).apply { text = right; setTextColor(secondaryText()); gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), 0, 0, 0) }, LinearLayout.LayoutParams(dp(62), dp(42)))
-        addView(field(right, rightValue), LinearLayout.LayoutParams(0, dp(42), 1f))
-    }
-    val params = view.layoutParams
-    val margins = (params as? ViewGroup.MarginLayoutParams)
-    val density = resources.displayMetrics.density
-    fun px(value: Int) = (value / density).formatOneDecimal()
-    val content = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(18), dp(10), dp(18), dp(8))
-        addView(TextView(this@showSimulationElementEditor).apply { text = "调整选中元素"; textSize = 18f; setTextColor(primaryText()) })
-        addView(row("宽度dp", px(params?.width ?: view.width), "高度dp", px(params?.height ?: view.height)))
-        addView(row("位移Xdp", px(view.translationX.roundToInt()), "位移Ydp", px(view.translationY.roundToInt())))
-        addView(row("左边距", px(margins?.leftMargin ?: 0), "右边距", px(margins?.rightMargin ?: 0)))
-        addView(row("上边距", px(margins?.topMargin ?: 0), "下边距", px(margins?.bottomMargin ?: 0)))
-        addView(row("左内距", px(view.paddingLeft), "右内距", px(view.paddingRight)))
-        addView(row("上内距", px(view.paddingTop), "下内距", px(view.paddingBottom)))
-        addView(row("字号sp", (view as? TextView)?.textSize?.div(resources.displayMetrics.scaledDensity)?.formatOneDecimal() ?: "0", "透明度", view.alpha.formatOneDecimal()))
-        addView(row("旋转°", view.rotation.formatOneDecimal(), "圆角dp", ((view.background as? GradientDrawable)?.cornerRadius ?: 0f).div(density).formatOneDecimal()))
-        addView(row("缩放X", view.scaleX.formatOneDecimal(), "缩放Y", view.scaleY.formatOneDecimal()))
-        addView(row("最小宽dp", px(view.minimumWidth), "最小高dp", px(view.minimumHeight)))
-    }
-    val dialog = AlertDialog.Builder(this).setView(ScrollView(this).apply { addView(content) }).setNegativeButton("取消", null).setPositiveButton("应用", null).create()
-    dialog.setOnShowListener {
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            fun number(name: String, fallback: Float) = fields[name]?.text?.toString()?.toFloatOrNull() ?: fallback
-            fun dpValue(name: String, fallback: Int) = dp(number(name, fallback / density).roundToInt())
-            val width = dpValue("宽度dp", params?.width ?: view.width)
-            val height = dpValue("高度dp", params?.height ?: view.height)
-            view.layoutParams = (view.layoutParams ?: ViewGroup.LayoutParams(width, height)).apply {
-                this.width = width; this.height = height
-                (this as? ViewGroup.MarginLayoutParams)?.let {
-                    it.leftMargin = dpValue("左边距", it.leftMargin); it.rightMargin = dpValue("右边距", it.rightMargin)
-                    it.topMargin = dpValue("上边距", it.topMargin); it.bottomMargin = dpValue("下边距", it.bottomMargin)
-                }
-            }
-            view.setPadding(dpValue("左内距", view.paddingLeft), dpValue("上内距", view.paddingTop), dpValue("右内距", view.paddingRight), dpValue("下内距", view.paddingBottom))
-            (view as? TextView)?.textSize = number("字号sp", 0f)
-            view.alpha = number("透明度", view.alpha).coerceIn(0f, 1f); view.rotation = number("旋转°", view.rotation)
-            view.translationX = dpValue("位移Xdp", (view.translationX / density).roundToInt()).toFloat()
-            view.translationY = dpValue("位移Ydp", (view.translationY / density).roundToInt()).toFloat()
-            view.scaleX = number("缩放X", view.scaleX); view.scaleY = number("缩放Y", view.scaleY)
-            view.minimumWidth = dpValue("最小宽dp", view.minimumWidth); view.minimumHeight = dpValue("最小高dp", view.minimumHeight)
-            (view.background as? GradientDrawable)?.cornerRadius = dpValue("圆角dp", 0).toFloat()
-            val density = resources.displayMetrics.density
-            betaUiAdjustments[adjustmentKey] = UiAdjustment(
-                adjustmentKey, width / density, height / density, view.translationX / density, view.translationY / density,
-                (view.layoutParams as? ViewGroup.MarginLayoutParams)?.leftMargin?.div(density) ?: 0f,
-                (view.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin?.div(density) ?: 0f,
-                (view.layoutParams as? ViewGroup.MarginLayoutParams)?.rightMargin?.div(density) ?: 0f,
-                (view.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin?.div(density) ?: 0f,
-                view.paddingLeft / density, view.paddingTop / density, view.paddingRight / density, view.paddingBottom / density,
-                (view as? TextView)?.textSize?.div(resources.displayMetrics.scaledDensity) ?: 0f, view.alpha, view.rotation, view.scaleX, view.scaleY,
-                view.minimumWidth / density, view.minimumHeight / density, ((view.background as? GradientDrawable)?.cornerRadius ?: 0f) / density
-            )
-            view.requestLayout(); dialog.dismiss()
-        }
-    }
-    showIos26Dialog(dialog, compact = true)
-}
-
 /** Beta 模拟专用参数面板：紧贴真实弹窗或菜单下方，不参与真实功能。 */
 internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onDismiss: (() -> Unit)? = null): PopupWindow {
-    var selectedView: View? = null
     val metrics = TextView(this).apply {
         textSize = 11f; includeFontPadding = false; setTextColor(secondaryText()); setPadding(dp(12), dp(9), dp(12), dp(9))
         background = liquidGlassCard(); setTextIsSelectable(true)
     }
     val panel = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; setPadding(0, 0, 0, dp(4))
-        addView(ScrollView(this@showSimulationMetrics).apply { isFillViewport = true; addView(metrics) }, LinearLayout.LayoutParams(-1, 0, 1f))
-        addView(styleButton(Button(this@showSimulationMetrics).apply { text = "调整选中元素"; isAllCaps = false; setOnClickListener { selectedView?.let { showSimulationElementEditor(it, "$label|${it.javaClass.simpleName}|${(it as? TextView)?.text ?: "无"}") } } }), LinearLayout.LayoutParams(-1, dp(40)))
+        addView(ScrollView(this@showSimulationMetrics).apply { isFillViewport = true; addView(metrics) }, LinearLayout.LayoutParams(-1, -1))
     }
     val popup = PopupWindow(panel, dp(320), dp(224), false).apply {
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -1510,59 +1334,11 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
     anchor.post {
         if (!anchor.isShown) return@post
         // 以真实模拟弹窗的底部为起点强制向下显示，避免 PopupWindow 因空间判断翻到弹窗上方。
-        cleanupInspector = installSimulationInspector(anchor, metrics, label, selection) { selectedView = it }
+        cleanupInspector = installSimulationInspector(anchor, metrics, label, selection)
         val location = IntArray(2); anchor.getLocationOnScreen(location)
         popup.showAtLocation(anchor, Gravity.TOP or Gravity.START, ((resources.displayMetrics.widthPixels - dp(320)) / 2).coerceAtLeast(dp(8)), location[1] + anchor.height + dp(8))
     }
     return popup
-}
-
-/** 只读显示当前 UI 的关键参数，方便在真机上调整弹窗和控件外观。 */
-internal fun MainActivity.showUiParameterDialog() {
-    fun color(value: Int) = "#%08X".format(value.toLong() and 0xffffffffL)
-    val details = listOf(
-        "字体" to "sans-serif / sans-serif-medium",
-        "正文 / 设置项字号" to "16sp",
-        "按钮字号" to "15sp",
-        "弹窗标题字号" to "20sp",
-        "弹窗圆角" to "20dp",
-        "按钮圆角" to "14dp",
-        "按钮边框" to "1dp",
-        "弹窗边框" to "1dp",
-        "弹窗阴影" to "6dp",
-        "通用按钮高度" to "40dp",
-        "设置行高度" to "48dp",
-        "显示条码格式开关" to "58×34dp，视觉缩放 1.12×",
-        "开关点击范围" to "保持整行可点击",
-        "按钮按下动画" to "90ms，缩放 0.975×",
-        "按钮回弹动画" to "180ms，Overshoot 0.7",
-        "当前主文字颜色" to color(primaryText()),
-        "当前次要文字颜色" to color(secondaryText()),
-        "当前模式" to if (isDark()) "深色" else "浅色"
-    )
-    val content = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(20), dp(8), dp(20), dp(8))
-        details.forEach { (label, value) ->
-            addView(LinearLayout(this@showUiParameterDialog).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(5), 0, dp(5))
-                addView(TextView(this@showUiParameterDialog).apply {
-                    text = label
-                    textSize = 13f
-                    setTextColor(primaryText())
-                }, LinearLayout.LayoutParams(0, -2, 1f))
-                addView(TextView(this@showUiParameterDialog).apply {
-                    text = value
-                    textSize = 12f
-                    gravity = Gravity.END
-                    setTextColor(secondaryText())
-                }, LinearLayout.LayoutParams(-2, -2))
-            })
-        }
-    }
-    val scroll = ScrollView(this).apply { addView(content) }
-    showIos26Dialog(AlertDialog.Builder(this).setTitle("UI 参数").setView(scroll).setPositiveButton("关闭", null).create())
 }
 
 internal fun MainActivity.showLanShare() {
