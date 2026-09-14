@@ -35,6 +35,7 @@ import java.util.*
 import kotlin.math.roundToInt
 
 internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
+    DebugLog.record("update", "check started silent=$silent current=${BuildConfig.VERSION_NAME}")
     lifecycleScope.launch(Dispatchers.IO) {
         try {
             val connection = (URL("https://api.github.com/repos/luckyalanzhou/Barcode-generator-for-android/releases?per_page=100").openConnection() as HttpURLConnection).apply {
@@ -63,6 +64,7 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
                 val downloadUrl = apkUrl ?: run { if (!silent) toast("暂时无法获取更新信息"); return@withContext }
                 val latest = parseAppVersion(releaseTag) ?: run { if (!silent) toast("版本信息格式不正确"); return@withContext }
                 val updateAvailable = compareVersions(latest, BuildConfig.VERSION_NAME) > 0
+                DebugLog.record("update", "release=$releaseTag latest=$latest available=$updateAvailable asset=${apkAsset?.optString("name")}")
                 availableUpdateUrl = if (updateAvailable) downloadUrl else null
                 availableUpdateExpectedSize = if (updateAvailable) expectedSize else null
                 availableUpdateSha256 = if (updateAvailable) expectedSha256 else null
@@ -72,7 +74,10 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
                     showUpdateAvailableDialog(latest, downloadUrl, expectedSize, expectedSha256)
                 } else if (!updateAvailable && !silent) showIos26NoticeDialog("当前已是最新版本")
             }
-        } catch (_: Exception) { if (!silent) withContext(Dispatchers.Main) { toast("检查更新失败，请稍后重试") } }
+        } catch (error: Exception) {
+            DebugLog.record("update", "check failed", error)
+            if (!silent) withContext(Dispatchers.Main) { toast("检查更新失败，请稍后重试") }
+        }
     }
 }
 
@@ -121,7 +126,21 @@ internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl:
             // 三个按钮保持完整点击区域，并通过更大的外边距拉开视觉间距。
             addView(updateActionButton("忽略更新") { availableUpdateUrl = null; updateDialogShowing = false; dialog.dismiss(); if (page == "settings") render() }, LinearLayout.LayoutParams(-2, dp(38)).apply { rightMargin = dp(8) })
             addView(updateActionButton("稍后更新") { updateDialogShowing = false; dialog.dismiss() }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8); rightMargin = dp(8) })
-            addView(updateActionButton("立即更新", primary = true) { updateDialogShowing = false; dialog.dismiss(); if (!simulateOnly) downloadAndInstall(downloadUrl, expectedSize, expectedSha256) }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8) })
+            addView(updateActionButton("立即更新", primary = true) {
+                updateDialogShowing = false
+                if (simulateOnly) {
+                    dialog.dismiss()
+                } else {
+                    // 等旧窗口完成 dismiss 后再创建下载窗口，避免 Android WindowManager
+                    // 在同一点击回调中拒绝/吞掉新弹窗，表现为“立即更新无作用”。
+                    dialog.setOnDismissListener(null)
+                    dialog.dismiss()
+                    window.decorView.post {
+                        DebugLog.record("update", "immediate update clicked; starting download")
+                        downloadAndInstall(downloadUrl, expectedSize, expectedSha256)
+                    }
+                }
+            }, LinearLayout.LayoutParams(-2, dp(38)).apply { leftMargin = dp(8) })
         }, LinearLayout.LayoutParams(-1, dp(54)))
     }
     dialog.setView(box)
@@ -132,8 +151,12 @@ internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl:
 }
 
 internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long? = availableUpdateExpectedSize, expectedSha256: String? = availableUpdateSha256, simulateOnly: Boolean = false, showMetrics: Boolean = false) {
-    if (updateDownloadRunning) return
+    if (updateDownloadRunning) {
+        DebugLog.record("update", "download ignored because another download is running")
+        return
+    }
     updateDownloadRunning = true
+    DebugLog.record("update", "download dialog shown url=$apkUrl expectedSize=$expectedSize shaPresent=${expectedSha256 != null}")
     val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
     val status = TextView(this).apply { text = "准备下载…"; textSize = 14f; setTextColor(secondaryText()); setPadding(0, dp(10), 0, 0) }
     val dialog = AlertDialog.Builder(this).create()
@@ -175,6 +198,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
             connection = URL(apkUrl).openConnection() as HttpURLConnection
             connection!!.apply { connectTimeout = 15000; readTimeout = 30000; instanceFollowRedirects = true; setRequestProperty("User-Agent", "BarcodeGenerator/${BuildConfig.VERSION_NAME}") }
             if (connection!!.responseCode !in 200..299) throw IllegalStateException("HTTP ${connection!!.responseCode}")
+            DebugLog.record("update", "download response=${connection!!.responseCode} contentLength=${connection!!.contentLengthLong}")
             val total = connection!!.contentLengthLong.takeIf { it > 0 } ?: expectedSize
             require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
             temp.delete()
@@ -192,10 +216,12 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
             val actual = temp.inputStream().use { input -> val buffer = ByteArray(16 * 1024); var count: Int; while (input.read(buffer).also { count = it } != -1) digest.update(buffer, 0, count); digest.digest().joinToString("") { "%02x".format(it) } }
             require(actual.equals(expectedSha256, true)) { "SHA-256 校验失败" }
             validateDownloadedApk(temp)
+            DebugLog.record("update", "download validated size=${temp.length()}")
             official.delete(); require(temp.renameTo(official)) { "无法保存更新文件" }
             cacheDir.listFiles()?.filter { it.name.startsWith("barcode-generator-update") && it != official }?.forEach { it.delete() }
             withContext(Dispatchers.Main) { dialog.dismiss(); installApk(official) }
         } catch (error: Exception) {
+            DebugLog.record("update", "download failed", error)
             temp.delete()
             withContext(Dispatchers.Main) { dialog.dismiss(); if (error !is kotlinx.coroutines.CancellationException) { val reason = error.message ?: "未知错误"; settingsStore.setUpdateError(reason); AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason).setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }.create().also { showIos26Dialog(it) } } }
         } finally { connection?.disconnect(); withContext(Dispatchers.Main) { updateDownloadRunning = false } }
