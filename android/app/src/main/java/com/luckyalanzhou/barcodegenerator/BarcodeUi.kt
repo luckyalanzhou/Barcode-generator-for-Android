@@ -1530,10 +1530,11 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
         background = liquidGlassCard(); setTextIsSelectable(true)
     }
     val panel = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL; setPadding(0, 0, 0, dp(4)); addView(metrics)
+        orientation = LinearLayout.VERTICAL; setPadding(0, 0, 0, dp(4))
+        addView(ScrollView(this@showSimulationMetrics).apply { isFillViewport = true; addView(metrics) }, LinearLayout.LayoutParams(-1, 0, 1f))
         addView(styleButton(Button(this@showSimulationMetrics).apply { text = "调整选中元素"; isAllCaps = false; setOnClickListener { selectedView?.let { showSimulationElementEditor(it, "$label|${it.javaClass.simpleName}|${(it as? TextView)?.text ?: "无"}") } } }), LinearLayout.LayoutParams(-1, dp(40)))
     }
-    val popup = PopupWindow(panel, dp(300), WindowManager.LayoutParams.WRAP_CONTENT, false).apply {
+    val popup = PopupWindow(panel, dp(320), dp(224), false).apply {
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         elevation = dp(4).toFloat()
         isOutsideTouchable = false
@@ -1548,9 +1549,10 @@ internal fun MainActivity.showSimulationMetrics(anchor: View, label: String, onD
     popup.setOnDismissListener { cleanupInspector?.invoke(); onDismiss?.invoke() }
     anchor.post {
         if (!anchor.isShown) return@post
-        // 使用真实视图锚定，避免宿主测试中心窗口参与坐标计算。
+        // 以真实模拟弹窗的底部为起点强制向下显示，避免 PopupWindow 因空间判断翻到弹窗上方。
         cleanupInspector = installSimulationInspector(anchor, metrics, label, selection) { selectedView = it }
-        popup.showAsDropDown(anchor, 0, dp(4))
+        val location = IntArray(2); anchor.getLocationOnScreen(location)
+        popup.showAtLocation(anchor, Gravity.TOP or Gravity.START, ((resources.displayMetrics.widthPixels - dp(320)) / 2).coerceAtLeast(dp(8)), location[1] + anchor.height + dp(8))
     }
     return popup
 }

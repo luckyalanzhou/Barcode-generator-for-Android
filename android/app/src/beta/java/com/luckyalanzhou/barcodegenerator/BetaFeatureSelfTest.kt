@@ -54,18 +54,20 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
             setTextColor(secondaryText())
             setPadding(0, 0, 0, dp(8))
         })
-        checks.forEachIndexed { index, (label, action) ->
-            val testButton = styleButton(Button(this@renderBetaTestCenterPageImpl).apply {
-                text = label
-                isAllCaps = false
-                minWidth = 0
-                minimumWidth = 0
-                setOnClickListener { action() }
-            })
-            if (label == "模拟附件选项") attachmentAnchor = testButton
-            addView(testButton, LinearLayout.LayoutParams(-1, dp(42)).apply {
-                if (index > 0) topMargin = dp(6)
-            })
+        checks.chunked(2).forEachIndexed { rowIndex, rowItems ->
+            addView(LinearLayout(this@renderBetaTestCenterPageImpl).apply {
+                orientation = LinearLayout.HORIZONTAL
+                rowItems.forEachIndexed { columnIndex, (label, action) ->
+                    val testButton = styleButton(Button(this@renderBetaTestCenterPageImpl).apply {
+                        text = label; isAllCaps = false; minWidth = 0; minimumWidth = 0
+                        setOnClickListener { action() }
+                    })
+                    if (label == "模拟附件选项") attachmentAnchor = testButton
+                    addView(testButton, LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                        if (columnIndex > 0) leftMargin = dp(6)
+                    })
+                }
+            }, LinearLayout.LayoutParams(-1, dp(42)).apply { if (rowIndex > 0) topMargin = dp(6) })
         }
         addView(TextView(this@renderBetaTestCenterPageImpl).apply {
             text = "相机、系统权限、局域网连接和 APK 安装仍需在真实设备上验证。"
