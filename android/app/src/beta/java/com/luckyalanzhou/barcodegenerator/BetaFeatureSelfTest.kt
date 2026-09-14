@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import android.app.AlertDialog
 import android.view.View
+import android.util.TypedValue
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -53,14 +54,20 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
                 rowItems.forEachIndexed { columnIndex, (label, action) ->
                     val testButton = styleButton(Button(this@renderBetaTestCenterPageImpl).apply {
                         text = label; isAllCaps = false; minWidth = 0; minimumWidth = 0
+                        isSingleLine = true
+                        ellipsize = null
+                        gravity = android.view.Gravity.CENTER
+                        setPadding(dp(4), 0, dp(4), 0)
+                        // 双列下长标题自动缩小字号，保证完整显示且不换行。
+                        setAutoSizeTextTypeUniformWithConfiguration(10, 14, 1, TypedValue.COMPLEX_UNIT_SP)
                         setOnClickListener { action() }
                     })
                     if (label == "模拟附件选项") attachmentAnchor = testButton
-                    addView(testButton, LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                    addView(testButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
                         if (columnIndex > 0) leftMargin = dp(6)
                     })
                 }
-            }, LinearLayout.LayoutParams(-1, dp(42)).apply { if (rowIndex > 0) topMargin = dp(6) })
+            }, LinearLayout.LayoutParams(-1, dp(48)).apply { if (rowIndex > 0) topMargin = dp(6) })
         }
         addView(TextView(this@renderBetaTestCenterPageImpl).apply {
             text = "相机、系统权限、局域网连接和 APK 安装仍需在真实设备上验证。"
