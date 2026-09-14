@@ -1167,23 +1167,16 @@ internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = 
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(dp(24), dp(22), dp(24), dp(8))
+        setPadding(dp(20), dp(16), dp(20), dp(8))
         addView(TextView(this@showLanShareNetworkErrorDialog).apply {
-            text = "Error"
-            textSize = 21f
+            text = "Error: 当前不处于局域网"
+            textSize = 16f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
             includeFontPadding = false
-            setTextColor(if (isDark()) 0xffffb4ab.toInt() else 0xffb42318.toInt())
-        }, LinearLayout.LayoutParams(-1, dp(30)))
-        addView(TextView(this@showLanShareNetworkErrorDialog).apply {
-            text = "当前不处于局域网"
-            textSize = 15f
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            setTextColor(secondaryText())
-            setPadding(0, dp(8), 0, dp(6))
-        }, LinearLayout.LayoutParams(-1, dp(38)))
+            setTextColor(primaryText())
+            setPadding(0, dp(2), 0, dp(2))
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         addView(styleButton(Button(this@showLanShareNetworkErrorDialog).apply {
             text = "确定"
             textSize = 15f
