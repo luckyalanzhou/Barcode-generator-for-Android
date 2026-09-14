@@ -557,9 +557,13 @@ internal fun MainActivity.showFolderEditor(initial: String = "", showMetrics: Bo
                 onSaved(name); dialog.dismiss()
             }
         }
-        val metricsPopup = if (showMetrics) showSimulationMetrics(box, "文件夹编辑弹窗") else null
+        var metricsPopup: android.widget.PopupWindow? = null
         dialog.setOnDismissListener { metricsPopup?.dismiss() }
+        // 先显示真实弹窗，再以弹窗窗口整体作为锚点，确保数据面板出现在完整弹窗下方。
         showIos26Dialog(dialog)
+        if (showMetrics) {
+            metricsPopup = showSimulationMetrics(dialog.window?.decorView ?: box, "文件夹编辑弹窗")
+        }
     }
 
 
