@@ -161,7 +161,13 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     val status = TextView(this).apply { text = "准备下载…"; textSize = 14f; setTextColor(secondaryText()); setPadding(0, dp(10), 0, 0) }
     val dialog = AlertDialog.Builder(this).create()
     var job: kotlinx.coroutines.Job? = null
-    val cancelButton = updateActionButton("取消下载") { job?.cancel(); dialog.dismiss() }
+    val cancelButton = updateActionButton("取消下载") {
+        // 取消按钮必须立即释放下载锁；否则用户马上重新检查更新时会被旧任务状态拦截，
+        // 表现为“立即更新”没有下载进度弹窗。协程 finally 会继续负责断开连接和清理临时文件。
+        updateDownloadRunning = false
+        job?.cancel()
+        dialog.dismiss()
+    }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         // 下载进度弹窗保持紧凑，减少标题、进度和按钮之间的无效留白。
