@@ -59,7 +59,7 @@ data class StyleSettings(
     var textPosition: String = "bottom",
     var textSize: Float = 14f,
     var barHeight: Int = 55,
-    var barWidth: Float = 200f,
+    var barWidth: Float = 220f,
     var margin: Int = 4,
     var showFormat: Boolean = true,
     var colorScheme: String = "system"

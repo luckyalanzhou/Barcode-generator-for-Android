@@ -1099,7 +1099,7 @@ internal fun MainActivity.showSettings() {
          toolRows += textRow("恢复默认设置", toolActionButton("恢复", buttonMinHeight = 40, horizontalPadding = 16) {
                  textSizeSeekBar.progress = 4
                  barHeight.progress = 25
-                 barWidth.progress = 80
+                 barWidth.progress = 100
                  margin.progress = 4
                  persistSettings()
                  toast("已恢复条码默认设置")
@@ -1780,7 +1780,7 @@ internal fun MainActivity.syncSystemBars() {
 internal fun MainActivity.loadStyle(): StyleSettings = StyleSettings(
         barColor = Color.BLACK, bgColor = Color.WHITE,
         showText = true, textPosition = "bottom",
-        textSize = settingsStore.get(SettingsStore.TEXT_SIZE, 14f).coerceIn(10f, 24f), barHeight = settingsStore.get(SettingsStore.BAR_HEIGHT, 55).coerceIn(30, 150), barWidth = settingsStore.get(SettingsStore.BAR_WIDTH, 200f).coerceIn(120f, 360f),
+        textSize = settingsStore.get(SettingsStore.TEXT_SIZE, 14f).coerceIn(10f, 24f), barHeight = settingsStore.get(SettingsStore.BAR_HEIGHT, 55).coerceIn(30, 150), barWidth = settingsStore.get(SettingsStore.BAR_WIDTH, 220f).coerceIn(120f, 360f),
         margin = settingsStore.get(SettingsStore.MARGIN, 4).coerceIn(0, 40), showFormat = settingsStore.get(SettingsStore.SHOW_FORMAT, true), colorScheme = settingsStore.get(SettingsStore.COLOR_SCHEME, "system")
     )
 
@@ -2456,18 +2456,15 @@ private fun MainActivity.addTreeHeader(container: LinearLayout, label: String, f
     val rowHeight = dp(if (isRoot) 48 else 43)
     header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_folder); setColorFilter(if (isRoot) color else secondaryText()); scaleType = ImageView.ScaleType.CENTER_INSIDE }, LinearLayout.LayoutParams(dp(if (isRoot) 27 else 21), rowHeight).apply { setMargins(0, 0, dp(if (isRoot) 8 else 7), 0) })
     // 名称使用固定的层级语义色，数量、箭头和操作入口继续保持弱化。
-    header.addView(TextView(this).apply { text = label; textSize = if (isRoot) 18f else 17f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTextColor(color) }, LinearLayout.LayoutParams(0, rowHeight, 1f))
+    val nameView = TextView(this).apply { text = label; textSize = if (isRoot) 18f else 17f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTextColor(color) }
+    header.addView(nameView, LinearLayout.LayoutParams(0, rowHeight, 1f))
+    header.setOnLongClickListener {
+        performRowLongPressFeedback(header)
+        showTreeFolderMenu(nameView, folder, level)
+        true
+    }
     header.addView(TextView(this).apply { text = "$count"; textSize = 13f; gravity = Gravity.CENTER; includeFontPadding = false; setTextColor(secondaryText()) }, LinearLayout.LayoutParams(dp(28), rowHeight))
     header.addView(TextView(this).apply { tag = "folderArrow"; text = "›"; textSize = 22f; gravity = Gravity.CENTER; includeFontPadding = false; rotation = if (collapsed) 0f else 90f; setTextColor(secondaryText()) }, LinearLayout.LayoutParams(dp(25), rowHeight))
-    header.addView(ImageButton(this).apply {
-        setImageResource(R.drawable.ic_action_edit)
-        imageTintList = ColorStateList.valueOf(if (isDark()) 0xffb8ccff.toInt() else 0xff2166d1.toInt())
-        contentDescription = "编辑文件夹"
-        setPadding(dp(8), dp(8), dp(8), dp(8))
-        background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
-        isClickable = true; isFocusable = true
-        setOnClickListener { showTreeFolderMenu(this, folder, level) }
-    }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { setMargins(dp(2), 0, 0, 0) })
     container.addView(header, LinearLayout.LayoutParams(-1, dp(if (isRoot) 50 else 43)).apply { setMargins(dp(if (isRoot) 0 else 10), 0, dp(if (isRoot) 0 else 4), dp(if (isRoot) 7 else 1)) })
 }
 
@@ -2494,19 +2491,27 @@ private fun MainActivity.addTreeFile(container: LinearLayout, group: FavoriteGro
     val groupItems = group.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setBackgroundColor(Color.TRANSPARENT); setPadding(dp(if (level == 1) 20 else 28), dp(2), dp(4), dp(2)); setOnClickListener { resultItems = groupItems; showingHistoryResult = false; resultsReturnPage = "favorites"; selectedFavoriteGroup = group; page = "results"; render() } }
     // 收藏文件名固定为绿色，与两级文件夹形成稳定的三级视觉关系。
-    row.addView(TextView(this).apply { text = group.name; textSize = 17f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTextColor(color) }, LinearLayout.LayoutParams(0, dp(44), 1f))
+    val nameView = TextView(this).apply { text = group.name; textSize = 17f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false; setTextColor(color) }
+    row.addView(nameView, LinearLayout.LayoutParams(0, dp(44), 1f))
+    row.setOnLongClickListener {
+        performRowLongPressFeedback(row)
+        showFavoriteFileMenu(nameView, group, groupItems)
+        true
+    }
     row.addView(TextView(this).apply { text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)); textSize = 11f; gravity = Gravity.CENTER_VERTICAL; setTextColor(secondaryText()) }, LinearLayout.LayoutParams(dp(78), dp(44)))
-    row.addView(ImageButton(this).apply {
-        setImageResource(R.drawable.ic_action_edit)
-        imageTintList = ColorStateList.valueOf(if (isDark()) 0xffb8ccff.toInt() else 0xff2166d1.toInt())
-        contentDescription = "编辑收藏文件"
-        setPadding(dp(8), dp(8), dp(8), dp(8))
-        background = glassButtonBackground().apply { cornerRadius = dp(14).toFloat() }
-        isClickable = true; isFocusable = true
-        setOnClickListener { showFavoriteFileMenu(this, group, groupItems) }
-    }, LinearLayout.LayoutParams(dp(40), dp(40)))
     // 文件为内容层，沿父文件夹缩进并保留平整材质，不再与文件夹头部争夺玻璃层级。
     container.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(if (level <= 1) 16 else 38), 0, dp(4), dp(6)) })
+}
+
+/** 行级长按反馈：短暂压缩后弹性回弹，避免只按编辑图标才能触发。 */
+private fun MainActivity.performRowLongPressFeedback(view: View) {
+    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+    view.animate().cancel()
+    view.animate().scaleX(0.985f).scaleY(0.985f).setDuration(70).withEndAction {
+        view.animate().scaleX(1f).scaleY(1f)
+            .setInterpolator(android.view.animation.OvershootInterpolator(2.2f))
+            .setDuration(220).start()
+    }.start()
 }
 
 private fun MainActivity.showFavoriteFileMenu(anchor: View, group: FavoriteGroup, groupItems: List<CodeItem>) {
