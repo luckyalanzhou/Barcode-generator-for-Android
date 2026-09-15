@@ -69,7 +69,7 @@ internal class SettingsTabIconView(context: Context) : FrameLayout(context) {
                 if (!canceled) {
                     val restore = Runnable { playRestoreMotion() }
                     pendingRestore = restore
-                    postDelayed(restore, 20L)
+                    postDelayed(restore, 5L)
                 }
             }
         }
