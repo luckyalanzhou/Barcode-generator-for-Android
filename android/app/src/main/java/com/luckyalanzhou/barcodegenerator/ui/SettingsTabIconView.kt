@@ -69,7 +69,8 @@ internal class SettingsTabIconView(context: Context) : FrameLayout(context) {
                 if (!canceled) {
                     val restore = Runnable { playRestoreMotion() }
                     pendingRestore = restore
-                    postDelayed(restore, 5L)
+                    // Android 主线程按毫秒调度，0.2ms 无法精确表达；0ms 表示恢复任务立即排队执行。
+                    postDelayed(restore, 0L)
                 }
             }
         }
