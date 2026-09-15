@@ -37,6 +37,7 @@ import java.net.URL
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.WeakHashMap
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -62,7 +63,16 @@ private val bottomTabSelectedIcons = intArrayOf(
 )
 
 /** 使用真实弹簧驱动缩放，不使用 Bounce/OvershootInterpolator。 */
-private fun springScale(view: View, start: Float, peak: Float, settle: Float = 1f, stiffness: Float = 600f) {
+private val pendingSpringScaleStarts = WeakHashMap<View, Runnable>()
+
+private fun springScale(
+    view: View,
+    start: Float,
+    peak: Float,
+    settle: Float = 1f,
+    stiffness: Float = 600f,
+    holdMs: Long = 0L
+) {
     val x = SpringAnimation(view, DynamicAnimation.SCALE_X)
     val y = SpringAnimation(view, DynamicAnimation.SCALE_Y)
     fun force(finalPosition: Float) = SpringForce(finalPosition).apply {
@@ -79,10 +89,22 @@ private fun springScale(view: View, start: Float, peak: Float, settle: Float = 1
             SpringAnimation(view, DynamicAnimation.SCALE_Y).apply { spring = force(settle); start() }
         }
     }
+    pendingSpringScaleStarts.remove(view)?.let(view::removeCallbacks)
     x.cancel(); y.cancel()
     view.scaleX = start
     view.scaleY = start
-    x.start(); y.start()
+    val startSpring = Runnable {
+        pendingSpringScaleStarts.remove(view)
+        x.start()
+        y.start()
+    }
+    if (holdMs > 0L) {
+        // 让图标在最小尺寸停留一小段时间，用户能感知到收缩后再回弹。
+        pendingSpringScaleStarts[view] = startSpring
+        view.postDelayed(startSpring, holdMs)
+    } else {
+        startSpring.run()
+    }
 }
 
 
@@ -99,14 +121,14 @@ internal fun MainActivity.updateTopTabSelection() {
             setSelectedState(isSelected)
             alpha = if (isSelected) 1f else 0.82f
             // 切换时先缩小，再弹簧回到默认 1.0；滑动放大由 Tab 本身的玻璃透镜效果负责。
-            springScale(this, start = if (isSelected) 0.5f else scaleX, peak = 1f, settle = 1f, stiffness = 320f)
+            springScale(this, start = if (isSelected) 0.5f else scaleX, peak = 1f, settle = 1f, stiffness = 320f, holdMs = if (isSelected) 120L else 0L)
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         } ?: tab.findViewWithTag<HistoryTabIconView>("historyTabIcon")?.apply {
             setTint(if (isSelected) selectedColor else unselectedColor)
             setSelectedState(isSelected)
             alpha = if (isSelected) 1f else 0.82f
             // 切换时先缩小，再弹簧回到默认 1.0；滑动放大由 Tab 本身的玻璃透镜效果负责。
-            springScale(this, start = if (isSelected) 0.5f else scaleX, peak = 1f, settle = 1f, stiffness = 320f)
+            springScale(this, start = if (isSelected) 0.5f else scaleX, peak = 1f, settle = 1f, stiffness = 320f, holdMs = if (isSelected) 120L else 0L)
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         } ?: tab.findViewWithTag<ImageView>("tabIcon")?.apply {
             val iconResource = if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int]
@@ -115,7 +137,7 @@ internal fun MainActivity.updateTopTabSelection() {
             // 图标切换采用“收缩-注入-回弹”：线性图标切换为面性图标时不会闪现。
             if (isSelected) {
                 alpha = 1f
-                springScale(this, start = 0.5f, peak = 1f, settle = 1f, stiffness = 320f)
+                springScale(this, start = 0.5f, peak = 1f, settle = 1f, stiffness = 320f, holdMs = 120L)
             } else {
                 alpha = 0.82f
                 springScale(this, start = scaleX, peak = 1f)
