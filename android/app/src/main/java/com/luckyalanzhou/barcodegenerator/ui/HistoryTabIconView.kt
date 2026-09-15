@@ -5,7 +5,7 @@ import android.animation.ObjectAnimator
 import android.content.Context
 import android.graphics.PorterDuff
 import android.view.View
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 
@@ -45,12 +45,13 @@ internal class HistoryTabIconView(context: Context) : FrameLayout(context) {
         inner.rotation = 0f
         if (selected) {
             rotationAnimator = AnimatorSet().apply {
+                // 使用同一条连续轨迹：先相反方向转 45°，再用独立的后半段平滑回到 0°。
                 playTogether(
-                    ObjectAnimator.ofFloat(inner, View.ROTATION, 0f, 45f),
-                    ObjectAnimator.ofFloat(outer, View.ROTATION, 0f, -45f)
+                    ObjectAnimator.ofFloat(inner, View.ROTATION, 0f, 45f, 0f),
+                    ObjectAnimator.ofFloat(outer, View.ROTATION, 0f, -45f, 0f)
                 )
-                duration = 300L
-                interpolator = DecelerateInterpolator(1.25f)
+                duration = 520L
+                interpolator = AccelerateDecelerateInterpolator()
                 start()
             }
         }

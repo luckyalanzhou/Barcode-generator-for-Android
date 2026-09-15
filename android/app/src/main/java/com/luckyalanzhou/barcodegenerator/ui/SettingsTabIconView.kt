@@ -5,7 +5,7 @@ import android.animation.ObjectAnimator
 import android.content.Context
 import android.graphics.PorterDuff
 import android.view.View
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 
@@ -47,14 +47,14 @@ internal class SettingsTabIconView(context: Context) : FrameLayout(context) {
         outer.rotation = 0f
         inner.rotation = 0f
         if (selected) {
-            // 正值为顺时针，负值为逆时针；每次只转 45°，保持轻量的设置图标反馈。
+            // 与历史图标保持同一套连续动画：0° → 45° → 0°，回归阶段不瞬间跳回。
             rotationAnimator = AnimatorSet().apply {
                 playTogether(
-                    ObjectAnimator.ofFloat(inner, View.ROTATION, 0f, 45f),
-                    ObjectAnimator.ofFloat(outer, View.ROTATION, 0f, -45f)
+                    ObjectAnimator.ofFloat(inner, View.ROTATION, 0f, 45f, 0f),
+                    ObjectAnimator.ofFloat(outer, View.ROTATION, 0f, -45f, 0f)
                 )
-                duration = 300L
-                interpolator = DecelerateInterpolator(1.25f)
+                duration = 520L
+                interpolator = AccelerateDecelerateInterpolator()
                 start()
             }
         }

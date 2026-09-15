@@ -1,4 +1,6 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <!-- 填充式历史回转环，中心留给独立的时钟指针层。 -->
-    <path android:fillType="evenOdd" android:fillColor="#FF000000" android:pathData="M13,3 C8.03,3 4,7.03 4,12 H1 L4.89,15.89 L4.96,16.03 L9,12 H6 C6,8.13 9.13,5 13,5 C16.87,5 20,8.13 20,12 C20,15.87 16.87,19 13,19 C11.07,19 9.32,18.21 8.05,16.95 L6.63,18.37 C8.27,20.14 10.51,21 13,21 C17.97,21 22,16.97 22,12 C22,7.03 17.97,3 13,3 Z M13,7 A5,5 0 1,0 13,17 A5,5 0 1,0 13,7 Z" />
+    <!-- 只绘制外部回转环，使用明确的偶奇填充规则挖空中心。 -->
+    <path android:fillType="evenOdd" android:fillColor="#FF000000" android:pathData="M12,2 A10,10 0,1 1,12,22 A10,10 0,1 1,12,2 Z M12,5 A7,7 0,1 0,12,19 A7,7 0,1 0,12,5 Z" />
+    <!-- 左侧回转箭头，不覆盖中心镂空区域。 -->
+    <path android:fillColor="#FF000000" android:pathData="M12,2 C7.03,2 3,6.03 3,11 H0 L4,15 L8,11 H5 C5,7.13 8.13,4 12,4 Z" />
 </vector>
