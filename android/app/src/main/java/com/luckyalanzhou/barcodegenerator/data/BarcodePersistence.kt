@@ -99,7 +99,7 @@ internal suspend fun MainActivity.migrateLegacySettingsIfNeeded() {
             barColor = legacyPrefs.getInt("style_bar_color", Color.BLACK), bgColor = legacyPrefs.getInt("style_bg_color", Color.WHITE),
             showText = legacyPrefs.getBoolean("style_show_text", true), textPosition = legacyPrefs.getString("style_text_position", "bottom") ?: "bottom",
             textSize = legacyPrefs.getFloat("style_text_size", 14f), barHeight = legacyPrefs.getInt("style_bar_height", 55), barWidth = legacyPrefs.getFloat("style_bar_width", 220f),
-            margin = legacyPrefs.getInt("style_margin", 4), showFormat = legacyPrefs.getBoolean("style_show_format", true), colorScheme = legacyPrefs.getString("style_color_scheme", "system") ?: "system"
+            margin = legacyPrefs.getInt("style_margin", 4), showFormat = legacyPrefs.getBoolean("style_show_format", false), colorScheme = legacyPrefs.getString("style_color_scheme", "system") ?: "system"
         )
         settingsStore.saveStyle(migratedStyle).join()
         legacyPrefs.getString("last_update_error", "")?.takeIf { it.isNotBlank() }?.let(settingsStore::setUpdateError)
