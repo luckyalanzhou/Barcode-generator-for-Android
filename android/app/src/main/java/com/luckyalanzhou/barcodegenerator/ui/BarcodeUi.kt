@@ -58,7 +58,7 @@ private val bottomTabIcons = intArrayOf(
     R.drawable.ic_tab_barcode, R.drawable.ic_tab_history, R.drawable.ic_tab_favorite, R.drawable.ic_tab_settings
 )
 private val bottomTabSelectedIcons = intArrayOf(
-    R.drawable.ic_tab_barcode_selected, R.drawable.ic_tab_history_selected,
+    R.drawable.ic_tab_barcode_selected, R.drawable.ic_tab_history,
     R.drawable.ic_tab_favorite_selected, R.drawable.ic_tab_settings_selected
 )
 
