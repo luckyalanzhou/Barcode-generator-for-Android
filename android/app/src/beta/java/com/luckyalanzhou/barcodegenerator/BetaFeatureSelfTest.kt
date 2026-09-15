@@ -1,7 +1,5 @@
 package com.luckyalanzhou.barcodegenerator
 
-import android.app.AlertDialog
-import android.view.View
 import android.util.TypedValue
 import android.widget.Button
 import android.widget.LinearLayout
@@ -10,7 +8,6 @@ import android.widget.TextView
 
 /** Beta 专用测试中心页面；正式版不编译此功能。 */
 internal fun MainActivity.renderBetaTestCenterPageImpl() {
-    var attachmentAnchor: View? = null
     val checks = listOf(
         "本地自检" to {
         val result = listOf(
@@ -29,7 +26,6 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
         "模拟下载进度" to { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true, showMetrics = true) },
         "模拟下载失败" to { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", null, null, "重新下载") },
         "模拟二维码弹窗" to { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
-        "模拟附件选项" to { attachmentAnchor?.let { anchor -> showLanSharePopup(anchor, listOf("拍摄图片" to {}, "照片图库" to {}, "选择文件" to {}), showMetrics = true) } },
         "模拟文件夹编辑" to { showFolderEditor("示例文件夹", showMetrics = true) {} },
         "模拟导入确认" to { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
         "模拟导出结果" to { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
@@ -43,10 +39,11 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
         setPadding(dp(20), dp(8), dp(20), dp(8))
         addView(TextView(this@renderBetaTestCenterPageImpl).apply {
             text = "Beta 测试中心"
-            textSize = 14f
+            textSize = 22f
             includeFontPadding = false
-            setTextColor(secondaryText())
-            setPadding(0, 0, 0, dp(8))
+            gravity = android.view.Gravity.CENTER
+            setTextColor(primaryText())
+            setPadding(0, dp(12), 0, dp(16))
         })
         checks.chunked(2).forEachIndexed { rowIndex, rowItems ->
             addView(LinearLayout(this@renderBetaTestCenterPageImpl).apply {
@@ -62,7 +59,6 @@ internal fun MainActivity.renderBetaTestCenterPageImpl() {
                         setAutoSizeTextTypeUniformWithConfiguration(10, 14, 1, TypedValue.COMPLEX_UNIT_SP)
                         setOnClickListener { action() }
                     })
-                    if (label == "模拟附件选项") attachmentAnchor = testButton
                     addView(testButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
                         if (columnIndex > 0) leftMargin = dp(6)
                     })

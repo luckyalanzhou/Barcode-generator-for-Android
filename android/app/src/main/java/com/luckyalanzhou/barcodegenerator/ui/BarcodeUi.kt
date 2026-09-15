@@ -274,6 +274,12 @@ internal fun MainActivity.applyIos26DialogStyle(dialog: AlertDialog) {
             }
         }
     }
+    // 统一给按钮栏增加底部留白，让按钮不要贴近弹窗下边框；按钮本身的完整点击区域保持不变。
+    val buttonPanelId = resources.getIdentifier("buttonPanel", "id", "android")
+    dialog.findViewById<View>(buttonPanelId)?.let { panel ->
+        val bottomInset = dp(8)
+        panel.setPadding(panel.paddingLeft, panel.paddingTop, panel.paddingRight, bottomInset)
+    }
 }
 
 internal fun MainActivity.showIos26Dialog(dialog: AlertDialog, compact: Boolean = false): AlertDialog {
