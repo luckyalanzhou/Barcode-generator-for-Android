@@ -13,12 +13,12 @@ import kotlin.math.sin
 internal class SettingsTabIconView(context: Context) : FrameLayout(context) {
     private val outer = ImageView(context).apply {
         tag = "tabIconOuter"
-        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        scaleType = ImageView.ScaleType.FIT_CENTER
         setImageResource(R.drawable.ic_tab_settings_outer)
     }
     private val inner = ImageView(context).apply {
         tag = "tabIconInner"
-        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        scaleType = ImageView.ScaleType.FIT_CENTER
         // 外齿轮中心有镂空，缩小中心齿轮后只在孔洞内显示，避免两层叠成实心图标。
         scaleX = 0.58f
         scaleY = 0.58f

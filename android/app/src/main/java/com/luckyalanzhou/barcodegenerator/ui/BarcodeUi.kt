@@ -98,13 +98,15 @@ internal fun MainActivity.updateTopTabSelection() {
             setTint(if (isSelected) selectedColor else unselectedColor)
             setSelectedState(isSelected)
             alpha = if (isSelected) 1f else 0.82f
-            springScale(this, start = if (isSelected) 0.86f else scaleX, peak = if (isSelected) 1.12f else 1f, settle = if (isSelected) 1.06f else 1f)
+            // 切换时先缩小，再弹簧回到默认 1.0；滑动放大由 Tab 本身的玻璃透镜效果负责。
+            springScale(this, start = if (isSelected) 0.82f else scaleX, peak = 1f, settle = 1f)
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         } ?: tab.findViewWithTag<HistoryTabIconView>("historyTabIcon")?.apply {
             setTint(if (isSelected) selectedColor else unselectedColor)
             setSelectedState(isSelected)
             alpha = if (isSelected) 1f else 0.82f
-            springScale(this, start = if (isSelected) 0.86f else scaleX, peak = if (isSelected) 1.12f else 1f, settle = if (isSelected) 1.06f else 1f)
+            // 切换时先缩小，再弹簧回到默认 1.0；滑动放大由 Tab 本身的玻璃透镜效果负责。
+            springScale(this, start = if (isSelected) 0.82f else scaleX, peak = 1f, settle = 1f)
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         } ?: tab.findViewWithTag<ImageView>("tabIcon")?.apply {
             val iconResource = if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int]
@@ -113,7 +115,7 @@ internal fun MainActivity.updateTopTabSelection() {
             // 图标切换采用“收缩-注入-回弹”：线性图标切换为面性图标时不会闪现。
             if (isSelected) {
                 alpha = 1f
-                springScale(this, start = 0.86f, peak = 1.12f, settle = 1.06f)
+                springScale(this, start = 0.82f, peak = 1f, settle = 1f)
             } else {
                 alpha = 0.82f
                 springScale(this, start = scaleX, peak = 1f)
@@ -536,6 +538,9 @@ internal fun MainActivity.buildShell() {
             val button = LinearLayout(this).apply {
                 tag = index; orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
                 setPadding(0, dp(3), 0, dp(3))
+                // 允许图标弹簧放大时超出自身测量范围，避免上下边缘裁切。
+                clipChildren = false
+                clipToPadding = false
                 isClickable = true; isFocusable = true; contentDescription = description
                 // 原生 Ripple 只作为轻触反馈，范围裁剪在当前 Tab 内，不改变底部布局。
                 foreground = RippleDrawable(
@@ -589,10 +594,10 @@ internal fun MainActivity.buildShell() {
                 SettingsTabIconView(this)
             } else {
                 ImageView(this).apply {
-                    tag = "tabIcon"; setImageResource(icon); scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    tag = "tabIcon"; setImageResource(icon); scaleType = ImageView.ScaleType.FIT_CENTER
                     setColorFilter(if (isDark()) 0xffc4cada.toInt() else 0xff64748b.toInt())
                 }
-            }, LinearLayout.LayoutParams(-1, dp(23)))
+            }, LinearLayout.LayoutParams(-1, dp(28)))
             button.addView(TextView(this).apply {
                 tag = "tabLabel"; text = label; textSize = 12f; gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); letterSpacing = -0.01f

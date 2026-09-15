@@ -13,12 +13,12 @@ import kotlin.math.sin
 internal class HistoryTabIconView(context: Context) : FrameLayout(context) {
     private val outer = ImageView(context).apply {
         tag = "historyTabIconOuter"
-        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        scaleType = ImageView.ScaleType.FIT_CENTER
         setImageResource(R.drawable.ic_tab_history_outer)
     }
     private val inner = ImageView(context).apply {
         tag = "historyTabIconInner"
-        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        scaleType = ImageView.ScaleType.FIT_CENTER
         setImageResource(R.drawable.ic_tab_history_inner)
     }
     private var selectedState: Boolean? = null
