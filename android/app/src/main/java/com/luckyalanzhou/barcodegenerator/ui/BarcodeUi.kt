@@ -120,15 +120,11 @@ internal fun MainActivity.updateTopTabSelection() {
             setTint(if (isSelected) selectedColor else unselectedColor)
             setSelectedState(isSelected)
             alpha = if (isSelected) 1f else 0.82f
-            // 切换时先缩小，再弹簧回到默认 1.0；滑动放大由 Tab 本身的玻璃透镜效果负责。
-            springScale(this, start = if (isSelected) 0.5f else scaleX, peak = 1f, settle = 1f, stiffness = 320f, holdMs = if (isSelected) 120L else 0L)
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         } ?: tab.findViewWithTag<HistoryTabIconView>("historyTabIcon")?.apply {
             setTint(if (isSelected) selectedColor else unselectedColor)
             setSelectedState(isSelected)
             alpha = if (isSelected) 1f else 0.82f
-            // 切换时先缩小，再弹簧回到默认 1.0；滑动放大由 Tab 本身的玻璃透镜效果负责。
-            springScale(this, start = if (isSelected) 0.5f else scaleX, peak = 1f, settle = 1f, stiffness = 320f, holdMs = if (isSelected) 120L else 0L)
             translationY = if (isSelected) -dp(1).toFloat() else 0f
         } ?: tab.findViewWithTag<ImageView>("tabIcon")?.apply {
             val iconResource = if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int]
