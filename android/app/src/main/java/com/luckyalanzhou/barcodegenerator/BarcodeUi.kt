@@ -719,7 +719,8 @@ internal fun MainActivity.showMaterialDropdown(
     val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * resources.displayMetrics.scaledDensity }
     val measuredContentWidth = (options.maxOfOrNull { labelPaint.measureText(it) } ?: 0f).roundToInt() + dp(16) * 2 + dp(28) + dp(4)
     val width = maxOf(anchor.width, popupWidth ?: 0, measuredContentWidth, dp(150)).coerceAtMost(maxWidth)
-    val contentHeight = options.size * dp(40) + dp(4)
+    // 高度同时包含选项之间的分割线；最后一项下方不增加分割线高度，避免被窗口裁切。
+    val contentHeight = options.size * dp(40) + (options.size - 1).coerceAtLeast(0) * dp(1) + dp(4)
     val location = IntArray(2)
     anchor.getLocationOnScreen(location)
     val below = frame.bottom - (location[1] + anchor.height) - dp(6)
@@ -825,7 +826,7 @@ internal fun MainActivity.showMaterialMultiDropdown(
     val contentWidth = longestLabel.roundToInt() + dp(16) * 2 + dp(28) + dp(4)
     val maxWidth = (metrics.widthPixels - dp(32)).coerceAtLeast(dp(1))
     val width = maxOf(anchor.width, contentWidth, dp(150)).coerceAtMost(maxWidth)
-    val height = options.size * dp(40) + dp(4)
+    val height = options.size * dp(40) + (options.size - 1).coerceAtLeast(0) * dp(1) + dp(4)
     val location = IntArray(2)
     anchor.getLocationOnScreen(location)
     // 多选菜单同样让右边界贴齐设置按钮，避免菜单向右错开。

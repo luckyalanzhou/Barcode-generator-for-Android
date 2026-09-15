@@ -101,6 +101,78 @@ private fun MainActivity.updateDivider() = View(this).apply {
     setBackgroundColor(if (isDark()) 0x33ffffff else 0x26475b7a)
 }
 
+/** 下载进度条：流光固定在真实进度前沿，随着进度推进而移动，不循环扫过未下载区域。 */
+private class DownloadProgressView(context: Context) : View(context) {
+    var progress: Int = 0
+        set(value) {
+            field = value.coerceIn(0, 100)
+            invalidate()
+        }
+    var isIndeterminate: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    private val density = resources.displayMetrics.density
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val light = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val outline = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val rect = RectF()
+
+    init {
+        minimumHeight = (10 * density).roundToInt()
+        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val inset = density
+        rect.set(inset, inset, width - inset, height - inset)
+        val radius = rect.height() / 2f
+        track.style = Paint.Style.FILL
+        track.color = if ((resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES) 0xff30343b.toInt() else 0xffe1e5eb.toInt()
+        canvas.drawRoundRect(rect, radius, radius, track)
+
+        if (isIndeterminate) {
+            outline.style = Paint.Style.STROKE
+            outline.strokeWidth = density
+            outline.color = 0xff6b7280.toInt()
+            canvas.drawRoundRect(rect, radius, radius, outline)
+            return
+        }
+
+        val right = rect.left + rect.width() * (progress / 100f)
+        if (right > rect.left) {
+            fill.style = Paint.Style.FILL
+            fill.shader = LinearGradient(rect.left, 0f, rect.right, 0f, 0xff3b82f6.toInt(), 0xff60a5fa.toInt(), Shader.TileMode.CLAMP)
+            canvas.save()
+            canvas.clipRect(rect.left, rect.top, right, rect.bottom)
+            canvas.drawRoundRect(rect, radius, radius, fill)
+            canvas.restore()
+            fill.shader = null
+
+            // 流光宽度固定在进度前沿，因此下载进度变化时会自然向前移动。
+            val glowWidth = 18f * density
+            light.style = Paint.Style.FILL
+            light.shader = LinearGradient(right - glowWidth, 0f, right + glowWidth, 0f, intArrayOf(Color.TRANSPARENT, 0xccffffff.toInt(), Color.TRANSPARENT), null, Shader.TileMode.CLAMP)
+            light.setShadowLayer(5f * density, 0f, 0f, 0xff60a5fa.toInt())
+            canvas.save()
+            canvas.clipRect(rect.left, rect.top, right.coerceAtMost(rect.right), rect.bottom)
+            canvas.drawRect(right - glowWidth, rect.top, right, rect.bottom, light)
+            canvas.restore()
+            light.clearShadowLayer()
+            light.shader = null
+        }
+
+        outline.style = Paint.Style.STROKE
+        outline.strokeWidth = density
+        outline.color = if ((resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES) 0xff6b7280.toInt() else 0xffb8c0cc.toInt()
+        canvas.drawRoundRect(rect, radius, radius, outline)
+    }
+}
+
 internal fun MainActivity.showUpdateAvailableDialog(latest: String, downloadUrl: String, expectedSize: Long?, expectedSha256: String?, simulateOnly: Boolean = false, showMetrics: Boolean = false) {
     val dialog = AlertDialog.Builder(this).create()
     val box = LinearLayout(this).apply {
@@ -157,7 +229,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     }
     updateDownloadRunning = true
     DebugLog.record("update", "download dialog shown url=$apkUrl expectedSize=$expectedSize shaPresent=${expectedSha256 != null}")
-    val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
+    val progress = DownloadProgressView(this)
     val status = TextView(this).apply { text = "准备下载…"; textSize = 14f; setTextColor(secondaryText()); setPadding(0, dp(10), 0, 0) }
     val dialog = AlertDialog.Builder(this).create()
     var job: kotlinx.coroutines.Job? = null
