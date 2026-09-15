@@ -97,16 +97,35 @@ internal class LanShareClient(
 
     fun download(session: LanShareSession, id: String, destination: Uri) =
         request(session, "/api/download/${Uri.encode(id)}") { connection ->
-            context.contentResolver.openOutputStream(destination)?.use { output ->
-                connection.inputStream.use { it.copyTo(output) }
-            } ?: error("无法写入文件")
-            DebugLog.record("lan", "file downloaded id=$id")
+            val temporary = File.createTempFile("lan-download-", ".part", context.cacheDir)
+            try {
+                temporary.outputStream().use { output ->
+                    connection.inputStream.use { input ->
+                        input.copyTo(output)
+                    }
+                }
+                context.contentResolver.openOutputStream(destination)?.use { output ->
+                    temporary.inputStream().use { it.copyTo(output) }
+                } ?: error("无法写入文件")
+                DebugLog.record("lan", "file downloaded id=$id bytes=${temporary.length()}")
+            } finally {
+                temporary.delete()
+            }
         }
 
     fun downloadPreview(session: LanShareSession, id: String, destination: File) =
         request(session, "/api/download/${Uri.encode(id)}") { connection ->
             destination.parentFile?.mkdirs()
-            destination.outputStream().use { output -> connection.inputStream.use { it.copyTo(output) } }
+            val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
+            try {
+                temporary.outputStream().use { output ->
+                    connection.inputStream.use { it.copyTo(output) }
+                }
+                if (destination.exists()) destination.delete()
+                require(temporary.renameTo(destination)) { "无法保存图片预览" }
+            } finally {
+                temporary.delete()
+            }
         }
 
     private fun <T> request(session: LanShareSession, path: String, output: Boolean = false, block: (HttpURLConnection) -> T): T {
@@ -119,9 +138,14 @@ internal class LanShareClient(
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
         }
         return try {
-            val value = block(connection)
-            if (connection.responseCode !in 200..299) error("连接失败：${connection.responseCode}")
-            value
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                val detail = runCatching {
+                    (connection.errorStream ?: connection.inputStream).bufferedReader(Charsets.UTF_8).use { it.readText().trim() }
+                }.getOrNull().orEmpty()
+                error("连接失败：$responseCode${detail.takeIf { it.isNotBlank() }?.let { "：$it" }.orEmpty()}")
+            }
+            block(connection)
         } finally {
             connection.disconnect()
         }

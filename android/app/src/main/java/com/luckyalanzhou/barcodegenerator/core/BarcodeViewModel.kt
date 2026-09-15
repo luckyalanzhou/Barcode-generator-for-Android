@@ -19,5 +19,6 @@ class BarcodeViewModel : ViewModel() {
     var availableUpdateSha256: String? = null
     var updateDialogShowing: Boolean = false
     var updateDownloadRunning: Boolean = false
+    var updateDownloadGeneration: Long = 0L
     var pendingInstallPath: String? = null
 }

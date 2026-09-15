@@ -20,7 +20,7 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
 
     private fun uploadLimitError(size: Long): String? = when {
         size > LanShareLimits.MAX_FILE_BYTES -> "单个文件不能超过 5 GB"
-        folder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() } > LanShareLimits.MAX_ROOM_BYTES - size -> "房间文件总大小不能超过 100 GB"
+        folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() } > LanShareLimits.MAX_ROOM_BYTES - size -> "房间文件总大小不能超过 100 GB"
         else -> null
     }
 
@@ -31,7 +31,7 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
             ?: return null
         val allowed = LanShareLimits.MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
         if (declared !in 1..allowed) return null
-        val stored = folder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
+        val stored = folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() }
         if (stored > LanShareLimits.MAX_ROOM_BYTES - reservedUploadBytes - declared) return null
         reservedUploadBytes += declared
         declared
@@ -47,6 +47,20 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
 
     private fun releaseUploadCapacity(bytes: Long) = synchronized(uploadLock) {
         reservedUploadBytes = (reservedUploadBytes - bytes).coerceAtLeast(0L)
+    }
+
+    /** 先写同目录临时文件，完整复制后再改名，避免半截 ZIP/图片进入分享记录。 */
+    private fun commitUpload(source: File, target: File) {
+        val temporary = File(folder, ".${target.name}.${System.nanoTime()}.part")
+        try {
+            val copied = source.inputStream().use { input ->
+                temporary.outputStream().use { output -> input.copyTo(output, 16 * 1024) }
+            }
+            require(copied == source.length()) { "上传内容读取不完整：$copied/${source.length()} 字节" }
+            require(temporary.renameTo(target)) { "无法保存上传文件" }
+        } finally {
+            temporary.delete()
+        }
     }
 
     fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
@@ -155,7 +169,7 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
                         val target = File(folder, "app_${System.nanoTime()}_$name")
                         val error = synchronized(uploadLock) {
                             uploadLimitError(source.length()) ?: run {
-                                source.copyTo(target, overwrite = true)
+                                commitUpload(source, target)
                                 notifyFilesChanged(target)
                                 null
                             }
@@ -186,7 +200,7 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
                         val source = File(temporaryFile)
                         val error = synchronized(uploadLock) {
                             uploadLimitError(source.length()) ?: run {
-                                source.copyTo(target, overwrite = true)
+                                commitUpload(source, target)
                                 notifyFilesChanged(target)
                                 null
                             }

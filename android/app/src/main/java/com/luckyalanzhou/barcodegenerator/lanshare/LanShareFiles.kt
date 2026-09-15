@@ -12,8 +12,11 @@ internal fun safeBrowserClientId(value: String) = value.takeIf { it.matches(Rege
 internal fun sharedFile(folder: File, id: String): File? {
     val root = folder.canonicalFile
     val candidate = File(root, id).canonicalFile
-    return candidate.takeIf { it.isFile && it.parentFile == root }
+    return candidate.takeIf { it.isFile && it.parentFile == root && isCommittedSharedFile(it) }
 }
+
+/** 隐藏临时文件只在提交完成前存在，不能出现在列表、下载接口或容量统计中。 */
+internal fun isCommittedSharedFile(file: File) = file.isFile && !file.name.startsWith(".") && !file.name.endsWith(".part")
 
 internal fun mimeTypeForName(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
     "jpg", "jpeg" -> "image/jpeg"
@@ -27,7 +30,7 @@ internal fun mimeTypeForName(name: String) = when (name.substringAfterLast('.', 
 }
 
 internal fun listFiles(folder: File, sender: String) = folder.listFiles().orEmpty()
-    .filter { it.isFile }
+    .filter(::isCommittedSharedFile)
     .sortedBy { it.lastModified() }
     .map { file -> toLanShareFile(file, sender) }
 

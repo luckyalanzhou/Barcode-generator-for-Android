@@ -38,6 +38,7 @@ import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import kotlin.math.roundToInt
 
 internal fun MainActivity.enterLanShare() {
@@ -440,20 +441,33 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
     if (lanShareRefreshInFlight) return
     lanShareRefreshInFlight = true
     lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        val result = runCatching {
-            val files = lanShareManager.list(session)
-            files to fetchLanSharePreviews(session, files)
-        }
+        val result = runCatching { lanShareManager.list(session) }
         runOnUiThread {
             lanShareRefreshInFlight = false
             updateLanShareConnectionStatus()
             result.onSuccess {
-                (files, previews) ->
+                files ->
                 lanShareFiles = files
-                lanSharePreviewFiles.putAll(previews)
+                val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
+                lanSharePreviewFiles.keys.retainAll(imageIds)
                 if (page == "lanShare") {
                     val messageList = content.findViewWithTag<LinearLayout>("lanShareFileList")
                     if (messageList != null) renderLanShareFileList(messageList) else render()
+                }
+                // 文件记录先显示，图片预览随后加载，避免某张图片阻塞整个聊天列表。
+                // 定时刷新只更新文件快照；已有预览任务继续完成，避免每 1.5 秒重启一次大图下载。
+                if (lanSharePreviewJob?.isActive != true) {
+                    lanSharePreviewJob = lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val previews = fetchLanSharePreviews(session, files)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (lanShareSession == session && page == "lanShare") {
+                                val currentIds = lanShareFiles.map { it.id }.toSet()
+                                lanSharePreviewFiles.putAll(previews.filterKeys { it in currentIds })
+                                val list = content.findViewWithTag<LinearLayout>("lanShareFileList")
+                                if (list != null) renderLanShareFileList(list) else render()
+                            }
+                        }
+                    }
                 }
             }
             result.onFailure { if (showError) toast("无法连接到分享房间") }
@@ -463,6 +477,8 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
 
 internal fun MainActivity.closeLanShare() {
     stopLanShareAutoRefresh()
+    lanSharePreviewJob?.cancel()
+    lanSharePreviewJob = null
     lanShareManager.stop(clearSharedFiles = true)
     lanShareSession = null
     lanShareFiles = emptyList()
@@ -471,13 +487,14 @@ internal fun MainActivity.closeLanShare() {
     File(cacheDir, "lan-share-preview").listFiles().orEmpty().forEach { it.delete() }
 }
 
-private fun MainActivity.fetchLanSharePreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, File> {
+private suspend fun MainActivity.fetchLanSharePreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, File> {
     val previewFolder = File(cacheDir, "lan-share-preview").apply { mkdirs() }
     val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
     previewFolder.listFiles().orEmpty().filter { it.name !in imageIds }.forEach { it.delete() }
     var cachedBytes = previewFolder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
     return buildMap {
         files.filter { isLanShareImageName(it.name) && lanShareManager.localFile(it.id) == null }.forEach { file ->
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             val preview = File(previewFolder, file.id)
             if (!preview.isFile && file.size <= 16L * 1024L * 1024L && cachedBytes + file.size <= 64L * 1024L * 1024L) {
                 runCatching { lanShareManager.downloadPreview(session, file.id, preview) }

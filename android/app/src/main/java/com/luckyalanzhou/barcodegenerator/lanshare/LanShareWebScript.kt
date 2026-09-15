@@ -3,6 +3,240 @@ package com.luckyalanzhou.barcodegenerator
 /** 浏览器传输页的交互脚本模板。 */
 internal object LanShareWebScript {
     fun render() = """<script>
-const files=document.getElementById('files'),form=document.getElementById('upload-form'),message=document.getElementById('message'),status=document.getElementById('connection-status'),sheet=document.getElementById('attachment-sheet'),attachmentButton=document.getElementById('attachment-button');const idKey='lanShareClientId';let clientId=localStorage.getItem(idKey);if(!clientId){clientId='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);localStorage.setItem(idKey,clientId)}function image(name){return /\.(jpg|jpeg|png|gif|webp|heic|heif)/i.test(name||'')}function size(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.floor(n/1024)+' KB'}function state(ok){status.textContent=ok?'● 已连接到设备':'○ 正在连接设备...';status.classList.toggle('connected',ok)}function existing(id){return Array.from(files.children).some(x=>x.dataset.fileId===id)}function item(file,url){const li=document.createElement('li');li.dataset.fileId=file.id||'';li.className=file.sender==='browser:'+clientId?'mine':'peer';if(image(file.name)){const img=document.createElement('img');img.src=url;img.className='media-preview';img.alt=file.name;li.classList.add('image-item');li.append(img)}const link=document.createElement('a');link.href=url;link.download='';link.textContent=file.name||'未命名';const small=document.createElement('small');small.textContent=size(file.size||0);li.append(link,small);if(!image(file.name)){const download=document.createElement('a');download.href=url;download.download='';download.className='download';download.textContent='下载';li.append(download)}li.onclick=e=>{if(!e.target.closest('a'))link.click()};return li}function append(file){if(file.id&&existing(file.id))return;files.append(item(file,'/api/download/'+encodeURIComponent(file.id)))}function refresh(){fetch('/api/files?_='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(list=>list.forEach(append)).catch(()=>state(false))}function upload(file){fetch('/upload?name='+encodeURIComponent(file.name||'消息.txt')+'&client='+encodeURIComponent(clientId),{method:'PUT',headers:{'content-type':file.type||'application/octet-stream'},body:file}).then(r=>{if(!r.ok)throw Error();message.value='';refresh()}).catch(()=>alert('发送失败，请刷新页面后重试'))}form.onsubmit=e=>{e.preventDefault();const text=message.value.trim();if(text)upload(new File([text],'消息.txt',{type:'text/plain'}));else message.focus()};attachmentButton.onclick=()=>{sheet.classList.add('open');const r=attachmentButton.getBoundingClientRect();sheet.style.left=(r.left+8)+'px';sheet.style.top=(r.top-sheet.offsetHeight-16)+'px'};['camera-capture','gallery','file-picker'].forEach(id=>document.getElementById(id).onchange=e=>{const file=e.target.files[0];if(file){sheet.classList.remove('open');upload(file)}e.target.value='' });sheet.onclick=e=>{const id=e.target.dataset.picker;if(id)document.getElementById(id).click();if(e.target.classList.contains('sheet-close'))sheet.classList.remove('open')};function heartbeat(){fetch('/api/presence?_='+Date.now(),{cache:'no-store'}).then(r=>state(r.ok)).catch(()=>state(false))}let socket;function connect(){try{socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');socket.onopen=()=>{state(true);socket.send('sync')};socket.onmessage=e=>{try{const p=JSON.parse(e.data);if(p.type==='snapshot')p.files.forEach(append);else if(p.file)append(p.file);else refresh()}catch(_){}};socket.onclose=()=>{state(false);setTimeout(connect,1000)}}catch(_){setTimeout(connect,1000)}}heartbeat();refresh();setInterval(heartbeat,2000);setInterval(refresh,5000);connect();
+const fileList = document.getElementById('files');
+const uploadForm = document.getElementById('upload-form');
+const messageInput = document.getElementById('message');
+const connectionStatus = document.getElementById('connection-status');
+const attachmentSheet = document.getElementById('attachment-sheet');
+const attachmentButton = document.getElementById('attachment-button');
+const clientIdKey = 'lanShareClientId';
+
+let clientId = localStorage.getItem(clientIdKey);
+if (!clientId) {
+    clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem(clientIdKey, clientId);
+}
+
+function isImageName(name) {
+    return /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name || '');
+}
+
+function formatSize(bytes) {
+    const value = Number(bytes) || 0;
+    if (value >= 1024 * 1024 * 1024) return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    if (value >= 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + ' MB';
+    if (value >= 1024) return Math.floor(value / 1024) + ' KB';
+    return value + ' B';
+}
+
+function setConnectionState(connected) {
+    connectionStatus.textContent = connected ? '● 已连接到设备' : '○ 正在连接设备...';
+    connectionStatus.classList.toggle('connected', connected);
+}
+
+function fileUrl(file) {
+    return '/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
+}
+
+function createFileItem(file) {
+    const item = document.createElement('li');
+    const url = fileUrl(file);
+    item.dataset.fileId = file.id;
+    item.className = file.sender === 'browser:' + clientId ? 'mine' : 'peer';
+
+    if (isImageName(file.name)) {
+        const preview = document.createElement('img');
+        preview.src = url;
+        preview.className = 'media-preview';
+        preview.alt = file.name || '图片';
+        preview.loading = 'lazy';
+        preview.decoding = 'async';
+        item.classList.add('image-item');
+        item.appendChild(preview);
+    }
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name || '附件';
+    link.textContent = file.name || '未命名';
+    item.appendChild(link);
+
+    const size = document.createElement('small');
+    size.textContent = formatSize(file.size);
+    item.appendChild(size);
+
+    if (!isImageName(file.name)) {
+        const download = document.createElement('a');
+        download.href = url;
+        download.download = file.name || '附件';
+        download.className = 'download';
+        download.textContent = '下载';
+        item.appendChild(download);
+    }
+
+    item.addEventListener('click', event => {
+        if (!event.target.closest('a')) link.click();
+    });
+    return item;
+}
+
+/** 用服务端快照对齐列表，删除已不存在的记录并保持服务端顺序。 */
+function reconcileFiles(list) {
+    const normalized = (Array.isArray(list) ? list : []).filter(file => file && file.id);
+    const current = new Map(Array.from(fileList.children).map(item => [item.dataset.fileId, item]));
+    const activeIds = new Set(normalized.map(file => file.id));
+
+    current.forEach((item, id) => {
+        if (!activeIds.has(id)) item.remove();
+    });
+
+    normalized.forEach(file => {
+        const oldItem = current.get(file.id);
+        const item = oldItem || createFileItem(file);
+        if (oldItem) {
+            item.className = file.sender === 'browser:' + clientId ? 'mine' : 'peer';
+            if (isImageName(file.name)) item.classList.add('image-item');
+            const link = item.querySelector('a');
+            const size = item.querySelector('small');
+            const url = fileUrl(file);
+            if (link) {
+                link.href = url;
+                link.download = file.name || '附件';
+                link.textContent = file.name || '未命名';
+            }
+            if (size) size.textContent = formatSize(file.size);
+            const preview = item.querySelector('img');
+            if (preview && preview.src !== new URL(url, location.href).href) preview.src = url;
+        }
+        fileList.appendChild(item);
+    });
+}
+
+let refreshInFlight = false;
+let refreshQueued = false;
+
+async function refreshFiles() {
+    if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+    }
+    refreshInFlight = true;
+    try {
+        const response = await fetch('/api/files?_=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        reconcileFiles(await response.json());
+    } catch (_) {
+        setConnectionState(false);
+    } finally {
+        refreshInFlight = false;
+        if (refreshQueued) {
+            refreshQueued = false;
+            refreshFiles();
+        }
+    }
+}
+
+async function uploadFile(file) {
+    if (!file) return;
+    try {
+        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId), {
+            method: 'PUT',
+            headers: { 'content-type': file.type || 'application/octet-stream' },
+            body: file
+        });
+        if (!response.ok) {
+            const reason = await response.text();
+            throw new Error(reason || ('HTTP ' + response.status));
+        }
+        if (messageInput) messageInput.value = '';
+        await refreshFiles();
+    } catch (error) {
+        alert('发送失败：' + (error.message || '请刷新页面后重试'));
+    }
+}
+
+uploadForm.onsubmit = event => {
+    event.preventDefault();
+    const text = messageInput.value;
+    if (text.trim()) uploadFile(new File([text], '消息.txt', { type: 'text/plain' }));
+    else messageInput.focus();
+};
+
+attachmentButton.onclick = event => {
+    event.stopPropagation();
+    attachmentSheet.classList.add('open');
+    const buttonRect = attachmentButton.getBoundingClientRect();
+    attachmentSheet.style.left = (buttonRect.left + 8) + 'px';
+    attachmentSheet.style.top = (buttonRect.top - attachmentSheet.offsetHeight - 16) + 'px';
+};
+
+['camera-capture', 'gallery', 'file-picker'].forEach(id => {
+    const picker = document.getElementById(id);
+    if (!picker) return;
+    picker.onchange = event => {
+        const file = event.target.files && event.target.files[0];
+        if (file) {
+            attachmentSheet.classList.remove('open');
+            uploadFile(file);
+        }
+        event.target.value = '';
+    };
+});
+
+attachmentSheet.onclick = event => {
+    const pickerId = event.target.dataset.picker;
+    if (pickerId) {
+        const picker = document.getElementById(pickerId);
+        if (picker) picker.click();
+    }
+};
+
+document.addEventListener('click', event => {
+    if (attachmentSheet.classList.contains('open') && !attachmentSheet.contains(event.target) && event.target !== attachmentButton) {
+        attachmentSheet.classList.remove('open');
+    }
+});
+
+async function heartbeat() {
+    try {
+        const response = await fetch('/api/presence?_=' + Date.now(), { cache: 'no-store' });
+        setConnectionState(response.ok);
+    } catch (_) {
+        setConnectionState(false);
+    }
+}
+
+let socket;
+function connectSocket() {
+    try {
+        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+        socket.onopen = () => {
+            setConnectionState(true);
+            socket.send('sync');
+        };
+        socket.onmessage = event => {
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload.type === 'snapshot') reconcileFiles(payload.files);
+                else refreshFiles();
+            } catch (_) {
+                refreshFiles();
+            }
+        };
+        socket.onclose = () => {
+            setConnectionState(false);
+            setTimeout(connectSocket, 1000);
+        };
+        socket.onerror = () => setConnectionState(false);
+    } catch (_) {
+        setTimeout(connectSocket, 1000);
+    }
+}
+
+heartbeat();
+refreshFiles();
+setInterval(heartbeat, 2000);
+setInterval(refreshFiles, 5000);
+connectSocket();
 </script>"""
 }

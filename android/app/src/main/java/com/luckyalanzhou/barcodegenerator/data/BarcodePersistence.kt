@@ -14,8 +14,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -75,19 +75,37 @@ private fun MainActivity.folderSnapshot() = favoriteFolders.filter { it.isNotBla
 
 internal fun MainActivity.saveItems() {
     val snapshot = itemSnapshot()
-    lifecycleScope.launch(Dispatchers.IO) { databaseMutex.withLock { database.withTransaction { dao.clearItems(); dao.saveItems(snapshot) } } }
+    enqueuePersistenceWrite { database.withTransaction { dao.clearItems(); dao.saveItems(snapshot) } }
 }
 internal fun MainActivity.saveFavoriteGroups() {
     val groups = groupSnapshot(); val links = groupItemSnapshot()
-    lifecycleScope.launch(Dispatchers.IO) { databaseMutex.withLock { database.withTransaction { dao.clearGroupItems(); dao.clearGroups(); dao.saveGroups(groups); dao.saveGroupItems(links) } } }
+    enqueuePersistenceWrite { database.withTransaction { dao.clearGroupItems(); dao.clearGroups(); dao.saveGroups(groups); dao.saveGroupItems(links) } }
 }
 internal fun MainActivity.saveFavoriteFolders() {
     val folders = folderSnapshot()
-    lifecycleScope.launch(Dispatchers.IO) { databaseMutex.withLock { saveFavoriteFoldersOnIo(folders) } }
+    enqueuePersistenceWrite { saveFavoriteFoldersOnIo(folders) }
 }
 internal fun MainActivity.saveAllFavorites() {
     val items = itemSnapshot(); val groups = groupSnapshot(); val links = groupItemSnapshot(); val folders = folderSnapshot()
-    lifecycleScope.launch(Dispatchers.IO) { databaseMutex.withLock { saveAllFavoritesOnIo(items, groups, links, folders) } }
+    enqueuePersistenceWrite { saveAllFavoritesOnIo(items, groups, links, folders) }
+}
+
+/** 将所有非阻塞保存操作串成一条队列；快照仍在 UI 线程立即取得，写入顺序不会互相覆盖。 */
+private fun MainActivity.enqueuePersistenceWrite(write: suspend () -> Unit) {
+    val next: Job
+    synchronized(persistenceQueueLock) {
+        val previous = persistenceWriteTail
+        next = persistenceScope.launch {
+            previous?.join()
+            databaseMutex.withLock { write() }
+        }
+        persistenceWriteTail = next
+    }
+    next.invokeOnCompletion {
+        synchronized(persistenceQueueLock) {
+            if (persistenceWriteTail === next) persistenceWriteTail = null
+        }
+    }
 }
 internal fun MainActivity.loadItems() = lifecycleScope.launch(Dispatchers.IO) { databaseMutex.withLock { loadItemsOnIo() } }
 internal fun MainActivity.loadFavoriteGroups() = lifecycleScope.launch(Dispatchers.IO) { databaseMutex.withLock { loadFavoriteGroupsOnIo() } }

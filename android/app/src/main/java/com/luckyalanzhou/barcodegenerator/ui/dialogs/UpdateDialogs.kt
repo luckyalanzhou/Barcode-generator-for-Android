@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import android.text.*
@@ -43,8 +44,12 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
                 setRequestProperty("Accept", "application/vnd.github+json")
                 setRequestProperty("User-Agent", "BarcodeGenerator/${BuildConfig.VERSION_NAME}")
             }
-            if (connection.responseCode !in 200..299) throw IllegalStateException("GitHub HTTP ${connection.responseCode}")
-            val releases = connection.inputStream.bufferedReader().use { JSONArray(it.readText()) }.also { connection.disconnect() }
+            val releases = try {
+                if (connection.responseCode !in 200..299) throw IllegalStateException("GitHub HTTP ${connection.responseCode}")
+                connection.inputStream.bufferedReader().use { JSONArray(it.readText()) }
+            } finally {
+                connection.disconnect()
+            }
             val release = (0 until releases.length())
                 .mapNotNull { releases.optJSONObject(it) }
                 .filter { it.optString("tag_name").startsWith(BuildConfig.UPDATE_TAG_PREFIX) }
@@ -227,6 +232,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         DebugLog.record("update", "download ignored because another download is running")
         return
     }
+    val downloadGeneration = ++viewModel.updateDownloadGeneration
     updateDownloadRunning = true
     DebugLog.record("update", "download dialog shown url=$apkUrl expectedSize=$expectedSize shaPresent=${expectedSha256 != null}")
     val progress = DownloadProgressView(this)
@@ -236,6 +242,7 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
     val cancelButton = updateActionButton("取消下载") {
         // 取消按钮必须立即释放下载锁；否则用户马上重新检查更新时会被旧任务状态拦截，
         // 表现为“立即更新”没有下载进度弹窗。协程 finally 会继续负责断开连接和清理临时文件。
+        viewModel.updateDownloadGeneration++
         updateDownloadRunning = false
         job?.cancel()
         dialog.dismiss()
@@ -254,6 +261,12 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(8) })
     }
     dialog.setView(box)
+    dialog.setOnCancelListener {
+        // 返回键或点击弹窗外部也必须取消任务，避免后台下载继续占用状态。
+        viewModel.updateDownloadGeneration++
+        updateDownloadRunning = false
+        job?.cancel()
+    }
     val metricsPopup = if (showMetrics) showSimulationMetrics(box, "下载进度弹窗") else null
     dialog.setOnDismissListener { metricsPopup?.dismiss() }
     showIos26Dialog(dialog)
@@ -301,8 +314,22 @@ internal fun MainActivity.downloadAndInstall(apkUrl: String, expectedSize: Long?
         } catch (error: Exception) {
             DebugLog.record("update", "download failed", error)
             temp.delete()
-            withContext(Dispatchers.Main) { dialog.dismiss(); if (error !is kotlinx.coroutines.CancellationException) { val reason = error.message ?: "未知错误"; settingsStore.setUpdateError(reason); AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason).setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }.create().also { showIos26Dialog(it) } } }
-        } finally { connection?.disconnect(); withContext(Dispatchers.Main) { updateDownloadRunning = false } }
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
+                dialog.dismiss()
+                if (error !is kotlinx.coroutines.CancellationException) {
+                    val reason = error.message ?: "未知错误"
+                    settingsStore.setUpdateError(reason)
+                    AlertDialog.Builder(this@downloadAndInstall).setTitle("更新下载失败").setMessage(reason)
+                        .setPositiveButton("重新下载") { _, _ -> downloadAndInstall(apkUrl, expectedSize, expectedSha256) }
+                        .create().also { showIos26Dialog(it) }
+                }
+            }
+        } finally {
+            connection?.disconnect()
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
+                if (viewModel.updateDownloadGeneration == downloadGeneration) updateDownloadRunning = false
+            }
+        }
     }
 }
 

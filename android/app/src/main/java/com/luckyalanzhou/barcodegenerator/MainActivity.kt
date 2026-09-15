@@ -191,6 +191,10 @@ class MainActivity : AppCompatActivity() {
     internal val settingsStore by lazy { SettingsStore(applicationContext) }
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val databaseMutex = Mutex()
+    // 保存任务使用独立队列，避免连续编辑时由多个 lifecycleScope 任务乱序覆盖。
+    internal val persistenceScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    internal val persistenceQueueLock = Any()
+    internal var persistenceWriteTail: kotlinx.coroutines.Job? = null
     internal val database by lazy { BarcodeDatabase.create(this) }
     internal val dao by lazy { database.barcodeDao() }
     internal val style by lazy { loadStyle() }
@@ -208,6 +212,7 @@ class MainActivity : AppCompatActivity() {
     internal val lanShareRefreshHandler = Handler(Looper.getMainLooper())
     internal var lanShareRefreshRunnable: Runnable? = null
     internal var lanShareRefreshInFlight = false
+    internal var lanSharePreviewJob: kotlinx.coroutines.Job? = null
     internal var pendingLanDownloadId: String? = null
     internal var pendingLanUploadUri: Uri? = null
     internal var pendingLanUploadTempFile: File? = null
