@@ -38,9 +38,11 @@ class LanShareManager(private val context: Context) {
 
     private fun routerIpv4Addresses(): List<android.net.LinkAddress> = run {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        // 不使用 activeNetwork：VPN 或容器网络可能接管它，并返回 172.x 等虚拟地址。
         // 仅枚举系统标记为 Wi-Fi 的网络，并且必须同时找到该 Wi-Fi 的 IPv4 默认网关。
+        // activeNetwork 仅用于给真实 Wi-Fi 排序；VPN/容器网络不会通过下面的 Wi-Fi 过滤。
+        val activeNetwork = connectivity.activeNetwork
         connectivity.allNetworks.asSequence()
+            .sortedByDescending { it == activeNetwork }
             .filter { network ->
                 connectivity.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
             }
