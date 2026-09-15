@@ -94,7 +94,13 @@ internal fun MainActivity.updateTopTabSelection() {
     topTabButtons.forEach { tab ->
         val isSelected = tab.tag == selected
         tab.findViewWithTag<TextView>("tabLabel")?.setTextColor(if (isSelected) selectedColor else unselectedColor)
-        tab.findViewWithTag<ImageView>("tabIcon")?.apply {
+        tab.findViewWithTag<SettingsTabIconView>("settingsTabIcon")?.apply {
+            setTint(if (isSelected) selectedColor else unselectedColor)
+            setSelectedState(isSelected)
+            alpha = if (isSelected) 1f else 0.82f
+            springScale(this, start = if (isSelected) 0.86f else scaleX, peak = if (isSelected) 1.12f else 1f, settle = if (isSelected) 1.06f else 1f)
+            translationY = if (isSelected) -dp(1).toFloat() else 0f
+        } ?: tab.findViewWithTag<ImageView>("tabIcon")?.apply {
             val iconResource = if (isSelected) bottomTabSelectedIcons[tab.tag as Int] else bottomTabIcons[tab.tag as Int]
             setImageResource(iconResource)
             setColorFilter(if (isSelected) selectedColor else unselectedColor)
@@ -571,9 +577,13 @@ internal fun MainActivity.buildShell() {
                     }
                 }
             }
-            button.addView(ImageView(this).apply {
-                tag = "tabIcon"; setImageResource(icon); scaleType = ImageView.ScaleType.CENTER_INSIDE
-                setColorFilter(if (isDark()) 0xffc4cada.toInt() else 0xff64748b.toInt())
+            button.addView(if (index == 3) {
+                SettingsTabIconView(this)
+            } else {
+                ImageView(this).apply {
+                    tag = "tabIcon"; setImageResource(icon); scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(if (isDark()) 0xffc4cada.toInt() else 0xff64748b.toInt())
+                }
             }, LinearLayout.LayoutParams(-1, dp(23)))
             button.addView(TextView(this).apply {
                 tag = "tabLabel"; text = label; textSize = 12f; gravity = Gravity.CENTER
