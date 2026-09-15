@@ -19,6 +19,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,15 +73,24 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
         SettingSectionLabel("显示", secondary)
         SettingCard(card) {
             SettingRow("外观", primary, trailing = {
-                BoxedSettingButton(
-                    text = when (scheme) { "dark" -> "深色"; "light" -> "浅色"; else -> "跟随系统" },
-                    color = button,
-                    contentColor = primary,
-                    onClick = { schemeMenu = true }
-                )
-                DropdownMenu(expanded = schemeMenu, onDismissRequest = { schemeMenu = false }) {
-                    listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEach { (label, value) ->
-                        DropdownMenuItem(text = { Text(label) }, onClick = { scheme = value; schemeMenu = false; persist() })
+                Box {
+                    BoxedSettingButton(
+                        text = when (scheme) { "dark" -> "深色"; "light" -> "浅色"; else -> "跟随系统" },
+                        color = button,
+                        contentColor = primary,
+                        onClick = { schemeMenu = true }
+                    )
+                    DropdownMenu(
+                        expanded = schemeMenu,
+                        onDismissRequest = { schemeMenu = false },
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color.White.copy(alpha = .94f),
+                        tonalElevation = 0.dp,
+                        shadowElevation = 3.dp,
+                    ) {
+                        listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEach { (label, value) ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = { scheme = value; schemeMenu = false; persist() })
+                        }
                     }
                 }
             })
@@ -102,18 +112,27 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             SettingDivider(dark)
             SettingRow("OCR 字符纠错", primary, trailing = {
                 val selected = ocrReplacementLabels.count { (_, bit) -> ocrMask and bit != 0 }
-                BoxedSettingButton(
-                    text = when (selected) { 0 -> "关闭"; 4 -> "全部启用"; else -> "已启用 ${selected} 项" },
-                    color = button,
-                    contentColor = primary,
-                    onClick = { ocrMenu = true }
-                )
-                DropdownMenu(expanded = ocrMenu, onDismissRequest = { ocrMenu = false }) {
-                    ocrReplacementLabels.forEach { (label, bit) ->
-                        DropdownMenuItem(
-                            text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label) } },
-                            onClick = { ocrMask = if (ocrMask and bit == 0) ocrMask or bit else ocrMask and bit.inv(); activity.settingsStore.setOcrConfusionReplacementMask(ocrMask) }
-                        )
+                Box {
+                    BoxedSettingButton(
+                        text = when (selected) { 0 -> "关闭"; 4 -> "全部启用"; else -> "已启用 ${selected} 项" },
+                        color = button,
+                        contentColor = primary,
+                        onClick = { ocrMenu = true }
+                    )
+                    DropdownMenu(
+                        expanded = ocrMenu,
+                        onDismissRequest = { ocrMenu = false },
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color.White.copy(alpha = .94f),
+                        tonalElevation = 0.dp,
+                        shadowElevation = 3.dp,
+                    ) {
+                        ocrReplacementLabels.forEach { (label, bit) ->
+                            DropdownMenuItem(
+                                text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label) } },
+                                onClick = { ocrMask = if (ocrMask and bit == 0) ocrMask or bit else ocrMask and bit.inv(); activity.settingsStore.setOcrConfusionReplacementMask(ocrMask) }
+                            )
+                        }
                     }
                 }
             })
@@ -175,8 +194,21 @@ private fun SettingActionRow(title: String, action: String, color: Color, button
 private fun SettingSliderRow(title: String, value: Float, range: ClosedFloatingPointRange<Float>, valueText: String, color: Color, accent: Color, onChange: (Float) -> Unit) {
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
-        Slider(value = value, onValueChange = onChange, valueRange = range, steps = (range.endInclusive - range.start).toInt() - 1, modifier = Modifier.weight(1f).padding(horizontal = 4.dp))
-        Text(valueText, color = accent, fontSize = 15.sp, modifier = Modifier.width(72.dp))
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            valueRange = range,
+            steps = (range.endInclusive - range.start).toInt() - 1,
+            modifier = Modifier.weight(1f).height(34.dp).padding(horizontal = 6.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = accent,
+                activeTrackColor = accent,
+                inactiveTrackColor = accent.copy(alpha = .18f),
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+        )
+        Text(valueText, color = accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(66.dp))
     }
 }
 

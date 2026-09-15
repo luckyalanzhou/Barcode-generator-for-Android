@@ -42,9 +42,6 @@ internal fun MainActivity.enterLanShare() {
         lanShareFiles = lanShareManager.localFiles()
         startLanShareAutoRefresh()
         render()
-        window.decorView.post {
-            if (page == "lanShare" && lanShareQrVisible) showLanShareQrDialog()
-        }
     }.onFailure {
         stopLanShareAutoRefresh()
         lanShareSession = null

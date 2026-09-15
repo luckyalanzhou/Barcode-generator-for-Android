@@ -104,7 +104,14 @@ private fun ComposeChoiceField(
         ) {
             Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = Color.White.copy(alpha = .94f),
+            tonalElevation = 0.dp,
+            shadowElevation = 3.dp,
+        ) {
             options.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option) },

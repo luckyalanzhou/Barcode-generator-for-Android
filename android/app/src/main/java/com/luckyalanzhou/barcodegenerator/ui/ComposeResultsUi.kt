@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,18 +34,17 @@ internal fun ComposeResultsPage(activity: MainActivity) {
     val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
     val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
     val actionColor = if (dark) Color(0xffd7e3f5) else Color(0xff2453a6)
-    val background = if (dark) Color(activity.appBackground()) else Color.White
     val items = activity.resultItems
 
     if (items.isEmpty()) {
-        Column(Modifier.fillMaxWidth().background(background), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("生成结果", color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
             Text("暂无生成结果", color = secondary, fontSize = 17.sp, modifier = Modifier.padding(vertical = 40.dp))
         }
         return
     }
 
-    Column(Modifier.fillMaxWidth().background(background), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         if (!activity.showingHistoryResult) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),

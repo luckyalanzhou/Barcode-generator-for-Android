@@ -115,6 +115,10 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                         DropdownMenu(
                             expanded = folderMenu?.first == row.path,
                             onDismissRequest = { folderMenu = null },
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color.White.copy(alpha = .94f),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 3.dp,
                         ) {
                             folderActions.forEachIndexed { index, label ->
                                 DropdownMenuItem(
@@ -166,6 +170,10 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                         DropdownMenu(
                             expanded = fileMenu?.id == group.id,
                             onDismissRequest = { fileMenu = null },
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color.White.copy(alpha = .94f),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 3.dp,
                         ) {
                             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
                                 DropdownMenuItem(

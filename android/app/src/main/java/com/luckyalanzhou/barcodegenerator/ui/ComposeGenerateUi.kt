@@ -142,7 +142,14 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                 Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1)
             }
-            DropdownMenu(expanded = formatExpanded, onDismissRequest = { formatExpanded = false }) {
+            DropdownMenu(
+                expanded = formatExpanded,
+                onDismissRequest = { formatExpanded = false },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = Color.White.copy(alpha = .94f),
+                tonalElevation = 0.dp,
+                shadowElevation = 3.dp,
+            ) {
                 activity.formats.forEach { (name, _) ->
                     DropdownMenuItem(text = { Text(name) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
                 }

@@ -140,7 +140,14 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                 IconButton(onClick = { attachmentMenu = true }, modifier = Modifier.size(48.dp)) {
                     Icon(painterResource(R.drawable.ic_attachment), "选择附件", tint = if (dark) Color.White else Color(0xff344054), modifier = Modifier.size(28.dp))
                 }
-                DropdownMenu(expanded = attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
+                DropdownMenu(
+                    expanded = attachmentMenu,
+                    onDismissRequest = { attachmentMenu = false },
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = Color.White.copy(alpha = .94f),
+                    tonalElevation = 0.dp,
+                    shadowElevation = 3.dp,
+                ) {
                     DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { attachmentMenu = false; activity.openLanShareCamera() })
                     DropdownMenuItem(text = { Text("照片图库") }, onClick = { attachmentMenu = false; activity.openLanShareGallery() })
                     DropdownMenuItem(text = { Text("选择文件") }, onClick = { attachmentMenu = false; activity.openLanShareFiles() })
