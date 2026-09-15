@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator
 
-import android.graphics.Color
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -116,7 +115,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             expanded = folderMenu?.first == row.path,
                             onDismissRequest = { folderMenu = null },
                             shape = RoundedCornerShape(16.dp),
-                            containerColor = Color.White.copy(alpha = .94f),
+                            containerColor = ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
                             shadowElevation = 3.dp,
                         ) {
@@ -171,7 +170,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             expanded = fileMenu?.id == group.id,
                             onDismissRequest = { fileMenu = null },
                             shape = RoundedCornerShape(16.dp),
-                            containerColor = Color.White.copy(alpha = .94f),
+                            containerColor = ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
                             shadowElevation = 3.dp,
                         ) {
