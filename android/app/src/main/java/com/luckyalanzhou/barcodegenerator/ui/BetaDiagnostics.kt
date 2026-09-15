@@ -1,18 +1,17 @@
 package com.luckyalanzhou.barcodegenerator
 
-/** 正式版只保留空门面；Beta 测试中心实现位于 beta 源集。 */
+/** Beta 专用入口；页面本身已经由 Compose 根路由直接绘制。 */
 internal fun MainActivity.showFeatureSelfTestDialog() {
-    if (BuildConfig.DEBUG_LOG_EXPORT) runCatching {
+    if (BuildConfig.DEBUG_LOG_EXPORT) {
         page = "betaTestCenter"
         render()
     }
 }
 
-/** 正式版保持空实现；Beta 由同名源集函数绘制测试中心页面。 */
+/** 保留旧业务入口，但不再使用反射切换页面。 */
 internal fun MainActivity.renderBetaTestCenterPage() {
-    if (BuildConfig.DEBUG_LOG_EXPORT) runCatching {
-        Class.forName("com.luckyalanzhou.barcodegenerator.BetaFeatureSelfTestKt")
-            .getMethod("renderBetaTestCenterPageImpl", MainActivity::class.java)
-            .invoke(null, this)
+    if (BuildConfig.DEBUG_LOG_EXPORT) {
+        page = "betaTestCenter"
+        render()
     }
 }

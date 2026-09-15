@@ -6,6 +6,7 @@ class BarcodeViewModel : ViewModel() {
     var page: String = "generate"
     var inputDraft: MutableList<String> = mutableListOf()
     var pendingGenerateFormat: String? = null
+    var generateFormatName: String = "Code 128-B"
     var resultItems: List<CodeItem> = emptyList()
     var showingHistoryResult: Boolean = false
     var resultsReturnPage: String = "generate"

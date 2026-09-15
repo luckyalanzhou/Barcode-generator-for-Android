@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.*
@@ -9,8 +8,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.*
 import android.view.*
-import android.widget.*
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers

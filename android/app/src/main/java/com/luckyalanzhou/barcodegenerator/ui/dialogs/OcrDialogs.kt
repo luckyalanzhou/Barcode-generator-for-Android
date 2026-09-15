@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.*
@@ -18,8 +17,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import android.text.*
 import android.view.*
-import android.widget.*
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -152,9 +149,13 @@ internal fun MainActivity.importRecognizedText(text: String) {
         val activity = this
         val values = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         if (values.isEmpty()) return
-        while (inputRows.size > 1) removeInputRow(inputRows.last())
-        inputRows.firstOrNull()?.setText(values.first()) ?: addInputRow(values.first())
-        values.drop(1).forEach { addInputRow(it) }
+        composeGenerateTextImport?.let { update ->
+            update(values)
+            return
+        }
+        // 正常入口已经由 ComposeGeneratePage 注册回调；保留一个无界面回退，避免外部系统返回时静默丢失结果。
+        inputDraft = values.toMutableList()
+        composeShellRevision.intValue++
     }
 
 

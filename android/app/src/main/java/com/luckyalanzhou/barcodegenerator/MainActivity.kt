@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.graphics.Color
@@ -21,9 +20,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
-import android.view.ViewGroup
-import android.widget.*
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.MultiFormatReader
@@ -37,6 +33,8 @@ import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.activity.viewModels
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -58,10 +56,7 @@ class MainActivity : AppCompatActivity() {
     private var barcodePreviousBrightness = -1f
     private var barcodePreviousKeepScreenOn = false
     private val barcodeDisplayTimeout = Runnable { restoreBarcodeDisplaySettings() }
-    internal var fireworksOverlay: View? = null
-    internal var fireworksPreviousStatusBarColor: Int? = null
-    internal var fireworksPreviousNavigationBarColor: Int? = null
-    internal var fireworksPreviousSystemUiVisibility: Int? = null
+    internal val composeFireworksVisible = mutableStateOf(false)
     /** 顶部主页面切换时的进入方向：右侧 Tab 为正、左侧 Tab 为负。 */
     internal var pendingPageTransitionDirection = 0
     internal val formats = listOf(
@@ -73,18 +68,16 @@ class MainActivity : AppCompatActivity() {
     internal val items = mutableListOf<CodeItem>()
     internal val favoriteGroups = mutableListOf<FavoriteGroup>()
     internal val favoriteFolders = mutableListOf<String>()
-    internal lateinit var content: LinearLayout
-    internal lateinit var rootLayout: LinearLayout
-    internal lateinit var inputContainer: LinearLayout
-    internal var lanShareComposer: LinearLayout? = null
-    internal var lanShareMessageInput: EditText? = null
-    internal val inputRows = mutableListOf<EditText>()
     internal var inputDraft: MutableList<String>
         get() = viewModel.inputDraft
         set(value) { viewModel.inputDraft = value }
     internal var pendingGenerateFormat: String?
         get() = viewModel.pendingGenerateFormat
         set(value) { viewModel.pendingGenerateFormat = value }
+    internal var generateFormatName: String
+        get() = viewModel.generateFormatName
+        set(value) { viewModel.generateFormatName = value }
+    internal var composeGenerateTextImport: ((List<String>) -> Unit)? = null
     internal var page: String
         get() = viewModel.page
         set(value) { viewModel.page = value }
@@ -127,8 +120,6 @@ class MainActivity : AppCompatActivity() {
     internal var updateDownloadRunning: Boolean
         get() = viewModel.updateDownloadRunning
         set(value) { viewModel.updateDownloadRunning = value }
-    internal var inputScroll: ScrollView? = null
-
     /** 条码结果页专用显示设置：窗口亮度 75%，最多保持亮屏 5 分钟，不修改系统全局设置。 */
     internal fun syncBarcodeDisplaySettings(isBarcodePage: Boolean) {
         if (!isBarcodePage) {
@@ -169,18 +160,13 @@ class MainActivity : AppCompatActivity() {
         barcodeDisplayModeActive = false
         barcodePreviousBrightness = -1f
     }
-    internal var batchGenerateButton: Button? = null
-    internal var pageScroll: ScrollView? = null
-    internal lateinit var formatSpinner: Spinner
-    internal lateinit var search: EditText
-    internal var favoriteTreeContainer: LinearLayout? = null
     // 搜索期间暂存用户原本的折叠状态；清除搜索后准确恢复。
     internal var favoriteCollapsedBeforeSearch: Set<String>? = null
-    internal lateinit var appHeader: LinearLayout
-    internal lateinit var appTitle: TextView
-    internal lateinit var topNav: FrameLayout
-    internal val topTabButtons = mutableListOf<LinearLayout>()
-    internal var tabGlassDragOverlay: View? = null
+    internal val composeTabSelection = mutableIntStateOf(0)
+    internal val composeShellRevision = mutableIntStateOf(0)
+    internal var composeShellTitle: String = "条码生成器"
+    internal var composeShellChromeVisible: Boolean = true
+    internal var composeShellReady: Boolean = false
     internal var tabGlassDragActive = false
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal var isRenderingUi = false
@@ -213,6 +199,8 @@ class MainActivity : AppCompatActivity() {
     internal var lanShareRefreshRunnable: Runnable? = null
     internal var lanShareRefreshInFlight = false
     internal var lanSharePreviewJob: kotlinx.coroutines.Job? = null
+    internal val composeLanShareRevision = mutableIntStateOf(0)
+    internal var composeLanShareClearInput: (() -> Unit)? = null
     internal var pendingLanDownloadId: String? = null
     internal var pendingLanUploadUri: Uri? = null
     internal var pendingLanUploadTempFile: File? = null
@@ -272,7 +260,7 @@ class MainActivity : AppCompatActivity() {
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                buildShell()
+                buildComposeShell()
                 applyAppearance()
                 if (state != null && page == "generate") {
                     page = state.getString("page", "generate") ?: "generate"
@@ -285,13 +273,11 @@ class MainActivity : AppCompatActivity() {
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
                 DebugLog.record("startup", "UI initialization failed", error)
             }
-            if (!::rootLayout.isInitialized) {
-                setContentView(TextView(this@MainActivity).apply {
-                    text = "应用初始化失败，请重新打开应用"
-                    textSize = 17f
-                    setTextColor(Color.WHITE)
-                    setBackgroundColor(appBackground())
-                    setPadding(dp(24), dp(24), dp(24), dp(24))
+            if (!composeShellReady) {
+                setContentView(androidx.compose.ui.platform.ComposeView(this@MainActivity).apply {
+                    setContent {
+                        androidx.compose.material3.Text("应用初始化失败，请重新打开应用")
+                    }
                 })
                 return@launch
             }
@@ -310,7 +296,7 @@ class MainActivity : AppCompatActivity() {
     override fun onPostResume() {
         super.onPostResume()
         // AppCompat 切换浅/深色会重建 Activity；在新窗口完成恢复后再校准一次系统栏。
-        if (::rootLayout.isInitialized) syncSystemBars()
+        if (composeShellReady) syncSystemBars()
     }
 
     override fun onResume() {
@@ -330,7 +316,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        if (fireworksOverlay != null) {
+        if (composeFireworksVisible.value) {
             dismissFireworksEasterEgg()
             return
         }
@@ -438,7 +424,11 @@ class MainActivity : AppCompatActivity() {
         pendingCameraFile?.delete()
         pendingCameraFile = null
         when (requestCode) {
-            43, 44 -> decodeBitmap(bitmap)?.let { inputRows.firstOrNull()?.setText(it) ?: addInputRow(it); toast("条码识别成功") } ?: toast("未识别到条码，请更换清晰图片")
+            43, 44 -> decodeBitmap(bitmap)?.let { decoded ->
+                // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
+                importRecognizedText(decoded)
+                toast("条码识别成功")
+            } ?: toast("未识别到条码，请更换清晰图片")
             51 -> decodeBitmap(bitmap)?.let { joinLanShareSession(it) } ?: toast("未识别到分享二维码")
             45, 46 -> recognizeText(textBitmap)
         }
