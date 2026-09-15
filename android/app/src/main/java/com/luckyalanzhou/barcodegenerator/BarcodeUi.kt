@@ -708,7 +708,8 @@ internal fun MainActivity.showMaterialDropdown(
             setTextColor(if (isDark()) 0xffb8c9ff.toInt() else 0xff367be8.toInt())
             setPadding(dp(8), 0, 0, 0)
         }, LinearLayout.LayoutParams(dp(28), dp(40)))
-        menu.addView(row)
+        // 所有选项使用完全一致的 40dp 行高，不再通过行上下外边距制造不一致的空隙。
+        menu.addView(row, LinearLayout.LayoutParams(-1, dp(40)))
         if (index < options.lastIndex) menu.addView(View(this).apply { setBackgroundColor(if (isDark()) 0x33ffffff else 0x33475b7a) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(16), 0, dp(16), 0) })
     }
     val frame = Rect()
@@ -1561,9 +1562,10 @@ internal fun MainActivity.showLanSharePopup(anchor: View, options: List<Pair<Str
         setPadding(dp(7), dp(7), dp(7), dp(7))
         background = liquidGlassCard()
          elevation = dp(6).toFloat()
-        options.forEach { (label, action) ->
+        options.forEachIndexed { index, (label, action) ->
             addView(TextView(this@showLanSharePopup).apply { text = label; textSize = 15f; gravity = Gravity.CENTER; setTextColor(primaryText()); setBackgroundColor(Color.TRANSPARENT); isClickable = true; setOnClickListener { action(); popup.dismiss() } }, LinearLayout.LayoutParams(dp(114), dp(36)).apply { setMargins(0, dp(1), 0, dp(1)) })
-            if (label != options.last().first) addView(View(this@showLanSharePopup).apply { setBackgroundColor(if (isDark()) 0x33ffffff else 0x33475b7a) }, LinearLayout.LayoutParams(dp(102), dp(1)).apply { setMargins(dp(6), 0, dp(6), 0) })
+            // 只在选项之间绘制分割线，最后一项下方不绘制；每个选项本身保持相同宽度。
+            if (index < options.lastIndex) addView(View(this@showLanSharePopup).apply { setBackgroundColor(if (isDark()) 0x33ffffff else 0x33475b7a) }, LinearLayout.LayoutParams(dp(102), dp(1)).apply { setMargins(dp(6), 0, dp(6), 0) })
         }
     }
     popup = PopupWindow(panel, popupWidth, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
