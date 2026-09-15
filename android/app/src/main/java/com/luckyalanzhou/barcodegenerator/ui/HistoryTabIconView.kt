@@ -9,26 +9,23 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 
-/** 设置 Tab 的双层齿轮图标：中心顺时针、外环逆时针，仅在选中时播放一次。 */
-internal class SettingsTabIconView(context: Context) : FrameLayout(context) {
+/** 历史 Tab 的双层图标：外部回转环逆时针、中心指针顺时针，各旋转 45°。 */
+internal class HistoryTabIconView(context: Context) : FrameLayout(context) {
     private val outer = ImageView(context).apply {
-        tag = "tabIconOuter"
+        tag = "historyTabIconOuter"
         scaleType = ImageView.ScaleType.CENTER_INSIDE
-        setImageResource(R.drawable.ic_tab_settings_outer)
+        setImageResource(R.drawable.ic_tab_history_outer)
     }
     private val inner = ImageView(context).apply {
-        tag = "tabIconInner"
+        tag = "historyTabIconInner"
         scaleType = ImageView.ScaleType.CENTER_INSIDE
-        // 外齿轮中心有镂空，缩小中心齿轮后只在孔洞内显示，避免两层叠成实心图标。
-        scaleX = 0.58f
-        scaleY = 0.58f
-        setImageResource(R.drawable.ic_tab_settings_inner)
+        setImageResource(R.drawable.ic_tab_history_inner)
     }
     private var selectedState: Boolean? = null
     private var rotationAnimator: AnimatorSet? = null
 
     init {
-        tag = "settingsTabIcon"
+        tag = "historyTabIcon"
         clipChildren = false
         clipToPadding = false
         addView(outer, LayoutParams(-1, -1))
@@ -47,7 +44,6 @@ internal class SettingsTabIconView(context: Context) : FrameLayout(context) {
         outer.rotation = 0f
         inner.rotation = 0f
         if (selected) {
-            // 正值为顺时针，负值为逆时针；每次只转 45°，保持轻量的设置图标反馈。
             rotationAnimator = AnimatorSet().apply {
                 playTogether(
                     ObjectAnimator.ofFloat(inner, View.ROTATION, 0f, 45f),
