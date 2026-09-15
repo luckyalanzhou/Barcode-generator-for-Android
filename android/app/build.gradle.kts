@@ -46,6 +46,15 @@ android {
 
     flavorDimensions += "channel"
     productFlavors {
+        create("local") {
+            dimension = "channel"
+            applicationId = "com.luckyalanzhou.barcodegenerator.debug"
+            manifestPlaceholders["appLabel"] = "@string/app_name_debug"
+            // 本地包不参与 GitHub 更新通道，避免误匹配 Beta/Release 发布记录。
+            buildConfigField("String", "UPDATE_TAG_PREFIX", "\"__local__\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorDebug\"")
+            buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "false")
+        }
         create("official") {
             dimension = "channel"
             applicationId = "com.luckyalanzhou.barcodegenerator"
@@ -80,6 +89,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            // localDebug 使用 Android 默认 Debug 签名，便于电脑本地快速安装调试。
+        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
