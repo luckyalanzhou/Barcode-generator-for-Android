@@ -24,6 +24,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,29 +40,24 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun ComposeSettingsPage(activity: MainActivity) {
+    activity.settingsViewModel.initialize(activity.style, activity.settingsStore.getOcrConfusionReplacementMask())
+    val settings by activity.settingsViewModel.uiState.collectAsState()
     val dark = activity.isDark()
     val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
     val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
     val card = if (dark) Color(0xff1b222d) else Color(0xfff7f9fc)
     val button = if (dark) Color(0xff233246) else Color(0xffeef3f9)
     val accent = if (dark) Color(0xffb8ccff) else Color(0xff2864d7)
-    var scheme by remember { mutableStateOf(activity.style.colorScheme) }
     var schemeMenu by remember { mutableStateOf(false) }
-    var showFormat by remember { mutableStateOf(activity.style.showFormat) }
-    var ocrMask by remember { mutableIntStateOf(activity.settingsStore.getOcrConfusionReplacementMask()) }
     var ocrMenu by remember { mutableStateOf(false) }
-    var textSize by remember { mutableFloatStateOf(activity.style.textSize) }
-    var barHeight by remember { mutableFloatStateOf(activity.style.barHeight.toFloat()) }
-    var barWidth by remember { mutableFloatStateOf(activity.style.barWidth) }
-    var margin by remember { mutableFloatStateOf(activity.style.margin.toFloat()) }
 
     fun persist() {
-        activity.style.textSize = textSize
-        activity.style.barHeight = barHeight.toInt()
-        activity.style.barWidth = barWidth
-        activity.style.margin = margin.toInt()
-        activity.style.showFormat = showFormat
-        activity.style.colorScheme = scheme
+        activity.style.textSize = settings.textSize
+        activity.style.barHeight = settings.barHeight.toInt()
+        activity.style.barWidth = settings.barWidth
+        activity.style.margin = settings.margin.toInt()
+        activity.style.showFormat = settings.showFormat
+        activity.style.colorScheme = settings.scheme
         activity.style.barColor = android.graphics.Color.BLACK
         activity.style.bgColor = android.graphics.Color.WHITE
         activity.style.showText = true
@@ -76,7 +72,7 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             SettingRow("外观", primary, trailing = {
                 Box {
                     BoxedSettingButton(
-                        text = when (scheme) { "dark" -> "深色"; "light" -> "浅色"; else -> "跟随系统" },
+                        text = when (settings.scheme) { "dark" -> "深色"; "light" -> "浅色"; else -> "跟随系统" },
                         color = button,
                         contentColor = primary,
                         onClick = { schemeMenu = true }
@@ -91,7 +87,7 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                     ) {
                         listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(text = { Text(label) }, onClick = { scheme = value; schemeMenu = false; persist() })
+                        DropdownMenuItem(text = { Text(label) }, onClick = { activity.settingsViewModel.setScheme(value); schemeMenu = false; persist() })
                         }
                     }
                 }
@@ -100,20 +96,20 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
 
         SettingSectionLabel("条码", secondary)
         SettingCard(card) {
-            SettingSliderRow("文字大小", textSize, 10f..24f, "${textSize.toInt()} sp", primary, accent) { textSize = it; persist() }
+            SettingSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", primary, accent) { activity.settingsViewModel.setTextSize(it); persist() }
             SettingDivider(dark)
-            SettingSliderRow("条码高度", barHeight, 30f..150f, "${barHeight.toInt()} dp", primary, accent) { barHeight = it; persist() }
+            SettingSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", primary, accent) { activity.settingsViewModel.setBarHeight(it); persist() }
             SettingDivider(dark)
-            SettingSliderRow("条码宽度", barWidth, 120f..360f, "${barWidth.toInt()} dp", primary, accent) { barWidth = it; persist() }
+            SettingSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", primary, accent) { activity.settingsViewModel.setBarWidth(it); persist() }
             SettingDivider(dark)
-            SettingSliderRow("条码间距", margin, 0f..40f, "${margin.toInt()} dp", primary, accent) { margin = it; persist() }
+            SettingSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", primary, accent) { activity.settingsViewModel.setMargin(it); persist() }
             SettingDivider(dark)
             SettingRow("条码格式", primary, trailing = {
-                Switch(checked = showFormat, onCheckedChange = { showFormat = it; persist() })
+                Switch(checked = settings.showFormat, onCheckedChange = { activity.settingsViewModel.setShowFormat(it); persist() })
             })
             SettingDivider(dark)
             SettingRow("OCR 字符纠错", primary, trailing = {
-                val selected = ocrReplacementLabels.count { (_, bit) -> ocrMask and bit != 0 }
+                val selected = ocrReplacementLabels.count { (_, bit) -> settings.ocrMask and bit != 0 }
                 Box {
                     BoxedSettingButton(
                         text = when (selected) { 0 -> "关闭"; 4 -> "全部启用"; else -> "已启用 ${selected} 项" },
@@ -132,8 +128,8 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                             if (index > 0) ComposeDropdownDivider(dark)
                             DropdownMenuItem(
-                                text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label) } },
-                                onClick = { ocrMask = if (ocrMask and bit == 0) ocrMask or bit else ocrMask and bit.inv(); activity.settingsStore.setOcrConfusionReplacementMask(ocrMask) }
+                                text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label) } },
+                                onClick = { val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv(); activity.settingsViewModel.setOcrMask(mask); activity.settingsStore.setOcrConfusionReplacementMask(mask) }
                             )
                         }
                     }
@@ -146,7 +142,7 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             SettingActionRow("局域网文件分享", "启动", primary, button) { activity.enterLanShare() }
             SettingDivider(dark)
             SettingActionRow("恢复默认设置", "恢复", primary, button) {
-                textSize = 14f; barHeight = 55f; barWidth = 220f; margin = 4f; persist(); activity.toast("已恢复条码默认设置")
+                activity.settingsViewModel.setTextSize(14f); activity.settingsViewModel.setBarHeight(55f); activity.settingsViewModel.setBarWidth(220f); activity.settingsViewModel.setMargin(4f); persist(); activity.toast("已恢复条码默认设置")
             }
             SettingDivider(dark)
             SettingRow("收藏备份", primary, trailing = {

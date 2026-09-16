@@ -33,6 +33,7 @@ import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.activity.viewModels
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
@@ -176,6 +177,11 @@ class MainActivity : AppCompatActivity() {
     internal val legacyPrefs by lazy { getSharedPreferences("barcode_app", MODE_PRIVATE) }
     internal val settingsStore by lazy { SettingsStore(applicationContext) }
     internal val viewModel: BarcodeViewModel by viewModels()
+    internal val settingsViewModel: SettingsViewModel by viewModels()
+    internal val favoritesViewModel: FavoritesViewModel by viewModels()
+    internal val historyViewModel: HistoryViewModel by viewModels()
+    internal val lanShareViewModel: LanShareViewModel by viewModels()
+    internal val generateBarcodesUseCase by lazy { GenerateBarcodesUseCase() }
     internal val databaseMutex = Mutex()
     // 保存任务使用独立队列，避免连续编辑时由多个 lifecycleScope 任务乱序覆盖。
     internal val persistenceScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
@@ -183,6 +189,8 @@ class MainActivity : AppCompatActivity() {
     internal var persistenceWriteTail: kotlinx.coroutines.Job? = null
     internal val database by lazy { BarcodeDatabase.create(this) }
     internal val dao by lazy { database.barcodeDao() }
+    internal val barcodeRepository by lazy { BarcodeRepository(database) }
+    internal val favoritesBackupUseCase by lazy { FavoritesBackupUseCase(barcodeRepository) }
     internal val style by lazy { loadStyle() }
     internal var lanShareManagerRef: LanShareManager? = null
     internal val lanShareManager: LanShareManager
@@ -233,6 +241,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = handleAppBackPressed()
+        })
         DebugLog.initialize(applicationContext)
         DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
@@ -315,7 +326,8 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
     }
 
-    override fun onBackPressed() {
+    /** 统一的现代返回回调，保持原有页面返回路径。 */
+    private fun handleAppBackPressed() {
         if (composeFireworksVisible.value) {
             dismissFireworksEasterEgg()
             return
@@ -326,7 +338,7 @@ class MainActivity : AppCompatActivity() {
             "lanShare" -> { closeLanShare(); page = "settings"; render() }
             "favoriteDetail" -> { page = "favorites"; render() }
             "results" -> { page = resultsReturnPage; render() }
-            else -> super.onBackPressed()
+            else -> finish()
         }
     }
 

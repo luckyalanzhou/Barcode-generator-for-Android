@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -29,14 +28,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
         val exportFile = File(cacheDir, name)
         val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
         val result = runCatching {
-            FavoritesTransferManager.export(
-                contentResolver,
-                exportUri,
-                dao.loadGroups(),
-                dao.loadGroupItems(),
-                dao.loadItems(),
-                dao.loadFolders(),
-            )
+            favoritesBackupUseCase.export(contentResolver, exportUri)
         }
         withContext(Dispatchers.Main) {
             result.onSuccess {
@@ -80,14 +72,7 @@ internal fun MainActivity.restoreFavoritesImport() {
 internal fun MainActivity.exportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            FavoritesTransferManager.export(
-                contentResolver,
-                uri,
-                dao.loadGroups(),
-                dao.loadGroupItems(),
-                dao.loadItems(),
-                dao.loadFolders(),
-            )
+            favoritesBackupUseCase.export(contentResolver, uri)
         }
         withContext(Dispatchers.Main) {
             result
@@ -99,7 +84,7 @@ internal fun MainActivity.exportFavorites(uri: Uri) {
 
 internal fun MainActivity.confirmImportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
-        val parsed = runCatching { FavoritesTransferManager.restore(contentResolver, uri) }
+        val parsed = runCatching { favoritesBackupUseCase.restore(contentResolver, uri) }
         withContext(Dispatchers.Main) {
             parsed
                 .onFailure { toast("无法导入收藏：${it.message ?: "文件格式无效"}") }
@@ -112,19 +97,7 @@ internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
             databaseMutex.withLock {
-                val counts = database.withTransaction {
-                    val transfer = FavoritesTransferManager.appendEntities(
-                        backup,
-                        dao.loadItems(),
-                        dao.loadGroups(),
-                        dao.loadGroupItems(),
-                    )
-                    dao.saveItems(transfer.items)
-                    dao.saveGroups(transfer.groups)
-                    dao.saveGroupItems(transfer.links)
-                    dao.saveFolders(transfer.folders)
-                    transfer.items.size to transfer.groups.size
-                }
+                val counts = favoritesBackupUseCase.import(backup)
                 loadItemsOnIo()
                 loadFavoriteGroupsOnIo()
                 loadFavoriteFoldersOnIo()

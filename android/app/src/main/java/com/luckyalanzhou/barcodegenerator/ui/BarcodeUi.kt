@@ -227,6 +227,15 @@ internal fun MainActivity.render() {
             else -> "条码生成器"
         }
         composeShellChromeVisible = page !in listOf("results", "favoriteDetail", "lanShare", "betaTestCenter")
+        viewModel.updateAppUi(
+            page = page,
+            title = composeShellTitle,
+            chromeVisible = composeShellChromeVisible,
+            selectedTab = composeTabSelection.intValue,
+        )
+        favoritesViewModel.sync(favoriteGroups.toList(), favoriteFolders.toList(), items.toList())
+        historyViewModel.sync(items.toList())
+        lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())
         if (page == "lanShare" && lanShareSession == null) window.decorView.post { enterLanShare() }
         if (page == "favoriteDetail" && selectedFavoriteGroup == null) page = "favorites"
         composeShellRevision.intValue++

@@ -8,18 +8,12 @@ package com.luckyalanzhou.barcodegenerator
  */
 internal fun MainActivity.generateAll() {
     saveInputDraft()
-    val values = inputDraft.map { it.trim() }.filter { it.isNotEmpty() }
-    if (values.isEmpty()) {
-        toast("请输入内容")
-        return
-    }
-
     val selected = formats.firstOrNull { it.first == generateFormatName }
         ?: formats.first()
-    val invalid = values.indexOfFirst { !BarcodeValidator.validate(it, selected.first).valid }
-    if (invalid >= 0) {
-        val message = BarcodeValidator.validate(values[invalid], selected.first).message
-        toast("第 ${invalid + 1} 行：$message")
+    val generatedResult = generateBarcodesUseCase.execute(inputDraft, selected.first, items)
+    if (!generatedResult.isValid) {
+        val message = generatedResult.errorMessage
+        if (message == "请输入内容") toast(message) else toast("第 ${generatedResult.errorIndex + 1} 行：$message")
         return
     }
 
@@ -27,14 +21,8 @@ internal fun MainActivity.generateAll() {
     val editingFavorite = selectedFavoriteGroup?.takeIf { resultsReturnPage == "favorites" }
     if (editingFavorite == null) selectedFavoriteGroup = null
 
-    val generated = mutableListOf<CodeItem>()
-    val batchTime = System.currentTimeMillis()
-    values.forEach { value ->
-        CodeItem(nextItemId(), value, selected.first, batchTime).also {
-            items.add(0, it)
-            generated.add(it)
-        }
-    }
+    val generated = generatedResult.items
+    items.addAll(0, generated)
     saveItems()
     resultItems = generated
     showingHistoryResult = false

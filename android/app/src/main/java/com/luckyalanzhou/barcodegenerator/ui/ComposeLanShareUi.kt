@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,18 +59,19 @@ import kotlin.math.roundToInt
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun ComposeLanSharePage(activity: MainActivity) {
+    val lanState by activity.lanShareViewModel.uiState.collectAsState()
     val dark = activity.isDark()
     val primary = if (dark) Color.White else Color(0xff182230)
     val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
     val panel = if (dark) Color(0xff1c1c1e) else Color.White
     val inputPanel = if (dark) Color(0xff2c2c2e) else Color(0xfff0f2f5)
     val accent = Color(0xff0a84ff)
-    var qrOpen by remember { mutableStateOf(activity.lanShareQrVisible) }
+    var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
     var attachmentMenu by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     // 读取该状态使异步轮询和上传回调触发 Compose 重组，但不重建输入框。
     val refreshTick = activity.composeLanShareRevision.intValue
-    val session = activity.lanShareSession
+    val session = lanState.session
 
     DisposableEffect(Unit) {
         activity.composeLanShareClearInput = { message = "" }
@@ -86,13 +88,14 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
     Column(Modifier.fillMaxSize().background(if (dark) Color.Black else Color(0xfff4f6fb))) {
         Row(
             Modifier.fillMaxWidth().height(80.dp).background(panel, RoundedCornerShape(18.dp)).clickable {
-                if (!qrOpen && activity.lanShareIsHost) {
+                if (!qrOpen && lanState.isHost) {
                     runCatching {
                         activity.lanShareSession = activity.lanShareManager.restart()
                         activity.lanShareBrowserConnected = false
                         activity.lanShareQrVisible = true
                         activity.lanShareFiles = activity.lanShareManager.localFiles()
                         qrOpen = true
+                        activity.lanShareViewModel.sync(activity.lanShareSession, activity.lanShareIsHost, activity.lanShareQrVisible, activity.lanShareBrowserConnected, activity.lanShareFiles, activity.lanShareOwnFileIds.toSet(), activity.lanSharePreviewFiles.toMap())
                         activity.composeLanShareRevision.intValue++
                     }.onFailure { activity.toast(it.message ?: "无法刷新分享端口") }
                 } else if (qrOpen) {
@@ -105,13 +108,14 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
             Spacer(Modifier.width(64.dp))
             Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             IconButton(onClick = {
-                if (!qrOpen && activity.lanShareIsHost) {
+                if (!qrOpen && lanState.isHost) {
                     runCatching {
                         activity.lanShareSession = activity.lanShareManager.restart()
                         activity.lanShareBrowserConnected = false
                         activity.lanShareQrVisible = true
                         activity.lanShareFiles = activity.lanShareManager.localFiles()
                         qrOpen = true
+                        activity.lanShareViewModel.sync(activity.lanShareSession, activity.lanShareIsHost, activity.lanShareQrVisible, activity.lanShareBrowserConnected, activity.lanShareFiles, activity.lanShareOwnFileIds.toSet(), activity.lanSharePreviewFiles.toMap())
                         activity.composeLanShareRevision.intValue++
                     }.onFailure { activity.toast(it.message ?: "无法刷新分享端口") }
                 } else if (qrOpen) { qrOpen = false; activity.lanShareQrVisible = false }
@@ -125,7 +129,7 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                 Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                val connected = activity.lanShareManager.browserConnected()
+                val connected = lanState.browserConnected
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (connected) "●" else "○", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
                     Spacer(Modifier.width(5.dp))
@@ -134,8 +138,8 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
 
                 // refreshTick 只作为重组依赖，不改变列表数据的排序或业务来源。
                 if (refreshTick < 0) Spacer(Modifier.height(0.dp))
-                activity.lanShareFiles.forEach { file ->
-                    ComposeLanShareBubble(activity, file, dark, primary, secondary)
+                lanState.files.forEach { file ->
+                    ComposeLanShareBubble(activity, lanState, file, dark, primary, secondary)
                 }
             }
         }
@@ -200,9 +204,9 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ComposeLanShareBubble(activity: MainActivity, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color) {
-    val mine = file.id in activity.lanShareOwnFileIds
-    val previewFile = (activity.lanShareManager.localFile(file.id) ?: activity.lanSharePreviewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
+private fun ComposeLanShareBubble(activity: MainActivity, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color) {
+    val mine = file.id in state.ownFileIds
+    val previewFile = (activity.lanShareManager.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
     val bubbleColor = if (mine) (if (dark) Color(0xff0a84ff).copy(alpha = .48f) else Color(0xff0a84ff).copy(alpha = .40f)) else if (dark) Color(0xff2c2c2e).copy(alpha = .62f) else Color.White.copy(alpha = .82f)
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {

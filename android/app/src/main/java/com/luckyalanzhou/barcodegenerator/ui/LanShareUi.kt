@@ -224,6 +224,7 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
             lanShareBrowserConnected = lanShareManager.browserConnected()
             result.onSuccess { files ->
                 lanShareFiles = files
+                lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())
                 val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
                 lanSharePreviewFiles.keys.retainAll(imageIds)
                 if (page == "lanShare") composeLanShareRevision.intValue++
@@ -234,6 +235,7 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
                             if (lanShareSession == session && page == "lanShare") {
                                 val currentIds = lanShareFiles.map { it.id }.toSet()
                                 lanSharePreviewFiles.putAll(previews.filterKeys { it in currentIds })
+                                lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())
                                 composeLanShareRevision.intValue++
                             }
                         }

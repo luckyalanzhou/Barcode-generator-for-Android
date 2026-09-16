@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ private data class ComposeFavoriteRow(
 @Composable
 internal fun ComposeFavoritesPage(activity: MainActivity) {
     val anchor = LocalView.current
+    val favoritesState by activity.favoritesViewModel.uiState.collectAsState()
     var query by remember { mutableStateOf("") }
     var revision by remember { mutableIntStateOf(0) }
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
@@ -68,8 +70,8 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     val rootFolderColor = ComposeColor(0xff527ca8)
     val childFolderColor = ComposeColor(0xff9b7a57)
     val fileColor = ComposeColor(0xff5c8c7b)
-    val rows = remember(query, revision, activity.favoriteGroups.size, activity.favoriteFolders.size) {
-        composeFavoriteRows(activity, query.trim().lowercase(Locale.getDefault()))
+    val rows = remember(query, revision, favoritesState.groups.size, favoritesState.folders.size) {
+        composeFavoriteRows(activity, favoritesState, query.trim().lowercase(Locale.getDefault()))
     }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -84,7 +86,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
             shape = RoundedCornerShape(14.dp)
         )
         if (rows.isEmpty()) {
-            Text(if (activity.favoriteGroups.isEmpty()) "还没有收藏" else "没有匹配的收藏", color = secondary, fontSize = 17.sp, modifier = Modifier.fillMaxWidth().padding(top = 40.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(if (favoritesState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏", color = secondary, fontSize = 17.sp, modifier = Modifier.fillMaxWidth().padding(top = 40.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         } else {
             rows.forEach { row ->
                 if (row.folder) {
@@ -203,17 +205,17 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     }
 }
 
-private fun composeFavoriteRows(activity: MainActivity, query: String): List<ComposeFavoriteRow> {
-    val folders = (activity.favoriteFolders + activity.favoriteGroups.map { it.folder }).filter { it.isNotBlank() }.distinct()
+private fun composeFavoriteRows(activity: MainActivity, state: FavoritesUiState, query: String): List<ComposeFavoriteRow> {
+    val folders = (state.folders + state.groups.map { it.folder }).filter { it.isNotBlank() }.distinct()
     val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
-    fun matches(group: FavoriteGroup): Boolean = query.isEmpty() || group.folder.lowercase(Locale.getDefault()).contains(query) || group.name.lowercase(Locale.getDefault()).contains(query) || group.itemIds.any { id -> activity.items.firstOrNull { it.id == id }?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
+    fun matches(group: FavoriteGroup): Boolean = query.isEmpty() || group.folder.lowercase(Locale.getDefault()).contains(query) || group.name.lowercase(Locale.getDefault()).contains(query) || group.itemIds.any { id -> state.items.firstOrNull { it.id == id }?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
     if (!activity.favoriteTreeInitialized) {
         activity.collapsedFavoriteFolders.addAll(folders)
         activity.favoriteTreeInitialized = true
     } else activity.collapsedFavoriteFolders.retainAll(folders)
     if (query.isNotEmpty()) {
         if (activity.favoriteCollapsedBeforeSearch == null) activity.favoriteCollapsedBeforeSearch = activity.collapsedFavoriteFolders.toSet()
-        activity.favoriteGroups.filter(::matches).flatMap { group ->
+        state.groups.filter(::matches).flatMap { group ->
             val parts = group.folder.split('/')
             parts.indices.map { parts.take(it + 1).joinToString("/") }
         }.forEach { activity.collapsedFavoriteFolders.remove(it) }
@@ -228,13 +230,13 @@ private fun composeFavoriteRows(activity: MainActivity, query: String): List<Com
     fun renderFolder(path: String, level: Int) {
         val prefix = "$path/"
         val children = folders.filter { it.startsWith(prefix) && !it.removePrefix(prefix).contains('/') }.map { it.removePrefix(prefix) }.distinct().sorted()
-        val groups = activity.favoriteGroups.filter { it.folder == path && matches(it) }
-        val descendants = activity.favoriteGroups.filter { it.folder.startsWith(prefix) && matches(it) }
+        val groups = state.groups.filter { it.folder == path && matches(it) }
+        val descendants = state.groups.filter { it.folder.startsWith(prefix) && matches(it) }
         if (query.isNotEmpty() && groups.isEmpty() && descendants.isEmpty()) return
         val collapsed = path in activity.collapsedFavoriteFolders
         result += ComposeFavoriteRow(path, path.substringAfterLast('/'), level, if (level == 0) children.size else groups.size, collapsed, true)
         if (!collapsed) {
-            groups.forEach { group -> result += ComposeFavoriteRow(group.folder, group.name, level + 1, 0, false, false, group, group.itemIds.mapNotNull { id -> activity.items.firstOrNull { it.id == id } }) }
+            groups.forEach { group -> result += ComposeFavoriteRow(group.folder, group.name, level + 1, 0, false, false, group, group.itemIds.mapNotNull { id -> state.items.firstOrNull { it.id == id } }) }
             children.forEach { child -> renderFolder("$path/$child", level + 1) }
         }
     }

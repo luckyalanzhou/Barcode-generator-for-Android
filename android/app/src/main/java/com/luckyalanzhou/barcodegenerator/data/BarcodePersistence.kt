@@ -28,10 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 internal suspend fun MainActivity.saveFavoriteFoldersOnIo(folders: List<FavoriteFolderEntity>) {
-    database.withTransaction {
-        dao.clearFolders()
-        dao.saveFolders(folders)
-    }
+    barcodeRepository.saveFavoriteFolders(folders)
 }
 
 internal suspend fun MainActivity.saveAllFavoritesOnIo(
@@ -40,27 +37,24 @@ internal suspend fun MainActivity.saveAllFavoritesOnIo(
     groupItemSnapshot: List<FavoriteGroupItemEntity>,
     folderSnapshot: List<FavoriteFolderEntity>
 ) {
-    database.withTransaction {
-        dao.clearGroupItems(); dao.clearGroups(); dao.clearItems(); dao.clearFolders()
-        dao.saveItems(itemSnapshot); dao.saveGroups(groupSnapshot)
-        dao.saveGroupItems(groupItemSnapshot); dao.saveFolders(folderSnapshot)
-    }
+    barcodeRepository.saveAllFavorites(itemSnapshot, groupSnapshot, groupItemSnapshot, folderSnapshot)
 }
 
 internal suspend fun MainActivity.loadFavoriteFoldersOnIo() {
     favoriteFolders.clear()
-    favoriteFolders.addAll((dao.loadFolders().map { it.name } + favoriteGroups.map { it.folder }).filter { it.isNotBlank() && it != "默认" }.distinct().sorted())
+    favoriteFolders.addAll((barcodeRepository.loadFolders().map { it.name } + favoriteGroups.map { it.folder }).filter { it.isNotBlank() && it != "默认" }.distinct().sorted())
 }
 
 internal suspend fun MainActivity.loadItemsOnIo() {
     items.clear()
-    items.addAll(dao.loadItems().map { CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory) })
+    items.addAll(barcodeRepository.loadItems().map { CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory) })
 }
 
 internal suspend fun MainActivity.loadFavoriteGroupsOnIo() {
     favoriteGroups.clear()
-    val itemIds = dao.loadGroupItems().groupBy { it.groupId }
-    favoriteGroups.addAll(dao.loadGroups().map { group ->
+    val groups = barcodeRepository.loadGroups()
+    val itemIds = barcodeRepository.loadGroupItems().groupBy { it.groupId }
+    favoriteGroups.addAll(groups.map { group ->
         FavoriteGroup(group.id, group.folder.takeUnless { it == "默认" } ?: "", group.name, group.savedAt, itemIds[group.id].orEmpty().map { it.itemId }.toMutableList())
     })
 }
@@ -72,11 +66,11 @@ private fun MainActivity.folderSnapshot() = favoriteFolders.filter { it.isNotBla
 
 internal fun MainActivity.saveItems() {
     val snapshot = itemSnapshot()
-    enqueuePersistenceWrite { database.withTransaction { dao.clearItems(); dao.saveItems(snapshot) } }
+    enqueuePersistenceWrite { barcodeRepository.saveItems(snapshot) }
 }
 internal fun MainActivity.saveFavoriteGroups() {
     val groups = groupSnapshot(); val links = groupItemSnapshot()
-    enqueuePersistenceWrite { database.withTransaction { dao.clearGroupItems(); dao.clearGroups(); dao.saveGroups(groups); dao.saveGroupItems(links) } }
+    enqueuePersistenceWrite { barcodeRepository.saveFavoriteGroups(groups, links) }
 }
 internal fun MainActivity.saveFavoriteFolders() {
     val folders = folderSnapshot()

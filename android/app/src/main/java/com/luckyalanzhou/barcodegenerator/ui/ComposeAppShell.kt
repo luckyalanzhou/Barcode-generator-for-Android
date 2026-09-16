@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +24,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 
@@ -79,9 +83,10 @@ internal fun ComposeAppShell(
 ) {
     // 读取 revision，确保旧业务 render() 更新标题或页面可见性后立即重组。
     activity.composeShellRevision.intValue
+    val appUiState by activity.viewModel.uiState.collectAsState()
     val background = Color(activity.appBackground())
-    val chromeVisible = activity.composeShellChromeVisible
-    val title = activity.composeShellTitle
+    val chromeVisible = appUiState.chromeVisible
+    val title = appUiState.title
 
     Box(Modifier.fillMaxSize().background(background)) {
         Column(
@@ -105,12 +110,12 @@ internal fun ComposeAppShell(
             }
 
             Box(Modifier.fillMaxWidth().weight(1f)) {
-                ComposePageRoute(activity)
+                ComposeNavigationHost(activity)
             }
 
             if (chromeVisible) {
                 BarcodeComposeBottomTabBar(
-                    selectedIndex = activity.composeTabSelection.intValue,
+                    selectedIndex = appUiState.selectedTab,
                     dark = activity.isDark(),
                     onTabSelected = onTabSelected,
                     modifier = Modifier
@@ -125,17 +130,56 @@ internal fun ComposeAppShell(
     }
 }
 
+private fun routeForPage(page: String): String = when (page) {
+    "history" -> "history"
+    "favorites" -> "favorites"
+    "favoriteDetail" -> "favoriteDetail"
+    "results" -> "results"
+    "settings" -> "settings"
+    "lanShare" -> "lanShare"
+    "betaTestCenter" -> "betaTestCenter"
+    else -> "generate"
+}
+
+/** Navigation Compose 容器；页面业务仍由现有兼容层提供，逐步迁移期间保持返回目标不变。 */
 @Composable
-private fun ComposePageRoute(activity: MainActivity) {
+private fun ComposeNavigationHost(activity: MainActivity) {
+    val appUiState by activity.viewModel.uiState.collectAsState()
+    val initialRoute = remember { routeForPage(appUiState.page) }
+    val navController = rememberNavController()
+    val targetRoute = routeForPage(appUiState.page)
+
+    LaunchedEffect(targetRoute) {
+        if (navController.currentDestination?.route != targetRoute) {
+            navController.navigate(targetRoute) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    NavHost(navController = navController, startDestination = initialRoute) {
+        composable("generate") { ComposePageRoute(activity, "generate") }
+        composable("history") { ComposePageRoute(activity, "history") }
+        composable("favorites") { ComposePageRoute(activity, "favorites") }
+        composable("favoriteDetail") { ComposePageRoute(activity, "favoriteDetail") }
+        composable("results") { ComposePageRoute(activity, "results") }
+        composable("settings") { ComposePageRoute(activity, "settings") }
+        composable("lanShare") { ComposePageRoute(activity, "lanShare") }
+        composable("betaTestCenter") { ComposePageRoute(activity, "betaTestCenter") }
+    }
+}
+
+@Composable
+private fun ComposePageRoute(activity: MainActivity, routePage: String) {
     // render() 通过 revision 通知根 Compose 页面状态已变化；页面自身仍以业务字段为唯一数据源。
     activity.composeShellRevision.intValue
-    key(activity.page) {
-        when (activity.page) {
+    key(routePage) {
+        when (routePage) {
             "generate" -> {
-                val initialFormat = remember(activity.page) {
+                val initialFormat = remember(routePage) {
                     activity.pendingGenerateFormat ?: activity.generateFormatName
                 }
-                LaunchedEffect(activity.page) {
+                LaunchedEffect(routePage) {
                     activity.saveInputDraft()
                     activity.pendingGenerateFormat = null
                     activity.generateFormatName = initialFormat
@@ -143,11 +187,10 @@ private fun ComposePageRoute(activity: MainActivity) {
                 ComposeGeneratePage(activity, initialFormat)
             }
             "history" -> {
-                val entries = activity.items.filter { it.inHistory }
-                    .groupBy { it.createdAt }.toList().sortedByDescending { it.first }
+                val historyState by activity.historyViewModel.uiState.collectAsState()
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                     HistoryComposePage(
-                        entries = entries,
+                        entries = historyState.entries,
                         dark = activity.isDark(),
                         onClear = { activity.confirmClear(false) },
                         onOpen = { batch ->
