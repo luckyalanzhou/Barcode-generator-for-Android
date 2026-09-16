@@ -27,7 +27,7 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
     private fun reserveUploadCapacity(session: IHTTPSession, multipart: Boolean): Long? = synchronized(uploadLock) {
         // 在写入 NanoHTTPD 的临时文件前必须有长度；否则分块请求可先耗尽磁盘，
         // 使 5 GB / 100 GB 限制在写入后才生效。
-        val declared = session.headers["content-length"]?.toLongOrNull()
+        val declared = declaredUploadBytes(session)
             ?: return null
         val allowed = LanShareLimits.MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
         if (declared !in 1..allowed) return null
@@ -38,12 +38,17 @@ internal class LanShareServer(port: Int, private val folder: File) : NanoWSD(por
     }
 
     private fun uploadCapacityError(session: IHTTPSession, multipart: Boolean): String? {
-        val declared = session.headers["content-length"]?.toLongOrNull()
+        val declared = declaredUploadBytes(session)
             ?: return "上传请求缺少文件大小"
         val allowed = LanShareLimits.MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
         if (declared !in 1..allowed) return "单个文件不能超过 5 GB"
         return null
     }
+
+    /** 浏览器不能设置受保护的 Content-Length；网页 PUT 同时声明精确文件大小。 */
+    private fun declaredUploadBytes(session: IHTTPSession): Long? =
+        session.headers["content-length"]?.toLongOrNull()
+            ?: session.headers["x-file-size"]?.toLongOrNull()
 
     private fun releaseUploadCapacity(bytes: Long) = synchronized(uploadLock) {
         reservedUploadBytes = (reservedUploadBytes - bytes).coerceAtLeast(0L)

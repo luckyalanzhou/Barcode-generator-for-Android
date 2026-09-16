@@ -226,6 +226,11 @@ internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
         runOnUiThread {
             lanShareRefreshInFlight = false
             lanShareBrowserConnected = lanShareManager.browserConnected()
+            if (result.isFailure) {
+                // 请求失败也要立即同步连接状态，避免页面继续显示过期的绿色“已连接”。
+                syncLanShareViewModelState()
+                if (page == "lanShare") composeLanShareRevision.intValue++
+            }
             result.onSuccess { files ->
                 lanShareFiles = files
                 lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())

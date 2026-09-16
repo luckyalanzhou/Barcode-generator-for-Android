@@ -77,10 +77,6 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                 margin = next.margin.toInt(),
                 showFormat = next.showFormat,
                 colorScheme = next.scheme,
-                barColor = android.graphics.Color.BLACK,
-                bgColor = android.graphics.Color.WHITE,
-                showText = true,
-                textPosition = "bottom",
             ),
         )
         // DataStore 写入是异步的；只有外观方案变化时才需要重建主题，并且必须等写入完成，

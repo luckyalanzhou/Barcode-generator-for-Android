@@ -141,7 +141,11 @@ async function uploadFile(file) {
     try {
         const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId), {
             method: 'PUT',
-            headers: { 'content-type': file.type || 'application/octet-stream' },
+            headers: {
+                'content-type': file.type || 'application/octet-stream',
+                // Safari/部分移动浏览器使用 chunked PUT，无法由网页设置 Content-Length。
+                'x-file-size': String(file.size)
+            },
             body: file
         });
         if (!response.ok) {

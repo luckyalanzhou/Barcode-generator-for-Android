@@ -100,10 +100,6 @@ internal fun MainActivity.installApkCompose(file: File) {
             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             clipData = android.content.ClipData.newRawUri("APK", uri)
         }
-        if (intent.resolveActivity(packageManager) == null) {
-            toast("未找到可用的安装程序")
-            return
-        }
         startActivity(intent)
     } catch (error: Exception) {
         val reason = error.message ?: "未知安装错误"

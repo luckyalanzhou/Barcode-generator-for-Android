@@ -12,6 +12,8 @@ object BarcodeValidator {
             "UPC-A" -> BarcodeValidationResult(UpdateSecurity.isValidUpcA(value), "UPC-A 校验位或格式错误")
             "ITF-14" -> BarcodeValidationResult(UpdateSecurity.isValidItf14(value), "ITF-14 校验位或格式错误")
             "Code 39" -> BarcodeValidationResult(value.all { it in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%" }, "Code 39 包含非法字符")
+            // Code 128-B 的编码范围是可打印 ASCII（含空格）；控制字符会让 ZXing 编码失败。
+            "Code 128-B" -> BarcodeValidationResult(value.all { it.code in 32..127 }, "Code 128-B 仅支持可打印 ASCII 字符")
             else -> BarcodeValidationResult(true)
         }
     }

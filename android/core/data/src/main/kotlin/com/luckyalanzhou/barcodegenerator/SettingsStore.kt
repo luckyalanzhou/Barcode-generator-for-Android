@@ -39,7 +39,10 @@ class SettingsStore(private val context: Context) {
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
     }
 
+    // 所有设置写入串行执行，避免滑块连续拖动时旧快照晚到并覆盖最新值。
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val writeLock = Any()
+    private var writeTail: Job = Job().apply { complete() }
     @Volatile private var cachedValues: Preferences = emptyPreferences()
     @Volatile private var ocrConfusionReplacementMask = 0
 
@@ -68,8 +71,14 @@ class SettingsStore(private val context: Context) {
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }
 
-    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Job {
-        return scope.launch { context.settingsDataStore.edit { preferences -> block(preferences) } }
+    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Job = synchronized(writeLock) {
+        val previous = writeTail
+        val next = scope.launch {
+            previous.join()
+            context.settingsDataStore.edit { preferences -> block(preferences) }
+        }
+        writeTail = next
+        next
     }
 }
 

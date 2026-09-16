@@ -205,7 +205,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("删除", dark, {
                     dismiss()
-                    showComposeConfirmDialog("删除收藏", "确定删除“\${group.name}”吗？", "删除") {
+                    showComposeConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
                         favoriteGroups.removeAll { it.id == group.id }
                         if (group.folder.isNotBlank() && group.folder !in favoriteFolders) favoriteFolders.add(group.folder)
                         selectedFavoriteGroup = null

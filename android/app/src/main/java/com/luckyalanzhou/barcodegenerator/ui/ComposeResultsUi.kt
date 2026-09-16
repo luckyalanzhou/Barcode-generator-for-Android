@@ -89,11 +89,9 @@ internal fun ComposeResultBarcode(activity: MainActivity, item: CodeItem, textCo
         ?: return
     val isCode128 = item.format == "Code 128-B"
     val barHeight = activity.style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
-    val displayed = if (isCode128) {
-        val cropped = trimBarcodeHorizontal(Bitmap.createBitmap(encoded, 0, 0, encoded.width, barHeight.coerceAtMost(encoded.height)))
-        addBarcodeQuietZone(cropped)
-    } else encoded
-
+    // encoded 的高度已经按 dp 转换成像素；不能再把 dp 数值当作像素裁剪，
+    // 否则高密度设备会截掉条码位图的大部分高度。
+    val displayed = if (isCode128) addBarcodeQuietZone(trimBarcodeHorizontal(encoded)) else encoded
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (isCode128) {
             Image(

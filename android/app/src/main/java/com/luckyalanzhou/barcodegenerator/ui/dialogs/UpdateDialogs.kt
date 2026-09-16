@@ -52,8 +52,12 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
                 (0 until assets.length())
                     .mapNotNull { assets.optJSONObject(it) }
                     .firstOrNull { asset ->
-                        asset.optString("name").startsWith(BuildConfig.APK_FILE_PREFIX) &&
-                            asset.optString("name").endsWith(".apk", true)
+                        val assetName = asset.optString("name")
+                        val isOfficialRelease = BuildConfig.UPDATE_TAG_PREFIX == "android-v" &&
+                            assetName.matches(Regex("""^BarcodeGenerator[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?\.apk$"""))
+                        val isChannelAsset = BuildConfig.UPDATE_TAG_PREFIX != "android-v" &&
+                            assetName.startsWith(BuildConfig.APK_FILE_PREFIX) && assetName.endsWith(".apk", true)
+                        isOfficialRelease || isChannelAsset
                     }
             }
             val apkUrl = apkAsset?.optString("browser_download_url")?.takeIf { it.isNotBlank() }

@@ -29,4 +29,17 @@ class GenerateBarcodesUseCaseTest {
         assertEquals(2, result.errorIndex)
         assertEquals(false, result.isValid)
     }
+
+    @Test
+    fun code128RejectsControlCharactersInsteadOfCreatingUnrenderableResult() {
+        val result = GenerateBarcodesUseCase().execute(
+            input = listOf("ABC\u0001XYZ"),
+            format = "Code 128-B",
+            existingItems = emptyList(),
+            now = 1L,
+        )
+
+        assertEquals(false, result.isValid)
+        assertEquals(0, result.errorIndex)
+    }
 }
