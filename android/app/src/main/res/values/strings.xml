@@ -2,5 +2,4 @@
 <resources>
     <string name="app_name_release">Barcode Generator</string>
     <string name="app_name_beta">Barcode Generator Beta</string>
-    <string name="app_name_debug">Barcode Generator Debug</string>
 </resources>

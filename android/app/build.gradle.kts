@@ -11,52 +11,20 @@ plugins {
 android {
     namespace = "com.luckyalanzhou.barcodegenerator"
     compileSdk = 35
-    // 本地构建可通过 LOCAL_AUTO_VERSION=true 启用独立版本计数器。
-    // 计数文件在 D 盘，GitHub Actions 不设置该变量，因此不会影响远程版本号。
-    val localAutoVersionEnabled = System.getenv("LOCAL_AUTO_VERSION") == "true"
-    val localVersionFilePath = System.getenv("LOCAL_VERSION_FILE")
-    val localBuildTask = gradle.startParameter.taskNames.any { task ->
-        task.contains("assemble", ignoreCase = true) || task.contains("bundle", ignoreCase = true)
-    }
-    val localVersionCode = if (localAutoVersionEnabled && localBuildTask && !providers.gradleProperty("versionCode").isPresent) {
-        val versionFile = localVersionFilePath?.let { path -> File(path) }
-        if (versionFile != null) {
-            val fallback = System.getenv("LOCAL_VERSION_BASE")?.toIntOrNull() ?: 33
-            val current = versionFile.takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: fallback
-            val next = current + 1
-            versionFile.parentFile?.mkdirs()
-            versionFile.writeText(next.toString())
-            next
-        } else {
-            null
-        }
-    } else {
-        null
-    }
-    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: localVersionCode ?: 6
-    val buildVersionName = providers.gradleProperty("versionName").orNull ?: localVersionCode?.let { "1.0.${it}-local" } ?: "1.0.5"
-
+    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: 6
+    val buildVersionName = providers.gradleProperty("versionName").orNull ?: "1.0.5"
     defaultConfig {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
         targetSdk = 35
         versionCode = 11
         versionName = "1.0.10"
-        if (providers.gradleProperty("versionCode").isPresent || localVersionCode != null) versionCode = buildVersionCode
-        if (providers.gradleProperty("versionName").isPresent || localVersionCode != null) versionName = buildVersionName
+        if (providers.gradleProperty("versionCode").isPresent) versionCode = buildVersionCode
+        if (providers.gradleProperty("versionName").isPresent) versionName = buildVersionName
     }
 
     flavorDimensions += "channel"
     productFlavors {
-        create("local") {
-            dimension = "channel"
-            applicationId = "com.luckyalanzhou.barcodegenerator.debug"
-            manifestPlaceholders["appLabel"] = "@string/app_name_debug"
-            // 本地包不参与 GitHub 更新通道，避免误匹配 Beta/Release 发布记录。
-            buildConfigField("String", "UPDATE_TAG_PREFIX", "\"__local__\"")
-            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorDebug\"")
-            buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "false")
-        }
         create("official") {
             dimension = "channel"
             applicationId = "com.luckyalanzhou.barcodegenerator"
@@ -92,7 +60,6 @@ android {
 
     buildTypes {
         debug {
-            // localDebug 使用 Android 默认 Debug 签名，便于电脑本地快速安装调试。
         }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }

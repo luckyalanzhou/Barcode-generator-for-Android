@@ -2,5 +2,4 @@
 <resources>
     <string name="app_name_release">条码生成器</string>
     <string name="app_name_beta">条码生成器 Beta</string>
-    <string name="app_name_debug">条码生成器debug</string>
 </resources>
