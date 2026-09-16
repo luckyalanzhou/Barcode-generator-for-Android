@@ -95,12 +95,14 @@ private fun ComposeChoiceField(
     value: String,
     options: List<String>,
     dark: Boolean,
+    enabled: Boolean = true,
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(
-            onClick = { expanded = true },
+            onClick = { if (enabled) expanded = true },
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -165,7 +167,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
         var selected by remember { mutableStateOf(group.folder.takeIf { it in folders } ?: folders.first()) }
         ComposeGlassDialogCard(dark) {
             Text("移动收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
-            ComposeChoiceField(selected, folders, dark, { selected = it })
+            ComposeChoiceField(selected, folders, dark, onSelected = { selected = it })
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("移动", dark, {
@@ -307,12 +309,14 @@ internal fun MainActivity.confirmClearCompose(favoritesOnly: Boolean) {
 internal fun MainActivity.saveResultAsFavoriteCompose() {
     if (resultItems.isEmpty()) return
     val editingGroup = selectedFavoriteGroup?.takeIf { resultsReturnPage == "favorites" }
-    val folders = favoriteFolders.toMutableList()
+    val folders = (favoriteFolders + favoriteGroups.map { it.folder }).filter { it.isNotBlank() }.distinct().toMutableList()
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
-        var selectedFolder by remember {
-            mutableStateOf(editingGroup?.folder?.takeIf { it in folders }.orEmpty())
-        }
+        val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
+        var selectedRoot by remember { mutableStateOf(editingGroup?.folder?.substringBefore('/').takeIf { it in roots }.orEmpty()) }
+        var selectedChild by remember { mutableStateOf(editingGroup?.folder.orEmpty().substringAfter('/', "").takeIf { it.isNotBlank() }.orEmpty()) }
+        val childOptions = folders.filter { it.startsWith("$selectedRoot/") }.map { it.removePrefix("$selectedRoot/") }.filter { !it.contains('/') }.distinct().sorted()
+        val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
         fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String) {
             val savedAt = System.currentTimeMillis()
@@ -336,30 +340,42 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
                 fontSize = 20.sp,
             )
-            Text("选择文件夹", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
-            if (folders.isEmpty()) {
-                Text("暂无文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
+            Text("先选择一级文件夹，再选择二级文件夹", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            if (roots.isEmpty()) {
+                Text("暂无一级文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
             } else {
                 ComposeChoiceField(
-                    value = selectedFolder.ifBlank { "选择文件夹" },
-                    options = folders,
+                    value = selectedRoot.ifBlank { "选择一级文件夹" },
+                    options = roots,
                     dark = dark,
-                    onSelected = { selectedFolder = it },
+                    onSelected = { selectedRoot = it; selectedChild = "" },
                 )
+                ComposeChoiceField(
+                    value = selectedChild.ifBlank { "选择二级文件夹" },
+                    options = childOptions,
+                    dark = dark,
+                    enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
+                    onSelected = { selectedChild = it },
+                )
+                if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             }
             DialogAction(
-                "新建文件夹",
+                "新建一级文件夹",
                 dark,
                 {
                     showFolderEditorCompose { folder ->
                         if (folder !in folders) folders.add(folder)
                         if (folder !in favoriteFolders) favoriteFolders.add(folder)
-                        selectedFolder = folder
+                        selectedRoot = folder
+                        selectedChild = ""
                         saveFavoriteFolders()
                     }
                 },
                 modifier = Modifier.padding(top = 8.dp),
             )
+            if (selectedRoot.isNotBlank()) DialogAction("新建二级文件夹", dark, {
+                showSubfolderEditorCompose(selectedRoot) { child -> selectedChild = child; saveFavoriteFolders() }
+            }, modifier = Modifier.padding(top = 6.dp))
             Text("收藏文件名", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             OutlinedTextField(
                 value = name,

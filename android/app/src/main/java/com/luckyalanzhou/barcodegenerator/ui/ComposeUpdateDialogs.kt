@@ -23,6 +23,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
@@ -194,29 +195,26 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
             .background(track)
             .border(1.dp, fill.copy(alpha = 0.78f), RoundedCornerShape(9.dp)),
     ) {
-        val count = 24
-        val gap = 2.dp.toPx()
-        val segmentWidth = (size.width - gap * (count - 1)) / count
-        val filled = animated * count
-        for (index in 0 until count) {
-            val left = index * (segmentWidth + gap)
-            val amount = (filled - index).coerceIn(0f, 1f)
-            if (amount > 0f) {
-                drawRoundRect(
-                    color = fill,
-                    topLeft = Offset(left, 2.dp.toPx()),
-                    size = Size(segmentWidth * amount, size.height - 4.dp.toPx()),
-                    cornerRadius = CornerRadius(5.dp.toPx()),
-                )
-            }
+        val filledWidth = size.width * animated
+        if (filledWidth > 0f) {
+            val glowWidth = 42.dp.toPx()
+            drawRoundRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(fill.copy(alpha = .72f), fill, Color.White.copy(alpha = .92f), fill),
+                    startX = (filledWidth - glowWidth).coerceAtLeast(0f),
+                    endX = (filledWidth + glowWidth).coerceAtMost(size.width),
+                ),
+                topLeft = Offset(1.dp.toPx(), 2.dp.toPx()),
+                size = Size((filledWidth - 2.dp.toPx()).coerceAtLeast(0f), size.height - 4.dp.toPx()),
+                cornerRadius = CornerRadius(5.dp.toPx()),
+            )
         }
         if (animated > 0f && animated < 1f) {
-            val x = size.width * animated
             drawLine(
                 color = Color.White.copy(alpha = 0.9f),
-                start = Offset(x, 1.dp.toPx()),
-                end = Offset(x, size.height - 1.dp.toPx()),
-                strokeWidth = 2.dp.toPx(),
+                start = Offset(filledWidth, 2.dp.toPx()),
+                end = Offset(filledWidth, size.height - 2.dp.toPx()),
+                strokeWidth = 3.dp.toPx(),
             )
         }
     }

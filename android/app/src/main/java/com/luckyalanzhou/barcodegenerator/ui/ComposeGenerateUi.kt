@@ -136,23 +136,25 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
 
         Box {
             Row(
-                Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(18.dp)).background(cardColor).clickable { formatExpanded = true }.padding(horizontal = 18.dp),
+                Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(18.dp)).background(cardColor).padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1)
-            }
-            DropdownMenu(
-                expanded = formatExpanded,
-                onDismissRequest = { formatExpanded = false },
-                shape = RoundedCornerShape(16.dp),
-                containerColor = Color.White.copy(alpha = .94f),
-                tonalElevation = 0.dp,
-                shadowElevation = 3.dp,
-            ) {
-                activity.formats.forEachIndexed { index, (name, _) ->
-                    if (index > 0) ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text(name) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
+                Box {
+                    Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1, modifier = Modifier.clickable { formatExpanded = true })
+                    DropdownMenu(
+                        expanded = formatExpanded,
+                        onDismissRequest = { formatExpanded = false },
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color.White.copy(alpha = .94f),
+                        tonalElevation = 0.dp,
+                        shadowElevation = 3.dp,
+                    ) {
+                        activity.formats.forEachIndexed { index, (name, _) ->
+                            if (index > 0) ComposeDropdownDivider(dark)
+                            DropdownMenuItem(text = { Text(name) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
+                        }
+                    }
                 }
             }
         }

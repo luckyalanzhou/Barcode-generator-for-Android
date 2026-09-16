@@ -52,6 +52,7 @@ internal fun MainActivity.showComposeDialog(
     val composeView = ComposeView(this)
     var metricsDialog: Dialog? = null
     val selectedElement = mutableStateOf("尚未选择元素")
+    dialog.window?.setWindowAnimations(0)
     // Dialog 的 decorView 不会自动继承 Activity 的生命周期所有者；显式绑定后，
     // ComposeView 才能安全创建 WindowRecomposer，避免点击编辑项时崩溃。
     composeView.setViewTreeLifecycleOwner(this)
@@ -123,7 +124,7 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
         setWindowAnimations(0)
         setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
         setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-        addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         attributes = attributes.apply { dimAmount = 0f; y = (resources.displayMetrics.heightPixels * 0.64f).roundToInt() }
         setLayout(dp(320), WindowManager.LayoutParams.WRAP_CONTENT)
     }
@@ -187,10 +188,11 @@ internal fun ComposeDropdownDivider(dark: Boolean) {
 internal fun MainActivity.showIos26NoticeDialogCompose(message: String, showMetrics: Boolean = false) {
     showComposeDialog(compact = true, metricsLabel = if (showMetrics) "提示弹窗" else null) { dismiss ->
         val dark = isDark()
+        val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
             Text(
                 message,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().clickable { onMetric("文本") },
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,
@@ -212,11 +214,12 @@ internal fun MainActivity.showSimulatedDialogCompose(
 ) {
     showComposeDialog(compact = false, metricsLabel = if (showMetrics) title else null) { dismiss ->
         val dark = isDark()
+        val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp, fontWeight = FontWeight.Medium)
             Text(
                 message,
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") },
                 color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
                 fontSize = 15.sp,
             )
@@ -244,9 +247,10 @@ internal fun MainActivity.showComposeConfirmDialog(
 ) {
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
+        val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp, fontWeight = FontWeight.Medium)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp)
+            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") }, color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction(positive, dark, { onConfirm(); dismiss() }, modifier = Modifier.padding(start = 8.dp))
