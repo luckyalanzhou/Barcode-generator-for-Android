@@ -48,9 +48,12 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
                 DialogAction("取消", dark, dismiss)
                 DialogAction("保存", dark, {
                     val name = value.trim()
+                    val parent = initial.substringBeforeLast('/', "")
+                    val targetPath = listOf(parent, name).filter { it.isNotBlank() }.joinToString("/")
                     when {
                         name.isBlank() -> toast("请输入文件夹名称")
-                        favoriteFolders.any { it == name && it != initial } -> toast("已存在同名文件夹")
+                        !isValidFavoriteFolderPath(targetPath) -> toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
+                        favoriteFolders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
                         else -> { onSaved(name); dismiss() }
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
@@ -112,7 +115,7 @@ private fun ComposeChoiceField(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White.copy(alpha = .94f),
+            containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
             tonalElevation = 0.dp,
             shadowElevation = 3.dp,
         ) {
@@ -209,6 +212,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                     val cleanName = name.trim()
                     val cleanFolder = folder.trim().ifEmpty { "默认" }
                     if (cleanName.isBlank()) toast("请输入收藏文件名")
+                    else if (!isValidFavoriteFolderPath(cleanFolder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
                         group.name = cleanName
                         group.folder = cleanFolder
@@ -247,7 +251,7 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
                 DialogAction("保存", dark, {
-                    val text = value.trim()
+                    val text = value
                     if (text.isBlank()) toast("请输入条码内容")
                     else {
                         item.text = text
@@ -279,13 +283,24 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("保存", dark, {
-                    item.folder = value.trim().ifEmpty { "默认" }
-                    saveItems()
-                    dismiss()
-                    render()
+                    val folder = value.trim().ifEmpty { "默认" }
+                    if (!isValidFavoriteFolderPath(folder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
+                    else {
+                        item.folder = folder
+                        saveItems()
+                        dismiss()
+                        render()
+                    }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
         }
+    }
+}
+
+private fun isValidFavoriteFolderPath(value: String): Boolean {
+    val parts = value.split('/')
+    return parts.size in 1..2 && parts.all { part ->
+        part.isNotBlank() && part != "." && part != ".." && !part.contains('\\')
     }
 }
 
@@ -397,7 +412,12 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     dark,
                     {
                         if (selectedRoot.isBlank()) toast("请先选择一级文件夹")
-                        else showSubfolderEditorCompose(selectedRoot) { child -> selectedChild = child; saveFavoriteFolders() }
+                        else showSubfolderEditorCompose(selectedRoot) { child ->
+                            val path = "$selectedRoot/$child"
+                            if (path !in folders) folders.add(path)
+                            selectedChild = child
+                            saveFavoriteFolders()
+                        }
                     },
                     modifier = Modifier.weight(1f),
                 )

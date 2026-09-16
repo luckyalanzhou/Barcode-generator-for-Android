@@ -16,4 +16,17 @@ class GenerateBarcodesUseCaseTest {
         assertEquals(true, result.isValid)
         assertEquals(listOf(" A B "), result.items.map { it.text })
     }
+
+    @Test
+    fun validationErrorPointsToOriginalInputLineAfterBlankLines() {
+        val result = GenerateBarcodesUseCase().execute(
+            input = listOf("", "  ", "invalid"),
+            format = "EAN-13",
+            existingItems = emptyList(),
+            now = 1L,
+        )
+
+        assertEquals(2, result.errorIndex)
+        assertEquals(false, result.isValid)
+    }
 }

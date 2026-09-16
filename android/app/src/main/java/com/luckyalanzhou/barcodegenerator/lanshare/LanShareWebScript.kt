@@ -184,10 +184,18 @@ attachmentButton.onclick = event => {
 });
 
 attachmentSheet.onclick = event => {
-    const pickerId = event.target.dataset.picker;
+    if (event.target.closest('.sheet-close')) {
+        attachmentSheet.classList.remove('open');
+        return;
+    }
+    const pickerId = event.target.closest('[data-picker]')?.dataset.picker;
     if (pickerId) {
         const picker = document.getElementById(pickerId);
-        if (picker) picker.click();
+        if (picker) {
+            // 先关闭菜单；用户取消系统选择器时也不会留下一个悬空菜单。
+            attachmentSheet.classList.remove('open');
+            picker.click();
+        }
     }
 };
 

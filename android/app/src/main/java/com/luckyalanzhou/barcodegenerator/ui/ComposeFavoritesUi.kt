@@ -70,9 +70,9 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     val rootFolderColor = ComposeColor(0xff527ca8)
     val childFolderColor = ComposeColor(0xff9b7a57)
     val fileColor = ComposeColor(0xff5c8c7b)
-    val rows = remember(query, revision, favoritesState.groups.size, favoritesState.folders.size) {
-        composeFavoriteRows(activity, favoritesState, query.trim().lowercase(Locale.getDefault()))
-    }
+    // rows 依赖可变业务对象的完整内容；不缓存，确保重命名、移动、删除和条码修改后
+    // 即使 Activity 只触发了普通重组，列表也不会继续显示旧快照。
+    val rows = composeFavoriteRows(activity, favoritesState, query.trim().lowercase(Locale.getDefault()))
 
     Column(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -117,7 +117,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             expanded = folderMenu?.first == row.path,
                             onDismissRequest = { folderMenu = null },
                             shape = RoundedCornerShape(16.dp),
-                            containerColor = ComposeColor.White.copy(alpha = .94f),
+                            containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
                             shadowElevation = 3.dp,
                         ) {
@@ -130,8 +130,10 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                                         when {
                                             row.level == 0 && index == 0 -> activity.showSubfolderEditor(row.path)
                                             index == if (row.level == 0) 1 else 0 -> activity.showFolderEditor(row.path) { renamed ->
-                                                activity.favoriteGroups.filter { it.folder == row.path || it.folder.startsWith("${row.path}/") }.forEach { group -> group.folder = if (group.folder == row.path) renamed else renamed + group.folder.removePrefix(row.path) }
-                                                activity.favoriteFolders.filter { it == row.path || it.startsWith("${row.path}/") }.toList().forEach { old -> activity.favoriteFolders.remove(old); activity.favoriteFolders.add(if (old == row.path) renamed else renamed + old.removePrefix(row.path)) }
+                                                val parent = row.path.substringBeforeLast('/', "")
+                                                val renamedPath = listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/")
+                                                activity.favoriteGroups.filter { it.folder == row.path || it.folder.startsWith("${row.path}/") }.forEach { group -> group.folder = if (group.folder == row.path) renamedPath else renamedPath + group.folder.removePrefix(row.path) }
+                                                activity.favoriteFolders.filter { it == row.path || it.startsWith("${row.path}/") }.toList().forEach { old -> activity.favoriteFolders.remove(old); activity.favoriteFolders.add(if (old == row.path) renamedPath else renamedPath + old.removePrefix(row.path)) }
                                                 activity.saveAllFavorites(); activity.render()
                                             }
                                             else -> activity.showComposeConfirmDialog("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
@@ -173,7 +175,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             expanded = fileMenu?.id == group.id,
                             onDismissRequest = { fileMenu = null },
                             shape = RoundedCornerShape(16.dp),
-                            containerColor = ComposeColor.White.copy(alpha = .94f),
+                            containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
                             shadowElevation = 3.dp,
                         ) {

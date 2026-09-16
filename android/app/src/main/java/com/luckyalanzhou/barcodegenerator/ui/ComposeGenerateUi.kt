@@ -140,13 +140,13 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Box {
-                    Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1, modifier = Modifier.clickable { formatExpanded = true })
+                Box(Modifier.clickable { formatExpanded = true }) {
+                    Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1)
                     DropdownMenu(
                         expanded = formatExpanded,
                         onDismissRequest = { formatExpanded = false },
                         shape = RoundedCornerShape(16.dp),
-                        containerColor = Color.White.copy(alpha = .94f),
+                        containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
                     ) {

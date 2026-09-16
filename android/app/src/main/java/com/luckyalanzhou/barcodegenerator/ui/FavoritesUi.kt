@@ -23,7 +23,7 @@ internal fun MainActivity.openFavoriteForEditing(group: FavoriteGroup) {
 /** 兼容旧导航调用，实际界面由 ComposeAppShell 路由。 */
 internal fun MainActivity.showFavoriteGroups() {
     page = "favorites"
-    composeShellRevision.intValue++
+    render()
 }
 
 internal fun MainActivity.showSubfolderEditor(
@@ -43,7 +43,7 @@ internal fun MainActivity.showFavoriteMoveDialog(group: FavoriteGroup) {
 
 internal fun MainActivity.showFavoriteDetail() {
     page = "favoriteDetail"
-    composeShellRevision.intValue++
+    render()
 }
 
 internal fun MainActivity.formatSavedTime(time: Long): String =

@@ -60,7 +60,7 @@ internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = 
 /** 兼容旧导航入口，界面由 ComposeAppShell 路由。 */
 internal fun MainActivity.showLanShare() {
     page = "lanShare"
-    composeShellRevision.intValue++
+    render()
 }
 
 internal fun MainActivity.openLanShareCamera() {
@@ -73,6 +73,9 @@ internal fun MainActivity.openLanShareCamera() {
     val photoUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photoFile)
     pendingCameraUri = photoUri
     pendingCameraFile = photoFile
+    // 部分系统相机会忽略 EXTRA_OUTPUT 并直接写入系统图库；记录启动时刻，
+    // 回退查找时只允许本次拍摄产生的媒体，避免误取上一张旧照片。
+    pendingLanCameraStartedAt = System.currentTimeMillis()
     val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
         putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
@@ -187,6 +190,7 @@ internal fun MainActivity.joinLanShareSession(value: String) {
     lanShareManager.stop()
     lanShareIsHost = false
     lanShareSession = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}")
+    syncLanShareViewModelState()
     startLanShareAutoRefresh()
     refreshLanShareFiles()
 }
@@ -256,6 +260,7 @@ internal fun MainActivity.closeLanShare() {
     lanShareFiles = emptyList()
     lanShareOwnFileIds.clear()
     lanSharePreviewFiles.clear()
+    syncLanShareViewModelState()
     composeLanShareClearInput = null
     File(cacheDir, "lan-share-preview").listFiles().orEmpty().forEach { it.delete() }
 }
@@ -291,6 +296,7 @@ internal fun MainActivity.uploadLanShareFile(uri: Uri, temporaryFile: File? = nu
             runOnUiThread {
                 lanShareOwnFileIds.add(id)
                 lanShareFiles = files
+                syncLanShareViewModelState()
                 composeLanShareRevision.intValue++
             }
         }.onFailure {
@@ -311,6 +317,7 @@ internal fun MainActivity.uploadLanShareMessage(text: String) {
                 composeLanShareClearInput?.invoke()
                 lanShareOwnFileIds.add(id)
                 lanShareFiles = files
+                syncLanShareViewModelState()
                 composeLanShareRevision.intValue++
                 toast("发送成功")
             }

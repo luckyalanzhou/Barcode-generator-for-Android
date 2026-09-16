@@ -5,7 +5,6 @@ import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +55,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlin.math.roundToInt
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun ComposeLanSharePage(activity: MainActivity) {
     val lanState by activity.lanShareViewModel.uiState.collectAsState()
@@ -101,6 +99,7 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                 } else if (qrOpen) {
                     qrOpen = false
                     activity.lanShareQrVisible = false
+                    activity.syncLanShareViewModelState()
                 }
             }.padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -118,7 +117,11 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                         activity.lanShareViewModel.sync(activity.lanShareSession, activity.lanShareIsHost, activity.lanShareQrVisible, activity.lanShareBrowserConnected, activity.lanShareFiles, activity.lanShareOwnFileIds.toSet(), activity.lanSharePreviewFiles.toMap())
                         activity.composeLanShareRevision.intValue++
                     }.onFailure { activity.toast(it.message ?: "无法刷新分享端口") }
-                } else if (qrOpen) { qrOpen = false; activity.lanShareQrVisible = false }
+                } else if (qrOpen) {
+                    qrOpen = false
+                    activity.lanShareQrVisible = false
+                    activity.syncLanShareViewModelState()
+                }
             }, modifier = Modifier.size(60.dp)) {
                 Icon(painterResource(R.drawable.ic_qr_code), "显示二维码", tint = if (dark) Color(0xff8fc1ff) else accent, modifier = Modifier.size(32.dp))
             }
@@ -156,7 +159,7 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                     expanded = attachmentMenu,
                     onDismissRequest = { attachmentMenu = false },
                     shape = RoundedCornerShape(16.dp),
-                    containerColor = Color.White.copy(alpha = .94f),
+                    containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                     tonalElevation = 0.dp,
                     shadowElevation = 3.dp,
                 ) {
@@ -180,7 +183,7 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
             Button(
                 onClick = {
                     if (activity.pendingLanUploadUri != null) activity.uploadSelectedLanShareFile()
-                    else message.trim().takeIf { it.isNotEmpty() }?.let(activity::uploadLanShareMessage)
+                    else message.takeIf { it.isNotBlank() }?.let(activity::uploadLanShareMessage)
                 },
                 modifier = Modifier.size(48.dp),
                 contentPadding = PaddingValues(0.dp),
@@ -214,7 +217,6 @@ internal fun MainActivity.syncLanShareViewModelState() {
     )
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ComposeLanShareBubble(activity: MainActivity, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color) {
     val mine = file.id in state.ownFileIds
@@ -222,7 +224,7 @@ private fun ComposeLanShareBubble(activity: MainActivity, state: LanShareUiState
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
     val bubbleColor = if (mine) (if (dark) Color(0xff0a84ff).copy(alpha = .48f) else Color(0xff0a84ff).copy(alpha = .40f)) else if (dark) Color(0xff2c2c2e).copy(alpha = .62f) else Color.White.copy(alpha = .82f)
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-        Surface(modifier = Modifier.width(260.dp).combinedClickable(onClick = { activity.saveLanShareFile(file) }, onLongClick = {}), shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp) {
+        Surface(modifier = Modifier.width(260.dp).clickable { activity.saveLanShareFile(file) }, shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp) {
             Column(Modifier.padding(if (preview == null) 12.dp else 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 preview?.let { bitmap ->
                     val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)

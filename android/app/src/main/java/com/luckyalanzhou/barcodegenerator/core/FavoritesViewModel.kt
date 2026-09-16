@@ -17,6 +17,12 @@ class FavoritesViewModel : ViewModel() {
     val uiState: StateFlow<FavoritesUiState> = _uiState.asStateFlow()
 
     fun sync(groups: List<FavoriteGroup>, folders: List<String>, items: List<CodeItem>) {
-        _uiState.value = FavoritesUiState(groups, folders, items)
+        // 业务层对象是可变的；展示层必须保存快照，否则 StateFlow 可能把重命名/删除前后
+        // 的同一对象引用判定为相等，Compose 就不会刷新。
+        _uiState.value = FavoritesUiState(
+            groups = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) },
+            folders = folders.toList(),
+            items = items.map { it.copy() },
+        )
     }
 }

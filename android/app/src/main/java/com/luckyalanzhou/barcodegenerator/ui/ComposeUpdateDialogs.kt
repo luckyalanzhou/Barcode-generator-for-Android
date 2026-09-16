@@ -120,7 +120,11 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
     simulateOnly: Boolean = false,
     showMetrics: Boolean = false,
 ) {
-    showComposeDialog(compact = true, metricsLabel = if (showMetrics) "发现新版本弹窗" else null) { dismiss ->
+    showComposeDialog(
+        compact = true,
+        metricsLabel = if (showMetrics) "发现新版本弹窗" else null,
+        onCancel = { updateDialogShowing = false },
+    ) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text(

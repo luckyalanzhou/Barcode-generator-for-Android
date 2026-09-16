@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun ComposeSettingsPage(activity: MainActivity) {
@@ -51,19 +53,27 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
     var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
 
-    fun persist() {
-        activity.style.textSize = settings.textSize
-        activity.style.barHeight = settings.barHeight.toInt()
-        activity.style.barWidth = settings.barWidth
-        activity.style.margin = settings.margin.toInt()
-        activity.style.showFormat = settings.showFormat
-        activity.style.colorScheme = settings.scheme
+    fun persist(next: SettingsUiState = settings) {
+        val schemeChanged = activity.style.colorScheme != next.scheme
+        activity.style.textSize = next.textSize
+        activity.style.barHeight = next.barHeight.toInt()
+        activity.style.barWidth = next.barWidth
+        activity.style.margin = next.margin.toInt()
+        activity.style.showFormat = next.showFormat
+        activity.style.colorScheme = next.scheme
         activity.style.barColor = android.graphics.Color.BLACK
         activity.style.bgColor = android.graphics.Color.WHITE
         activity.style.showText = true
         activity.style.textPosition = "bottom"
-        activity.saveStyle()
-        activity.applyAppearance()
+        // DataStore 写入是异步的；只有外观方案变化时才需要重建主题，并且必须等写入完成，
+        // 否则 Activity 重建可能在旧值落盘前读取到旧主题，导致设置看似没有生效。
+        val saveJob = activity.saveStyle()
+        if (schemeChanged) {
+            activity.lifecycleScope.launch {
+                saveJob.join()
+                if (!activity.isFinishing) activity.applyAppearance()
+            }
+        }
     }
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -81,13 +91,13 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         expanded = schemeMenu,
                         onDismissRequest = { schemeMenu = false },
                         shape = RoundedCornerShape(16.dp),
-                        containerColor = Color.White.copy(alpha = .94f),
+                        containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
                     ) {
                         listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                        DropdownMenuItem(text = { Text(label) }, onClick = { activity.settingsViewModel.setScheme(value); schemeMenu = false; persist() })
+                        DropdownMenuItem(text = { Text(label) }, onClick = { activity.settingsViewModel.setScheme(value); schemeMenu = false; persist(settings.copy(scheme = value)) })
                         }
                     }
                 }
@@ -96,16 +106,16 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
 
         SettingSectionLabel("条码", secondary)
         SettingCard(card) {
-            SettingSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", primary, accent) { activity.settingsViewModel.setTextSize(it); persist() }
+            SettingSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", primary, accent) { activity.settingsViewModel.setTextSize(it); persist(settings.copy(textSize = it)) }
             SettingDivider(dark)
-            SettingSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", primary, accent) { activity.settingsViewModel.setBarHeight(it); persist() }
+            SettingSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", primary, accent) { activity.settingsViewModel.setBarHeight(it); persist(settings.copy(barHeight = it)) }
             SettingDivider(dark)
-            SettingSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", primary, accent) { activity.settingsViewModel.setBarWidth(it); persist() }
+            SettingSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", primary, accent) { activity.settingsViewModel.setBarWidth(it); persist(settings.copy(barWidth = it)) }
             SettingDivider(dark)
-            SettingSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", primary, accent) { activity.settingsViewModel.setMargin(it); persist() }
+            SettingSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", primary, accent) { activity.settingsViewModel.setMargin(it); persist(settings.copy(margin = it)) }
             SettingDivider(dark)
             SettingRow("条码格式", primary, trailing = {
-                Switch(checked = settings.showFormat, onCheckedChange = { activity.settingsViewModel.setShowFormat(it); persist() })
+                Switch(checked = settings.showFormat, onCheckedChange = { activity.settingsViewModel.setShowFormat(it); persist(settings.copy(showFormat = it)) })
             })
             SettingDivider(dark)
             SettingRow("OCR 字符纠错", primary, trailing = {
@@ -121,7 +131,7 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         expanded = ocrMenu,
                         onDismissRequest = { ocrMenu = false },
                         shape = RoundedCornerShape(16.dp),
-                        containerColor = Color.White.copy(alpha = .94f),
+                        containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
                     ) {
@@ -142,7 +152,8 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             SettingActionRow("局域网文件分享", "启动", primary, button) { activity.enterLanShare() }
             SettingDivider(dark)
             SettingActionRow("恢复默认设置", "恢复", primary, button) {
-                activity.settingsViewModel.setTextSize(14f); activity.settingsViewModel.setBarHeight(55f); activity.settingsViewModel.setBarWidth(220f); activity.settingsViewModel.setMargin(4f); persist(); activity.toast("已恢复条码默认设置")
+                val defaults = settings.copy(textSize = 14f, barHeight = 55f, barWidth = 220f, margin = 4f)
+                activity.settingsViewModel.setTextSize(defaults.textSize); activity.settingsViewModel.setBarHeight(defaults.barHeight); activity.settingsViewModel.setBarWidth(defaults.barWidth); activity.settingsViewModel.setMargin(defaults.margin); persist(defaults); activity.toast("已恢复条码默认设置")
             }
             SettingDivider(dark)
             SettingRow("收藏备份", primary, trailing = {

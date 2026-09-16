@@ -16,7 +16,7 @@ class HistoryViewModel : ViewModel() {
 
     fun sync(items: List<CodeItem>) {
         _uiState.value = HistoryUiState(
-            items.filter { it.inHistory }.groupBy { it.createdAt }.toList().sortedByDescending { it.first },
+            items.filter { it.inHistory }.map { it.copy() }.groupBy { it.createdAt }.toList().sortedByDescending { it.first },
         )
     }
 }

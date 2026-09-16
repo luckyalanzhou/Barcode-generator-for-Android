@@ -392,6 +392,7 @@ class MainActivity : AppCompatActivity() {
                 if (requestCode == REQUEST_LAN_SHARE_UPLOAD) selectLanShareAttachment(uri, autoUpload = true)
                 else pendingLanDownloadId?.let { id -> pendingLanDownloadId = null; downloadLanShareFile(id, uri) }
             }
+            if (resultCode != RESULT_OK && requestCode == REQUEST_LAN_SHARE_DOWNLOAD) pendingLanDownloadId = null
             return
         }
         if (requestCode == REQUEST_LAN_SHARE_CAPTURE) {
@@ -421,6 +422,7 @@ class MainActivity : AppCompatActivity() {
             pendingCameraFile = null
             return
         }
+        val cameraFile = pendingCameraFile
         val bitmap = when (requestCode) {
             43, 45, 51 -> pendingCameraUri?.let { uri ->
                 runCatching { contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
@@ -430,10 +432,15 @@ class MainActivity : AppCompatActivity() {
             }
             else -> null
         }
-        if (bitmap == null) return
-        val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, pendingCameraFile) else bitmap
+        if (bitmap == null) {
+            pendingCameraUri = null
+            pendingCameraFile = null
+            cameraFile?.delete()
+            return
+        }
+        val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, cameraFile) else bitmap
         pendingCameraUri = null
-        pendingCameraFile?.delete()
+        cameraFile?.delete()
         pendingCameraFile = null
         when (requestCode) {
             43, 44 -> decodeBitmap(bitmap)?.let { decoded ->
