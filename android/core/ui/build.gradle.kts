@@ -25,10 +25,10 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+    val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
-    implementation("androidx.compose.runtime:runtime")
-    implementation("androidx.compose.animation:animation-core")
-    implementation("androidx.compose.ui:ui")
+    implementation(libs.compose.runtime)
+    implementation(libs.compose.animation.core)
+    implementation(libs.compose.ui)
 }
 

@@ -22,9 +22,9 @@ android {
 
 dependencies {
     implementation(project(":core:domain"))
-    api("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    api("androidx.datastore:datastore-preferences:1.1.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    api(libs.room.runtime)
+    implementation(libs.room.ktx)
+    api(libs.datastore.preferences)
+    ksp(libs.room.compiler)
 }
 
