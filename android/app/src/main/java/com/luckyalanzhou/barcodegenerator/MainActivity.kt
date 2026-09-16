@@ -301,6 +301,7 @@ class MainActivity : AppCompatActivity() {
                     startLanShareAutoRefresh()
                 }
                 render()
+                prewarmBarcodeImages()
             } catch (error: Exception) {
                 startupError = startupError ?: error
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
@@ -489,4 +490,5 @@ class MainActivity : AppCompatActivity() {
     }
 
 }
+
 
