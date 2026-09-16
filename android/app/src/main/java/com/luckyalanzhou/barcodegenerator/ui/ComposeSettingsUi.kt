@@ -116,7 +116,7 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                     ) {
                         listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                        DropdownMenuItem(text = { Text(label) }, onClick = { activity.settingsViewModel.setScheme(value); schemeMenu = false; persist(settings.copy(scheme = value)) })
+                        DropdownMenuItem(text = { Text(label) }, onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) })
                         }
                     }
                 }
