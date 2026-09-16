@@ -24,10 +24,16 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var initialized = false
+    private var currentStyle = StyleSettings()
+
+    /** 设置对象的唯一内存所有者；页面通过 Activity 兼容访问器读取。 */
+    internal val style: StyleSettings
+        get() = currentStyle
 
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return
         initialized = true
+        currentStyle = style.copy()
         _uiState.value = SettingsUiState(
             scheme = style.colorScheme,
             showFormat = style.showFormat,

@@ -32,6 +32,17 @@ class LanShareViewModel @Inject constructor() : ViewModel() {
         ownFileIds: Set<String>,
         previewFiles: Map<String, java.io.File>,
     ) {
-        _uiState.value = LanShareUiState(session, isHost, qrVisible, browserConnected, files, ownFileIds, previewFiles)
-    }
-}
+        // 复制为不可变快照，避免 Compose 观察到 Activity 仍在修改的可变集合。
+        val nextState = LanShareUiState(
+            session = session,
+            isHost = isHost,
+            qrVisible = qrVisible,
+            browserConnected = browserConnected,
+            files = files.toList(),
+            ownFileIds = ownFileIds.toSet(),
+            previewFiles = previewFiles.toMap(),
+        )
+        if (_uiState.value != nextState) {
+            _uiState.value = nextState
+        }
+    }}

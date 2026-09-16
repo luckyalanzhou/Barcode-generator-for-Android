@@ -44,8 +44,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 /** 创建唯一的 Compose 根节点；业务状态仍由 MainActivity/ViewModel 保存。 */
 internal fun MainActivity.buildComposeShell() {
     val activity = this
-    composeShellTitle = "条码生成器"
-    composeShellChromeVisible = true
+
     setContentView(
         ComposeView(this).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -129,16 +128,12 @@ internal fun ComposeAppShell(
                 },
                 label = "pageUpTransition",
             ) { targetPage ->
-                val targetChromeVisible = targetPage !in listOf("results", "favoriteDetail", "lanShare", "betaTestCenter")
+                val targetRoute = AppRoute.fromPage(targetPage)
+                val targetChromeVisible = targetRoute.chromeVisible
                 Column(Modifier.fillMaxSize()) {
                     if (targetChromeVisible) {
                         Text(
-                            text = when (targetPage) {
-                                "history" -> "历史记录"
-                                "favorites", "favoriteDetail" -> "收藏"
-                                "settings" -> "设置"
-                                else -> "条码生成器"
-                            },
+                            text = targetRoute.title,
                             modifier = Modifier.fillMaxWidth().height(60.dp),
                             color = if (activity.isDark()) Color(0xfff2f4f8) else Color(0xff182230),
                             fontSize = 25.sp,
@@ -170,21 +165,11 @@ internal fun ComposeAppShell(
     }
 }
 
-private fun routeForPage(page: String): String = when (page) {
-    "history" -> "history"
-    "favorites" -> "favorites"
-    "favoriteDetail" -> "favoriteDetail"
-    "results" -> "results"
-    "settings" -> "settings"
-    "lanShare" -> "lanShare"
-    "betaTestCenter" -> "betaTestCenter"
-    else -> "generate"
-}
+private fun routeForPage(page: String): String = AppRoute.fromPage(page).pageName
 
 /** Navigation Compose 容器；页面业务仍由现有兼容层提供，逐步迁移期间保持返回目标不变。 */
 @Composable
 private fun ComposeNavigationHost(activity: MainActivity, displayPage: String) {
-    val appUiState by activity.viewModel.uiState.collectAsState()
     val initialRoute = remember(displayPage) { routeForPage(displayPage) }
     val navController = rememberNavController()
     val targetRoute = routeForPage(displayPage)
@@ -227,10 +212,16 @@ private fun ComposePageRoute(activity: MainActivity, routePage: String) {
                 ComposeGeneratePage(activity, initialFormat)
             }
             "history" -> {
-                val historyState by activity.historyViewModel.uiState.collectAsState()
+                val dataState by activity.viewModel.dataState.collectAsState()
+                val historyEntries = dataState.items
+                    .filter { it.inHistory }
+                    .map { it.copy() }
+                    .groupBy { it.createdAt }
+                    .toList()
+                    .sortedByDescending { it.first }
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                     HistoryComposePage(
-                        entries = historyState.entries,
+                        entries = historyEntries,
                         dark = activity.isDark(),
                         onClear = { activity.confirmClear(false) },
                         onOpen = { batch ->

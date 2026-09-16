@@ -69,9 +69,13 @@ class MainActivity : AppCompatActivity() {
         "EAN-8" to BarcodeFormat.EAN_8, "UPC-A" to BarcodeFormat.UPC_A,
         "ITF-14" to BarcodeFormat.ITF, "Codabar" to BarcodeFormat.CODABAR
     )
-    internal val items = mutableListOf<CodeItem>()
-    internal val favoriteGroups = mutableListOf<FavoriteGroup>()
-    internal val favoriteFolders = mutableListOf<String>()
+    /** 兼容旧 UI/导入导出调用；实际集合由 BarcodeViewModel 持有。 */
+    internal val items: MutableList<CodeItem>
+        get() = viewModel.items
+    internal val favoriteGroups: MutableList<FavoriteGroup>
+        get() = viewModel.favoriteGroups
+    internal val favoriteFolders: MutableList<String>
+        get() = viewModel.favoriteFolders
     internal var inputDraft: MutableList<String>
         get() = viewModel.inputDraft
         set(value) { viewModel.inputDraft = value }
@@ -166,10 +170,7 @@ class MainActivity : AppCompatActivity() {
     }
     // 搜索期间暂存用户原本的折叠状态；清除搜索后准确恢复。
     internal var favoriteCollapsedBeforeSearch: Set<String>? = null
-    internal val composeTabSelection = mutableIntStateOf(0)
     internal val composeShellRevision = mutableIntStateOf(0)
-    internal var composeShellTitle: String = "条码生成器"
-    internal var composeShellChromeVisible: Boolean = true
     internal var composeShellReady: Boolean = false
     internal var tabGlassDragActive = false
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
@@ -182,8 +183,6 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var settingsStore: SettingsStore
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
-    internal val favoritesViewModel: FavoritesViewModel by viewModels()
-    internal val historyViewModel: HistoryViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
     @Inject
     internal lateinit var generateBarcodesUseCase: GenerateBarcodesUseCase
@@ -200,7 +199,9 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var barcodeRepository: BarcodeRepository
     @Inject
     internal lateinit var favoritesBackupUseCase: FavoritesBackupUseCase
-    internal val style by lazy { loadStyle() }
+    /** 兼容旧代码的访问器；设置实际由 SettingsViewModel 持有。 */
+    internal val style: StyleSettings
+        get() = settingsViewModel.style
     internal var lanShareManagerRef: LanShareManager? = null
     @Inject
     internal lateinit var injectedLanShareManager: LanShareManager
@@ -278,6 +279,7 @@ class MainActivity : AppCompatActivity() {
                 DebugLog.record("startup", "data initialization failed", error)
             }
             try {
+                settingsViewModel.initialize(loadStyle(), settingsStore.getOcrConfusionReplacementMask())
                 restoreLanShareAfterConfigurationChange()
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()

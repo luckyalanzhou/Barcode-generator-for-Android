@@ -32,8 +32,8 @@ internal fun MainActivity.tabPageIndex(): Int = when (page) {
 }
 
 internal fun MainActivity.updateTopTabSelection() {
-    // Tab 的可见状态由 ComposeBottomTabBar 绘制，业务层只同步当前索引。
-    composeTabSelection.intValue = tabPageIndex()
+    // Tab 的可见状态由 ComposeBottomTabBar 绘制，选中索引与页面路由一起进入 ViewModel。
+    viewModel.updateSelectedTab(tabPageIndex())
 }
 
 internal fun MainActivity.isDark() =
@@ -234,23 +234,9 @@ internal fun MainActivity.render() {
     try {
         syncBarcodeDisplaySettings(page == "results")
         updateTopTabSelection()
-        composeShellTitle = when (page) {
-            "history" -> "历史记录"
-            "favorites", "favoriteDetail" -> "收藏"
-            "settings" -> "设置"
-            "betaTestCenter" -> "Beta 测试中心"
-            "lanShare" -> "局域网分享"
-            else -> "条码生成器"
-        }
-        composeShellChromeVisible = page !in listOf("results", "favoriteDetail", "lanShare", "betaTestCenter")
-        viewModel.updateAppUi(
-            page = page,
-            title = composeShellTitle,
-            chromeVisible = composeShellChromeVisible,
-            selectedTab = composeTabSelection.intValue,
-        )
-        favoritesViewModel.sync(favoriteGroups.toList(), favoriteFolders.toList(), items.toList())
-        historyViewModel.sync(items.toList())
+        // 标题和 Chrome 可见性由 AppRoute 派生，避免 render() 再维护第二套判断。
+        viewModel.updateAppUi(page)
+        viewModel.publishDataState()
         lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())
         if (page == "lanShare" && lanShareSession == null) window.decorView.post { enterLanShare() }
         if (page == "favoriteDetail" && selectedFavoriteGroup == null) page = "favorites"
@@ -261,8 +247,8 @@ internal fun MainActivity.render() {
 }
 
 internal fun MainActivity.showAppChrome(visible: Boolean) {
-    composeShellChromeVisible = visible
-    composeShellRevision.intValue++
+    // 页面 Chrome 由 AppRoute 决定；保留入口供旧调用方编译通过。
+    if (visible != viewModel.uiState.value.chromeVisible) composeShellRevision.intValue++
 }
 
 internal fun MainActivity.showIos26NoticeDialog(message: String, showMetrics: Boolean = false) {

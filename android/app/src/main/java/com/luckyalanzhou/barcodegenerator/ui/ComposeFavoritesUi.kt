@@ -63,7 +63,7 @@ private data class ComposeFavoriteRow(
 @Composable
 internal fun ComposeFavoritesPage(activity: MainActivity) {
     val anchor = LocalView.current
-    val favoritesState by activity.favoritesViewModel.uiState.collectAsState()
+    val favoritesState by activity.viewModel.dataState.collectAsState()
     var query by remember { mutableStateOf("") }
     var revision by remember { mutableIntStateOf(0) }
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
@@ -259,7 +259,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     }
 }
 
-private fun composeFavoriteRows(activity: MainActivity, state: FavoritesUiState, query: String): List<ComposeFavoriteRow> {
+private fun composeFavoriteRows(activity: MainActivity, state: BarcodeDataState, query: String): List<ComposeFavoriteRow> {
     val folders = (state.folders + state.groups.map { it.folder }).filter { it.isNotBlank() }.distinct()
     val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
     fun matches(group: FavoriteGroup): Boolean = query.isEmpty() || group.folder.lowercase(Locale.getDefault()).contains(query) || group.name.lowercase(Locale.getDefault()).contains(query) || group.itemIds.any { id -> state.items.firstOrNull { it.id == id }?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
