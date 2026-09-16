@@ -1,9 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,6 +39,7 @@ private data class ComposeTabSpec(val label: String, val description: String, va
 @Composable
 internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
     val haptic = LocalHapticFeedback.current
+    val animation = rememberComposeAnimationConfig()
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", R.drawable.ic_tab_barcode, R.drawable.ic_tab_barcode_selected),
@@ -76,7 +75,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
             val itemColor = if (selected) selectedColor else unselectedColor
             val itemScale by animateFloatAsState(
                 targetValue = if (selected) 1f else 0.96f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+                animationSpec = animation.bouncySpring(),
                 label = "tabScale$index"
             )
             Box(
@@ -91,7 +90,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    if (index == 3) ComposeSettingsTabIcon(selected, itemColor) else Icon(
+                    if (index == 3) ComposeSettingsTabIcon(selected, itemColor, animation) else Icon(
                         painter = painterResource(if (selected) tab.selectedIcon else tab.icon),
                         contentDescription = tab.description, tint = itemColor, modifier = Modifier.size(28.dp)
                     )
@@ -103,17 +102,17 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
 }
 
 @Composable
-private fun ComposeSettingsTabIcon(selected: Boolean, tint: Color) {
+private fun ComposeSettingsTabIcon(selected: Boolean, tint: Color, animation: ComposeAnimationConfig) {
     val progress = remember { Animatable(0f) }
     val scale = remember { Animatable(1f) }
     LaunchedEffect(selected) {
         if (selected) {
             progress.snapTo(0f); scale.snapTo(0.5f)
-            launch { scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)) }
-            progress.animateTo(1f, tween(180)); progress.animateTo(0f, tween(180))
+            launch { scale.animateTo(1f, animation.bouncySpring()) }
+            progress.animateTo(1f, tween(animation.iconRotationDurationMillis)); progress.animateTo(0f, tween(animation.iconRotationDurationMillis))
         } else {
-            progress.animateTo(0f, tween(140))
-            scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium))
+            progress.animateTo(0f, tween(animation.iconRotationDurationMillis))
+            scale.animateTo(1f, animation.settleSpring())
         }
     }
     val angle = progress.value * 45f

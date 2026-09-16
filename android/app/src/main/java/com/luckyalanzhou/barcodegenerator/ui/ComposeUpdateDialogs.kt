@@ -186,9 +186,10 @@ private fun ComposeUpdateAction(
 
 @Composable
 private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
+    val animation = rememberComposeAnimationConfig()
     val animated = animateFloatAsState(
         targetValue = progress.coerceIn(0, 100) / 100f,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = animation.progressDurationMillis),
         label = "downloadProgress",
     ).value
     val fill = if (dark) Color(0xff36c8ff) else Color(0xff2678db)

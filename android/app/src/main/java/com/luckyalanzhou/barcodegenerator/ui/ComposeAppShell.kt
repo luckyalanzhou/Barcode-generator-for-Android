@@ -7,8 +7,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -99,6 +97,7 @@ internal fun ComposeAppShell(
     val appUiState by activity.viewModel.uiState.collectAsState()
     val background = Color(activity.appBackground())
     val chromeVisible = appUiState.chromeVisible
+    val animation = rememberComposeAnimationConfig()
 
     val colorScheme = if (activity.isDark()) {
         darkColorScheme(background = background, surface = Color(0xff1c1c1e))
@@ -119,19 +118,13 @@ internal fun ComposeAppShell(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 transitionSpec = {
                     (slideInVertically(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        ),
+                        animationSpec = animation.settleSpring(),
                         initialOffsetY = { it / 10 },
-                    ) + fadeIn(tween(160))) togetherWith
+                    ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
                         (slideOutVertically(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
+                            animationSpec = animation.settleSpring(),
                             targetOffsetY = { -it / 14 },
-                        ) + fadeOut(tween(120))) using
+                        ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using
                         SizeTransform(clip = false)
                 },
                 label = "pageUpTransition",

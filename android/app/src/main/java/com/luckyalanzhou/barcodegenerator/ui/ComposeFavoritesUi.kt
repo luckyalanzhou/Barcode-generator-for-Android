@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
@@ -67,6 +69,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val dark = activity.isDark()
+    val animation = rememberComposeAnimationConfig()
     val primary = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230)
     val secondary = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff6b7280)
     val inputColor = if (dark) ComposeColor(0xff202936) else ComposeColor(0xfff7f9fc)
@@ -96,13 +99,21 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                     val folderColor = if (row.level == 0) rootFolderColor else childFolderColor
                     val interactionSource = remember(row.path) { MutableInteractionSource() }
                     val pressed by interactionSource.collectIsPressedAsState()
+                    val pressScale by animateFloatAsState(
+                        targetValue = if (pressed) 0.965f else 1f,
+                        animationSpec = animation.settleSpring(),
+                    )
+                    val pressColor by animateColorAsState(
+                        targetValue = if (pressed) folderColor.copy(alpha = if (dark) .22f else .12f) else ComposeColor.Transparent,
+                        animationSpec = animation.settleSpring(),
+                    )
                     Box(Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().height(if (row.level == 0) 50.dp else 43.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(if (pressed) folderColor.copy(alpha = if (dark) .22f else .12f) else ComposeColor.Transparent)
+                                .background(pressColor)
                                 .padding(start = if (row.level == 0) 11.dp else 26.dp, end = 5.dp)
-                                .graphicsLayer { val scale = if (pressed) 0.965f else 1f; scaleX = scale; scaleY = scale }
+                                .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
                                 .combinedClickable(
                                     interactionSource = interactionSource,
                                     indication = null,
@@ -170,12 +181,20 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                     val group = row.group ?: return@forEach
                     val interactionSource = remember(group.id) { MutableInteractionSource() }
                     val pressed by interactionSource.collectIsPressedAsState()
+                    val pressScale by animateFloatAsState(
+                        targetValue = if (pressed) 0.965f else 1f,
+                        animationSpec = animation.settleSpring(),
+                    )
+                    val pressColor by animateColorAsState(
+                        targetValue = if (pressed) fileColor.copy(alpha = if (dark) .22f else .12f) else ComposeColor.Transparent,
+                        animationSpec = animation.settleSpring(),
+                    )
                     Box(Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().height(44.dp).padding(start = if (row.level <= 1) 20.dp else 38.dp, end = 4.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(if (pressed) fileColor.copy(alpha = if (dark) .22f else .12f) else ComposeColor.Transparent)
-                                .graphicsLayer { val scale = if (pressed) 0.965f else 1f; scaleX = scale; scaleY = scale }
+                                .background(pressColor)
+                                .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
                                 .combinedClickable(
                                     interactionSource = interactionSource,
                                     indication = null,
