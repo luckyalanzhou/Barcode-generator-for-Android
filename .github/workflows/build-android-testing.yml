@@ -44,7 +44,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          cache-cleanup: never
+          # 只恢复依赖和 Wrapper；跨运行恢复巨大的 build-cache/transforms
+          # 在 GitHub 托管 runner 上耗时高，且每次 beta 提交都会产生新缓存键。
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/jars-9
+            wrapper/dists
+          cache-cleanup: on-success
           cache-read-only: false
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
