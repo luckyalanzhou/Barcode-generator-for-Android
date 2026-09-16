@@ -113,6 +113,7 @@ android {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
+    implementation(project(":core:ui"))
     // Compose 迁移基础：阶段一只启用编译能力，现有 XML 页面保持不变。
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)

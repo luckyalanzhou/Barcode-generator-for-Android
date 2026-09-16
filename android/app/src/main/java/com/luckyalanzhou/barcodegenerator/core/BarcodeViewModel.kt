@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +15,8 @@ data class AppUiState(
     val selectedTab: Int = 0,
 )
 
-class BarcodeViewModel : ViewModel() {
+@HiltViewModel
+class BarcodeViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 

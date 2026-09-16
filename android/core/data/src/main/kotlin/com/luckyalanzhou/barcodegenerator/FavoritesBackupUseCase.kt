@@ -4,7 +4,7 @@ import android.content.ContentResolver
 import android.net.Uri
 
 /** 收藏备份用例：协调 ZIP 格式与 Repository，UI 不再直接访问 DAO 或事务。 */
-internal class FavoritesBackupUseCase(private val repository: BarcodeRepository) {
+class FavoritesBackupUseCase(private val repository: BarcodeRepository) {
     suspend fun export(resolver: ContentResolver, uri: Uri) {
         val entities = repository.loadTransferEntities()
         FavoritesTransferManager.export(resolver, uri, entities.groups, entities.links, entities.items, entities.folders)
@@ -20,3 +20,5 @@ internal class FavoritesBackupUseCase(private val repository: BarcodeRepository)
         return transfer.items.size to transfer.groups.size
     }
 }
+
+

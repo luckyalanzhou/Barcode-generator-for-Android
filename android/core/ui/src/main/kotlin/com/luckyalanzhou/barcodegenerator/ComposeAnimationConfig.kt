@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -23,7 +24,7 @@ import kotlin.math.roundToInt
  * 动画时长以“目标帧数”计算，而不是固定毫秒数：设备刷新率越高，同一段动效
  * 会拥有更多中间帧；弹簧刚度也会略微提升，避免高刷设备上的回弹显得拖沓。
  */
-internal data class ComposeAnimationConfig(val refreshRateHz: Int) {
+data class ComposeAnimationConfig(val refreshRateHz: Int) {
     private fun frames(frameCount: Int): Int =
         (frameCount * 1000f / refreshRateHz).roundToInt().coerceAtLeast(1)
 
@@ -68,7 +69,7 @@ internal data class ComposeAnimationConfig(val refreshRateHz: Int) {
  * onDisplayChanged，配置随即重组，不需要重启页面或应用。
  */
 @Composable
-internal fun rememberComposeAnimationConfig(): ComposeAnimationConfig {
+fun rememberComposeAnimationConfig(): ComposeAnimationConfig {
     val context = LocalContext.current
     val view = LocalView.current
     var refreshRate by remember(view) {
@@ -93,3 +94,4 @@ internal fun rememberComposeAnimationConfig(): ComposeAnimationConfig {
 
     return remember(refreshRate) { ComposeAnimationConfig.from(refreshRate) }
 }
+

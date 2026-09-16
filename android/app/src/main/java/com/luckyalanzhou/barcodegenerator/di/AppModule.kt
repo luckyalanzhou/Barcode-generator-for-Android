@@ -6,6 +6,8 @@ import com.luckyalanzhou.barcodegenerator.BarcodeDatabase
 import com.luckyalanzhou.barcodegenerator.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.FavoritesBackupUseCase
 import com.luckyalanzhou.barcodegenerator.GenerateBarcodesUseCase
+import com.luckyalanzhou.barcodegenerator.LanShareManager
+import com.luckyalanzhou.barcodegenerator.SettingsStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,4 +38,14 @@ object AppModule {
     @Provides
     internal fun provideFavoritesBackupUseCase(repository: BarcodeRepository): FavoritesBackupUseCase =
         FavoritesBackupUseCase(repository)
+
+    @Provides
+    @Singleton
+    internal fun provideSettingsStore(@ApplicationContext context: Context): SettingsStore =
+        SettingsStore(context)
+
+    @Provides
+    @Singleton
+    internal fun provideLanShareManager(@ApplicationContext context: Context): LanShareManager =
+        LanShareManager(context)
 }

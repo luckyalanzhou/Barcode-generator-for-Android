@@ -178,7 +178,8 @@ class MainActivity : AppCompatActivity() {
     internal var pendingCameraUri: Uri? = null
     internal var pendingCameraFile: File? = null
     internal val legacyPrefs by lazy { getSharedPreferences("barcode_app", MODE_PRIVATE) }
-    internal val settingsStore by lazy { SettingsStore(applicationContext) }
+    @Inject
+    internal lateinit var settingsStore: SettingsStore
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val favoritesViewModel: FavoritesViewModel by viewModels()
@@ -201,9 +202,11 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var favoritesBackupUseCase: FavoritesBackupUseCase
     internal val style by lazy { loadStyle() }
     internal var lanShareManagerRef: LanShareManager? = null
+    @Inject
+    internal lateinit var injectedLanShareManager: LanShareManager
     internal val lanShareManager: LanShareManager
         get() = lanShareManagerRef ?: retainedLanShare?.manager?.also { lanShareManagerRef = it }
-            ?: LanShareManager(applicationContext).also { lanShareManagerRef = it }
+            ?: injectedLanShareManager.also { lanShareManagerRef = it }
     internal var lanShareSession: LanShareSession? = null
     internal var lanShareIsHost = false
     internal var lanShareQrVisible = false

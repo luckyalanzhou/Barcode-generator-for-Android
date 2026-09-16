@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +18,8 @@ data class LanShareUiState(
 )
 
 /** 局域网分享展示状态；网络服务生命周期仍由 Activity 桥接层管理。 */
-class LanShareViewModel : ViewModel() {
+@HiltViewModel
+class LanShareViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(LanShareUiState())
     val uiState: StateFlow<LanShareUiState> = _uiState.asStateFlow()
 

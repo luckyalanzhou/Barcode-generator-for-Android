@@ -153,14 +153,14 @@ object FavoritesTransferManager {
     private fun splitFolder(folder: String): Pair<String, String> {
         val parts = folder.split('/').filter { it.isNotBlank() }
         require(parts.size <= 2) { "文件夹“$folder”超过两级，无法跨平台导出" }
-        parts.forEach { require(it != "." && it != ".." && !it.contains('\\')) { "文件夹“$folder”格式无效" } }
+        parts.forEach { require(it != "." && it != ".." && !it.contains(Char(92))) { "文件夹“$folder”格式无效" } }
         return (parts.getOrNull(0) ?: "") to (parts.getOrNull(1) ?: "")
     }
     private fun favoriteJson(favorite: InterchangeFavorite) = JSONObject().apply {
         put("id", favorite.id); put("name", favorite.name); put("rootFolder", favorite.rootFolder); put("subFolder", favorite.subFolder)
         put("folder", favorite.folder); put("type", favorite.type); put("barcodeType", favorite.type); put("time", favorite.time); put("texts", JSONArray(favorite.texts))
     }
-    internal fun favoriteZipPath(favorite: InterchangeFavorite): String {
+    fun favoriteZipPath(favorite: InterchangeFavorite): String {
         val id = favorite.id?.takeIf { it.isNotBlank() } ?: error("收藏缺少文件标识")
         return listOf(FAVORITES_DIRECTORY, favorite.rootFolder, favorite.subFolder, "$id.json")
             .filter { it.isNotBlank() }
@@ -228,3 +228,5 @@ private class PortableZipWriter(private val output: OutputStream) : Closeable {
     }
     private fun writeBytes(bytes: ByteArray) { output.write(bytes); offset += bytes.size }
 }
+
+
