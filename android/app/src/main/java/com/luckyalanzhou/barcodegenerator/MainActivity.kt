@@ -333,11 +333,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         when (page) {
-            "settings" -> { page = settingsReturnPage; render() }
+            "settings" -> { page = settingsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate"; render() }
             "betaTestCenter" -> { page = "settings"; render() }
             "lanShare" -> { closeLanShare(); page = "settings"; render() }
             "favoriteDetail" -> { page = "favorites"; render() }
-            "results" -> { page = resultsReturnPage; render() }
+            "results" -> { page = resultsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate"; render() }
             else -> finish()
         }
     }

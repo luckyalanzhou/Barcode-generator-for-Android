@@ -3,6 +3,8 @@ package com.luckyalanzhou.barcodegenerator
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -67,9 +70,9 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     val primary = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230)
     val secondary = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff6b7280)
     val inputColor = if (dark) ComposeColor(0xff202936) else ComposeColor(0xfff7f9fc)
-    val rootFolderColor = ComposeColor(0xff527ca8)
-    val childFolderColor = ComposeColor(0xff9b7a57)
-    val fileColor = ComposeColor(0xff5c8c7b)
+    val rootFolderColor = if (dark) ComposeColor(0xff9bc8f5) else ComposeColor(0xff527ca8)
+    val childFolderColor = if (dark) ComposeColor(0xffe0b383) else ComposeColor(0xff9b7a57)
+    val fileColor = if (dark) ComposeColor(0xff9bd8c0) else ComposeColor(0xff5c8c7b)
     // rows 依赖可变业务对象的完整内容；不缓存，确保重命名、移动、删除和条码修改后
     // 即使 Activity 只触发了普通重组，列表也不会继续显示旧快照。
     val rows = composeFavoriteRows(activity, favoritesState, query.trim().lowercase(Locale.getDefault()))
@@ -91,11 +94,16 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
             rows.forEach { row ->
                 if (row.folder) {
                     val folderColor = if (row.level == 0) rootFolderColor else childFolderColor
+                    val interactionSource = remember(row.path) { MutableInteractionSource() }
+                    val pressed by interactionSource.collectIsPressedAsState()
                     Box(Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().height(if (row.level == 0) 50.dp else 43.dp)
                                 .padding(start = if (row.level == 0) 11.dp else 26.dp, end = 5.dp)
+                                .graphicsLayer { val scale = if (pressed) 0.975f else 1f; scaleX = scale; scaleY = scale }
                                 .combinedClickable(
+                                    interactionSource = interactionSource,
+                                    indication = null,
                                     onClick = {
                                         val folders = (activity.favoriteFolders + activity.favoriteGroups.map { it.folder }).filter { it.isNotBlank() }.distinct()
                                         if (row.collapsed) activity.collapsedFavoriteFolders.remove(row.path)
@@ -113,13 +121,15 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             Text(if (row.collapsed) "›" else "⌄", color = secondary, fontSize = 22.sp, modifier = Modifier.width(25.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
                         val folderActions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
-                        DropdownMenu(
+                        AnchoredDropdownMenu(
+                            dark = dark,
                             expanded = folderMenu?.first == row.path,
                             onDismissRequest = { folderMenu = null },
                             shape = RoundedCornerShape(16.dp),
                             containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
                             shadowElevation = 3.dp,
+                            menuWidth = 160.dp,
                         ) {
                             folderActions.forEachIndexed { index, label ->
                                 if (index > 0) ComposeDropdownDivider(dark)
@@ -150,10 +160,15 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                     }
                 } else {
                     val group = row.group ?: return@forEach
+                    val interactionSource = remember(group.id) { MutableInteractionSource() }
+                    val pressed by interactionSource.collectIsPressedAsState()
                     Box(Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().height(44.dp).padding(start = if (row.level <= 1) 20.dp else 38.dp, end = 4.dp)
+                                .graphicsLayer { val scale = if (pressed) 0.975f else 1f; scaleX = scale; scaleY = scale }
                                 .combinedClickable(
+                                    interactionSource = interactionSource,
+                                    indication = null,
                                     onClick = {
                                         activity.resultItems = row.groupItems
                                         activity.showingHistoryResult = false
@@ -171,13 +186,15 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             Text(group.name, color = fileColor, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)
                         }
-                        DropdownMenu(
+                        AnchoredDropdownMenu(
+                            dark = dark,
                             expanded = fileMenu?.id == group.id,
                             onDismissRequest = { fileMenu = null },
                             shape = RoundedCornerShape(16.dp),
                             containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
                             shadowElevation = 3.dp,
+                            menuWidth = 160.dp,
                         ) {
                             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
                                 if (index > 0) ComposeDropdownDivider(dark)

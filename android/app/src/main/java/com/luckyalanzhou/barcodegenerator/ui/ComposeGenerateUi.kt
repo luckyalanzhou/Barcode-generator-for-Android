@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,8 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -57,11 +60,13 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
     var formatName by remember { mutableStateOf(initialFormat) }
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
+    var formatButtonWidth by remember { mutableIntStateOf(0) }
     val dark = activity.isDark()
     val textColor = if (dark) Color(0xfff2f4f7) else Color(0xff172033)
     val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
     val cardColor = if (dark) Color(0xff182330).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.88f)
     val inputColor = if (dark) Color(0xff202c3a) else Color(0xfff4f6fa)
+    val density = LocalDensity.current
 
     fun syncDraft() { activity.inputDraft = values.toMutableList() }
 
@@ -113,7 +118,7 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                             SmallInputAction("\u2193", enabled = index < values.lastIndex) {
                                 val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction("\u00d7", enabled = true, onLongClick = { clearDialog = true }) {
+                            SmallInputAction("\u00d7", enabled = true, icon = R.drawable.ic_delete_light, iconTint = if (dark) Color(0xffffa0a0) else Color(0xffc85c5c), onLongClick = { clearDialog = true }) {
                                 if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft()
                             }
                         }
@@ -140,15 +145,17 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Box(Modifier.clickable { formatExpanded = true }) {
+                Box(Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }.clickable { formatExpanded = true }) {
                     Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1)
-                    DropdownMenu(
+                    AnchoredDropdownMenu(
+                        dark = dark,
                         expanded = formatExpanded,
                         onDismissRequest = { formatExpanded = false },
                         shape = RoundedCornerShape(16.dp),
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
+                        menuWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
                     ) {
                         activity.formats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
@@ -170,9 +177,12 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SmallInputAction(label: String, enabled: Boolean, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun SmallInputAction(label: String, enabled: Boolean, icon: Int? = null, iconTint: Color = Color(0xff667085), onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Box(
         Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center
-    ) { Text(label, fontSize = 16.sp, color = if (enabled) Color(0xff667085) else Color(0xffb5bdc9)) }
+    ) {
+        if (icon != null) Icon(painterResource(icon), contentDescription = "清除输入", tint = if (enabled) iconTint else Color(0xffb5bdc9), modifier = Modifier.size(18.dp))
+        else Text(label, fontSize = 16.sp, color = if (enabled) Color(0xff667085) else Color(0xffb5bdc9))
+    }
 }

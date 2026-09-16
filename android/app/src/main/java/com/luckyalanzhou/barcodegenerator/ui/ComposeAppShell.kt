@@ -1,5 +1,12 @@
 package com.luckyalanzhou.barcodegenerator
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -15,6 +22,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
@@ -86,31 +96,51 @@ internal fun ComposeAppShell(
     val appUiState by activity.viewModel.uiState.collectAsState()
     val background = Color(activity.appBackground())
     val chromeVisible = appUiState.chromeVisible
-    val title = appUiState.title
 
-    Box(Modifier.fillMaxSize().background(background)) {
-        Column(
+    val colorScheme = if (activity.isDark()) {
+        darkColorScheme(background = background, surface = Color(0xff1c1c1e))
+    } else {
+        lightColorScheme(background = background, surface = Color(0xfffbfcff))
+    }
+    MaterialTheme(colorScheme = colorScheme) {
+        Box(Modifier.fillMaxSize().background(background)) {
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
-        ) {
-            if (chromeVisible) {
-                Text(
-                    text = title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    color = if (activity.isDark()) Color(0xfff2f4f8) else Color(0xff182230),
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            Box(Modifier.fillMaxWidth().weight(1f)) {
-                ComposeNavigationHost(activity)
+            ) {
+            AnimatedContent(
+                targetState = appUiState.page,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                transitionSpec = {
+                    (slideInVertically(animationSpec = tween(220), initialOffsetY = { it / 5 }) + fadeIn(tween(180))) togetherWith
+                        (slideOutVertically(animationSpec = tween(140), targetOffsetY = { -it / 10 }) + fadeOut(tween(100)))
+                },
+                label = "pageUpTransition",
+            ) { targetPage ->
+                val targetChromeVisible = targetPage !in listOf("results", "favoriteDetail", "lanShare", "betaTestCenter")
+                Column(Modifier.fillMaxSize()) {
+                    if (targetChromeVisible) {
+                        Text(
+                            text = when (targetPage) {
+                                "history" -> "历史记录"
+                                "favorites", "favoriteDetail" -> "收藏"
+                                "settings" -> "设置"
+                                else -> "条码生成器"
+                            },
+                            modifier = Modifier.fillMaxWidth().height(60.dp),
+                            color = if (activity.isDark()) Color(0xfff2f4f8) else Color(0xff182230),
+                            fontSize = 25.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    Box(Modifier.fillMaxWidth().weight(1f)) {
+                        ComposeNavigationHost(activity, targetPage)
+                    }
+                }
             }
 
             if (chromeVisible) {
@@ -124,8 +154,9 @@ internal fun ComposeAppShell(
                 )
             }
         }
-        if (activity.composeFireworksVisible.value) {
-            ComposeFireworksOverlay()
+            if (activity.composeFireworksVisible.value) {
+                ComposeFireworksOverlay()
+            }
         }
     }
 }
@@ -143,11 +174,11 @@ private fun routeForPage(page: String): String = when (page) {
 
 /** Navigation Compose 容器；页面业务仍由现有兼容层提供，逐步迁移期间保持返回目标不变。 */
 @Composable
-private fun ComposeNavigationHost(activity: MainActivity) {
+private fun ComposeNavigationHost(activity: MainActivity, displayPage: String) {
     val appUiState by activity.viewModel.uiState.collectAsState()
-    val initialRoute = remember { routeForPage(appUiState.page) }
+    val initialRoute = remember(displayPage) { routeForPage(displayPage) }
     val navController = rememberNavController()
-    val targetRoute = routeForPage(appUiState.page)
+    val targetRoute = routeForPage(displayPage)
 
     LaunchedEffect(targetRoute) {
         if (navController.currentDestination?.route != targetRoute) {

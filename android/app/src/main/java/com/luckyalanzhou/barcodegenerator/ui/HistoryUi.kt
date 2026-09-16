@@ -8,7 +8,9 @@ import java.util.Locale
 
 /** 结果页由 ComposeResultsUi.kt 绘制；此入口只负责触发根 Compose 重组。 */
 internal fun MainActivity.showResults() {
-    composeShellRevision.intValue++
+    // 结果页不仅需要重组，还必须同步根路由和顶部/底部页面状态。
+    page = "results"
+    render()
 }
 
 /** 兼容旧业务调用，历史页实际由 ComposeAppShell 路由。 */

@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -23,6 +25,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,7 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +57,9 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
     val accent = if (dark) Color(0xffb8ccff) else Color(0xff2864d7)
     var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
+    var schemeButtonWidth by remember { mutableIntStateOf(0) }
+    var ocrButtonWidth by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
 
     fun persist(next: SettingsUiState = settings) {
         val schemeChanged = activity.style.colorScheme != next.scheme
@@ -85,15 +93,18 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         text = when (settings.scheme) { "dark" -> "深色"; "light" -> "浅色"; else -> "跟随系统" },
                         color = button,
                         contentColor = primary,
+                        modifier = Modifier.onGloballyPositioned { schemeButtonWidth = it.size.width },
                         onClick = { schemeMenu = true }
                     )
-                    DropdownMenu(
+                    AnchoredDropdownMenu(
+                        dark = dark,
                         expanded = schemeMenu,
                         onDismissRequest = { schemeMenu = false },
                         shape = RoundedCornerShape(16.dp),
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
+                        menuWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
                     ) {
                         listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                             if (index > 0) ComposeDropdownDivider(dark)
@@ -119,21 +130,24 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             })
             SettingDivider(dark)
             SettingRow("OCR 字符纠错", primary, trailing = {
-                val selected = ocrReplacementLabels.count { (_, bit) -> settings.ocrMask and bit != 0 }
+                val selectedLabels = ocrReplacementLabels.filter { (_, bit) -> settings.ocrMask and bit != 0 }.map { it.first }
                 Box {
                     BoxedSettingButton(
-                        text = when (selected) { 0 -> "关闭"; 4 -> "全部启用"; else -> "已启用 ${selected} 项" },
+                        text = when (selectedLabels.size) { 0 -> "关闭"; 1 -> selectedLabels.first(); else -> "启用 ${selectedLabels.size} 项" },
                         color = button,
                         contentColor = primary,
+                        modifier = Modifier.onGloballyPositioned { ocrButtonWidth = it.size.width },
                         onClick = { ocrMenu = true }
                     )
-                    DropdownMenu(
+                    AnchoredDropdownMenu(
+                        dark = dark,
                         expanded = ocrMenu,
                         onDismissRequest = { ocrMenu = false },
                         shape = RoundedCornerShape(16.dp),
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
+                        menuWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
                     ) {
                         ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                             if (index > 0) ComposeDropdownDivider(dark)
@@ -201,6 +215,7 @@ private fun SettingActionRow(title: String, action: String, color: Color, button
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SettingSliderRow(title: String, value: Float, range: ClosedFloatingPointRange<Float>, valueText: String, color: Color, accent: Color, onChange: (Float) -> Unit) {
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
@@ -217,6 +232,11 @@ private fun SettingSliderRow(title: String, value: Float, range: ClosedFloatingP
                 activeTickColor = Color.Transparent,
                 inactiveTickColor = Color.Transparent,
             ),
+            thumb = {
+                Box(
+                    Modifier.size(20.dp).background(accent, CircleShape),
+                )
+            },
         )
         Text(valueText, color = accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(66.dp))
     }
@@ -226,8 +246,8 @@ private fun SettingSliderRow(title: String, value: Float, range: ClosedFloatingP
 private fun SettingDivider(dark: Boolean) { Spacer(Modifier.fillMaxWidth().height(1.dp).background(if (dark) Color(0xff3b4658).copy(alpha = .38f) else Color(0xff667085).copy(alpha = .12f))) }
 
 @Composable
-private fun BoxedSettingButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit) {
-    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp), modifier = Modifier.height(40.dp)) { Text(text, maxLines = 1) }
+private fun BoxedSettingButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp), modifier = modifier.height(40.dp)) { Text(text, maxLines = 1) }
 }
 
 @Composable

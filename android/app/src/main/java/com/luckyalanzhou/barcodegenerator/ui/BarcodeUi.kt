@@ -53,10 +53,26 @@ internal fun MainActivity.openSettings() {
         updateTopTabSelection()
         return
     }
-    settingsReturnPage = if (page == "lanShare") "generate" else page
+    // 设置是独立页面，但返回必须回到当前所属的主 Tab，不能回到结果页或详情页。
+    settingsReturnPage = mainTabPageForCurrentPage()
     if (page == "lanShare") closeLanShare()
     page = "settings"
     render()
+}
+
+internal fun MainActivity.mainTabPageForCurrentPage(): String = when (page) {
+    "history" -> "history"
+    "favorites", "favoriteDetail" -> "favorites"
+    "settings", "betaTestCenter" -> "settings"
+    "results" -> when (resultsReturnPage) {
+        "history" -> "history"
+        "favorites" -> "favorites"
+        "settings" -> "settings"
+        else -> "generate"
+    }
+    // 局域网分享由设置工具进入，返回设置页；它本身不是底部 Tab 页面。
+    "lanShare" -> "settings"
+    else -> "generate"
 }
 
 internal fun MainActivity.applyAppearance() {

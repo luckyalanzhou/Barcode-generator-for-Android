@@ -15,25 +15,33 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
@@ -52,7 +60,19 @@ internal fun MainActivity.showComposeDialog(
     val composeView = ComposeView(this)
     var metricsDialog: Dialog? = null
     val selectedElement = mutableStateOf("尚未选择元素")
-    dialog.window?.setWindowAnimations(0)
+    val screenWidth = resources.displayMetrics.widthPixels
+    val preferredWidth = (screenWidth * if (compact) 0.82f else 0.88f).roundToInt()
+    val availableWidth = (screenWidth - dp(24)).coerceAtLeast(1)
+    val maxWidth = dp(if (compact) 360 else 400).coerceAtMost(availableWidth)
+    val minWidth = dp(280).coerceAtMost(maxWidth)
+    val dialogWidth = preferredWidth.coerceIn(minWidth, maxWidth)
+    // 在 show() 前完成窗口尺寸配置，避免内容先按默认宽度测量后再跳到目标位置。
+    dialog.window?.apply {
+        setWindowAnimations(0)
+        setGravity(Gravity.CENTER)
+        setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+        setLayout(dialogWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+    }
     // Dialog 的 decorView 不会自动继承 Activity 的生命周期所有者；显式绑定后，
     // ComposeView 才能安全创建 WindowRecomposer，避免点击编辑项时崩溃。
     composeView.setViewTreeLifecycleOwner(this)
@@ -73,12 +93,6 @@ internal fun MainActivity.showComposeDialog(
             setWindowAnimations(0)
             setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
             setGravity(Gravity.CENTER)
-            val screenWidth = resources.displayMetrics.widthPixels
-            val preferred = (screenWidth * if (compact) 0.82f else 0.88f).roundToInt()
-            val available = (screenWidth - dp(24)).coerceAtLeast(1)
-            val maxWidth = dp(if (compact) 360 else 400).coerceAtMost(available)
-            val minWidth = dp(280).coerceAtMost(maxWidth)
-            setLayout(preferred.coerceIn(minWidth, maxWidth), WindowManager.LayoutParams.WRAP_CONTENT)
         }
         if (metricsLabel != null) metricsDialog = showSimulationMetricsCompose(metricsLabel, selectedElement)
     }
@@ -129,8 +143,42 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
         setLayout(dp(320), WindowManager.LayoutParams.WRAP_CONTENT)
     }
     metricsDialog.show()
-    metricsDialog.window?.setLayout(dp(320), WindowManager.LayoutParams.WRAP_CONTENT)
     return metricsDialog
+}
+
+/** 所有下拉菜单统一使用锚点宽度、最大高度和滚动容器，避免超出屏幕。 */
+@Composable
+internal fun AnchoredDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    dark: Boolean,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(16.dp),
+    containerColor: Color = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+    tonalElevation: Dp = 0.dp,
+    shadowElevation: Dp = 3.dp,
+    menuWidth: Dp? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val configuration = LocalConfiguration.current
+    val maxHeight = (configuration.screenHeightDp * 0.62f).coerceAtLeast(180f).dp
+    val maxWidth = (configuration.screenWidthDp - 24).coerceAtLeast(1).dp
+    val widthModifier = if (menuWidth != null) {
+        Modifier.width(menuWidth.coerceAtMost(maxWidth))
+    } else {
+        Modifier.widthIn(max = maxWidth)
+    }
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier.then(widthModifier).heightIn(max = maxHeight),
+        shape = shape,
+        containerColor = containerColor,
+        tonalElevation = tonalElevation,
+        shadowElevation = shadowElevation,
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState())) { content() }
+    }
 }
 
 @Composable
