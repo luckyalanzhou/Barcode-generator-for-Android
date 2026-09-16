@@ -5,6 +5,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -82,5 +83,6 @@ class BarcodeViewModel @Inject constructor() : ViewModel() {
     var updateDialogShowing: Boolean = false
     var updateDownloadRunning: Boolean = false
     var updateDownloadGeneration: Long = 0L
+    var updateDownloadJob: Job? = null
     var pendingInstallPath: String? = null
 }

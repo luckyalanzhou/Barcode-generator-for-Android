@@ -45,7 +45,7 @@ internal fun MainActivity.captureText() {
 internal fun MainActivity.openCamera(requestCode: Int) {
         val activity = this
         pendingCameraRequest = requestCode
-        if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
             return
         }

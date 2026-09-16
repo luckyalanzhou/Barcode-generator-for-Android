@@ -14,6 +14,8 @@ import android.graphics.drawable.GradientDrawable
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,7 +67,7 @@ internal fun MainActivity.showLanShare() {
 
 internal fun MainActivity.openLanShareCamera() {
     pendingCameraRequest = MainActivity.REQUEST_LAN_SHARE_CAPTURE
-    if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+    if (checkSelfPermission(Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
         requestPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
         return
     }
@@ -201,20 +203,18 @@ internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession
 
 internal fun MainActivity.startLanShareAutoRefresh() {
     stopLanShareAutoRefresh()
-    val task = object : Runnable {
-        override fun run() {
-            if (page != "lanShare" || lanShareSession == null) return
+    lanShareRefreshJob = lifecycleScope.launch {
+        while (isActive && page == "lanShare" && lanShareSession != null) {
+            delay(1_500L)
+            if (!isActive || page != "lanShare" || lanShareSession == null) break
             refreshLanShareFiles(showError = false)
-            lanShareRefreshHandler.postDelayed(this, 1_500L)
         }
     }
-    lanShareRefreshRunnable = task
-    lanShareRefreshHandler.postDelayed(task, 1_500L)
 }
 
 internal fun MainActivity.stopLanShareAutoRefresh() {
-    lanShareRefreshRunnable?.let(lanShareRefreshHandler::removeCallbacks)
-    lanShareRefreshRunnable = null
+    lanShareRefreshJob?.cancel()
+    lanShareRefreshJob = null
 }
 
 internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {

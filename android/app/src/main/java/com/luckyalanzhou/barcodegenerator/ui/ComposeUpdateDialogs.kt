@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +34,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -46,7 +46,7 @@ internal fun MainActivity.installApkCompose(file: File) {
             toast("更新文件不存在，请重新下载")
             return
         }
-        if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+        if (!packageManager.canRequestPackageInstalls()) {
             viewModel.pendingInstallPath = file.absolutePath
             showComposeDialog(
                 compact = true,
@@ -257,6 +257,13 @@ private fun ComposeDownloadProgressDialog(
     }
 }
 
+internal fun MainActivity.cancelUpdateDownload() {
+    viewModel.updateDownloadGeneration++
+    viewModel.updateDownloadJob?.cancel()
+    viewModel.updateDownloadJob = null
+    updateDownloadRunning = false
+}
+
 internal fun MainActivity.downloadAndInstallCompose(
     apkUrl: String,
     expectedSize: Long? = availableUpdateExpectedSize,
@@ -270,19 +277,16 @@ internal fun MainActivity.downloadAndInstallCompose(
     }
     val downloadGeneration = ++viewModel.updateDownloadGeneration
     updateDownloadRunning = true
-    val progress = mutableStateOf(0)
+    val progress = mutableIntStateOf(0)
     val indeterminate = mutableStateOf(false)
     val status = mutableStateOf("准备下载…")
-    var job: Job? = null
     var dismissDialog: (() -> Unit)? = null
     var cancelled = false
     lateinit var cancelDownload: () -> Unit
     cancelDownload = {
         if (!cancelled) {
             cancelled = true
-            viewModel.updateDownloadGeneration++
-            updateDownloadRunning = false
-            job?.cancel()
+            cancelUpdateDownload()
             dismissDialog?.invoke()
         }
     }
@@ -301,7 +305,7 @@ internal fun MainActivity.downloadAndInstallCompose(
         return
     }
     DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
-    job = lifecycleScope.launch(Dispatchers.IO) {
+    viewModel.updateDownloadJob = lifecycleScope.launch(Dispatchers.IO) {
         val temp = File(cacheDir, "barcode-generator-update.apk.part")
         val official = File(cacheDir, "barcode-generator-update.apk")
         var connection: HttpURLConnection? = null
@@ -378,7 +382,10 @@ internal fun MainActivity.downloadAndInstallCompose(
         } finally {
             connection?.disconnect()
             withContext(NonCancellable + Dispatchers.Main.immediate) {
-                if (viewModel.updateDownloadGeneration == downloadGeneration) updateDownloadRunning = false
+                if (viewModel.updateDownloadGeneration == downloadGeneration) {
+                    updateDownloadRunning = false
+                    viewModel.updateDownloadJob = null
+                }
             }
         }
     }

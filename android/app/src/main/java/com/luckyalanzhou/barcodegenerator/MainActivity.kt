@@ -215,8 +215,8 @@ class MainActivity : AppCompatActivity() {
     internal var lanShareFiles: List<LanShareFile> = emptyList()
     internal val lanShareOwnFileIds = mutableSetOf<String>()
     internal val lanSharePreviewFiles = mutableMapOf<String, File>()
-    internal val lanShareRefreshHandler = Handler(Looper.getMainLooper())
-    internal var lanShareRefreshRunnable: Runnable? = null
+    /** 局域网轮询绑定 Activity 生命周期，页面销毁时自动取消。 */
+    internal var lanShareRefreshJob: kotlinx.coroutines.Job? = null
     internal var lanShareRefreshInFlight = false
     internal var lanSharePreviewJob: kotlinx.coroutines.Job? = null
     internal val composeLanShareRevision = mutableIntStateOf(0)
@@ -233,7 +233,10 @@ class MainActivity : AppCompatActivity() {
             val session: LanShareSession,
             val isHost: Boolean,
             val files: List<LanShareFile>,
-            val ownFileIds: Set<String>
+            val ownFileIds: Set<String>,
+            val qrVisible: Boolean,
+            val browserConnected: Boolean,
+            val previewFiles: Map<String, File>
         )
         private var retainedLanShare: RetainedLanShare? = null
         const val REQUEST_CAMERA_PERMISSION = 42
@@ -291,6 +294,10 @@ class MainActivity : AppCompatActivity() {
                     settingsReturnPage = state.getString("settings_return_page", "generate") ?: "generate"
                     startupUpdateCheckStarted = state.getBoolean("startup_update_check_started", false)
                 }
+                if (page == "lanShare" && lanShareSession != null) {
+                    syncLanShareViewModelState()
+                    startLanShareAutoRefresh()
+                }
                 render()
             } catch (error: Exception) {
                 startupError = startupError ?: error
@@ -326,7 +333,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val pendingPath = viewModel.pendingInstallPath ?: return
-        if (android.os.Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls()) {
+        if (packageManager.canRequestPackageInstalls()) {
             viewModel.pendingInstallPath = null
             installApk(File(pendingPath))
         }
@@ -356,11 +363,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        cancelUpdateDownload()
         restoreBarcodeDisplaySettings()
         val session = lanShareSession
         if (isChangingConfigurations && session != null) {
             stopLanShareAutoRefresh()
-            retainedLanShare = RetainedLanShare(lanShareManager, session, lanShareIsHost, lanShareFiles, lanShareOwnFileIds.toSet())
+            retainedLanShare = RetainedLanShare(
+                manager = lanShareManager,
+                session = session,
+                isHost = lanShareIsHost,
+                files = lanShareFiles.toList(),
+                ownFileIds = lanShareOwnFileIds.toSet(),
+                qrVisible = lanShareQrVisible,
+                browserConnected = lanShareBrowserConnected,
+                previewFiles = lanSharePreviewFiles.toMap(),
+            )
         } else {
             closeLanShare()
         }
@@ -372,11 +389,14 @@ class MainActivity : AppCompatActivity() {
         lanShareManagerRef = retained.manager
         lanShareSession = retained.session
         lanShareIsHost = retained.isHost
-        lanShareFiles = retained.files
+        lanShareQrVisible = retained.qrVisible
+        lanShareBrowserConnected = retained.browserConnected
+        lanShareFiles = retained.files.toList()
+        lanSharePreviewFiles.clear()
+        lanSharePreviewFiles.putAll(retained.previewFiles)
         lanShareOwnFileIds.clear()
         lanShareOwnFileIds.addAll(retained.ownFileIds)
         retainedLanShare = null
-        startLanShareAutoRefresh()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

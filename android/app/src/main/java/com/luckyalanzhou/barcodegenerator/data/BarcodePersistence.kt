@@ -42,11 +42,13 @@ internal suspend fun MainActivity.saveAllFavoritesOnIo(
 internal suspend fun MainActivity.loadFavoriteFoldersOnIo() {
     favoriteFolders.clear()
     favoriteFolders.addAll((barcodeRepository.loadFolders().map { it.name } + favoriteGroups.map { it.folder }).filter { it.isNotBlank() && it != "默认" }.distinct().sorted())
+    viewModel.publishDataState()
 }
 
 internal suspend fun MainActivity.loadItemsOnIo() {
     items.clear()
     items.addAll(barcodeRepository.loadItems().map { CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory) })
+    viewModel.publishDataState()
 }
 
 internal suspend fun MainActivity.loadFavoriteGroupsOnIo() {
@@ -56,6 +58,7 @@ internal suspend fun MainActivity.loadFavoriteGroupsOnIo() {
     favoriteGroups.addAll(groups.map { group ->
         FavoriteGroup(group.id, group.folder.takeUnless { it == "默认" } ?: "", group.name, group.savedAt, itemIds[group.id].orEmpty().map { it.itemId }.toMutableList())
     })
+    viewModel.publishDataState()
 }
 
 private fun MainActivity.itemSnapshot() = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(MainActivity.MAX_HISTORY_ITEMS)).map { CodeItemEntity(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder, it.inHistory) }
@@ -65,18 +68,29 @@ private fun MainActivity.folderSnapshot() = favoriteFolders.filter { it.isNotBla
 
 internal fun MainActivity.saveItems() {
     val snapshot = itemSnapshot()
+    viewModel.publishDataState()
     enqueuePersistenceWrite { barcodeRepository.saveItems(snapshot) }
 }
+
 internal fun MainActivity.saveFavoriteGroups() {
-    val groups = groupSnapshot(); val links = groupItemSnapshot()
+    val groups = groupSnapshot()
+    val links = groupItemSnapshot()
+    viewModel.publishDataState()
     enqueuePersistenceWrite { barcodeRepository.saveFavoriteGroups(groups, links) }
 }
+
 internal fun MainActivity.saveFavoriteFolders() {
     val folders = folderSnapshot()
+    viewModel.publishDataState()
     enqueuePersistenceWrite { saveFavoriteFoldersOnIo(folders) }
 }
+
 internal fun MainActivity.saveAllFavorites() {
-    val items = itemSnapshot(); val groups = groupSnapshot(); val links = groupItemSnapshot(); val folders = folderSnapshot()
+    val items = itemSnapshot()
+    val groups = groupSnapshot()
+    val links = groupItemSnapshot()
+    val folders = folderSnapshot()
+    viewModel.publishDataState()
     enqueuePersistenceWrite { saveAllFavoritesOnIo(items, groups, links, folders) }
 }
 

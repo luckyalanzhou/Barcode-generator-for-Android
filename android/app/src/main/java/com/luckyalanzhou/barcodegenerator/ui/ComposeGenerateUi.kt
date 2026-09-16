@@ -56,7 +56,7 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
             addAll(activity.inputDraft.ifEmpty { mutableListOf("") })
         }
     }
-    var focusedIndex by remember { mutableStateOf(-1) }
+    var focusedIndex by remember { mutableIntStateOf(-1) }
     var formatName by remember { mutableStateOf(initialFormat) }
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }

@@ -100,8 +100,8 @@ private fun ComposeChoiceField(
     value: String,
     options: List<String>,
     dark: Boolean,
-    enabled: Boolean = true,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }

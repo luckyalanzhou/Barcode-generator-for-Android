@@ -67,17 +67,22 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
     val ocrAnchorWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
     fun persist(next: SettingsUiState = settings) {
-        val schemeChanged = activity.style.colorScheme != next.scheme
-        activity.style.textSize = next.textSize
-        activity.style.barHeight = next.barHeight.toInt()
-        activity.style.barWidth = next.barWidth
-        activity.style.margin = next.margin.toInt()
-        activity.style.showFormat = next.showFormat
-        activity.style.colorScheme = next.scheme
-        activity.style.barColor = android.graphics.Color.BLACK
-        activity.style.bgColor = android.graphics.Color.WHITE
-        activity.style.showText = true
-        activity.style.textPosition = "bottom"
+        val currentStyle = activity.settingsViewModel.style
+        val schemeChanged = currentStyle.colorScheme != next.scheme
+        activity.settingsViewModel.updateStyle(
+            currentStyle.copy(
+                textSize = next.textSize,
+                barHeight = next.barHeight.toInt(),
+                barWidth = next.barWidth,
+                margin = next.margin.toInt(),
+                showFormat = next.showFormat,
+                colorScheme = next.scheme,
+                barColor = android.graphics.Color.BLACK,
+                bgColor = android.graphics.Color.WHITE,
+                showText = true,
+                textPosition = "bottom",
+            ),
+        )
         // DataStore 写入是异步的；只有外观方案变化时才需要重建主题，并且必须等写入完成，
         // 否则 Activity 重建可能在旧值落盘前读取到旧主题，导致设置看似没有生效。
         val saveJob = activity.saveStyle()

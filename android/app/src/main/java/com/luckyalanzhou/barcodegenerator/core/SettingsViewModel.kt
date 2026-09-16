@@ -26,9 +26,9 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private var initialized = false
     private var currentStyle = StyleSettings()
 
-    /** 设置对象的唯一内存所有者；页面通过 Activity 兼容访问器读取。 */
+    /** 设置的唯一内存所有者；外部只能读取快照，写入必须经过本 ViewModel。 */
     internal val style: StyleSettings
-        get() = currentStyle
+        get() = currentStyle.copy()
 
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return
@@ -45,11 +45,36 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         )
     }
 
-    fun setScheme(value: String) = _uiState.update { it.copy(scheme = value) }
-    fun setShowFormat(value: Boolean) = _uiState.update { it.copy(showFormat = value) }
+    /** 用完整快照更新设置，避免 UI 逐字段修改可变 StyleSettings。 */
+    fun updateStyle(style: StyleSettings) {
+        currentStyle = style.copy()
+        publishStyleToUi()
+    }
+
+    fun setScheme(value: String) = updateStyleValue { it.copy(colorScheme = value) }
+    fun setShowFormat(value: Boolean) = updateStyleValue { it.copy(showFormat = value) }
     fun setOcrMask(value: Int) = _uiState.update { it.copy(ocrMask = value) }
-    fun setTextSize(value: Float) = _uiState.update { it.copy(textSize = value) }
-    fun setBarHeight(value: Float) = _uiState.update { it.copy(barHeight = value) }
-    fun setBarWidth(value: Float) = _uiState.update { it.copy(barWidth = value) }
-    fun setMargin(value: Float) = _uiState.update { it.copy(margin = value) }
-}
+    fun setTextSize(value: Float) = updateStyleValue { it.copy(textSize = value) }
+    fun setBarHeight(value: Float) = updateStyleValue { it.copy(barHeight = value.toInt()) }
+    fun setBarWidth(value: Float) = updateStyleValue { it.copy(barWidth = value) }
+    fun setMargin(value: Float) = updateStyleValue { it.copy(margin = value.toInt()) }
+
+    private fun updateStyleValue(transform: (StyleSettings) -> StyleSettings) {
+        currentStyle = transform(currentStyle).copy()
+        publishStyleToUi()
+    }
+
+    private fun publishStyleToUi() {
+        val style = currentStyle
+        _uiState.update {
+            it.copy(
+                scheme = style.colorScheme,
+                showFormat = style.showFormat,
+                textSize = style.textSize,
+                barHeight = style.barHeight.toFloat(),
+                barWidth = style.barWidth,
+                margin = style.margin.toFloat(),
+            )
+        }
+    }
+}

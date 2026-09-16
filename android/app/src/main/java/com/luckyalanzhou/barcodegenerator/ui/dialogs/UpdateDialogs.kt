@@ -122,9 +122,10 @@ internal fun MainActivity.downloadAndInstall(
 }
 
 internal fun MainActivity.validateDownloadedApk(file: File) {
+    val signingFlags = if (android.os.Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
     val info = packageManager.getPackageArchiveInfo(
         file.absolutePath,
-        PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES,
+        signingFlags,
     ) ?: throw IllegalStateException("无法读取 APK 信息")
     if (info.packageName != packageName) throw IllegalStateException("APK 包名与当前应用不一致")
     val versionCode = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
@@ -132,7 +133,7 @@ internal fun MainActivity.validateDownloadedApk(file: File) {
     val downloaded = if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
     val installedInfo = packageManager.getPackageInfo(
         packageName,
-        PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES,
+        signingFlags,
     )
     val installed = if (android.os.Build.VERSION.SDK_INT >= 28) installedInfo.signingInfo?.apkContentsSigners else installedInfo.signatures
     if (downloaded.isNullOrEmpty() || installed.isNullOrEmpty() ||
