@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
@@ -76,8 +79,16 @@ internal fun MainActivity.showComposeDialog(
     composeView.setViewTreeLifecycleOwner(this)
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
-        CompositionLocalProvider(LocalDialogMetric provides { selectedElement.value = it }) {
-            content { dialog.dismiss() }
+        val dark = isDark()
+        val colorScheme = if (dark) {
+            darkColorScheme(background = Color(0xff000000), surface = Color(0xff1c1c1e))
+        } else {
+            lightColorScheme(background = Color(0xfff2f2f7), surface = Color(0xfffbfcff))
+        }
+        MaterialTheme(colorScheme = colorScheme) {
+            CompositionLocalProvider(LocalDialogMetric provides { selectedElement.value = it }) {
+                content { dialog.dismiss() }
+            }
         }
     }
     dialog.setContentView(composeView)
@@ -112,21 +123,28 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
         val text = if (dark) Color(0xffc5cedb) else Color(0xff667085)
         val card = if (dark) Color(0xff102234) else Color(0xfff4f8ff)
         val border = if (dark) Color(0xff2d79b6) else Color(0xffb8d7f2)
-        SelectionContainer {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(card)
-                    .border(1.dp, border, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text("弹窗：$label", color = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text("当前元素：${selectedElement.value}", color = text, fontSize = 12.sp)
-                Text("类型：Compose 元素    可见：true    可用：true", color = text, fontSize = 12.sp)
-                Text("位置：由当前弹窗布局决定    尺寸：自适应内容", color = text, fontSize = 12.sp)
-                Text("内边距：按当前元素规范    外观：圆角边框、轻阴影", color = text, fontSize = 12.sp)
+        val colorScheme = if (dark) {
+            darkColorScheme(background = Color(0xff000000), surface = Color(0xff102234))
+        } else {
+            lightColorScheme(background = Color(0xfff2f2f7), surface = Color(0xfff4f8ff))
+        }
+        MaterialTheme(colorScheme = colorScheme) {
+            SelectionContainer {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(card)
+                        .border(1.dp, border, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text("弹窗：$label", color = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text("当前元素：${selectedElement.value}", color = text, fontSize = 12.sp)
+                    Text("类型：Compose 元素    可见：true    可用：true", color = text, fontSize = 12.sp)
+                    Text("位置：由当前弹窗布局决定    尺寸：自适应内容", color = text, fontSize = 12.sp)
+                    Text("内边距：按当前元素规范    外观：圆角边框、轻阴影", color = text, fontSize = 12.sp)
+                }
             }
         }
     }

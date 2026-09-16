@@ -226,7 +226,9 @@ private fun SettingSliderRow(title: String, value: Float, range: ClosedFloatingP
             steps = (range.endInclusive - range.start).toInt() - 1,
             modifier = Modifier.weight(1f).height(34.dp).padding(horizontal = 6.dp),
             colors = SliderDefaults.colors(
-                thumbColor = accent,
+                // 关闭 Material3 默认 thumb，避免它与下方自定义圆球叠加成外部圆环。
+                thumbColor = Color.Transparent,
+                disabledThumbColor = Color.Transparent,
                 activeTrackColor = accent,
                 inactiveTrackColor = accent.copy(alpha = .18f),
                 activeTickColor = Color.Transparent,
