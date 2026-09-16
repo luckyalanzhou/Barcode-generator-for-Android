@@ -99,8 +99,10 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                     Box(Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().height(if (row.level == 0) 50.dp else 43.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (pressed) folderColor.copy(alpha = if (dark) .22f else .12f) else ComposeColor.Transparent)
                                 .padding(start = if (row.level == 0) 11.dp else 26.dp, end = 5.dp)
-                                .graphicsLayer { val scale = if (pressed) 0.975f else 1f; scaleX = scale; scaleY = scale }
+                                .graphicsLayer { val scale = if (pressed) 0.965f else 1f; scaleX = scale; scaleY = scale }
                                 .combinedClickable(
                                     interactionSource = interactionSource,
                                     indication = null,
@@ -131,6 +133,12 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             shadowElevation = 3.dp,
                             menuWidth = 160.dp,
                         ) {
+                            DropdownMenuItem(
+                                enabled = false,
+                                text = { Text("编辑文件夹", fontWeight = FontWeight.SemiBold) },
+                                onClick = {},
+                            )
+                            ComposeDropdownDivider(dark)
                             folderActions.forEachIndexed { index, label ->
                                 if (index > 0) ComposeDropdownDivider(dark)
                                 DropdownMenuItem(
@@ -165,7 +173,9 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                     Box(Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().height(44.dp).padding(start = if (row.level <= 1) 20.dp else 38.dp, end = 4.dp)
-                                .graphicsLayer { val scale = if (pressed) 0.975f else 1f; scaleX = scale; scaleY = scale }
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (pressed) fileColor.copy(alpha = if (dark) .22f else .12f) else ComposeColor.Transparent)
+                                .graphicsLayer { val scale = if (pressed) 0.965f else 1f; scaleX = scale; scaleY = scale }
                                 .combinedClickable(
                                     interactionSource = interactionSource,
                                     indication = null,
@@ -196,6 +206,12 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             shadowElevation = 3.dp,
                             menuWidth = 160.dp,
                         ) {
+                            DropdownMenuItem(
+                                enabled = false,
+                                text = { Text("编辑收藏文件", fontWeight = FontWeight.SemiBold) },
+                                onClick = {},
+                            )
+                            ComposeDropdownDivider(dark)
                             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
                                 if (index > 0) ComposeDropdownDivider(dark)
                                 DropdownMenuItem(
