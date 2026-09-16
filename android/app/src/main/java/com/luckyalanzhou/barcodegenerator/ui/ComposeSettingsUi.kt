@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -231,11 +232,28 @@ private fun SettingSliderRow(title: String, value: Float, range: ClosedFloatingP
                 // 关闭 Material3 默认 thumb，避免它与下方自定义圆球叠加成外部圆环。
                 thumbColor = Color.Transparent,
                 disabledThumbColor = Color.Transparent,
-                activeTrackColor = accent,
-                inactiveTrackColor = accent.copy(alpha = .18f),
+                // 轨道由下方 track 自绘，避免 Material3 默认厚轨道形成外框视觉。
+                activeTrackColor = Color.Transparent,
+                inactiveTrackColor = Color.Transparent,
                 activeTickColor = Color.Transparent,
                 inactiveTickColor = Color.Transparent,
             ),
+            track = { sliderState ->
+                val fraction = ((sliderState.value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .background(accent.copy(alpha = .18f), RoundedCornerShape(2.dp)),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(fraction)
+                            .fillMaxHeight()
+                            .background(accent, RoundedCornerShape(2.dp)),
+                    )
+                }
+            },
             thumb = {
                 Box(
                     // 明确裁剪为纯圆形，触摸区域仍由 Slider 保留，不绘制额外外框。
