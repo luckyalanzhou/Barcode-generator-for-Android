@@ -199,9 +199,8 @@ private fun ComposePageRoute(activity: MainActivity) {
                 ) { ComposeSettingsPage(activity) }
             }
             "lanShare" -> {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                ) { ComposeLanSharePage(activity) }
+                // 文件传输页自行管理消息区滚动，输入卡片固定在系统导航栏上方。
+                ComposeLanSharePage(activity)
             }
             // Beta 测试中心也直接作为 Compose 内容路由，不再嵌套旧 AndroidView。
             "betaTestCenter" -> {

@@ -150,7 +150,8 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                 tonalElevation = 0.dp,
                 shadowElevation = 3.dp,
             ) {
-                activity.formats.forEach { (name, _) ->
+                activity.formats.forEachIndexed { index, (name, _) ->
+                    if (index > 0) ComposeDropdownDivider(dark)
                     DropdownMenuItem(text = { Text(name) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
                 }
             }

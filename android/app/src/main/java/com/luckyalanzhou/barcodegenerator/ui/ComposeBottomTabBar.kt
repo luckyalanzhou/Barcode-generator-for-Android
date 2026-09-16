@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -86,7 +87,10 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         onTabSelected(index)
                     }.padding(vertical = 3.dp), contentAlignment = Alignment.Center
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     if (index == 3) ComposeSettingsTabIcon(selected, itemColor) else Icon(
                         painter = painterResource(if (selected) tab.selectedIcon else tab.icon),
                         contentDescription = tab.description, tint = itemColor, modifier = Modifier.size(28.dp)

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -82,7 +83,7 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
         return
     }
 
-    Column(Modifier.fillMaxWidth().background(if (dark) Color.Black else Color(0xfff4f6fb)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize().background(if (dark) Color.Black else Color(0xfff4f6fb))) {
         Row(
             Modifier.fillMaxWidth().height(80.dp).background(panel, RoundedCornerShape(18.dp)).clickable {
                 if (!qrOpen && activity.lanShareIsHost) {
@@ -119,17 +120,24 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
             }
         }
 
-        val connected = activity.lanShareManager.browserConnected()
-        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Text(if (connected) "●" else "○", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
-            Spacer(Modifier.width(5.dp))
-            Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
-        }
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val connected = activity.lanShareManager.browserConnected()
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (connected) "●" else "○", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
+                }
 
-        // refreshTick 只作为重组依赖，不改变列表数据的排序或业务来源。
-        if (refreshTick < 0) Spacer(Modifier.height(0.dp))
-        activity.lanShareFiles.forEach { file ->
-            ComposeLanShareBubble(activity, file, dark, primary, secondary)
+                // refreshTick 只作为重组依赖，不改变列表数据的排序或业务来源。
+                if (refreshTick < 0) Spacer(Modifier.height(0.dp))
+                activity.lanShareFiles.forEach { file ->
+                    ComposeLanShareBubble(activity, file, dark, primary, secondary)
+                }
+            }
         }
 
         Row(
@@ -149,7 +157,9 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                     shadowElevation = 3.dp,
                 ) {
                     DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { attachmentMenu = false; activity.openLanShareCamera() })
+                    ComposeDropdownDivider(dark)
                     DropdownMenuItem(text = { Text("照片图库") }, onClick = { attachmentMenu = false; activity.openLanShareGallery() })
+                    ComposeDropdownDivider(dark)
                     DropdownMenuItem(text = { Text("选择文件") }, onClick = { attachmentMenu = false; activity.openLanShareFiles() })
                 }
             }

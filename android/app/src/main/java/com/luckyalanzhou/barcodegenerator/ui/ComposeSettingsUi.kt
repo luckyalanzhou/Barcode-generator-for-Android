@@ -89,7 +89,8 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
                     ) {
-                        listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEach { (label, value) ->
+                        listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
+                            if (index > 0) ComposeDropdownDivider(dark)
                             DropdownMenuItem(text = { Text(label) }, onClick = { scheme = value; schemeMenu = false; persist() })
                         }
                     }
@@ -128,7 +129,8 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
                     ) {
-                        ocrReplacementLabels.forEach { (label, bit) ->
+                        ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
+                            if (index > 0) ComposeDropdownDivider(dark)
                             DropdownMenuItem(
                                 text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label) } },
                                 onClick = { ocrMask = if (ocrMask and bit == 0) ocrMask or bit else ocrMask and bit.inv(); activity.settingsStore.setOcrConfusionReplacementMask(ocrMask) }

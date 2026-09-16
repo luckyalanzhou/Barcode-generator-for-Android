@@ -20,7 +20,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +39,8 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlin.math.roundToInt
 
+private val LocalDialogMetric = compositionLocalOf<(String) -> Unit> { {} }
+
 /** 公共 Compose 玻璃弹窗容器；弹窗宽度与旧版保持同一适度范围。 */
 internal fun MainActivity.showComposeDialog(
     compact: Boolean,
@@ -44,11 +51,16 @@ internal fun MainActivity.showComposeDialog(
     val dialog = Dialog(this)
     val composeView = ComposeView(this)
     var metricsDialog: Dialog? = null
+    val selectedElement = mutableStateOf("尚未选择元素")
     // Dialog 的 decorView 不会自动继承 Activity 的生命周期所有者；显式绑定后，
     // ComposeView 才能安全创建 WindowRecomposer，避免点击编辑项时崩溃。
     composeView.setViewTreeLifecycleOwner(this)
     composeView.setViewTreeSavedStateRegistryOwner(this)
-    composeView.setContent { content { dialog.dismiss() } }
+    composeView.setContent {
+        CompositionLocalProvider(LocalDialogMetric provides { selectedElement.value = it }) {
+            content { dialog.dismiss() }
+        }
+    }
     dialog.setContentView(composeView)
     dialog.setCanceledOnTouchOutside(true)
     dialog.setOnCancelListener { onCancel?.invoke() }
@@ -56,6 +68,8 @@ internal fun MainActivity.showComposeDialog(
         dialog.window?.apply {
             setDimAmount(if (isDark()) 0.48f else 0.34f)
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            // 取消系统默认的长动画，弹窗显示由 Compose 内容立即接管，避免双重过渡造成卡顿。
+            setWindowAnimations(0)
             setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
             setGravity(Gravity.CENTER)
             val screenWidth = resources.displayMetrics.widthPixels
@@ -65,7 +79,7 @@ internal fun MainActivity.showComposeDialog(
             val minWidth = dp(280).coerceAtMost(maxWidth)
             setLayout(preferred.coerceIn(minWidth, maxWidth), WindowManager.LayoutParams.WRAP_CONTENT)
         }
-        if (metricsLabel != null) metricsDialog = showSimulationMetricsCompose(metricsLabel)
+        if (metricsLabel != null) metricsDialog = showSimulationMetricsCompose(metricsLabel, selectedElement)
     }
     dialog.setOnDismissListener { metricsDialog?.dismiss() }
     dialog.show()
@@ -75,7 +89,7 @@ internal fun MainActivity.showComposeDialog(
  * Beta 测试专用指标面板。它使用 Compose 独立窗口显示在实际弹窗下方，
  * 不参与正式业务，也不再通过 PopupWindow/旧 View 树注入控件。
  */
-internal fun MainActivity.showSimulationMetricsCompose(label: String): Dialog {
+internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedElement: MutableState<String>): Dialog {
     val metricsDialog = Dialog(this)
     val composeView = ComposeView(this)
     composeView.setViewTreeLifecycleOwner(this)
@@ -96,17 +110,17 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String): Dialog {
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text("弹窗：$label", color = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text("元素数据", color = text, fontSize = 12.sp)
-                Text("点击测试弹窗内的任意元素，可在此查看该元素的完整布局数据。", color = text, fontSize = 12.sp)
-                Text("位置：由 Compose 窗口布局决定    尺寸：自适应内容", color = text, fontSize = 12.sp)
-                Text("内边距：按统一弹窗规范    外观：圆角边框、无重阴影", color = text, fontSize = 12.sp)
-                Text("状态：可见=true  可点击=true  可用=true", color = text, fontSize = 12.sp)
+                Text("当前元素：${selectedElement.value}", color = text, fontSize = 12.sp)
+                Text("类型：Compose 元素    可见：true    可用：true", color = text, fontSize = 12.sp)
+                Text("位置：由当前弹窗布局决定    尺寸：自适应内容", color = text, fontSize = 12.sp)
+                Text("内边距：按当前元素规范    外观：圆角边框、轻阴影", color = text, fontSize = 12.sp)
             }
         }
     }
     metricsDialog.setContentView(composeView)
     metricsDialog.setCanceledOnTouchOutside(false)
     metricsDialog.window?.apply {
+        setWindowAnimations(0)
         setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
         setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
@@ -123,6 +137,7 @@ internal fun ComposeGlassDialogCard(
     dark: Boolean,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val onMetric = LocalDialogMetric.current
     val card = if (dark) Color(0xff1c1c1e) else Color(0xfffbfcff)
     val border = if (dark) Color(0xff3a3a3c) else Color(0xffd8d8dc)
     Box(
@@ -131,6 +146,7 @@ internal fun ComposeGlassDialogCard(
             .clip(RoundedCornerShape(20.dp))
             .background(card)
             .border(1.dp, border, RoundedCornerShape(20.dp))
+            .clickable { onMetric("弹窗卡片") }
             .padding(horizontal = 18.dp, vertical = 16.dp),
     ) { Column(content = content) }
 }
@@ -143,6 +159,7 @@ internal fun DialogAction(
     modifier: Modifier = Modifier,
     primary: Boolean = false,
 ) {
+    val onMetric = LocalDialogMetric.current
     val foreground = if (primary) Color.White else if (dark) Color(0xffb8ccff) else Color(0xff2166d1)
     val border = if (primary) foreground.copy(alpha = 0.62f) else if (dark) Color(0xff52657f) else Color(0xffb7c7df)
     val background = if (primary) {
@@ -153,10 +170,18 @@ internal fun DialogAction(
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(1.dp, border, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable { onMetric("按钮：$text"); onClick() }
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) { Text(text, color = foreground, fontSize = 15.sp, maxLines = 1) }
+}
+
+@Composable
+internal fun ComposeDropdownDivider(dark: Boolean) {
+    HorizontalDivider(
+        thickness = 1.dp,
+        color = if (dark) Color.White.copy(alpha = .14f) else Color(0xff667085).copy(alpha = .14f),
+    )
 }
 
 internal fun MainActivity.showIos26NoticeDialogCompose(message: String, showMetrics: Boolean = false) {

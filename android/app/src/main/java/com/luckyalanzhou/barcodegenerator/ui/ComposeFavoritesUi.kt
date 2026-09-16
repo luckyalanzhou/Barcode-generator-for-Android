@@ -120,6 +120,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             shadowElevation = 3.dp,
                         ) {
                             folderActions.forEachIndexed { index, label ->
+                                if (index > 0) ComposeDropdownDivider(dark)
                                 DropdownMenuItem(
                                     text = { Text(label) },
                                     onClick = {
@@ -175,6 +176,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                             shadowElevation = 3.dp,
                         ) {
                             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
+                                if (index > 0) ComposeDropdownDivider(dark)
                                 DropdownMenuItem(
                                     text = { Text(label) },
                                     onClick = {

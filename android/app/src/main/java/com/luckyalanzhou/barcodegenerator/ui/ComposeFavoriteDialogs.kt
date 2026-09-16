@@ -113,7 +113,8 @@ private fun ComposeChoiceField(
             tonalElevation = 0.dp,
             shadowElevation = 3.dp,
         ) {
-            options.forEach { option ->
+            options.forEachIndexed { index, option ->
+                if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
                     text = { Text(option) },
                     onClick = { onSelected(option); expanded = false },
