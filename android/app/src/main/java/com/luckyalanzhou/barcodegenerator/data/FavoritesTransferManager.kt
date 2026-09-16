@@ -118,7 +118,8 @@ object FavoritesTransferManager {
         val rootFolder = value.optString("rootFolder", legacyPath.substringBefore('/')).trim()
         val subFolder = value.optString("subFolder", legacyPath.substringAfter('/', "")).trim()
         val name = value.optString("name").trim()
-        val texts = value.optJSONArray("texts").toStrings().map { it.trim() }.filter { it.isNotEmpty() }
+        // 收藏条码正文保留原始空格；仅过滤完全空白的无效条目。
+        val texts = value.optJSONArray("texts").toStrings().filter { it.isNotBlank() }
         require(name.isNotBlank()) { "收藏文件缺少文件名" }
         require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
         require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }

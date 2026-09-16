@@ -24,4 +24,15 @@ class FavoritesTransferManagerTest {
         assertEquals("95.7G203GC0E", entities.groups.single().name)
         assertTrue(entities.items.isEmpty())
     }
+
+    @Test
+    fun barcodeTextKeepsLeadingAndTrailingSpaces() {
+        val backup = InterchangeBackup(
+            favorites = listOf(InterchangeFavorite(null, "收藏", "", "", "code128", 1L, listOf(" A B "))),
+            folders = emptyList(),
+        )
+        val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+
+        assertEquals(" A B ", entities.items.single().text)
+    }
 }

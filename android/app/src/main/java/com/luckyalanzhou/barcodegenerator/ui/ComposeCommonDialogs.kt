@@ -230,7 +230,13 @@ internal fun MainActivity.showSimulatedDialogCompose(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     actions.forEachIndexed { index, action ->
-                        DialogAction(action, dark, dismiss, modifier = if (index == 0) Modifier else Modifier.padding(start = 8.dp))
+                        // 测试中心只模拟按钮点击并显示元素数据，不关闭模拟弹窗；点击外部才退出。
+                        DialogAction(
+                            action,
+                            dark,
+                            { onMetric("按钮：$action") },
+                            modifier = if (index == 0) Modifier else Modifier.padding(start = 8.dp),
+                        )
                     }
                 }
             }

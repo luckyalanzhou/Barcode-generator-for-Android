@@ -122,8 +122,8 @@ internal fun MainActivity.recognizeText(bitmap: Bitmap) {
         recognizer.process(image)
             .addOnSuccessListener { results ->
                 val recognizedText = forceOcrConfusionReplacement(results.text, settingsStore.getOcrConfusionReplacementMask())
-                val normalizedText = recognizedText.trim()
-                if (normalizedText.isEmpty()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
+                val normalizedText = recognizedText
+                if (normalizedText.isBlank()) toast("未识别到文字，请拍摄清晰、正面的屏幕区域")
                 else {
                     importRecognizedText(normalizedText)
                     toast("文字识别成功，已按行添加到输入框")
@@ -147,7 +147,7 @@ private fun forceOcrConfusionReplacement(text: String, mask: Int): String = text
 
 internal fun MainActivity.importRecognizedText(text: String) {
         val activity = this
-        val values = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val values = text.lines().filter { it.isNotBlank() }
         if (values.isEmpty()) return
         composeGenerateTextImport?.let { update ->
             update(values)

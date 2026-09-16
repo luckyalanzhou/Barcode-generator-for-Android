@@ -16,7 +16,8 @@ internal class GenerateBarcodesUseCase {
         existingItems: List<CodeItem>,
         now: Long = System.currentTimeMillis(),
     ): Output {
-        val values = input.map(String::trim).filter(String::isNotEmpty)
+        // 只过滤完全空白的输入，条码正文（包括首尾空格）必须原样保留。
+        val values = input.filter(String::isNotBlank)
         if (values.isEmpty()) return Output(errorIndex = 0, errorMessage = "请输入内容")
         values.forEachIndexed { index, value ->
             val validation = BarcodeValidator.validate(value, format)

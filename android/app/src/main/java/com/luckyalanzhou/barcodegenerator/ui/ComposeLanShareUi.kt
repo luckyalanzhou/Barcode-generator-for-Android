@@ -202,6 +202,18 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
     }
 }
 
+internal fun MainActivity.syncLanShareViewModelState() {
+    lanShareViewModel.sync(
+        lanShareSession,
+        lanShareIsHost,
+        lanShareQrVisible,
+        lanShareBrowserConnected,
+        lanShareFiles,
+        lanShareOwnFileIds.toSet(),
+        lanSharePreviewFiles.toMap(),
+    )
+}
+
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ComposeLanShareBubble(activity: MainActivity, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color) {
@@ -239,6 +251,7 @@ private fun ComposeLanShareQrDialog(
     Dialog(
         onDismissRequest = {
             activity.lanShareQrVisible = false
+            activity.syncLanShareViewModelState()
             onDismiss()
         },
         properties = DialogProperties(dismissOnClickOutside = false, usePlatformDefaultWidth = false),
@@ -246,6 +259,7 @@ private fun ComposeLanShareQrDialog(
         Box(
             modifier = Modifier.fillMaxSize().clickable {
                 activity.lanShareQrVisible = false
+                activity.syncLanShareViewModelState()
                 onDismiss()
             },
             contentAlignment = Alignment.Center,
