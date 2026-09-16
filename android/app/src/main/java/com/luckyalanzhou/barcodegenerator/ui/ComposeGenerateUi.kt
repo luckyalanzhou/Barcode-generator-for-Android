@@ -67,6 +67,7 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
     val cardColor = if (dark) Color(0xff182330).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.88f)
     val inputColor = if (dark) Color(0xff202c3a) else Color(0xfff4f6fa)
     val density = LocalDensity.current
+    val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
     fun syncDraft() { activity.inputDraft = values.toMutableList() }
 
@@ -145,8 +146,19 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Box(Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }.clickable { formatExpanded = true }) {
-                    Text(formatName, color = secondary, fontSize = 15.sp, maxLines = 1)
+                Box {
+                    Button(
+                        onClick = { formatExpanded = true },
+                        modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (dark) Color(0xff233246) else Color(0xffeef3f9),
+                            contentColor = textColor,
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                    ) {
+                        Text(formatName, color = textColor, fontSize = 15.sp, maxLines = 1, softWrap = false)
+                    }
                     AnchoredDropdownMenu(
                         dark = dark,
                         expanded = formatExpanded,
@@ -155,11 +167,13 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
-                        menuWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
+                        menuWidth = (formatAnchorWidth ?: 148.dp).coerceAtLeast(148.dp),
+                        anchorWidth = formatAnchorWidth,
+                        alignEndWithAnchor = true,
                     ) {
                         activity.formats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(text = { Text(name) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
+                            DropdownMenuItem(text = { Text(name, maxLines = 1, softWrap = false) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
                         }
                     }
                 }

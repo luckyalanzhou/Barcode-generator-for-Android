@@ -63,6 +63,8 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
     var schemeButtonWidth by remember { mutableIntStateOf(0) }
     var ocrButtonWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
+    val schemeAnchorWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val ocrAnchorWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
     fun persist(next: SettingsUiState = settings) {
         val schemeChanged = activity.style.colorScheme != next.scheme
@@ -107,7 +109,9 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
-                        menuWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
+                        menuWidth = (schemeAnchorWidth ?: 132.dp).coerceAtLeast(132.dp),
+                        anchorWidth = schemeAnchorWidth,
+                        alignEndWithAnchor = true,
                     ) {
                         listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                             if (index > 0) ComposeDropdownDivider(dark)
@@ -129,7 +133,12 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             SettingSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", primary, accent) { activity.settingsViewModel.setMargin(it); persist(settings.copy(margin = it)) }
             SettingDivider(dark)
             SettingRow("条码格式", primary, trailing = {
-                Switch(checked = settings.showFormat, onCheckedChange = { activity.settingsViewModel.setShowFormat(it); persist(settings.copy(showFormat = it)) })
+                Box(
+                    Modifier.height(40.dp).width(64.dp).clip(RoundedCornerShape(12.dp)).background(button),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Switch(checked = settings.showFormat, onCheckedChange = { activity.settingsViewModel.setShowFormat(it); persist(settings.copy(showFormat = it)) })
+                }
             })
             SettingDivider(dark)
             SettingRow("OCR 字符纠错", primary, trailing = {
@@ -150,12 +159,14 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
                         shadowElevation = 3.dp,
-                        menuWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
+                        menuWidth = (ocrAnchorWidth ?: 164.dp).coerceAtLeast(164.dp),
+                        anchorWidth = ocrAnchorWidth,
+                        alignEndWithAnchor = true,
                     ) {
                         ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                             if (index > 0) ComposeDropdownDivider(dark)
                             DropdownMenuItem(
-                                text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label) } },
+                                text = { Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null); Spacer(Modifier.width(6.dp)); Text(label, maxLines = 1, softWrap = false) } },
                                 onClick = { val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv(); activity.settingsViewModel.setOcrMask(mask); activity.settingsStore.setOcrConfusionReplacementMask(mask) }
                             )
                         }

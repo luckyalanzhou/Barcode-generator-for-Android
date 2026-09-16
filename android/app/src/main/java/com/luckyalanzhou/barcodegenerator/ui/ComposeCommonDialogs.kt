@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
@@ -174,19 +175,28 @@ internal fun AnchoredDropdownMenu(
     tonalElevation: Dp = 0.dp,
     shadowElevation: Dp = 3.dp,
     menuWidth: Dp? = null,
+    anchorWidth: Dp? = null,
+    alignEndWithAnchor: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val maxHeight = (configuration.screenHeightDp * 0.62f).coerceAtLeast(180f).dp
     val maxWidth = (configuration.screenWidthDp - 24).coerceAtLeast(1).dp
+    val resolvedMenuWidth = menuWidth?.coerceAtMost(maxWidth)
     val widthModifier = if (menuWidth != null) {
-        Modifier.width(menuWidth.coerceAtMost(maxWidth))
+        Modifier.width(resolvedMenuWidth ?: maxWidth)
     } else {
         Modifier.widthIn(max = maxWidth)
+    }
+    val horizontalOffset = if (alignEndWithAnchor && anchorWidth != null && resolvedMenuWidth != null) {
+        anchorWidth - resolvedMenuWidth
+    } else {
+        0.dp
     }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
+        offset = DpOffset(horizontalOffset, 0.dp),
         modifier = modifier.then(widthModifier).heightIn(max = maxHeight),
         shape = shape,
         containerColor = containerColor,
