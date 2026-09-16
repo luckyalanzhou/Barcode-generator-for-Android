@@ -96,10 +96,11 @@ private fun ComposeChoiceField(
     options: List<String>,
     dark: Boolean,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier) {
         OutlinedButton(
             onClick = { if (enabled) expanded = true },
             enabled = enabled,
@@ -344,38 +345,63 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
             if (roots.isEmpty()) {
                 Text("暂无一级文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
             } else {
-                ComposeChoiceField(
-                    value = selectedRoot.ifBlank { "选择一级文件夹" },
-                    options = roots,
-                    dark = dark,
-                    onSelected = { selectedRoot = it; selectedChild = "" },
-                )
-                ComposeChoiceField(
-                    value = selectedChild.ifBlank { "选择二级文件夹" },
-                    options = childOptions,
-                    dark = dark,
-                    enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
-                    onSelected = { selectedChild = it },
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ComposeChoiceField(
+                        value = selectedRoot.ifBlank { "选择一级文件夹" },
+                        options = roots,
+                        dark = dark,
+                        onSelected = { selectedRoot = it; selectedChild = "" },
+                    )
+                    ComposeChoiceField(
+                        value = selectedChild.ifBlank { "选择二级文件夹" },
+                        options = childOptions,
+                        dark = dark,
+                        enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
+                        onSelected = { selectedChild = it },
+                    )
+                }
+                Text(
+                    "当前位置：" + selectedRoot.ifBlank { "未选择一级文件夹" } +
+                        if (selectedChild.isNotBlank()) " / $selectedChild" else "",
+                    color = if (dark) Color(0xffaeb9c9) else Color(0xff667085),
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
                 if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             }
-            DialogAction(
-                "新建一级文件夹",
-                dark,
-                {
-                    showFolderEditorCompose { folder ->
-                        if (folder !in folders) folders.add(folder)
-                        if (folder !in favoriteFolders) favoriteFolders.add(folder)
-                        selectedRoot = folder
-                        selectedChild = ""
-                        saveFavoriteFolders()
-                    }
-                },
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            if (selectedRoot.isNotBlank()) DialogAction("新建二级文件夹", dark, {
-                showSubfolderEditorCompose(selectedRoot) { child -> selectedChild = child; saveFavoriteFolders() }
-            }, modifier = Modifier.padding(top = 6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DialogAction(
+                    "新建一级文件夹",
+                    dark,
+                    {
+                        showFolderEditorCompose { folder ->
+                            if (folder !in folders) folders.add(folder)
+                            if (folder !in favoriteFolders) favoriteFolders.add(folder)
+                            selectedRoot = folder
+                            selectedChild = ""
+                            saveFavoriteFolders()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                DialogAction(
+                    "新建二级文件夹",
+                    dark,
+                    {
+                        if (selectedRoot.isBlank()) toast("请先选择一级文件夹")
+                        else showSubfolderEditorCompose(selectedRoot) { child -> selectedChild = child; saveFavoriteFolders() }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             Text("收藏文件名", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             OutlinedTextField(
                 value = name,
