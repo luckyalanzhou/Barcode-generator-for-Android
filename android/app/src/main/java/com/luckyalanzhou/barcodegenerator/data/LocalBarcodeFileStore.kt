@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -11,6 +14,22 @@ internal class LocalBarcodeFileStore(context: Context) {
     private val historyRoot = File(root, "history")
     private val favoritesRoot = File(root, "favorites")
 
+    fun readImage(key: String): Bitmap? = BitmapFactory.decodeFile(File(root, "images/$key.png").absolutePath)
+
+    @Synchronized
+    fun writeImage(key: String, bitmap: Bitmap) {
+        val directory = File(root, "images")
+        directory.mkdirs()
+        val target = File(directory, "$key.png")
+        val temporary = File(directory, ".$key.tmp")
+        temporary.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        if (!temporary.renameTo(target)) { target.delete(); check(temporary.renameTo(target)) }
+    }
+
+    fun imageKey(item: CodeItem, width: Int, height: Int, textSize: Float, showFormat: Boolean, dark: Boolean): String {
+        val raw = listOf(item.text, item.format, width, height, textSize, showFormat, dark).joinToString("|")
+        return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
     @Synchronized
     fun rebuildHistory(items: List<CodeItem>) {
         historyRoot.deleteRecursively()
@@ -83,3 +102,5 @@ internal class LocalBarcodeFileStore(context: Context) {
         }
     }
 }
+
+

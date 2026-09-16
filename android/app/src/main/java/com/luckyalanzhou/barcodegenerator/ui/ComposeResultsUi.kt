@@ -6,6 +6,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -47,34 +49,32 @@ internal fun ComposeResultsPage(activity: MainActivity) {
         return
     }
 
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         if (!activity.showingHistoryResult) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(Modifier.weight(1f))
-                ResultAction(R.drawable.ic_action_edit, "编辑", actionColor) {
-                    activity.inputDraft = items.map { it.text }.toMutableList()
-                    activity.pendingGenerateFormat = items.firstOrNull()?.format
-                    activity.page = "generate"
-                    activity.render()
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(Modifier.weight(1f))
+                    ResultAction(R.drawable.ic_action_edit, "编辑", actionColor) {
+                        activity.inputDraft = items.map { it.text }.toMutableList()
+                        activity.pendingGenerateFormat = items.firstOrNull()?.format
+                        activity.page = "generate"
+                        activity.render()
+                    }
+                    ResultAction(R.drawable.ic_action_favorite, "收藏", actionColor) { activity.saveResultAsFavorite() }
+                    ResultAction(R.drawable.ic_action_share, "分享", actionColor) { activity.shareResultPage() }
                 }
-                ResultAction(R.drawable.ic_action_favorite, "收藏", actionColor) { activity.saveResultAsFavorite() }
-                ResultAction(R.drawable.ic_action_share, "分享", actionColor) { activity.shareResultPage() }
             }
         }
-
-        items.forEachIndexed { index, item ->
-            ComposeResultBarcode(activity, item, primary)
-            if (index < items.lastIndex && item.format == "Code 128-B" && items[index + 1].format == "Code 128-B" && activity.style.margin > 0) {
-                Spacer(Modifier.height(activity.style.margin.coerceAtLeast(0).dp))
-            }
-        }
+        items(items, key = { it.id }) { item -> ComposeResultBarcode(activity, item, primary) }
     }
 }
-
 @Composable
 private fun ResultAction(icon: Int, label: String, tint: Color, onClick: () -> Unit) {
     Column(
@@ -94,29 +94,22 @@ internal fun ComposeResultBarcode(activity: MainActivity, item: CodeItem, textCo
     val barWidth = activity.style.barWidth.roundToInt().coerceIn(120, 360)
     val textSize = activity.style.textSize.coerceIn(10f, 24f)
     val showFormat = activity.style.showFormat
-    // 条码像素生成和裁剪放到后台，避免历史、收藏和生成结果页进入时阻塞 Compose 主线程。
-    val displayed by produceState<Bitmap?>(
-        initialValue = null,
-        item.text,
-        item.format,
-        barWidth,
-        barHeight,
-        dark,
-    ) {
+    val cacheKey = activity.localBarcodeFileStore.imageKey(item, barWidth, barHeight, textSize, showFormat, dark)
+    // 先读取已生成的图片；未命中时才在后台生成并写回，页面导航不等待。
+    val displayed by produceState<Bitmap?>(initialValue = null, cacheKey) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            val encoded = activity.encode(
-                item.text,
-                activity.formats.firstOrNull { it.first == item.format }?.second
-                    ?: com.google.zxing.BarcodeFormat.CODE_128,
-                withBackground = dark,
-            ) ?: return@withContext null
-            if (isCode128) {
-                addBarcodeQuietZone(
-                    trimBarcodeHorizontal(encoded),
-                    if (dark) AndroidColor.WHITE else AndroidColor.TRANSPARENT,
-                )
-            } else {
-                encoded
+            activity.localBarcodeFileStore.readImage(cacheKey) ?: run {
+                val encoded = activity.encode(
+                    item.text,
+                    activity.formats.firstOrNull { it.first == item.format }?.second
+                        ?: com.google.zxing.BarcodeFormat.CODE_128,
+                    withBackground = dark,
+                ) ?: return@withContext null
+                val generated = if (isCode128) {
+                    addBarcodeQuietZone(trimBarcodeHorizontal(encoded), if (dark) AndroidColor.WHITE else AndroidColor.TRANSPARENT)
+                } else encoded
+                activity.localBarcodeFileStore.writeImage(cacheKey, generated)
+                generated
             }
         }
     }
@@ -154,3 +147,4 @@ internal fun ComposeResultBarcode(activity: MainActivity, item: CodeItem, textCo
         }
     }
 }
+

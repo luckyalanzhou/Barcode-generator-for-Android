@@ -276,11 +276,7 @@ private fun ComposePageRoute(activity: MainActivity, routePage: String) {
                     ) { ComposeFavoriteDetailPage(activity, group) }
                 }
             }
-            "results" -> {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                ) { ComposeResultsPage(activity) }
-            }
+            "results" -> ComposeResultsPage(activity)
             "settings" -> {
                 Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -298,3 +294,4 @@ private fun ComposePageRoute(activity: MainActivity, routePage: String) {
         }
     }
 }
+
