@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import java.security.MessageDigest
 
+/** 更新版本比较、摘要和标准数字条码校验所需的纯 Kotlin 逻辑。 */
 object UpdateSecurity {
     const val MAX_APK_DOWNLOAD_BYTES = 500L * 1024L * 1024L
 

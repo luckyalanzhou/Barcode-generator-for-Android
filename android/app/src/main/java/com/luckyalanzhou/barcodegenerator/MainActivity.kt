@@ -34,6 +34,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.activity.viewModels
 import androidx.activity.OnBackPressedCallback
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
@@ -51,6 +53,7 @@ import java.util.Locale
 import java.security.MessageDigest
 import kotlin.math.roundToInt
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private val barcodeDisplayHandler = Handler(Looper.getMainLooper())
     private var barcodeDisplayModeActive = false
@@ -181,16 +184,21 @@ class MainActivity : AppCompatActivity() {
     internal val favoritesViewModel: FavoritesViewModel by viewModels()
     internal val historyViewModel: HistoryViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
-    internal val generateBarcodesUseCase by lazy { GenerateBarcodesUseCase() }
+    @Inject
+    internal lateinit var generateBarcodesUseCase: GenerateBarcodesUseCase
     internal val databaseMutex = Mutex()
     // 保存任务使用独立队列，避免连续编辑时由多个 lifecycleScope 任务乱序覆盖。
     internal val persistenceScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
     internal val persistenceQueueLock = Any()
     internal var persistenceWriteTail: kotlinx.coroutines.Job? = null
-    internal val database by lazy { BarcodeDatabase.create(this) }
-    internal val dao by lazy { database.barcodeDao() }
-    internal val barcodeRepository by lazy { BarcodeRepository(database) }
-    internal val favoritesBackupUseCase by lazy { FavoritesBackupUseCase(barcodeRepository) }
+    @Inject
+    internal lateinit var database: BarcodeDatabase
+    @Inject
+    internal lateinit var dao: BarcodeDao
+    @Inject
+    internal lateinit var barcodeRepository: BarcodeRepository
+    @Inject
+    internal lateinit var favoritesBackupUseCase: FavoritesBackupUseCase
     internal val style by lazy { loadStyle() }
     internal var lanShareManagerRef: LanShareManager? = null
     internal val lanShareManager: LanShareManager

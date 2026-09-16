@@ -14,21 +14,3 @@ data class StyleSettings(
     var showFormat: Boolean = false,
     var colorScheme: String = "system"
 )
-
-data class CodeItem(
-    val id: Long,
-    var text: String,
-    var format: String,
-    var createdAt: Long = System.currentTimeMillis(),
-    var favorite: Boolean = false,
-    var folder: String = "默认",
-    var inHistory: Boolean = true
-)
-
-data class FavoriteGroup(
-    val id: Long,
-    var folder: String,
-    var name: String,
-    val savedAt: Long,
-    var itemIds: MutableList<Long>
-)

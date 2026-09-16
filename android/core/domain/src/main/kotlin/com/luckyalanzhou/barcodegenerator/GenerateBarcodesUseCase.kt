@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 /** 条码生成领域用例；不依赖 Activity 或 Compose，便于单元测试和后续 ViewModel 调用。 */
-internal class GenerateBarcodesUseCase {
+class GenerateBarcodesUseCase {
     data class Output(
         val items: List<CodeItem> = emptyList(),
         val errorIndex: Int = -1,
