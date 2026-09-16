@@ -197,6 +197,8 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var dao: BarcodeDao
     @Inject
     internal lateinit var barcodeRepository: BarcodeRepository
+    /** Room 之外的本地文件副本；只用于历史/收藏文件缓存，不改变数据库契约。 */
+    internal val localBarcodeFileStore by lazy { LocalBarcodeFileStore(applicationContext) }
     @Inject
     internal lateinit var favoritesBackupUseCase: FavoritesBackupUseCase
     /** 兼容旧代码的访问器；设置实际由 SettingsViewModel 持有。 */
@@ -487,3 +489,4 @@ class MainActivity : AppCompatActivity() {
     }
 
 }
+

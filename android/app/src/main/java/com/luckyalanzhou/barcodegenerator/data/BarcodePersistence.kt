@@ -68,8 +68,12 @@ private fun MainActivity.folderSnapshot() = favoriteFolders.filter { it.isNotBla
 
 internal fun MainActivity.saveItems() {
     val snapshot = itemSnapshot()
+    val historyFileSnapshot = items.map { it.copy() }.filter { it.inHistory }
     viewModel.publishDataState()
-    enqueuePersistenceWrite { barcodeRepository.saveItems(snapshot) }
+    enqueuePersistenceWrite {
+        barcodeRepository.saveItems(snapshot)
+        localBarcodeFileStore.rebuildHistory(historyFileSnapshot)
+    }
 }
 
 internal fun MainActivity.saveFavoriteGroups() {
@@ -90,8 +94,13 @@ internal fun MainActivity.saveAllFavorites() {
     val groups = groupSnapshot()
     val links = groupItemSnapshot()
     val folders = folderSnapshot()
+    val favoriteFileGroups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
+    val favoriteFileItems = this.items.map { it.copy() }
     viewModel.publishDataState()
-    enqueuePersistenceWrite { saveAllFavoritesOnIo(items, groups, links, folders) }
+    enqueuePersistenceWrite {
+        saveAllFavoritesOnIo(items, groups, links, folders)
+        localBarcodeFileStore.rebuildFavorites(favoriteFileGroups, favoriteFileItems)
+    }
 }
 
 /** 将所有非阻塞保存操作串成一条队列；快照仍在 UI 线程立即取得，写入顺序不会互相覆盖。 */
@@ -156,3 +165,4 @@ internal suspend fun MainActivity.migrateLegacyDataIfNeeded() = databaseMutex.wi
         if (dao.loadFolders().isEmpty()) dao.saveFolders(legacyFolders.filter { it.isNotBlank() && it != "默认" }.map(::FavoriteFolderEntity))
         legacyPrefs.edit().putBoolean("room_data_migrated", true).remove("items").remove("favorite_groups").remove("favorite_folders").remove("next_item_id").remove("next_group_id").apply()
     }
+

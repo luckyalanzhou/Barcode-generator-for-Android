@@ -173,7 +173,7 @@ internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String) {
     )
 }
 
-internal fun MainActivity.encode(text: String, format: BarcodeFormat): Bitmap? = try {
+internal fun MainActivity.encode(text: String, format: BarcodeFormat, withBackground: Boolean = true): Bitmap? = try {
     val code128 = format == BarcodeFormat.CODE_128
     val width = if (code128) dp(style.barWidth.roundToInt().coerceIn(120, 360)).coerceAtLeast(1) else 500
     val barcodeHeight = if (code128) dp(style.barHeight.coerceIn(30, 150).coerceAtLeast(1))
@@ -182,13 +182,21 @@ internal fun MainActivity.encode(text: String, format: BarcodeFormat): Bitmap? =
     val paint = Paint().apply { color = if (this@encode.isDark()) Color.BLACK else this@encode.style.barColor }
     val bitmap = Bitmap.createBitmap(width, barcodeHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    if (isDark()) canvas.drawColor(Color.WHITE) else canvas.drawColor(style.bgColor)
+    if (withBackground) {
+        if (isDark()) canvas.drawColor(Color.WHITE) else canvas.drawColor(style.bgColor)
+    } else {
+        canvas.drawColor(Color.TRANSPARENT)
+    }
     for (x in 0 until matrix.width) {
         for (y in 0 until matrix.height) {
             if (matrix[x, y]) canvas.drawRect(x.toFloat(), y.toFloat(), (x + 1).toFloat(), (y + 1).toFloat(), paint)
         }
     }
-    if (code128) addBarcodeQuietZone(bitmap) else bitmap
+    if (code128) {
+        addBarcodeQuietZone(bitmap, if (withBackground) Color.WHITE else Color.TRANSPARENT)
+    } else {
+        bitmap
+    }
 } catch (_: Exception) {
     null
 }
@@ -214,11 +222,11 @@ internal fun trimBarcodeHorizontal(source: Bitmap): Bitmap {
     return if (right >= left) Bitmap.createBitmap(source, left, 0, right - left + 1, source.height) else source
 }
 
-internal fun addBarcodeQuietZone(source: Bitmap): Bitmap {
+internal fun addBarcodeQuietZone(source: Bitmap, backgroundColor: Int = Color.WHITE): Bitmap {
     val quiet = maxOf(8, source.height / 4)
     val result = Bitmap.createBitmap(source.width + quiet * 2, source.height, Bitmap.Config.ARGB_8888)
     Canvas(result).apply {
-        drawColor(Color.WHITE)
+        drawColor(backgroundColor)
         drawBitmap(source, quiet.toFloat(), 0f, Paint())
     }
     return result

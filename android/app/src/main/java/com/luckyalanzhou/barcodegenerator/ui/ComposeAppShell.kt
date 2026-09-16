@@ -99,9 +99,23 @@ internal fun ComposeAppShell(
     val animation = rememberComposeAnimationConfig()
 
     val colorScheme = if (activity.isDark()) {
-        darkColorScheme(background = background, surface = Color(0xff1c1c1e))
+        darkColorScheme(
+            primary = Color(0xffb8ccff),
+            onPrimary = Color(0xff10224a),
+            secondary = Color(0xffb8ccff),
+            tertiary = Color(0xffb8ccff),
+            background = background,
+            surface = Color(0xff1c1c1e),
+        )
     } else {
-        lightColorScheme(background = background, surface = Color(0xfffbfcff))
+        lightColorScheme(
+            primary = Color(0xff2864d7),
+            onPrimary = Color.White,
+            secondary = Color(0xff2864d7),
+            tertiary = Color(0xff2864d7),
+            background = background,
+            surface = Color(0xfffbfcff),
+        )
     }
     MaterialTheme(colorScheme = colorScheme) {
         Box(Modifier.fillMaxSize().background(background)) {

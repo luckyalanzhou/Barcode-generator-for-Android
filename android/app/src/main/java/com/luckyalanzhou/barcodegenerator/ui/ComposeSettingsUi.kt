@@ -135,7 +135,7 @@ internal fun ComposeSettingsPage(activity: MainActivity) {
             SettingDivider(dark)
             SettingRow("条码格式", primary, trailing = {
                 Box(
-                    Modifier.height(40.dp).width(64.dp).clip(RoundedCornerShape(12.dp)).background(button),
+                    Modifier.height(40.dp).width(64.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Switch(checked = settings.showFormat, onCheckedChange = { activity.settingsViewModel.setShowFormat(it); persist(settings.copy(showFormat = it)) })

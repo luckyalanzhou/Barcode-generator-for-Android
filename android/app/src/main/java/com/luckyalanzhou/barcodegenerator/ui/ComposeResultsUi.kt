@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -85,34 +88,68 @@ private fun ResultAction(icon: Int, label: String, tint: Color, onClick: () -> U
 
 @Composable
 internal fun ComposeResultBarcode(activity: MainActivity, item: CodeItem, textColor: Color) {
-    val encoded = activity.encode(item.text, activity.formats.firstOrNull { it.first == item.format }?.second ?: com.google.zxing.BarcodeFormat.CODE_128)
-        ?: return
+    val dark = activity.isDark()
     val isCode128 = item.format == "Code 128-B"
     val barHeight = activity.style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
-    // encoded 的高度已经按 dp 转换成像素；不能再把 dp 数值当作像素裁剪，
-    // 否则高密度设备会截掉条码位图的大部分高度。
-    val displayed = if (isCode128) addBarcodeQuietZone(trimBarcodeHorizontal(encoded)) else encoded
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (isCode128) {
+    val barWidth = activity.style.barWidth.roundToInt().coerceIn(120, 360)
+    val textSize = activity.style.textSize.coerceIn(10f, 24f)
+    val showFormat = activity.style.showFormat
+    // 条码像素生成和裁剪放到后台，避免历史、收藏和生成结果页进入时阻塞 Compose 主线程。
+    val displayed by produceState<Bitmap?>(
+        initialValue = null,
+        item.text,
+        item.format,
+        barWidth,
+        barHeight,
+        dark,
+    ) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val encoded = activity.encode(
+                item.text,
+                activity.formats.firstOrNull { it.first == item.format }?.second
+                    ?: com.google.zxing.BarcodeFormat.CODE_128,
+                withBackground = dark,
+            ) ?: return@withContext null
+            if (isCode128) {
+                addBarcodeQuietZone(
+                    trimBarcodeHorizontal(encoded),
+                    if (dark) AndroidColor.WHITE else AndroidColor.TRANSPARENT,
+                )
+            } else {
+                encoded
+            }
+        }
+    }
+
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (displayed == null) {
+            // 先保留稳定占位高度，避免后台生成期间列表上下跳动。
+            Spacer(Modifier.fillMaxWidth().height(if (isCode128) barHeight.dp else 200.dp))
+        } else if (isCode128) {
             Image(
-                bitmap = displayed.asImageBitmap(),
+                bitmap = displayed!!.asImageBitmap(),
                 contentDescription = "${item.format} 条码",
                 contentScale = ContentScale.FillBounds,
-                modifier = Modifier.width(activity.style.barWidth.roundToInt().coerceIn(120, 360).dp).height(barHeight.dp)
+                modifier = Modifier.width(barWidth.dp).height(barHeight.dp),
             )
             Text(
-                text = if (activity.style.showFormat) "${item.text} · ${item.format}" else item.text,
+                text = if (showFormat) "${item.text} · ${item.format}" else item.text,
                 color = textColor,
-                fontSize = activity.style.textSize.coerceIn(10f, 24f).sp,
+                fontSize = textSize.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
             )
         } else {
             Image(
-                bitmap = displayed.asImageBitmap(),
+                bitmap = displayed!!.asImageBitmap(),
                 contentDescription = "${item.format} 条码",
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxWidth().aspectRatio(displayed.width.toFloat() / displayed.height.toFloat())
+                modifier = Modifier.fillMaxWidth().aspectRatio(
+                    displayed!!.width.toFloat() / displayed!!.height.toFloat(),
+                ),
             )
         }
     }
