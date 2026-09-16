@@ -3,3 +3,4 @@ dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_P
 rootProject.name = "BarcodeGenerator"
 include(":app")
 include(":core:domain")
+include(":core:data")

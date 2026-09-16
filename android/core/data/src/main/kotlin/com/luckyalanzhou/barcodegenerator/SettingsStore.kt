@@ -72,3 +72,4 @@ class SettingsStore(private val context: Context) {
         return scope.launch { context.settingsDataStore.edit { preferences -> block(preferences) } }
     }
 }
+

@@ -30,13 +30,6 @@ data class InterchangeFavorite(
 
 data class InterchangeBackup(val favorites: List<InterchangeFavorite>, val folders: List<String>)
 
-data class TransferEntities(
-    val items: List<CodeItemEntity>,
-    val groups: List<FavoriteGroupEntity>,
-    val links: List<FavoriteGroupItemEntity>,
-    val folders: List<FavoriteFolderEntity>
-)
-
 object FavoritesTransferManager {
     fun export(resolver: ContentResolver, uri: Uri, groups: List<FavoriteGroupEntity>, links: List<FavoriteGroupItemEntity>, items: List<CodeItemEntity>, folders: List<FavoriteFolderEntity>) {
         val itemById = items.associateBy { it.id }

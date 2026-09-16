@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator
 import androidx.room.withTransaction
 
 /** Room 数据访问边界；UI 和 Activity 不直接负责数据库事务细节。 */
-internal class BarcodeRepository(private val database: BarcodeDatabase) {
+class BarcodeRepository(private val database: BarcodeDatabase) {
     private val dao get() = database.barcodeDao()
 
     suspend fun saveFavoriteFolders(folders: List<FavoriteFolderEntity>) {
@@ -71,3 +71,4 @@ internal class BarcodeRepository(private val database: BarcodeDatabase) {
         }
     }
 }
+

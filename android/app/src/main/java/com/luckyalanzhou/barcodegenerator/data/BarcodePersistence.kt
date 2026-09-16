@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.text.*
 import android.view.*
 import androidx.lifecycle.lifecycleScope
-import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch

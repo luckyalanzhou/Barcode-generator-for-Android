@@ -112,6 +112,7 @@ android {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(project(":core:data"))
     // Compose 迁移基础：阶段一只启用编译能力，现有 XML 页面保持不变。
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
@@ -128,14 +129,10 @@ dependencies {
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.dynamicanimation:dynamicanimation:1.1.0")
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.google.dagger:hilt-android:2.57.1")
     ksp("com.google.dagger:hilt-android-compiler:2.57.1")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("org.nanohttpd:nanohttpd-websocket:2.3.1")
-    ksp("androidx.room:room-compiler:2.6.1")
 }

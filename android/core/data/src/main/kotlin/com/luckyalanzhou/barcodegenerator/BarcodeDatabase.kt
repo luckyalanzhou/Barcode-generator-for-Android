@@ -52,7 +52,6 @@ interface BarcodeDao {
     @Query("SELECT * FROM favorite_folders ORDER BY name") suspend fun loadFolders(): List<FavoriteFolderEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveFolders(folders: List<FavoriteFolderEntity>)
     @Query("DELETE FROM favorite_folders") suspend fun clearFolders()
-
 }
 
 @Database(
@@ -71,3 +70,4 @@ abstract class BarcodeDatabase : RoomDatabase() {
         ).build()
     }
 }
+
