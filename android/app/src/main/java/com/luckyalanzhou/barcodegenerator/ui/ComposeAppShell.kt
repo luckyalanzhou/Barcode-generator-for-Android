@@ -7,6 +7,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -115,8 +118,21 @@ internal fun ComposeAppShell(
                 targetState = appUiState.page,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 transitionSpec = {
-                    (slideInVertically(animationSpec = tween(220), initialOffsetY = { it / 5 }) + fadeIn(tween(180))) togetherWith
-                        (slideOutVertically(animationSpec = tween(140), targetOffsetY = { -it / 10 }) + fadeOut(tween(100)))
+                    (slideInVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                        initialOffsetY = { it / 10 },
+                    ) + fadeIn(tween(160))) togetherWith
+                        (slideOutVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                            targetOffsetY = { -it / 14 },
+                        ) + fadeOut(tween(120))) using
+                        SizeTransform(clip = false)
                 },
                 label = "pageUpTransition",
             ) { targetPage ->
