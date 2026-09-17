@@ -63,7 +63,7 @@ class SettingsViewModel @Inject constructor(
                 .remove("style_transparent_background").remove("style_color_scheme")
                 .remove("last_update_error").apply()
         }
-        initialize(loadStyleFromStore(), settingsStore.getOcrConfusionReplacementMask())
+        initialize(settingsStore.loadStyle(), settingsStore.getOcrConfusionReplacementMask())
     }
 
     fun save(): Job = settingsStore.saveStyle(style)
@@ -76,19 +76,6 @@ class SettingsViewModel @Inject constructor(
     fun getOcrMask(): Int = settingsStore.getOcrConfusionReplacementMask()
 
     fun recordUpdateError(message: String): Job = settingsStore.setUpdateError(message)
-
-    private fun loadStyleFromStore(): StyleSettings = StyleSettings(
-        barColor = Color.BLACK,
-        bgColor = Color.WHITE,
-        showText = true,
-        textPosition = "bottom",
-        textSize = settingsStore.get(SettingsStore.TEXT_SIZE, 14f).coerceIn(10f, 24f),
-        barHeight = settingsStore.get(SettingsStore.BAR_HEIGHT, 55).coerceIn(30, 150),
-        barWidth = settingsStore.get(SettingsStore.BAR_WIDTH, 220f).coerceIn(120f, 360f),
-        margin = settingsStore.get(SettingsStore.MARGIN, 4).coerceIn(0, 40),
-        showFormat = settingsStore.get(SettingsStore.SHOW_FORMAT, false),
-        colorScheme = settingsStore.get(SettingsStore.COLOR_SCHEME, "system"),
-    )
 
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return

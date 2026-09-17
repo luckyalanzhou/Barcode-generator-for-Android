@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.content.Context
+import android.graphics.Color
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -52,6 +53,22 @@ class SettingsStore(private val context: Context) {
     }
 
     fun <T> get(key: Preferences.Key<T>, default: T): T = cachedValues[key] ?: default
+
+    /**
+     * 读取完整条码样式快照。样式字段必须与 [saveStyle] 对称，避免应用重启后只恢复尺寸类设置。
+     */
+    fun loadStyle(): StyleSettings = StyleSettings(
+        barColor = get(BAR_COLOR, Color.BLACK),
+        bgColor = get(BG_COLOR, Color.WHITE),
+        showText = get(SHOW_TEXT, true),
+        textPosition = get(TEXT_POSITION, "bottom"),
+        textSize = get(TEXT_SIZE, 14f).coerceIn(10f, 24f),
+        barHeight = get(BAR_HEIGHT, 55).coerceIn(30, 150),
+        barWidth = get(BAR_WIDTH, 220f).coerceIn(120f, 360f),
+        margin = get(MARGIN, 4).coerceIn(0, 40),
+        showFormat = get(SHOW_FORMAT, false),
+        colorScheme = get(COLOR_SCHEME, "system"),
+    )
 
     fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = error }
 

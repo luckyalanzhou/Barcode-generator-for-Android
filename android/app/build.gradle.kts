@@ -1,4 +1,14 @@
 import java.io.File
+import java.util.Properties
+
+val suppliedVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull()
+val suppliedVersionName = providers.gradleProperty("versionName").orNull
+val betaVersionProperties = Properties().apply {
+    val versionFile = rootProject.file("beta-version.properties")
+    if (versionFile.isFile) versionFile.inputStream().use(::load)
+}
+val localBetaVersionCode = betaVersionProperties.getProperty("versionCode")?.toIntOrNull()?.takeIf { it > 0 }
+val localBetaVersionName = betaVersionProperties.getProperty("versionName")
 
 plugins {
     id("com.android.application")
@@ -11,16 +21,12 @@ plugins {
 android {
     namespace = "com.luckyalanzhou.barcodegenerator"
     compileSdk = 35
-    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: 6
-    val buildVersionName = providers.gradleProperty("versionName").orNull ?: "1.0.5"
     defaultConfig {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.0.10"
-        if (providers.gradleProperty("versionCode").isPresent) versionCode = buildVersionCode
-        if (providers.gradleProperty("versionName").isPresent) versionName = buildVersionName
+        versionCode = suppliedVersionCode ?: 11
+        versionName = suppliedVersionName ?: "1.0.10"
     }
 
     flavorDimensions += "channel"
@@ -35,6 +41,9 @@ android {
         }
         create("beta") {
             dimension = "channel"
+            // 本地 beta 构建也以 beta-version.properties 为版本基线；CI 传入参数时保持由 CI 控制。
+            if (suppliedVersionCode == null) versionCode = localBetaVersionCode
+            if (suppliedVersionName == null) versionName = localBetaVersionName
             applicationId = "com.luckyalanzhou.barcodegenerator.test"
             manifestPlaceholders["appLabel"] = "@string/app_name_beta"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-test-v\"")
