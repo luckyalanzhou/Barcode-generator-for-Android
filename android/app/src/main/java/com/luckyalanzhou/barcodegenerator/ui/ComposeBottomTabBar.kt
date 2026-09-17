@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -62,11 +64,22 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
+    var hoveredIndex by remember { mutableIntStateOf(-1) }
+    var glassPulseKey by remember { mutableIntStateOf(0) }
+    val glassScale = remember { Animatable(1f) }
 
     LaunchedEffect(selectedIndex, dragging) {
         if (!dragging) {
             dragProgress = selectedIndex.toFloat()
+            hoveredIndex = -1
         }
+    }
+
+    LaunchedEffect(glassPulseKey) {
+        if (glassPulseKey == 0) return@LaunchedEffect
+        glassScale.snapTo(0.96f)
+        glassScale.animateTo(1.045f, animation.bouncySpring())
+        glassScale.animateTo(1f, animation.settleSpring())
     }
 
     BoxWithConstraints(
@@ -79,6 +92,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     dragProgress = ((position.x - tabWidth / 2f) / step)
                         .coerceIn(0f, (tabs.size - 1).toFloat())
                     lastTarget = dragProgress.roundToInt().coerceIn(tabs.indices)
+                    hoveredIndex = lastTarget
                 },
                 onHorizontalDrag = { change, dragAmount ->
                     change.consume()
@@ -89,6 +103,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                     if (target != lastTarget) {
                         lastTarget = target
+                        hoveredIndex = target
+                        glassPulseKey++
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onTabSelected(target)
                     }
@@ -103,9 +119,36 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     ) {
         val tabWidth = (maxWidth - 12.dp) / tabs.size
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
+        val glassShape = RoundedCornerShape(18.dp)
         Box(
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
-                .clip(RoundedCornerShape(18.dp)).background(selectedBackground)
+                .graphicsLayer {
+                    scaleX = glassScale.value
+                    scaleY = glassScale.value
+                    shadowElevation = 10.dp.toPx()
+                    shape = glassShape
+                    clip = false
+                }
+                .clip(glassShape)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (dark) 0.16f else 0.72f),
+                            selectedBackground,
+                            if (dark) Color(0xff9ecbff).copy(alpha = 0.10f) else Color.White.copy(alpha = 0.42f),
+                        ),
+                    ),
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (dark) 0.42f else 0.88f),
+                            Color.White.copy(alpha = if (dark) 0.10f else 0.34f),
+                        ),
+                    ),
+                    shape = glassShape,
+                )
         )
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -113,13 +156,18 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         ) {
             tabs.forEachIndexed { index, tab ->
                 val selected = selectedIndex == index
+                val hovered = dragging && hoveredIndex == index
                 val itemColor = if (selected) selectedColor else unselectedColor
                 val itemScale = remember { Animatable(if (selected) 1f else 0.96f) }
                 var itemInitialized by remember { mutableStateOf(false) }
-                LaunchedEffect(selected) {
+                LaunchedEffect(selected, hovered) {
                     if (!itemInitialized) {
                         itemScale.snapTo(if (selected) 1f else 0.96f)
                         itemInitialized = true
+                    } else if (hovered) {
+                        itemScale.snapTo(0.90f)
+                        itemScale.animateTo(1.12f, animation.bouncySpring())
+                        itemScale.animateTo(1f, animation.settleSpring())
                     } else if (selected) {
                         itemScale.snapTo(0.88f)
                         itemScale.animateTo(1f, animation.bouncySpring())
