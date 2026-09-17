@@ -7,7 +7,7 @@ import org.junit.Test
 class SettingsViewModelTest {
     @Test
     fun sliderChangesUpdateTheOwnedStyleAndUiSnapshot() {
-        val viewModel = SettingsViewModel()
+        val viewModel = SettingsViewModel(SettingsStore(android.app.Application()))
         viewModel.initialize(
             StyleSettings(showFormat = true, textSize = 12f, barHeight = 50, barWidth = 200f, margin = 3),
             ocrMask = 5,
@@ -32,7 +32,7 @@ class SettingsViewModelTest {
 
     @Test
     fun updateStyleReplacesTheSnapshotWithoutMutatingTheInputAfterwards() {
-        val viewModel = SettingsViewModel()
+        val viewModel = SettingsViewModel(SettingsStore(android.app.Application()))
         val style = StyleSettings(textSize = 18f, barWidth = 260f, colorScheme = "dark")
         viewModel.initialize(StyleSettings(), 0)
 
@@ -44,4 +44,4 @@ class SettingsViewModelTest {
         assertEquals(260f, viewModel.style.barWidth, 0f)
         assertEquals("dark", viewModel.uiState.value.scheme)
     }
-}
+}

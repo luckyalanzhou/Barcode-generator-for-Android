@@ -60,6 +60,10 @@ android {
 
     buildTypes {
         debug {
+            // Only local installs opt into a separate package; CI and released builds keep the original ID.
+            if (providers.gradleProperty("localDebugPackageSuffix").orNull == "true") {
+                applicationIdSuffix = ".debug"
+            }
         }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
@@ -98,6 +102,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.dynamicanimation)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.activity.ktx)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

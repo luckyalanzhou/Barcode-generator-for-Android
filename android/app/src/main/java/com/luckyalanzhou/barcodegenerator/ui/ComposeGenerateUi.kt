@@ -27,7 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,12 +48,20 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) {
+internal fun ComposeGeneratePage(
+    viewModel: BarcodeViewModel,
+    initialFormat: String,
+    dark: Boolean,
+    onCaptureText: () -> Unit,
+    onNotice: (String) -> Unit,
+) {
+    val editorState by viewModel.generateEditorState.collectAsStateWithLifecycle()
     val values = remember {
         mutableStateListOf<String>().apply {
-            addAll(activity.inputDraft.ifEmpty { mutableListOf("") })
+            addAll(editorState.inputDraft.ifEmpty { listOf("") })
         }
     }
     var focusedIndex by remember { mutableIntStateOf(-1) }
@@ -61,7 +69,6 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
-    val dark = activity.isDark()
     val textColor = if (dark) Color(0xfff2f4f7) else Color(0xff172033)
     val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
     val cardColor = if (dark) Color(0xff182330).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.88f)
@@ -69,16 +76,23 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
     val density = LocalDensity.current
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
-    fun syncDraft() { activity.inputDraft = values.toMutableList() }
+    fun syncDraft() { viewModel.updateInputDraft(values) }
 
-    DisposableEffect(Unit) {
-        activity.composeGenerateTextImport = { imported ->
+    LaunchedEffect(editorState.inputDraft) {
+        if (editorState.inputDraft.isNotEmpty() && values.toList() != editorState.inputDraft) {
             values.clear()
-            values.addAll(imported)
+            values.addAll(editorState.inputDraft)
             focusedIndex = -1
-            syncDraft()
         }
-        onDispose { activity.composeGenerateTextImport = null }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is BarcodeEvent.RecognizedText -> viewModel.updateInputDraft(event.lines)
+                is BarcodeEvent.Notice -> onNotice(event.message)
+            }
+        }
     }
 
     if (clearDialog) {
@@ -131,11 +145,11 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
-                    if (values.size >= 100) activity.toast("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
+                    if (values.size >= 100) onNotice("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
                     else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
                 }, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = cardColor, contentColor = textColor)
             ) { Text("+ \u6dfb\u52a0\u4e00\u884c", fontSize = 15.sp) }
-            OutlinedButton(onClick = { activity.captureText() }, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp)) {
+            OutlinedButton(onClick = onCaptureText, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp)) {
                 Icon(painterResource(R.drawable.ic_camera), "\u62cd\u7167\u53d6\u5b57", Modifier.size(22.dp)); Spacer(Modifier.width(6.dp)); Text("\u62cd\u7167\u53d6\u5b57", fontSize = 15.sp)
             }
         }
@@ -171,9 +185,9 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
                         anchorWidth = formatAnchorWidth,
                         alignEndWithAnchor = true,
                     ) {
-                        activity.formats.forEachIndexed { index, (name, _) ->
+                        barcodeFormats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(text = { Text(name, maxLines = 1, softWrap = false) }, onClick = { formatName = name; activity.generateFormatName = name; formatExpanded = false })
+                            DropdownMenuItem(text = { Text(name, maxLines = 1, softWrap = false) }, onClick = { formatName = name; viewModel.updateGenerateFormat(name); formatExpanded = false })
                         }
                     }
                 }
@@ -182,7 +196,17 @@ internal fun ComposeGeneratePage(activity: MainActivity, initialFormat: String) 
 
         val count = values.count { it.trim().isNotEmpty() }
         Button(
-            onClick = { syncDraft(); activity.generateFormatName = formatName; activity.generateAll() },
+            onClick = {
+                syncDraft()
+                viewModel.updateGenerateFormat(formatName)
+                val result = viewModel.generateBarcodes(formatName)
+                if (!result.isValid) {
+                    val message = result.errorMessage
+                    if (message == "请输入内容") onNotice(message)
+                    else onNotice("第 ${result.errorIndex + 1} 行：$message")
+                } else {
+                }
+            },
             enabled = count > 0,
             modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)
         ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", fontSize = 16.sp) }

@@ -12,13 +12,6 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.graphics.drawable.GradientDrawable
 import androidx.core.content.FileProvider
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
@@ -29,27 +22,19 @@ import java.util.Locale
  * 本文件保留局域网会话、轮询、文件传输、系统相机/图库/文件选择器。
  */
 internal fun MainActivity.enterLanShare() {
-    if (!lanShareManager.isOnLocalNetwork()) {
+    if (!lanShareViewModel.isOnLocalNetwork()) {
         showLanShareNetworkErrorDialog()
         return
     }
-    settingsReturnPage = "settings"
-    page = "lanShare"
+    viewModel.updateSettingsReturnPage("settings")
+    viewModel.navigateTo("lanShare")
     runCatching {
-        lanShareSession = lanShareManager.start()
-        lanShareIsHost = true
-        lanShareQrVisible = true
-        lanShareBrowserConnected = false
-        lanShareOwnFileIds.clear()
-        lanShareFiles = lanShareManager.localFiles()
-        startLanShareAutoRefresh()
-        render()
+        lanShareViewModel.startHostSession()
+        lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
     }.onFailure {
-        stopLanShareAutoRefresh()
-        lanShareSession = null
-        lanShareIsHost = false
-        page = "settings"
-        render()
+        lanShareViewModel.stopAutoRefresh()
+        lanShareViewModel.closeSession()
+        viewModel.navigateTo("settings")
         if (it.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
         else toast(it.message ?: "无法创建房间")
     }
@@ -59,42 +44,34 @@ internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = 
     showIos26NoticeDialogCompose("Error: 当前不处于局域网", showMetrics)
 }
 
-/** 兼容旧导航入口，界面由 ComposeAppShell 路由。 */
-internal fun MainActivity.showLanShare() {
-    page = "lanShare"
-    render()
-}
-
 internal fun MainActivity.openLanShareCamera() {
-    pendingCameraRequest = MainActivity.REQUEST_LAN_SHARE_CAPTURE
+    viewModel.prepareCameraRequest(MainActivity.REQUEST_LAN_SHARE_CAPTURE)
     if (checkSelfPermission(Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-        requestPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
+        requestAppPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
         return
     }
     val photoFile = File.createTempFile("lan_share_photo_", ".jpg", cacheDir)
     val photoUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photoFile)
-    pendingCameraUri = photoUri
-    pendingCameraFile = photoFile
+    viewModel.setCameraOutput(photoUri, photoFile)
     // 部分系统相机会忽略 EXTRA_OUTPUT 并直接写入系统图库；记录启动时刻，
     // 回退查找时只允许本次拍摄产生的媒体，避免误取上一张旧照片。
-    pendingLanCameraStartedAt = System.currentTimeMillis()
+    viewModel.markCameraCaptureStarted()
     val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
         putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         clipData = android.content.ClipData.newRawUri("output", photoUri)
     }
     try {
-        startActivityForResult(intent, MainActivity.REQUEST_LAN_SHARE_CAPTURE)
+        launchExternalActivity(intent, MainActivity.REQUEST_LAN_SHARE_CAPTURE)
     } catch (_: Exception) {
-        pendingCameraUri = null
-        pendingCameraFile = null
+        viewModel.clearCameraOutput()
         photoFile.delete()
         toast("当前设备没有可用的系统相机")
     }
 }
 
 internal fun MainActivity.findRecentLanCameraMedia(): Uri? {
-    val threshold = (pendingLanCameraStartedAt - 2_000L).coerceAtLeast(0L) / 1_000L
+    val threshold = (viewModel.cameraCaptureState.value.startedAtMillis - 2_000L).coerceAtLeast(0L) / 1_000L
     val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
     return contentResolver.query(
         collection,
@@ -116,14 +93,14 @@ internal fun MainActivity.openLanShareGallery() {
     }
     val permission = Manifest.permission.READ_EXTERNAL_STORAGE
     if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-        requestPermissions(arrayOf(permission), MainActivity.REQUEST_LAN_SHARE_GALLERY_PERMISSION)
+        requestAppPermissions(arrayOf(permission), MainActivity.REQUEST_LAN_SHARE_GALLERY_PERMISSION)
     } else openLanShareGalleryPicker()
 }
 
 internal fun MainActivity.openLanShareGalleryPicker() {
     val intent = if (Build.VERSION.SDK_INT >= 33) Intent(MediaStore.ACTION_PICK_IMAGES)
     else Intent(Intent.ACTION_PICK).setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*")
-    startActivityForResult(
+    launchExternalActivity(
         intent.apply { addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) },
         MainActivity.REQUEST_LAN_SHARE_UPLOAD,
     )
@@ -133,12 +110,12 @@ internal fun MainActivity.openLanShareFiles() {
     if (Build.VERSION.SDK_INT <= 32 &&
         checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED
     ) {
-        requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), MainActivity.REQUEST_LAN_SHARE_FILE_PERMISSION)
+        requestAppPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), MainActivity.REQUEST_LAN_SHARE_FILE_PERMISSION)
     } else openLanShareFilePicker()
 }
 
 internal fun MainActivity.openLanShareFilePicker() {
-    startActivityForResult(
+    launchExternalActivity(
         Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "*/*"
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -149,202 +126,47 @@ internal fun MainActivity.openLanShareFilePicker() {
 }
 
 internal fun MainActivity.selectLanShareAttachment(uri: Uri, temporaryFile: File? = null, autoUpload: Boolean = false) {
-    pendingLanUploadTempFile?.takeIf { it != temporaryFile }?.delete()
-    pendingLanUploadUri = uri
-    pendingLanUploadTempFile = temporaryFile
-    pendingLanUploadName = runCatching {
+    lanShareViewModel.uiState.value.pendingUploadTempFile?.takeIf { it != temporaryFile }?.delete()
+    val displayName = runCatching {
         contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             cursor.moveToFirst()
             cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
         }
     }.getOrNull() ?: "附件"
+    lanShareViewModel.setPendingUpload(uri, temporaryFile, displayName)
     runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-    if (autoUpload) uploadSelectedLanShareFile()
+    if (autoUpload) {
+        lanShareViewModel.takePendingUpload()?.let { (selectedUri, selectedFile) ->
+            lanShareViewModel.uiState.value.session?.let { session ->
+                lanShareViewModel.uploadFile(session, selectedUri, selectedFile)
+            }
+        }
+    }
     else {
-        composeLanShareRevision.intValue++
         toast("已选择附件，点击发送按钮发送")
     }
 }
 
-internal fun MainActivity.uploadSelectedLanShareFile() {
-    val uri = pendingLanUploadUri ?: return
-    val temporaryFile = pendingLanUploadTempFile
-    pendingLanUploadUri = null
-    pendingLanUploadTempFile = null
-    pendingLanUploadName = null
-    uploadLanShareFile(uri, temporaryFile)
-}
-
 internal fun MainActivity.joinLanShareSession(value: String) {
-    val address = value.trim()
-    if (!address.startsWith("http://", ignoreCase = true)) {
-        toast("这不是局域网分享地址")
-        return
-    }
-    val uri = Uri.parse(address)
-    if (uri.host.isNullOrBlank() || uri.port !in 1..65535 || uri.query != null ||
-        uri.fragment != null || uri.userInfo != null || !lanShareManager.isRouterLanHost(uri.host)
-    ) {
-        toast("这不是局域网分享地址")
-        return
-    }
-    stopLanShareAutoRefresh()
-    lanShareManager.stop()
-    lanShareIsHost = false
-    lanShareSession = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}")
-    syncLanShareViewModelState()
-    startLanShareAutoRefresh()
-    refreshLanShareFiles()
+    lanShareViewModel.joinSessionFromAddress(value)
 }
 
 internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession? = null) {
     showLanShareQrDialogCompose(simulatedSession)
 }
 
-internal fun MainActivity.startLanShareAutoRefresh() {
-    stopLanShareAutoRefresh()
-    lanShareRefreshJob = lifecycleScope.launch {
-        while (isActive && page == "lanShare" && lanShareSession != null) {
-            delay(1_500L)
-            if (!isActive || page != "lanShare" || lanShareSession == null) break
-            refreshLanShareFiles(showError = false)
-        }
-    }
-}
-
-internal fun MainActivity.stopLanShareAutoRefresh() {
-    lanShareRefreshJob?.cancel()
-    lanShareRefreshJob = null
-}
-
-internal fun MainActivity.refreshLanShareFiles(showError: Boolean = true) {
-    val session = lanShareSession ?: return
-    if (lanShareRefreshInFlight) return
-    lanShareRefreshInFlight = true
-    lifecycleScope.launch(Dispatchers.IO) {
-        val result = runCatching { lanShareManager.list(session) }
-        runOnUiThread {
-            lanShareRefreshInFlight = false
-            lanShareBrowserConnected = lanShareManager.browserConnected()
-            if (result.isFailure) {
-                // 请求失败也要立即同步连接状态，避免页面继续显示过期的绿色“已连接”。
-                syncLanShareViewModelState()
-                if (page == "lanShare") composeLanShareRevision.intValue++
-            }
-            result.onSuccess { files ->
-                lanShareFiles = files
-                lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())
-                val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
-                lanSharePreviewFiles.keys.retainAll(imageIds)
-                if (page == "lanShare") composeLanShareRevision.intValue++
-                if (lanSharePreviewJob?.isActive != true) {
-                    lanSharePreviewJob = lifecycleScope.launch(Dispatchers.IO) {
-                        val previews = fetchLanSharePreviews(session, files)
-                        withContext(Dispatchers.Main) {
-                            if (lanShareSession == session && page == "lanShare") {
-                                val currentIds = lanShareFiles.map { it.id }.toSet()
-                                lanSharePreviewFiles.putAll(previews.filterKeys { it in currentIds })
-                                lanShareViewModel.sync(lanShareSession, lanShareIsHost, lanShareQrVisible, lanShareBrowserConnected, lanShareFiles, lanShareOwnFileIds.toSet(), lanSharePreviewFiles.toMap())
-                                composeLanShareRevision.intValue++
-                            }
-                        }
-                    }
-                }
-            }
-            result.onFailure { if (showError) toast("无法连接到分享房间") }
-        }
-    }
-}
-
 internal fun MainActivity.closeLanShare() {
-    stopLanShareAutoRefresh()
-    lanSharePreviewJob?.cancel()
-    lanSharePreviewJob = null
-    lanShareManager.stop(clearSharedFiles = true)
-    lanShareSession = null
-    lanShareFiles = emptyList()
-    lanShareOwnFileIds.clear()
-    lanSharePreviewFiles.clear()
-    syncLanShareViewModelState()
-    composeLanShareClearInput = null
+    lanShareViewModel.closeSession()
     File(cacheDir, "lan-share-preview").listFiles().orEmpty().forEach { it.delete() }
 }
 
-private suspend fun MainActivity.fetchLanSharePreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, File> {
-    val previewFolder = File(cacheDir, "lan-share-preview").apply { mkdirs() }
-    val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
-    previewFolder.listFiles().orEmpty().filter { it.name !in imageIds }.forEach { it.delete() }
-    var cachedBytes = previewFolder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
-    return buildMap {
-        files.filter { isLanShareImageName(it.name) && lanShareManager.localFile(it.id) == null }.forEach { file ->
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            val preview = File(previewFolder, file.id)
-            if (!preview.isFile && file.size <= 16L * 1024L * 1024L &&
-                cachedBytes + file.size <= 64L * 1024L * 1024L
-            ) {
-                runCatching { lanShareManager.downloadPreview(session, file.id, preview) }
-                cachedBytes += preview.length()
-            }
-            if (preview.isFile) put(file.id, preview)
-        }
-    }
-}
-
-internal fun MainActivity.uploadLanShareFile(uri: Uri, temporaryFile: File? = null) {
-    val session = lanShareSession ?: return
-    lifecycleScope.launch(Dispatchers.IO) {
-        runCatching {
-            val id = lanShareManager.upload(session, uri)
-            id to lanShareManager.list(session)
-        }.onSuccess { (id, files) ->
-            temporaryFile?.delete()
-            runOnUiThread {
-                lanShareOwnFileIds.add(id)
-                lanShareFiles = files
-                syncLanShareViewModelState()
-                composeLanShareRevision.intValue++
-            }
-        }.onFailure {
-            temporaryFile?.delete()
-            runOnUiThread { toast("上传失败") }
-        }
-    }
-}
-
-internal fun MainActivity.uploadLanShareMessage(text: String) {
-    val session = lanShareSession ?: return
-    lifecycleScope.launch(Dispatchers.IO) {
-        runCatching {
-            val id = lanShareManager.uploadText(session, text)
-            id to lanShareManager.list(session)
-        }.onSuccess { (id, files) ->
-            runOnUiThread {
-                composeLanShareClearInput?.invoke()
-                lanShareOwnFileIds.add(id)
-                lanShareFiles = files
-                syncLanShareViewModelState()
-                composeLanShareRevision.intValue++
-                toast("发送成功")
-            }
-        }.onFailure { runOnUiThread { toast("发送失败") } }
-    }
-}
-
-internal fun MainActivity.downloadLanShareFile(id: String, uri: Uri) {
-    val session = lanShareSession ?: return
-    lifecycleScope.launch(Dispatchers.IO) {
-        runCatching { lanShareManager.download(session, id, uri) }
-            .onSuccess { runOnUiThread { toast("下载完成") } }
-            .onFailure { runOnUiThread { toast("下载失败") } }
-    }
-}
 
 internal fun MainActivity.saveLanShareFile(file: LanShareFile) {
     val mime = android.webkit.MimeTypeMap.getSingleton()
         .getMimeTypeFromExtension(file.name.substringAfterLast('.', "").lowercase())
         ?: "application/octet-stream"
-    pendingLanDownloadId = file.id
-    startActivityForResult(
+    lanShareViewModel.setPendingDownloadId(file.id)
+    launchExternalActivity(
         Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             type = mime
             putExtra(Intent.EXTRA_TITLE, file.name)

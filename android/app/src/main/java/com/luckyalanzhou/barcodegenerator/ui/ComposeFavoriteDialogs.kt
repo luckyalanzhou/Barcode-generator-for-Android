@@ -55,7 +55,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
                     when {
                         name.isBlank() -> toast("请输入文件夹名称")
                         !isValidFavoriteFolderPath(targetPath) -> toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
-                        favoriteFolders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
+                        viewModel.dataState.value.folders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
                         else -> { onSaved(name); dismiss() }
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
@@ -86,8 +86,12 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
                     when {
                         child.isBlank() -> toast("请输入文件夹名称")
                         child.contains('/') -> toast("名称不能包含斜杠")
-                        path in favoriteFolders -> toast("已存在同名文件夹")
-                        else -> { favoriteFolders.add(path); saveFavoriteFolders(); onCreated?.invoke(child) ?: render(); dismiss() }
+                        path in viewModel.dataState.value.folders -> toast("已存在同名文件夹")
+                        else -> {
+                            viewModel.createFavoriteFolder(path)
+                            onCreated?.invoke(child)
+                            dismiss()
+                        }
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -155,10 +159,9 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                     val name = value.trim()
                     if (name.isBlank()) toast("请输入收藏文件名")
                     else {
-                        group.name = name
-                        saveFavoriteGroups()
+                        viewModel.renameFavoriteGroupAndPersist(group.id, name)
                         dismiss()
-                        showFavoriteGroups()
+                        viewModel.navigateTo("favorites")
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -167,7 +170,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
 }
 
 internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
-    val folders = favoriteFolders.filter { it.isNotBlank() }
+    val folders = viewModel.dataState.value.folders.filter { it.isNotBlank() }
     if (folders.isEmpty()) {
         showIos26NoticeDialogCompose("请先创建文件夹")
         return
@@ -181,11 +184,9 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("移动", dark, {
-                    group.folder = selected
-                    if (group.folder.isNotBlank() && group.folder !in favoriteFolders) favoriteFolders.add(group.folder)
-                    saveAllFavorites()
+                    viewModel.moveFavoriteGroupAndPersist(group.id, selected)
                     dismiss()
-                    showFavoriteGroups()
+                    viewModel.navigateTo("favorites")
                 }, modifier = Modifier.padding(start = 8.dp))
             }
         }
@@ -206,12 +207,9 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                 DialogAction("删除", dark, {
                     dismiss()
                     showComposeConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
-                        favoriteGroups.removeAll { it.id == group.id }
-                        if (group.folder.isNotBlank() && group.folder !in favoriteFolders) favoriteFolders.add(group.folder)
-                        selectedFavoriteGroup = null
-                        saveAllFavorites()
-                        page = "favorites"
-                        render()
+                        viewModel.deleteFavoriteGroupAndPersist(group.id)
+                        viewModel.clearSelectedFavoriteGroup()
+                        viewModel.navigateTo("favorites")
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
                 DialogAction("保存", dark, {
@@ -220,13 +218,8 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                     if (cleanName.isBlank()) toast("请输入收藏文件名")
                     else if (!isValidFavoriteFolderPath(cleanFolder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
-                        group.name = cleanName
-                        group.folder = cleanFolder
-                        if (cleanFolder !in favoriteFolders) favoriteFolders.add(cleanFolder)
-                        selectedFavoriteGroup = group
-                        saveAllFavorites()
+                        viewModel.updateFavoriteGroupAndPersist(group.id, cleanName, cleanFolder)
                         dismiss()
-                        render()
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -238,33 +231,27 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(item.text) }
-        var selectedIndex by remember { mutableIntStateOf(formats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
+        var selectedIndex by remember { mutableIntStateOf(barcodeFormats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
         ComposeGlassDialogCard(dark) {
             Text("编辑条目", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
             OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, label = { Text("条码内容") })
-            ComposeChoiceField(formats[selectedIndex].first, formats.map { it.first }, dark) { choice ->
-                selectedIndex = formats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
+            ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark) { choice ->
+                selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("删除", dark, {
                     dismiss()
                     showComposeConfirmDialog("删除条目", "确定删除此条码吗？", "删除") {
-                        items.removeAll { it.id == item.id }
-                        favoriteGroups.forEach { group -> group.itemIds.removeAll { id -> id == item.id } }
-                        saveAllFavorites()
-                        render()
+                        viewModel.deleteBarcodeItem(item.id)
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
                 DialogAction("保存", dark, {
                     val text = value
                     if (text.isBlank()) toast("请输入条码内容")
                     else {
-                        item.text = text
-                        item.format = formats[selectedIndex].first
-                        saveItems()
+                        viewModel.updateBarcodeItem(item.id, text, barcodeFormats[selectedIndex].first)
                         dismiss()
-                        render()
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -293,9 +280,8 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
                     if (!isValidFavoriteFolderPath(folder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
                         item.folder = folder
-                        saveItems()
+                        viewModel.persistItems()
                         dismiss()
-                        render()
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -317,21 +303,19 @@ internal fun MainActivity.confirmClearCompose(favoritesOnly: Boolean) {
         positive = "删除",
     ) {
         if (favoritesOnly) {
-            favoriteGroups.clear()
-            items.forEach { it.favorite = false; it.folder = "默认" }
-            saveAllFavorites()
+            viewModel.clearFavoritesAndPersist()
         } else {
-            items.forEach { it.inHistory = false }
-            saveItems()
+            viewModel.clearHistoryAndPersist()
         }
-        render()
     }
 }
 
 internal fun MainActivity.saveResultAsFavoriteCompose() {
-    if (resultItems.isEmpty()) return
-    val editingGroup = selectedFavoriteGroup?.takeIf { resultsReturnPage == "favorites" }
-    val folders = (favoriteFolders + favoriteGroups.map { it.folder }).filter { it.isNotBlank() }.distinct().toMutableList()
+    val resultState = viewModel.resultUiState.value
+    if (resultState.items.isEmpty()) return
+    val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == "favorites" }
+    val dataState = viewModel.dataState.value
+    val folders = (dataState.folders + dataState.groups.map { it.folder }).filter { it.isNotBlank() }.distinct().toMutableList()
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
         val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
@@ -341,19 +325,13 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
         val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
         fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String) {
-            val savedAt = System.currentTimeMillis()
-            resultItems.forEach { it.favorite = true; it.folder = folder }
-            if (folder !in favoriteFolders) favoriteFolders.add(folder)
-            if (target == null) favoriteGroups.add(0, FavoriteGroup(nextGroupId(), folder, cleanName, savedAt, resultItems.map { it.id }.toMutableList()))
-            else {
-                val index = favoriteGroups.indexOfFirst { it.id == target.id }
-                if (index >= 0) favoriteGroups[index] = FavoriteGroup(target.id, folder, cleanName, savedAt, resultItems.map { it.id }.toMutableList())
-            }
-            items.filter { it.favorite && favoriteGroups.none { group -> group.itemIds.contains(it.id) } }.forEach { it.favorite = false }
-            saveAllFavorites()
-            selectedFavoriteGroup = null
-            page = "favorites"
-            render()
+            viewModel.saveResultAsFavorite(
+                resultItemIds = resultState.items.map { it.id },
+                editingGroupId = editingGroup?.id,
+                targetGroupId = target?.id,
+                folder = folder,
+                name = cleanName,
+            )
             toast("已保存到 " + folder)
         }
         ComposeGlassDialogCard(dark) {
@@ -405,10 +383,9 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     {
                         showFolderEditorCompose { folder ->
                             if (folder !in folders) folders.add(folder)
-                            if (folder !in favoriteFolders) favoriteFolders.add(folder)
+                            viewModel.createFavoriteFolder(folder)
                             selectedRoot = folder
                             selectedChild = ""
-                            saveFavoriteFolders()
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -422,7 +399,6 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                             val path = "$selectedRoot/$child"
                             if (path !in folders) folders.add(path)
                             selectedChild = child
-                            saveFavoriteFolders()
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -444,7 +420,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                         cleanName.isEmpty() -> toast("请输入收藏文件名")
                         selectedFolder.isBlank() -> toast("请选择文件夹")
                         else -> {
-                            val conflict = favoriteGroups.firstOrNull {
+                            val conflict = viewModel.dataState.value.groups.firstOrNull {
                                 it.id != editingGroup?.id && it.folder == selectedFolder && it.name == cleanName
                             }
                             if (conflict == null) {
@@ -457,7 +433,6 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                                     "“" + selectedFolder + "/" + cleanName + "”已存在，是否覆盖？",
                                     "覆盖",
                                 ) {
-                                    if (editingGroup != null && editingGroup.id != conflict.id) favoriteGroups.removeAll { it.id == editingGroup.id }
                                     persistFavorite(conflict, selectedFolder, cleanName)
                                 }
                             }

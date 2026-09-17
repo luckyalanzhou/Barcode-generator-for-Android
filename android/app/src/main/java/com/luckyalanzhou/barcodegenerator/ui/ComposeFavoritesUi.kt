@@ -26,9 +26,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -61,14 +61,21 @@ private data class ComposeFavoriteRow(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun ComposeFavoritesPage(activity: MainActivity) {
+internal fun ComposeFavoritesPage(
+    viewModel: BarcodeViewModel,
+    dark: Boolean,
+    onShowSubfolderEditor: (String) -> Unit,
+    onShowFolderEditor: (String, (String) -> Unit) -> Unit,
+    onShowMoveDialog: (FavoriteGroup) -> Unit,
+    onShowRenameDialog: (FavoriteGroup) -> Unit,
+    onConfirm: (String, String, String, () -> Unit) -> Unit,
+) {
     val anchor = LocalView.current
-    val favoritesState by activity.viewModel.dataState.collectAsState()
+    val favoritesState by viewModel.dataState.collectAsStateWithLifecycle()
+    val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
-    var revision by remember { mutableIntStateOf(0) }
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
-    val dark = activity.isDark()
     val animation = rememberComposeAnimationConfig()
     val primary = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230)
     val secondary = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff6b7280)
@@ -78,7 +85,22 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     val fileColor = if (dark) ComposeColor(0xff9bd8c0) else ComposeColor(0xff5c8c7b)
     // rows 依赖可变业务对象的完整内容；不缓存，确保重命名、移动、删除和条码修改后
     // 即使 Activity 只触发了普通重组，列表也不会继续显示旧快照。
-    val rows = composeFavoriteRows(activity, favoritesState, query.trim().lowercase(Locale.getDefault()))
+    val normalizedQuery = query.trim().lowercase(Locale.getDefault())
+    val folderPaths = (favoritesState.folders + favoritesState.groups.map { it.folder })
+        .filter { it.isNotBlank() }.distinct().toSet()
+    val expandedSearchPaths = favoriteSearchExpandedPaths(favoritesState, normalizedQuery)
+    LaunchedEffect(folderPaths, favoritesState.groups) {
+        viewModel.syncFavoriteTree(folderPaths)
+    }
+    LaunchedEffect(normalizedQuery, expandedSearchPaths) {
+        viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty())
+    }
+    val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) {
+        treeState.collapsedFolders
+    } else {
+        treeState.collapsedFolders - expandedSearchPaths
+    }
+    val rows = composeFavoriteRows(favoritesState, normalizedQuery, visibleCollapsedFolders)
 
     Column(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -114,14 +136,11 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                                 .background(pressColor)
                                 .padding(start = if (row.level == 0) 11.dp else 26.dp, end = 5.dp)
                                 .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-                                .combinedClickable(
+                                    .combinedClickable(
                                     interactionSource = interactionSource,
                                     indication = null,
                                     onClick = {
-                                        val folders = (activity.favoriteFolders + activity.favoriteGroups.map { it.folder }).filter { it.isNotBlank() }.distinct()
-                                        if (row.collapsed) activity.collapsedFavoriteFolders.remove(row.path)
-                                        else activity.collapsedFavoriteFolders.addAll(folders.filter { it == row.path || it.startsWith("${row.path}/") })
-                                        revision++
+                                        viewModel.toggleFavoriteFolder(row.path, folderPaths)
                                     },
                                     onLongClick = { anchor.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); folderMenu = row.path to row.level }
                                 ),
@@ -157,19 +176,14 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                                     onClick = {
                                         folderMenu = null
                                         when {
-                                            row.level == 0 && index == 0 -> activity.showSubfolderEditor(row.path)
-                                            index == if (row.level == 0) 1 else 0 -> activity.showFolderEditor(row.path) { renamed ->
+                                            row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
+                                            index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
                                                 val parent = row.path.substringBeforeLast('/', "")
                                                 val renamedPath = listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/")
-                                                activity.favoriteGroups.filter { it.folder == row.path || it.folder.startsWith("${row.path}/") }.forEach { group -> group.folder = if (group.folder == row.path) renamedPath else renamedPath + group.folder.removePrefix(row.path) }
-                                                activity.favoriteFolders.filter { it == row.path || it.startsWith("${row.path}/") }.toList().forEach { old -> activity.favoriteFolders.remove(old); activity.favoriteFolders.add(if (old == row.path) renamedPath else renamedPath + old.removePrefix(row.path)) }
-                                                activity.saveAllFavorites(); activity.render()
+                                                viewModel.renameFavoriteFolderAndPersist(row.path, renamedPath)
                                             }
-                                            else -> activity.showComposeConfirmDialog("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
-                                                activity.favoriteGroups.removeAll { group -> group.folder == row.path || group.folder.startsWith("${row.path}/") }
-                                                activity.favoriteFolders.removeAll { folder -> folder == row.path || folder.startsWith("${row.path}/") }
-                                                activity.saveAllFavorites()
-                                                activity.render()
+                                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
+                                                viewModel.deleteFavoriteFolderAndPersist(row.path)
                                             }
                                         }
                                     },
@@ -199,12 +213,7 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                                     interactionSource = interactionSource,
                                     indication = null,
                                     onClick = {
-                                        activity.resultItems = row.groupItems
-                                        activity.showingHistoryResult = false
-                                        activity.resultsReturnPage = "favorites"
-                                        activity.selectedFavoriteGroup = group
-                                        activity.page = "results"
-                                        activity.render()
+                                        viewModel.openFavoriteGroup(group)
                                     },
                                     onLongClick = { anchor.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); fileMenu = group }
                                 ),
@@ -238,14 +247,10 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
                                     onClick = {
                                         fileMenu = null
                                         when (index) {
-                                            0 -> activity.showFavoriteMoveDialog(group)
-                                            1 -> activity.showFavoriteRenameDialog(group)
-                                            else -> activity.showComposeConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
-                                                activity.favoriteGroups.removeAll { it.id == group.id }
-                                                row.groupItems.forEach { item -> if (activity.favoriteGroups.none { group -> group.itemIds.contains(item.id) }) item.favorite = false }
-                                                if (group.folder !in activity.favoriteFolders) activity.favoriteFolders.add(group.folder)
-                                                activity.saveAllFavorites()
-                                                activity.render()
+                                            0 -> onShowMoveDialog(group)
+                                            1 -> onShowRenameDialog(group)
+                                            else -> onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") {
+                                                viewModel.deleteFavoriteGroupAndPersist(group.id)
                                             }
                                         }
                                     },
@@ -259,27 +264,10 @@ internal fun ComposeFavoritesPage(activity: MainActivity) {
     }
 }
 
-private fun composeFavoriteRows(activity: MainActivity, state: BarcodeDataState, query: String): List<ComposeFavoriteRow> {
+private fun composeFavoriteRows(state: BarcodeDataState, query: String, collapsedFolders: Set<String>): List<ComposeFavoriteRow> {
     val folders = (state.folders + state.groups.map { it.folder }).filter { it.isNotBlank() }.distinct()
     val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
     fun matches(group: FavoriteGroup): Boolean = query.isEmpty() || group.folder.lowercase(Locale.getDefault()).contains(query) || group.name.lowercase(Locale.getDefault()).contains(query) || group.itemIds.any { id -> state.items.firstOrNull { it.id == id }?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
-    if (!activity.favoriteTreeInitialized) {
-        activity.collapsedFavoriteFolders.addAll(folders)
-        activity.favoriteTreeInitialized = true
-    } else activity.collapsedFavoriteFolders.retainAll(folders)
-    if (query.isNotEmpty()) {
-        if (activity.favoriteCollapsedBeforeSearch == null) activity.favoriteCollapsedBeforeSearch = activity.collapsedFavoriteFolders.toSet()
-        state.groups.filter(::matches).flatMap { group ->
-            val parts = group.folder.split('/')
-            parts.indices.map { parts.take(it + 1).joinToString("/") }
-        }.forEach { activity.collapsedFavoriteFolders.remove(it) }
-    } else {
-        activity.favoriteCollapsedBeforeSearch?.let { previous ->
-            activity.collapsedFavoriteFolders.clear()
-            activity.collapsedFavoriteFolders.addAll(previous.filter { it in folders })
-            activity.favoriteCollapsedBeforeSearch = null
-        }
-    }
     val result = mutableListOf<ComposeFavoriteRow>()
     fun renderFolder(path: String, level: Int) {
         val prefix = "$path/"
@@ -287,7 +275,7 @@ private fun composeFavoriteRows(activity: MainActivity, state: BarcodeDataState,
         val groups = state.groups.filter { it.folder == path && matches(it) }
         val descendants = state.groups.filter { it.folder.startsWith(prefix) && matches(it) }
         if (query.isNotEmpty() && groups.isEmpty() && descendants.isEmpty()) return
-        val collapsed = path in activity.collapsedFavoriteFolders
+        val collapsed = path in collapsedFolders
         result += ComposeFavoriteRow(path, path.substringAfterLast('/'), level, if (level == 0) children.size else groups.size, collapsed, true)
         if (!collapsed) {
             groups.forEach { group -> result += ComposeFavoriteRow(group.folder, group.name, level + 1, 0, false, false, group, group.itemIds.mapNotNull { id -> state.items.firstOrNull { it.id == id } }) }
@@ -296,4 +284,18 @@ private fun composeFavoriteRows(activity: MainActivity, state: BarcodeDataState,
     }
     roots.forEach { renderFolder(it, 0) }
     return result
+}
+
+private fun favoriteSearchExpandedPaths(state: BarcodeDataState, query: String): Set<String> {
+    if (query.isEmpty()) return emptySet()
+    fun matches(group: FavoriteGroup): Boolean =
+        group.folder.lowercase(Locale.getDefault()).contains(query) ||
+            group.name.lowercase(Locale.getDefault()).contains(query) ||
+            group.itemIds.any { id ->
+                state.items.firstOrNull { it.id == id }?.text?.lowercase(Locale.getDefault())?.contains(query) == true
+            }
+    return state.groups.filter(::matches).flatMap { group ->
+        val parts = group.folder.split('/')
+        parts.indices.map { parts.take(it + 1).joinToString("/") }
+    }.toSet()
 }

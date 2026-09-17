@@ -1,14 +1,18 @@
 package com.luckyalanzhou.barcodegenerator
 
+import android.content.SharedPreferences
+import android.graphics.Color
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 data class SettingsUiState(
+    val style: StyleSettings = StyleSettings(),
     val scheme: String = "system",
     val showFormat: Boolean = false,
     val ocrMask: Int = 0,
@@ -20,7 +24,9 @@ data class SettingsUiState(
 
 /** 设置页状态与设置持久化之间的边界。 */
 @HiltViewModel
-class SettingsViewModel @Inject constructor() : ViewModel() {
+class SettingsViewModel @Inject constructor(
+    private val settingsStore: SettingsStore,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var initialized = false
@@ -30,11 +36,66 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     internal val style: StyleSettings
         get() = currentStyle.copy()
 
+    suspend fun loadPersistedState(legacyPrefs: SharedPreferences) {
+        settingsStore.load()
+        if (!settingsStore.get(SettingsStore.SETTINGS_MIGRATED, false)) {
+            val migratedStyle = StyleSettings(
+                barColor = legacyPrefs.getInt("style_bar_color", Color.BLACK),
+                bgColor = legacyPrefs.getInt("style_bg_color", Color.WHITE),
+                showText = legacyPrefs.getBoolean("style_show_text", true),
+                textPosition = legacyPrefs.getString("style_text_position", "bottom") ?: "bottom",
+                textSize = legacyPrefs.getFloat("style_text_size", 14f),
+                barHeight = legacyPrefs.getInt("style_bar_height", 55),
+                barWidth = legacyPrefs.getFloat("style_bar_width", 220f),
+                margin = legacyPrefs.getInt("style_margin", 4),
+                showFormat = legacyPrefs.getBoolean("style_show_format", false),
+                colorScheme = legacyPrefs.getString("style_color_scheme", "system") ?: "system",
+            )
+            settingsStore.saveStyle(migratedStyle).join()
+            legacyPrefs.getString("last_update_error", "")?.takeIf { it.isNotBlank() }?.let {
+                settingsStore.setUpdateError(it).join()
+            }
+            settingsStore.markMigrated().join()
+            legacyPrefs.edit()
+                .remove("style_bar_color").remove("style_bg_color").remove("style_show_text")
+                .remove("style_text_position").remove("style_text_size").remove("style_bar_height")
+                .remove("style_bar_width").remove("style_margin").remove("style_show_format")
+                .remove("style_transparent_background").remove("style_color_scheme")
+                .remove("last_update_error").apply()
+        }
+        initialize(loadStyleFromStore(), settingsStore.getOcrConfusionReplacementMask())
+    }
+
+    fun save(): Job = settingsStore.saveStyle(style)
+
+    fun setOcrMaskPersisted(mask: Int): Job {
+        setOcrMask(mask)
+        return settingsStore.setOcrConfusionReplacementMask(mask)
+    }
+
+    fun getOcrMask(): Int = settingsStore.getOcrConfusionReplacementMask()
+
+    fun recordUpdateError(message: String): Job = settingsStore.setUpdateError(message)
+
+    private fun loadStyleFromStore(): StyleSettings = StyleSettings(
+        barColor = Color.BLACK,
+        bgColor = Color.WHITE,
+        showText = true,
+        textPosition = "bottom",
+        textSize = settingsStore.get(SettingsStore.TEXT_SIZE, 14f).coerceIn(10f, 24f),
+        barHeight = settingsStore.get(SettingsStore.BAR_HEIGHT, 55).coerceIn(30, 150),
+        barWidth = settingsStore.get(SettingsStore.BAR_WIDTH, 220f).coerceIn(120f, 360f),
+        margin = settingsStore.get(SettingsStore.MARGIN, 4).coerceIn(0, 40),
+        showFormat = settingsStore.get(SettingsStore.SHOW_FORMAT, false),
+        colorScheme = settingsStore.get(SettingsStore.COLOR_SCHEME, "system"),
+    )
+
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return
         initialized = true
         currentStyle = style.copy()
         _uiState.value = SettingsUiState(
+            style = currentStyle.copy(),
             scheme = style.colorScheme,
             showFormat = style.showFormat,
             ocrMask = ocrMask,
@@ -68,6 +129,7 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         val style = currentStyle
         _uiState.update {
             it.copy(
+                style = style.copy(),
                 scheme = style.colorScheme,
                 showFormat = style.showFormat,
                 textSize = style.textSize,
@@ -77,4 +139,4 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
             )
         }
     }
-}
+}

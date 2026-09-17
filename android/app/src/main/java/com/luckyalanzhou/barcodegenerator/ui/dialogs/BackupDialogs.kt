@@ -7,7 +7,6 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -17,10 +16,6 @@ import java.io.File
  * 备份选择和导入确认界面由 ComposeBackupDialogs.kt 绘制；
  * SAF、ZIP 读写和数据库事务仍沿用原实现。
  */
-internal fun MainActivity.createFavoritesExport() {
-    createFavoritesExportCompose()
-}
-
 /** 生成 ZIP 后交给系统分享面板，可发送至聊天、邮件、网盘或文件管理器。 */
 internal fun MainActivity.shareFavoritesExportForCompose() {
     val name = "barcode-generator-backup-android.zip"
@@ -28,7 +23,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
         val exportFile = File(cacheDir, name)
         val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
         val result = runCatching {
-            favoritesBackupUseCase.export(contentResolver, exportUri)
+            viewModel.exportFavorites(contentResolver, exportUri)
         }
         withContext(Dispatchers.Main) {
             result.onSuccess {
@@ -48,7 +43,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
 /** 保留 SAF 文件保存入口，供用户指定 ZIP 保存位置。 */
 internal fun MainActivity.createFavoritesDocumentExportForCompose() {
     val name = "barcode-generator-backup-android.zip"
-    startActivityForResult(
+    launchExternalActivity(
         Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             type = "application/zip"
             putExtra(Intent.EXTRA_TITLE, name)
@@ -59,7 +54,7 @@ internal fun MainActivity.createFavoritesDocumentExportForCompose() {
 }
 
 internal fun MainActivity.restoreFavoritesImport() {
-    startActivityForResult(
+    launchExternalActivity(
         Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "application/zip"
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -72,7 +67,7 @@ internal fun MainActivity.restoreFavoritesImport() {
 internal fun MainActivity.exportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            favoritesBackupUseCase.export(contentResolver, uri)
+            viewModel.exportFavorites(contentResolver, uri)
         }
         withContext(Dispatchers.Main) {
             result
@@ -84,7 +79,7 @@ internal fun MainActivity.exportFavorites(uri: Uri) {
 
 internal fun MainActivity.confirmImportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
-        val parsed = runCatching { favoritesBackupUseCase.restore(contentResolver, uri) }
+        val parsed = runCatching { viewModel.restoreFavorites(contentResolver, uri) }
         withContext(Dispatchers.Main) {
             parsed
                 .onFailure { toast("无法导入收藏：${it.message ?: "文件格式无效"}") }
@@ -96,21 +91,16 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
 internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            databaseMutex.withLock {
-                val counts = favoritesBackupUseCase.import(backup)
-                loadItemsOnIo()
-                loadFavoriteGroupsOnIo()
-                loadFavoriteFoldersOnIo()
-                collapsedFavoriteFolders.addAll(backup.folders.filter { it.isNotBlank() })
-                collapsedFavoriteFolders.addAll(backup.favorites.map { it.folder }.filter { it.isNotBlank() })
-                counts
-            }
+            val counts = viewModel.importFavorites(backup)
+            viewModel.addCollapsedFavoriteFolders(
+                (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.toSet(),
+            )
+            counts
         }
         withContext(Dispatchers.Main) {
             result
                 .onSuccess { (itemCount, groupCount) ->
-                    page = "favorites"
-                    render()
+                    viewModel.navigateTo("favorites")
                     toast("已导入 $groupCount 个收藏，$itemCount 条码")
                 }
                 .onFailure { toast("收藏导入失败：${it.message ?: "无法写入数据"}") }

@@ -23,41 +23,44 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Beta 专用测试中心；正式版通过 BuildConfig.DEBUG_LOG_EXPORT 隐藏入口。 */
-internal data class BetaTestEntry(val label: String, val action: MainActivity.() -> Unit)
+internal data class BetaTestEntry(val label: String, val action: () -> Unit)
+
+internal fun MainActivity.betaTestEntries(): List<BetaTestEntry> = listOf(
+    BetaTestEntry("本地自检") {
+        val result = listOf(
+            "版本信息：${BuildConfig.VERSION_NAME}",
+            "条码格式校验：可用",
+            "设置存储：可用",
+            "收藏数据层：可用",
+            "调试日志：已启用",
+        ).joinToString("\n")
+        showIos26NoticeDialog("功能自检结果\n$result")
+    },
+    BetaTestEntry("测试最新版本提示") { showIos26NoticeDialog("测试：当前已是最新版本", showMetrics = true) },
+    BetaTestEntry("测试错误提示") { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示", showMetrics = true) },
+    BetaTestEntry("测试局域网未连接提示") { showLanShareNetworkErrorDialog(showMetrics = true) },
+    BetaTestEntry("模拟发现新版本") { showUpdateAvailableDialogCompose("9.9.9", "https://example.invalid/update.apk", null, null, simulateOnly = true, showMetrics = true) },
+    BetaTestEntry("模拟下载进度") { downloadAndInstallCompose("https://example.invalid/update.apk", simulateOnly = true, showMetrics = true) },
+    BetaTestEntry("模拟下载失败") { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", null, null, "重新下载") },
+    BetaTestEntry("模拟二维码弹窗") { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
+    BetaTestEntry("模拟文件夹编辑") { showFolderEditorCompose("示例文件夹", showMetrics = true) {} },
+    BetaTestEntry("模拟导入确认") { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
+    BetaTestEntry("模拟导出结果") { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
+    BetaTestEntry("模拟删除确认") { showSimulatedDialog("删除收藏", "确定删除此收藏吗？", "取消", null, "删除") },
+    BetaTestEntry("模拟覆盖确认") { showSimulatedDialog("覆盖收藏", "同名收藏已存在，是否覆盖？", "取消", null, "覆盖") },
+    BetaTestEntry("模拟权限提示") { showSimulatedDialog("需要权限", "需要相机权限才能拍摄图片", "取消", null, "去设置") },
+    BetaTestEntry("模拟安装权限") { showSimulatedDialog("需要允许安装未知应用", "请在系统设置中允许安装应用更新", "取消", null, "去设置") },
+)
 
 @Composable
-internal fun BetaTestCenterComposePage(activity: MainActivity) {
-    val dark = activity.isDark()
+internal fun BetaTestCenterComposePage(
+    dark: Boolean,
+    entries: List<BetaTestEntry>,
+    onShareDebugLog: () -> Unit,
+) {
     val primary = if (dark) Color(0xffe9f1ff) else Color(0xff182230)
     val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff667085)
     val buttonColor = if (dark) Color(0xff172a3a) else Color(0xfff0f5fb)
-    val entries = listOf(
-        BetaTestEntry("本地自检") {
-            val result = listOf(
-                "版本信息：${BuildConfig.VERSION_NAME}",
-                "条码格式校验：可用",
-                "设置存储：可用",
-                "收藏数据层：可用",
-                "调试日志：已启用",
-            ).joinToString("\n")
-            showIos26NoticeDialog("功能自检结果\n$result")
-        },
-        BetaTestEntry("测试最新版本提示") { showIos26NoticeDialog("测试：当前已是最新版本", showMetrics = true) },
-        BetaTestEntry("测试错误提示") { showIos26NoticeDialog("测试错误\n这是测试中心触发的错误提示", showMetrics = true) },
-        BetaTestEntry("测试局域网未连接提示") { showLanShareNetworkErrorDialog(showMetrics = true) },
-        BetaTestEntry("模拟发现新版本") { showUpdateAvailableDialog("9.9.9", "https://example.invalid/update.apk", null, null, simulateOnly = true, showMetrics = true) },
-        BetaTestEntry("模拟下载进度") { downloadAndInstall("https://example.invalid/update.apk", simulateOnly = true, showMetrics = true) },
-        BetaTestEntry("模拟下载失败") { showSimulatedDialog("更新下载失败", "网络连接失败，请稍后重试", null, null, "重新下载") },
-        BetaTestEntry("模拟二维码弹窗") { showLanShareQrDialog(LanShareSession("http://192.168.1.100:54321")) },
-        BetaTestEntry("模拟文件夹编辑") { showFolderEditor("示例文件夹", showMetrics = true) {} },
-        BetaTestEntry("模拟导入确认") { showSimulatedDialog("导入收藏", "发现 12 个收藏文件，是否导入？", "取消", null, "导入") },
-        BetaTestEntry("模拟导出结果") { showSimulatedDialog("导出收藏", "收藏已导出为 ZIP 文件", null, null, "确定") },
-        BetaTestEntry("模拟删除确认") { showSimulatedDialog("删除收藏", "确定删除此收藏吗？", "取消", null, "删除") },
-        BetaTestEntry("模拟覆盖确认") { showSimulatedDialog("覆盖收藏", "同名收藏已存在，是否覆盖？", "取消", null, "覆盖") },
-        BetaTestEntry("模拟权限提示") { showSimulatedDialog("需要权限", "需要相机权限才能拍摄图片", "取消", null, "去设置") },
-        BetaTestEntry("模拟安装权限") { showSimulatedDialog("需要允许安装未知应用", "请在系统设置中允许安装应用更新", "取消", null, "去设置") },
-    )
-
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
     ) {
@@ -76,7 +79,7 @@ internal fun BetaTestCenterComposePage(activity: MainActivity) {
             ) {
                 rowEntries.forEach { entry ->
                     Button(
-                        onClick = { entry.action(activity) },
+                        onClick = entry.action,
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = primary),
@@ -96,7 +99,7 @@ internal fun BetaTestCenterComposePage(activity: MainActivity) {
             fontSize = 12.sp,
         )
         Button(
-            onClick = { activity.shareDebugLog() },
+            onClick = onShareDebugLog,
             modifier = Modifier.fillMaxWidth().height(44.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = primary),

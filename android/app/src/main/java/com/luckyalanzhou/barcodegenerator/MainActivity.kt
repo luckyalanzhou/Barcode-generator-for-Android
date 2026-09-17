@@ -2,56 +2,28 @@ package com.luckyalanzhou.barcodegenerator
 
 import android.Manifest
 import android.app.Activity
-import android.content.pm.PackageManager
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.Paint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.text.Editable
-import android.text.TextWatcher
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.net.Uri
 import android.util.Log
-import java.net.HttpURLConnection
-import java.net.URL
-import android.view.Gravity
 import android.view.MotionEvent
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.BinaryBitmap
-import com.google.zxing.MultiFormatReader
-import com.google.zxing.MultiFormatWriter
-import com.google.zxing.RGBLuminanceSource
-import com.google.zxing.common.HybridBinarizer
-import com.google.zxing.EncodeHintType
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
-import org.json.JSONArray
-import org.json.JSONObject
 import androidx.activity.viewModels
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Mutex
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.security.MessageDigest
-import kotlin.math.roundToInt
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -60,74 +32,6 @@ class MainActivity : AppCompatActivity() {
     private var barcodePreviousBrightness = -1f
     private var barcodePreviousKeepScreenOn = false
     private val barcodeDisplayTimeout = Runnable { restoreBarcodeDisplaySettings() }
-    internal val composeFireworksVisible = mutableStateOf(false)
-    /** 顶部主页面切换时的进入方向：右侧 Tab 为正、左侧 Tab 为负。 */
-    internal var pendingPageTransitionDirection = 0
-    internal val formats = listOf(
-        "Code 128-B" to BarcodeFormat.CODE_128, "QR Code" to BarcodeFormat.QR_CODE,
-        "Code 39" to BarcodeFormat.CODE_39, "EAN-13" to BarcodeFormat.EAN_13,
-        "EAN-8" to BarcodeFormat.EAN_8, "UPC-A" to BarcodeFormat.UPC_A,
-        "ITF-14" to BarcodeFormat.ITF, "Codabar" to BarcodeFormat.CODABAR
-    )
-    /** 兼容旧 UI/导入导出调用；实际集合由 BarcodeViewModel 持有。 */
-    internal val items: MutableList<CodeItem>
-        get() = viewModel.items
-    internal val favoriteGroups: MutableList<FavoriteGroup>
-        get() = viewModel.favoriteGroups
-    internal val favoriteFolders: MutableList<String>
-        get() = viewModel.favoriteFolders
-    internal var inputDraft: MutableList<String>
-        get() = viewModel.inputDraft
-        set(value) { viewModel.inputDraft = value }
-    internal var pendingGenerateFormat: String?
-        get() = viewModel.pendingGenerateFormat
-        set(value) { viewModel.pendingGenerateFormat = value }
-    internal var generateFormatName: String
-        get() = viewModel.generateFormatName
-        set(value) { viewModel.generateFormatName = value }
-    internal var composeGenerateTextImport: ((List<String>) -> Unit)? = null
-    internal var page: String
-        get() = viewModel.page
-        set(value) { viewModel.page = value }
-    internal var resultItems: List<CodeItem>
-        get() = viewModel.resultItems
-        set(value) { viewModel.resultItems = value }
-    internal var showingHistoryResult: Boolean
-        get() = viewModel.showingHistoryResult
-        set(value) { viewModel.showingHistoryResult = value }
-    internal var resultsReturnPage: String
-        get() = viewModel.resultsReturnPage
-        set(value) { viewModel.resultsReturnPage = value }
-    internal var selectedFavoriteGroup: FavoriteGroup?
-        get() = viewModel.selectedFavoriteGroup
-        set(value) { viewModel.selectedFavoriteGroup = value }
-    internal var collapsedFavoriteFolders: MutableSet<String>
-        get() = viewModel.collapsedFavoriteFolders
-        set(value) { viewModel.collapsedFavoriteFolders = value }
-    internal var favoriteTreeInitialized: Boolean
-        get() = viewModel.favoriteTreeInitialized
-        set(value) { viewModel.favoriteTreeInitialized = value }
-    internal var settingsReturnPage: String
-        get() = viewModel.settingsReturnPage
-        set(value) { viewModel.settingsReturnPage = value }
-    internal var startupUpdateCheckStarted: Boolean
-        get() = viewModel.startupUpdateCheckStarted
-        set(value) { viewModel.startupUpdateCheckStarted = value }
-    internal var availableUpdateUrl: String?
-        get() = viewModel.availableUpdateUrl
-        set(value) { viewModel.availableUpdateUrl = value }
-    internal var availableUpdateExpectedSize: Long?
-        get() = viewModel.availableUpdateExpectedSize
-        set(value) { viewModel.availableUpdateExpectedSize = value }
-    internal var availableUpdateSha256: String?
-        get() = viewModel.availableUpdateSha256
-        set(value) { viewModel.availableUpdateSha256 = value }
-    internal var updateDialogShowing: Boolean
-        get() = viewModel.updateDialogShowing
-        set(value) { viewModel.updateDialogShowing = value }
-    internal var updateDownloadRunning: Boolean
-        get() = viewModel.updateDownloadRunning
-        set(value) { viewModel.updateDownloadRunning = value }
     /** 条码结果页专用显示设置：窗口亮度 75%，最多保持亮屏 5 分钟，不修改系统全局设置。 */
     internal fun syncBarcodeDisplaySettings(isBarcodePage: Boolean) {
         if (!isBarcodePage) {
@@ -148,7 +52,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 条码结果页每次触摸都重新获得 5 分钟亮屏时间；无操作后恢复系统熄屏规则。 */
     private fun refreshBarcodeDisplayTimeout() {
-        if (page != "results") return
+        if (viewModel.uiState.value.page != "results") return
         syncBarcodeDisplaySettings(true)
         barcodeDisplayHandler.removeCallbacks(barcodeDisplayTimeout)
         barcodeDisplayHandler.postDelayed(barcodeDisplayTimeout, 5 * 60 * 1000L)
@@ -168,79 +72,23 @@ class MainActivity : AppCompatActivity() {
         barcodeDisplayModeActive = false
         barcodePreviousBrightness = -1f
     }
-    // 搜索期间暂存用户原本的折叠状态；清除搜索后准确恢复。
-    internal var favoriteCollapsedBeforeSearch: Set<String>? = null
-    internal val composeShellRevision = mutableIntStateOf(0)
     internal var composeShellReady: Boolean = false
-    internal var tabGlassDragActive = false
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
-    internal var isRenderingUi = false
-    internal var pendingCameraRequest = REQUEST_SCAN_CAMERA
-    internal var pendingCameraUri: Uri? = null
-    internal var pendingCameraFile: File? = null
-    internal val legacyPrefs by lazy { getSharedPreferences("barcode_app", MODE_PRIVATE) }
-    @Inject
-    internal lateinit var settingsStore: SettingsStore
+    private val legacyPrefs by lazy { getSharedPreferences("barcode_app", MODE_PRIVATE) }
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
-    @Inject
-    internal lateinit var generateBarcodesUseCase: GenerateBarcodesUseCase
-    internal val databaseMutex = Mutex()
-    // 保存任务使用独立队列，避免连续编辑时由多个 lifecycleScope 任务乱序覆盖。
-    internal val persistenceScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
-    internal val persistenceQueueLock = Any()
-    internal var persistenceWriteTail: kotlinx.coroutines.Job? = null
-    @Inject
-    internal lateinit var database: BarcodeDatabase
-    @Inject
-    internal lateinit var dao: BarcodeDao
-    @Inject
-    internal lateinit var barcodeRepository: BarcodeRepository
-    /** Room 之外的本地文件副本；只用于历史/收藏文件缓存，不改变数据库契约。 */
-    internal val localBarcodeFileStore by lazy { LocalBarcodeFileStore(applicationContext) }
-    @Inject
-    internal lateinit var favoritesBackupUseCase: FavoritesBackupUseCase
-    /** 兼容旧代码的访问器；设置实际由 SettingsViewModel 持有。 */
-    internal val style: StyleSettings
-        get() = settingsViewModel.style
-    internal var lanShareManagerRef: LanShareManager? = null
-    @Inject
-    internal lateinit var injectedLanShareManager: LanShareManager
-    internal val lanShareManager: LanShareManager
-        get() = lanShareManagerRef ?: retainedLanShare?.manager?.also { lanShareManagerRef = it }
-            ?: injectedLanShareManager.also { lanShareManagerRef = it }
-    internal var lanShareSession: LanShareSession? = null
-    internal var lanShareIsHost = false
-    internal var lanShareQrVisible = false
-    internal var lanShareBrowserConnected = false
-    internal var lanShareFiles: List<LanShareFile> = emptyList()
-    internal val lanShareOwnFileIds = mutableSetOf<String>()
-    internal val lanSharePreviewFiles = mutableMapOf<String, File>()
-    /** 局域网轮询绑定 Activity 生命周期，页面销毁时自动取消。 */
-    internal var lanShareRefreshJob: kotlinx.coroutines.Job? = null
-    internal var lanShareRefreshInFlight = false
-    internal var lanSharePreviewJob: kotlinx.coroutines.Job? = null
-    internal val composeLanShareRevision = mutableIntStateOf(0)
-    internal var composeLanShareClearInput: (() -> Unit)? = null
-    internal var pendingLanDownloadId: String? = null
-    internal var pendingLanUploadUri: Uri? = null
-    internal var pendingLanUploadTempFile: File? = null
-    internal var pendingLanUploadName: String? = null
-    internal var pendingLanCameraStartedAt = 0L
-
+    private val externalActivityLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        handleExternalActivityResult(viewModel.consumeExternalActivityRequest(), result.resultCode, result.data)
+    }
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        handlePermissionResult(viewModel.consumePermissionRequest(), result.values.all { it })
+    }
     companion object {
-        private data class RetainedLanShare(
-            val manager: LanShareManager,
-            val session: LanShareSession,
-            val isHost: Boolean,
-            val files: List<LanShareFile>,
-            val ownFileIds: Set<String>,
-            val qrVisible: Boolean,
-            val browserConnected: Boolean,
-            val previewFiles: Map<String, File>
-        )
-        private var retainedLanShare: RetainedLanShare? = null
         const val REQUEST_CAMERA_PERMISSION = 42
         const val REQUEST_SCAN_CAMERA = 43
         const val REQUEST_TEXT_CAMERA = 45
@@ -269,12 +117,8 @@ class MainActivity : AppCompatActivity() {
             var startupError: Throwable? = null
             try {
                 withContext(Dispatchers.IO) {
-                    settingsStore.load()
-                    migrateLegacySettingsIfNeeded()
-                    migrateLegacyDataIfNeeded()
-                    loadItemsOnIo()
-                    loadFavoriteGroupsOnIo()
-                    loadFavoriteFoldersOnIo()
+                    settingsViewModel.loadPersistedState(legacyPrefs)
+                    viewModel.loadPersistedData(legacyPrefs)
                 }
             } catch (error: Exception) {
                 // 数据层损坏或升级失败不能让 Activity 直接因未处理协程异常闪退；
@@ -284,23 +128,19 @@ class MainActivity : AppCompatActivity() {
                 DebugLog.record("startup", "data initialization failed", error)
             }
             try {
-                settingsViewModel.initialize(loadStyle(), settingsStore.getOcrConfusionReplacementMask())
-                restoreLanShareAfterConfigurationChange()
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
                 buildComposeShell()
                 applyAppearance()
-                if (state != null && page == "generate") {
-                    page = state.getString("page", "generate") ?: "generate"
-                    settingsReturnPage = state.getString("settings_return_page", "generate") ?: "generate"
-                    startupUpdateCheckStarted = state.getBoolean("startup_update_check_started", false)
+                if (state != null && viewModel.uiState.value.page == "generate") {
+                    viewModel.navigateTo(state.getString("page", "generate") ?: "generate")
+                    viewModel.updateSettingsReturnPage(state.getString("settings_return_page", "generate") ?: "generate")
+                    viewModel.setStartupUpdateCheckStarted(state.getBoolean("startup_update_check_started", false))
                 }
-                if (page == "lanShare" && lanShareSession != null) {
-                    syncLanShareViewModelState()
-                    startLanShareAutoRefresh()
+                if (viewModel.uiState.value.page == "lanShare" && lanShareViewModel.uiState.value.session != null) {
+                    lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
-                render()
                 prewarmBarcodeImages()
             } catch (error: Exception) {
                 startupError = startupError ?: error
@@ -319,8 +159,8 @@ class MainActivity : AppCompatActivity() {
                 window.decorView.post { showIos26NoticeDialog("数据加载失败，已使用默认页面启动") }
             }
             window.decorView.post {
-                if (!startupUpdateCheckStarted) {
-                    startupUpdateCheckStarted = true
+                if (!viewModel.updateUiState.value.startupCheckStarted) {
+                    viewModel.setStartupUpdateCheckStarted(true)
                     checkForUpdates(silent = true)
                 }
             }
@@ -335,32 +175,31 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val pendingPath = viewModel.pendingInstallPath ?: return
+        val pendingPath = viewModel.updateUiState.value.pendingInstallPath ?: return
         if (packageManager.canRequestPackageInstalls()) {
-            viewModel.pendingInstallPath = null
-            installApk(File(pendingPath))
+            viewModel.takePendingInstallPath()?.let { installApkCompose(File(it)) }
         }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("page", page)
-        outState.putString("settings_return_page", settingsReturnPage)
-        outState.putBoolean("startup_update_check_started", startupUpdateCheckStarted)
+        outState.putString("page", viewModel.uiState.value.page)
+        outState.putString("settings_return_page", viewModel.uiState.value.settingsReturnPage)
+        outState.putBoolean("startup_update_check_started", viewModel.updateUiState.value.startupCheckStarted)
         super.onSaveInstanceState(outState)
     }
 
     /** 统一的现代返回回调，保持原有页面返回路径。 */
     private fun handleAppBackPressed() {
-        if (composeFireworksVisible.value) {
+        if (viewModel.fireworksVisible.value) {
             dismissFireworksEasterEgg()
             return
         }
-        when (page) {
-            "settings" -> { page = settingsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate"; render() }
-            "betaTestCenter" -> { page = "settings"; render() }
-            "lanShare" -> { closeLanShare(); page = "settings"; render() }
-            "favoriteDetail" -> { page = "favorites"; render() }
-            "results" -> { page = resultsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate"; render() }
+        when (viewModel.uiState.value.page) {
+            "settings" -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate")
+            "betaTestCenter" -> viewModel.navigateTo("settings")
+            "lanShare" -> { closeLanShare(); viewModel.navigateTo("settings") }
+            "favoriteDetail" -> viewModel.navigateTo("favorites")
+            "results" -> viewModel.navigateTo(viewModel.resultUiState.value.returnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate")
             else -> finish()
         }
     }
@@ -368,77 +207,59 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         cancelUpdateDownload()
         restoreBarcodeDisplaySettings()
-        val session = lanShareSession
-        if (isChangingConfigurations && session != null) {
-            stopLanShareAutoRefresh()
-            retainedLanShare = RetainedLanShare(
-                manager = lanShareManager,
-                session = session,
-                isHost = lanShareIsHost,
-                files = lanShareFiles.toList(),
-                ownFileIds = lanShareOwnFileIds.toSet(),
-                qrVisible = lanShareQrVisible,
-                browserConnected = lanShareBrowserConnected,
-                previewFiles = lanSharePreviewFiles.toMap(),
-            )
-        } else {
+        if (!isChangingConfigurations) {
             closeLanShare()
         }
         super.onDestroy()
     }
 
-    private fun restoreLanShareAfterConfigurationChange() {
-        val retained = retainedLanShare ?: return
-        lanShareManagerRef = retained.manager
-        lanShareSession = retained.session
-        lanShareIsHost = retained.isHost
-        lanShareQrVisible = retained.qrVisible
-        lanShareBrowserConnected = retained.browserConnected
-        lanShareFiles = retained.files.toList()
-        lanSharePreviewFiles.clear()
-        lanSharePreviewFiles.putAll(retained.previewFiles)
-        lanShareOwnFileIds.clear()
-        lanShareOwnFileIds.addAll(retained.ownFileIds)
-        retainedLanShare = null
+    internal fun requestAppPermissions(permissions: Array<String>, requestCode: Int) {
+        viewModel.beginPermissionRequest(requestCode)
+        permissionLauncher.launch(permissions)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    private fun handlePermissionResult(requestCode: Int, granted: Boolean) {
         if (requestCode == 42) {
-            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-                when (pendingCameraRequest) {
+            if (granted) {
+                when (viewModel.cameraCaptureState.value.requestCode) {
                     REQUEST_LAN_SHARE_CAPTURE -> openLanShareCamera()
                     REQUEST_TEXT_CAMERA -> launchCamera(REQUEST_TEXT_CAMERA)
-                    else -> launchCamera(pendingCameraRequest)
+                    else -> launchCamera(viewModel.cameraCaptureState.value.requestCode)
                 }
             } else {
                 toast("需要相机权限才能拍照识别")
             }
         } else if (requestCode == REQUEST_LAN_SHARE_GALLERY_PERMISSION) {
-            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) openLanShareGalleryPicker() else toast("需要照片权限才能选择图库照片")
+            if (granted) openLanShareGalleryPicker() else toast("需要照片权限才能选择图库照片")
         } else if (requestCode == REQUEST_LAN_SHARE_FILE_PERMISSION) {
-            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) openLanShareFilePicker() else toast("需要文件权限才能选择文件")
+            if (granted) openLanShareFilePicker() else toast("需要文件权限才能选择文件")
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
+    internal fun launchExternalActivity(intent: Intent, requestCode: Int) {
+        viewModel.beginExternalActivityRequest(requestCode)
+        externalActivityLauncher.launch(intent)
+    }
+
+    private fun handleExternalActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_LAN_SHARE_UPLOAD || requestCode == REQUEST_LAN_SHARE_DOWNLOAD) {
             if (resultCode == RESULT_OK) data?.data?.let { uri ->
                 if (requestCode == REQUEST_LAN_SHARE_UPLOAD) selectLanShareAttachment(uri, autoUpload = true)
-                else pendingLanDownloadId?.let { id -> pendingLanDownloadId = null; downloadLanShareFile(id, uri) }
+                else lanShareViewModel.uiState.value.pendingDownloadId?.let { id ->
+                    lanShareViewModel.setPendingDownloadId(null)
+                    lanShareViewModel.uiState.value.session?.let { session -> lanShareViewModel.downloadFile(session, id, uri) }
+                }
             }
-            if (resultCode != RESULT_OK && requestCode == REQUEST_LAN_SHARE_DOWNLOAD) pendingLanDownloadId = null
+            if (resultCode != RESULT_OK && requestCode == REQUEST_LAN_SHARE_DOWNLOAD) lanShareViewModel.setPendingDownloadId(null)
             return
         }
         if (requestCode == REQUEST_LAN_SHARE_CAPTURE) {
+            val captureState = viewModel.cameraCaptureState.value
             val captureUri = if (resultCode == RESULT_OK) {
-                pendingCameraUri?.takeIf { pendingCameraFile?.length()?.let { size -> size > 0L } == true }
+                captureState.outputUri?.takeIf { captureState.outputFile?.length()?.let { size -> size > 0L } == true }
                     ?: findRecentLanCameraMedia()
             } else null
-            val captureFile = pendingCameraFile
-            pendingCameraUri = null
-            pendingCameraFile = null
+            val captureFile = viewModel.clearCameraOutput().outputFile
             if (captureUri != null) selectLanShareAttachment(captureUri, captureFile, autoUpload = true)
             else captureFile?.delete()
             return
@@ -453,14 +274,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (resultCode != RESULT_OK) {
-            pendingCameraUri = null
-            pendingCameraFile?.delete()
-            pendingCameraFile = null
+            viewModel.clearCameraOutput().outputFile?.delete()
             return
         }
-        val cameraFile = pendingCameraFile
+        val cameraState = viewModel.cameraCaptureState.value
+        val cameraFile = cameraState.outputFile
         val bitmap = when (requestCode) {
-            43, 45, 51 -> pendingCameraUri?.let { uri ->
+            43, 45, 51 -> cameraState.outputUri?.let { uri ->
                 runCatching { contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
             } ?: (data?.extras?.get("data") as? Bitmap)
             44, 46 -> data?.data?.let { uri ->
@@ -469,22 +289,29 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         if (bitmap == null) {
-            pendingCameraUri = null
-            pendingCameraFile = null
-            cameraFile?.delete()
+            viewModel.clearCameraOutput().outputFile?.delete()
             return
         }
         val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, cameraFile) else bitmap
-        pendingCameraUri = null
+        viewModel.clearCameraOutput()
         cameraFile?.delete()
-        pendingCameraFile = null
         when (requestCode) {
-            43, 44 -> decodeBitmap(bitmap)?.let { decoded ->
+            43, 44 -> lifecycleScope.launch {
+                val decoded = viewModel.decodeBarcode(bitmap)
                 // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
-                importRecognizedText(decoded)
-                toast("条码识别成功")
-            } ?: toast("未识别到条码，请更换清晰图片")
-            51 -> decodeBitmap(bitmap)?.let { joinLanShareSession(it) } ?: toast("未识别到分享二维码")
+                if (decoded != null) {
+                    viewModel.updateInputDraft(listOf(decoded))
+                    toast("条码识别成功")
+                } else {
+                    toast("未识别到条码，请更换清晰图片")
+                }
+                bitmap.recycle()
+            }
+            51 -> lifecycleScope.launch {
+                val decoded = viewModel.decodeBarcode(bitmap)
+                if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
+                bitmap.recycle()
+            }
             45, 46 -> recognizeText(textBitmap)
         }
     }

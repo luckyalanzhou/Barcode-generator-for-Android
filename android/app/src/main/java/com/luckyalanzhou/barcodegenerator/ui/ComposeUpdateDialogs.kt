@@ -2,9 +2,6 @@ package com.luckyalanzhou.barcodegenerator
 
 import android.net.Uri
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
@@ -19,9 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -32,12 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** 安装权限提示使用 Compose；系统设置页和 APK 安装 Intent 仍使用 Android 系统能力。 */
 internal fun MainActivity.installApkCompose(file: File) {
@@ -47,11 +38,11 @@ internal fun MainActivity.installApkCompose(file: File) {
             return
         }
         if (!packageManager.canRequestPackageInstalls()) {
-            viewModel.pendingInstallPath = file.absolutePath
+            viewModel.setPendingInstallPath(file.absolutePath)
             showComposeDialog(
                 compact = true,
                 metricsLabel = null,
-                onCancel = { viewModel.pendingInstallPath = null },
+                onCancel = { viewModel.setPendingInstallPath(null) },
             ) { dismiss ->
                 val dark = isDark()
                 ComposeGlassDialogCard(dark) {
@@ -71,7 +62,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                         horizontalArrangement = Arrangement.End,
                     ) {
                         DialogAction("取消", dark, {
-                            viewModel.pendingInstallPath = null
+                            viewModel.setPendingInstallPath(null)
                             dismiss()
                         })
                         DialogAction(
@@ -103,7 +94,7 @@ internal fun MainActivity.installApkCompose(file: File) {
         startActivity(intent)
     } catch (error: Exception) {
         val reason = error.message ?: "未知安装错误"
-        settingsStore.setUpdateError(reason)
+        settingsViewModel.recordUpdateError(reason)
         toast("安装失败：$reason")
     }
 }
@@ -119,46 +110,57 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
     showComposeDialog(
         compact = true,
         metricsLabel = if (showMetrics) "发现新版本弹窗" else null,
-        onCancel = { updateDialogShowing = false },
+        onCancel = { viewModel.setUpdateDialogShowing(false) },
     ) { dismiss ->
-        val dark = isDark()
-        ComposeGlassDialogCard(dark) {
-            Text(
-                "发现新版本",
-                color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
-                fontSize = 20.sp,
-            )
-            Text(
-                "检测到版本 $latest，是否立即更新？",
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
-                fontSize = 15.sp,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                ComposeUpdateAction("忽略更新", dark) {
-                    availableUpdateUrl = null
-                    updateDialogShowing = false
-                    dismiss()
-                    if (page == "settings") render()
-                }
-                ComposeUpdateAction("稍后更新", dark, Modifier.padding(start = 10.dp)) {
-                    updateDialogShowing = false
-                    dismiss()
-                }
-                ComposeUpdateAction("立即更新", dark, Modifier.padding(start = 10.dp), primary = true) {
-                    updateDialogShowing = false
-                    dismiss()
-                    if (!simulateOnly) {
-                        window.decorView.post {
-                            DebugLog.record("update", "immediate update clicked; starting download")
-                            downloadAndInstall(downloadUrl, expectedSize, expectedSha256)
-                        }
+        UpdateAvailableDialogContent(
+            latest = latest,
+            dark = isDark(),
+            onIgnore = {
+                viewModel.clearAvailableUpdate()
+                viewModel.setUpdateDialogShowing(false)
+                dismiss()
+            },
+            onLater = {
+                viewModel.setUpdateDialogShowing(false)
+                dismiss()
+            },
+            onUpdate = {
+                viewModel.setUpdateDialogShowing(false)
+                dismiss()
+                if (!simulateOnly) {
+                    window.decorView.post {
+                        DebugLog.record("update", "immediate update clicked; starting download")
+                        downloadAndInstallCompose(downloadUrl, expectedSize, expectedSha256)
                     }
                 }
-            }
+            },
+        )
+    }
+}
+
+@Composable
+internal fun UpdateAvailableDialogContent(
+    latest: String,
+    dark: Boolean,
+    onIgnore: () -> Unit,
+    onLater: () -> Unit,
+    onUpdate: () -> Unit,
+) {
+    ComposeGlassDialogCard(dark) {
+        Text("发现新版本", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+        Text(
+            "检测到版本 $latest，是否立即更新？",
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+            fontSize = 15.sp,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            ComposeUpdateAction("忽略更新", dark, onClick = onIgnore)
+            ComposeUpdateAction("稍后更新", dark, Modifier.padding(start = 10.dp), onClick = onLater)
+            ComposeUpdateAction("立即更新", dark, Modifier.padding(start = 10.dp), primary = true, onClick = onUpdate)
         }
     }
 }
@@ -223,15 +225,14 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
 
 @Composable
 private fun ComposeDownloadProgressDialog(
-    progress: MutableState<Int>,
-    indeterminate: MutableState<Boolean>,
-    status: MutableState<String>,
+    viewModel: BarcodeViewModel,
     dark: Boolean,
     onCancel: () -> Unit,
 ) {
+    val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
     ComposeGlassDialogCard(dark) {
         Text("下载更新", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
-        if (indeterminate.value) {
+        if (downloadState.indeterminate) {
             Box(
                 Modifier.fillMaxWidth().height(18.dp)
                     .clip(RoundedCornerShape(9.dp))
@@ -239,10 +240,10 @@ private fun ComposeDownloadProgressDialog(
                     .border(1.dp, if (dark) Color(0xff6b7280) else Color(0xffb8c0cc), RoundedCornerShape(9.dp)),
             )
         } else {
-            ComposeSegmentedProgress(progress.value, dark)
+            ComposeSegmentedProgress(downloadState.progress, dark)
         }
         Text(
-            status.value,
+            downloadState.status,
             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
             color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
             fontSize = 14.sp,
@@ -254,37 +255,26 @@ private fun ComposeDownloadProgressDialog(
 }
 
 internal fun MainActivity.cancelUpdateDownload() {
-    viewModel.updateDownloadGeneration++
-    viewModel.updateDownloadJob?.cancel()
-    viewModel.updateDownloadJob = null
-    updateDownloadRunning = false
+    viewModel.cancelUpdateDownload()
 }
 
 internal fun MainActivity.downloadAndInstallCompose(
     apkUrl: String,
-    expectedSize: Long? = availableUpdateExpectedSize,
-    expectedSha256: String? = availableUpdateSha256,
+    expectedSize: Long? = viewModel.updateUiState.value.expectedSize,
+    expectedSha256: String? = viewModel.updateUiState.value.sha256,
     simulateOnly: Boolean = false,
     showMetrics: Boolean = false,
 ) {
-    if (updateDownloadRunning) {
+    if (viewModel.updateUiState.value.downloadRunning) {
         DebugLog.record("update", "download ignored because another download is running")
         return
     }
-    val downloadGeneration = ++viewModel.updateDownloadGeneration
-    updateDownloadRunning = true
-    val progress = mutableIntStateOf(0)
-    val indeterminate = mutableStateOf(false)
-    val status = mutableStateOf("准备下载…")
+    viewModel.resetUpdateDownloadState()
     var dismissDialog: (() -> Unit)? = null
-    var cancelled = false
     lateinit var cancelDownload: () -> Unit
     cancelDownload = {
-        if (!cancelled) {
-            cancelled = true
-            cancelUpdateDownload()
-            dismissDialog?.invoke()
-        }
+        cancelUpdateDownload()
+        dismissDialog?.invoke()
     }
     showComposeDialog(
         compact = false,
@@ -292,99 +282,45 @@ internal fun MainActivity.downloadAndInstallCompose(
         onCancel = cancelDownload,
     ) { dismiss ->
         dismissDialog = dismiss
-        ComposeDownloadProgressDialog(progress, indeterminate, status, isDark(), cancelDownload)
-    }
-    if (simulateOnly) {
-        progress.value = 50
-        status.value = "已下载 50%（模拟）"
-        updateDownloadRunning = false
-        return
-    }
-    DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
-    viewModel.updateDownloadJob = lifecycleScope.launch(Dispatchers.IO) {
-        val temp = File(cacheDir, "barcode-generator-update.apk.part")
-        val official = File(cacheDir, "barcode-generator-update.apk")
-        var connection: HttpURLConnection? = null
-        try {
-            val limit = UpdateSecurity.MAX_APK_DOWNLOAD_BYTES
-            require(expectedSha256 != null) { "该版本缺少 SHA-256 校验信息，无法安全更新" }
-            require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
-            require(Uri.parse(apkUrl).scheme.equals("https", ignoreCase = true)) { "更新包必须使用 HTTPS 下载" }
-            connection = URL(apkUrl).openConnection() as HttpURLConnection
-            connection!!.apply {
-                connectTimeout = 15000
-                readTimeout = 30000
-                instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "BarcodeGenerator/" + BuildConfig.VERSION_NAME)
-            }
-            require(connection!!.responseCode in 200..299) { "HTTP " + connection!!.responseCode }
-            DebugLog.record("update", "download response=" + connection!!.responseCode + " contentLength=" + connection!!.contentLengthLong)
-            val total = connection!!.contentLengthLong.takeIf { it > 0 } ?: expectedSize
-            require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
-            temp.delete()
-            connection!!.inputStream.use { input ->
-                temp.outputStream().use { output ->
-                    val buffer = ByteArray(16 * 1024)
-                    var done = 0L
-                    var count: Int
-                    while (input.read(buffer).also { count = it } != -1) {
-                        ensureActive()
-                        require(done + count <= limit) { "更新包超过 500 MB 限制" }
-                        output.write(buffer, 0, count)
-                        done += count
-                        withContext(Dispatchers.Main) {
-                            if (total != null) {
-                                indeterminate.value = false
-                                progress.value = (done * 100 / total).toInt().coerceIn(0, 100)
-                                status.value = "已下载 " + progress.value + "%"
-                            } else {
-                                indeterminate.value = true
-                                status.value = "正在下载… " + (done / 1024) + " KB"
-                            }
+        LaunchedEffect(Unit) {
+            viewModel.updateEvents.collect { event ->
+                when (event) {
+                    is UpdateEvent.DownloadReady -> {
+                        dismiss()
+                        try {
+                            val file = File(event.filePath)
+                            viewModel.validateDownloadedApk(file)
+                            installApkCompose(file)
+                        } catch (error: Exception) {
+                            showDownloadFailedCompose(
+                                apkUrl,
+                                expectedSize,
+                                expectedSha256,
+                                error.message ?: "APK 校验失败",
+                            )
                         }
+                    }
+                    is UpdateEvent.DownloadFailed -> {
+                        dismiss()
+                        showDownloadFailedCompose(
+                            event.apkUrl,
+                            event.expectedSize,
+                            event.expectedSha256,
+                            event.reason,
+                        )
                     }
                 }
             }
-            require(temp.isFile && temp.length() > 0L) { "APK 为空" }
-            require(expectedSize == null || temp.length() == expectedSize) {
-                "文件大小校验失败：" + temp.length() + " / " + expectedSize
-            }
-            val digest = MessageDigest.getInstance("SHA-256")
-            val actual = temp.inputStream().use { input ->
-                val buffer = ByteArray(16 * 1024)
-                var count: Int
-                while (input.read(buffer).also { count = it } != -1) digest.update(buffer, 0, count)
-                digest.digest().joinToString("") { "%02x".format(it) }
-            }
-            require(actual.equals(expectedSha256, true)) { "SHA-256 校验失败" }
-            validateDownloadedApk(temp)
-            DebugLog.record("update", "download validated size=" + temp.length())
-            official.delete()
-            require(temp.renameTo(official)) { "无法保存更新文件" }
-            cacheDir.listFiles()?.filter { it.name.startsWith("barcode-generator-update") && it != official }?.forEach { it.delete() }
-            withContext(Dispatchers.Main) {
-                dismissDialog?.invoke()
-                installApk(official)
-            }
-        } catch (error: Exception) {
-            DebugLog.record("update", "download failed", error)
-            temp.delete()
-            withContext(NonCancellable + Dispatchers.Main.immediate) {
-                dismissDialog?.invoke()
-                if (error !is kotlinx.coroutines.CancellationException) {
-                    showDownloadFailedCompose(apkUrl, expectedSize, expectedSha256, error.message ?: "未知错误")
-                }
-            }
-        } finally {
-            connection?.disconnect()
-            withContext(NonCancellable + Dispatchers.Main.immediate) {
-                if (viewModel.updateDownloadGeneration == downloadGeneration) {
-                    updateDownloadRunning = false
-                    viewModel.updateDownloadJob = null
-                }
-            }
         }
+        ComposeDownloadProgressDialog(viewModel, isDark(), cancelDownload)
     }
+    if (simulateOnly) {
+        viewModel.setUpdateDownloadProgress(50, false, "已下载 50%（模拟）")
+        viewModel.setUpdateDownloadRunning(false)
+        return
+    }
+    DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
+    viewModel.startUpdateDownload(apkUrl, expectedSize, expectedSha256)
 }
 
 internal fun MainActivity.showDownloadFailedCompose(

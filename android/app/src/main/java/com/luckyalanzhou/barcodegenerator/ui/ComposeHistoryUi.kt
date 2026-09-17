@@ -26,6 +26,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+internal fun formatHistoryTime(time: Long): String {
+    val date = Date(time)
+    val now = Date()
+    val day = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+    return if (day.format(date) == day.format(now)) {
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+    } else {
+        SimpleDateFormat("M/d HH:mm", Locale.getDefault()).format(date)
+    }
+}
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -85,26 +99,40 @@ private fun BoxedEmptyHistory(dark: Boolean) {
     }
 }
 
+@Composable
+internal fun HistoryBatchPickerDialogContent(
+    batch: List<CodeItem>,
+    dark: Boolean,
+    onDismiss: () -> Unit,
+    onEdit: (CodeItem) -> Unit,
+) {
+    ComposeGlassDialogCard(dark) {
+        Text(
+            "本次生成的 ${batch.size} 个条码",
+            color = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230),
+            fontSize = 20.sp,
+        )
+        batch.forEach { item ->
+            DialogAction(
+                item.text,
+                dark,
+                {
+                    onDismiss()
+                    onEdit(item)
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
+    }
+}
+
 internal fun MainActivity.showHistoryBatchPickerCompose(batch: List<CodeItem>) {
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
-        val dark = isDark()
-        ComposeGlassDialogCard(dark) {
-            Text(
-                "本次生成的 ${batch.size} 个条码",
-                color = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230),
-                fontSize = 20.sp,
-            )
-            batch.forEachIndexed { index, item ->
-                DialogAction(
-                    item.text,
-                    dark,
-                    {
-                        dismiss()
-                        window.decorView.post { showItemEditorCompose(batch[index]) }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-            }
-        }
+        HistoryBatchPickerDialogContent(
+            batch = batch,
+            dark = isDark(),
+            onDismiss = dismiss,
+            onEdit = { item -> window.decorView.post { showItemEditorCompose(item) } },
+        )
     }
 }

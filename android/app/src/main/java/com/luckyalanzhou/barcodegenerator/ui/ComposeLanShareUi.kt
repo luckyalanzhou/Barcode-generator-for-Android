@@ -27,8 +27,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,9 +56,17 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlin.math.roundToInt
 
 @Composable
-internal fun ComposeLanSharePage(activity: MainActivity) {
-    val lanState by activity.lanShareViewModel.uiState.collectAsState()
-    val dark = activity.isDark()
+internal fun ComposeLanSharePage(
+    viewModel: LanShareViewModel,
+    dark: Boolean,
+    onOpenCamera: () -> Unit,
+    onOpenGallery: () -> Unit,
+    onOpenFiles: () -> Unit,
+    onSaveFile: (LanShareFile) -> Unit,
+    onNotice: (String) -> Unit,
+    onCopyAddress: (String) -> Unit,
+) {
+    val lanState by viewModel.uiState.collectAsStateWithLifecycle()
     val primary = if (dark) Color.White else Color(0xff182230)
     val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
     val panel = if (dark) Color(0xff1c1c1e) else Color.White
@@ -67,14 +75,17 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
     var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
     var attachmentMenu by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
-    // 读取该状态使异步轮询和上传回调触发 Compose 重组，但不重建输入框。
-    val refreshTick = activity.composeLanShareRevision.intValue
     val session = lanState.session
 
-    DisposableEffect(Unit) {
-        activity.composeLanShareClearInput = { message = "" }
-        onDispose {
-            activity.composeLanShareClearInput = null
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is LanShareEvent.Error -> onNotice(event.message)
+                is LanShareEvent.Notice -> {
+                    if (event.clearInput) message = ""
+                    onNotice(event.message)
+                }
+            }
         }
     }
 
@@ -88,18 +99,12 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
             Modifier.fillMaxWidth().height(80.dp).background(panel, RoundedCornerShape(18.dp)).clickable {
                 if (!qrOpen && lanState.isHost) {
                     runCatching {
-                        activity.lanShareSession = activity.lanShareManager.restart()
-                        activity.lanShareBrowserConnected = false
-                        activity.lanShareQrVisible = true
-                        activity.lanShareFiles = activity.lanShareManager.localFiles()
+                        viewModel.restartHostSession()
                         qrOpen = true
-                        activity.lanShareViewModel.sync(activity.lanShareSession, activity.lanShareIsHost, activity.lanShareQrVisible, activity.lanShareBrowserConnected, activity.lanShareFiles, activity.lanShareOwnFileIds.toSet(), activity.lanSharePreviewFiles.toMap())
-                        activity.composeLanShareRevision.intValue++
-                    }.onFailure { activity.toast(it.message ?: "无法刷新分享端口") }
+                    }.onFailure { onNotice(it.message ?: "无法刷新分享端口") }
                 } else if (qrOpen) {
                     qrOpen = false
-                    activity.lanShareQrVisible = false
-                    activity.syncLanShareViewModelState()
+                    viewModel.setQrVisible(false)
                 }
             }.padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -109,18 +114,12 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
             IconButton(onClick = {
                 if (!qrOpen && lanState.isHost) {
                     runCatching {
-                        activity.lanShareSession = activity.lanShareManager.restart()
-                        activity.lanShareBrowserConnected = false
-                        activity.lanShareQrVisible = true
-                        activity.lanShareFiles = activity.lanShareManager.localFiles()
+                        viewModel.restartHostSession()
                         qrOpen = true
-                        activity.lanShareViewModel.sync(activity.lanShareSession, activity.lanShareIsHost, activity.lanShareQrVisible, activity.lanShareBrowserConnected, activity.lanShareFiles, activity.lanShareOwnFileIds.toSet(), activity.lanSharePreviewFiles.toMap())
-                        activity.composeLanShareRevision.intValue++
-                    }.onFailure { activity.toast(it.message ?: "无法刷新分享端口") }
+                    }.onFailure { onNotice(it.message ?: "无法刷新分享端口") }
                 } else if (qrOpen) {
                     qrOpen = false
-                    activity.lanShareQrVisible = false
-                    activity.syncLanShareViewModelState()
+                    viewModel.setQrVisible(false)
                 }
             }, modifier = Modifier.size(60.dp)) {
                 Icon(painterResource(R.drawable.ic_qr_code), "显示二维码", tint = if (dark) Color(0xff8fc1ff) else accent, modifier = Modifier.size(32.dp))
@@ -139,10 +138,8 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                     Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
                 }
 
-                // refreshTick 只作为重组依赖，不改变列表数据的排序或业务来源。
-                if (refreshTick < 0) Spacer(Modifier.height(0.dp))
                 lanState.files.forEach { file ->
-                    ComposeLanShareBubble(activity, lanState, file, dark, primary, secondary)
+                    ComposeLanShareBubble(viewModel, lanState, file, dark, primary, secondary, onSaveFile)
                 }
             }
         }
@@ -165,11 +162,11 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                     shadowElevation = 3.dp,
                     menuWidth = 168.dp,
                 ) {
-                    DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { attachmentMenu = false; activity.openLanShareCamera() })
+                    DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { attachmentMenu = false; onOpenCamera() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text("照片图库") }, onClick = { attachmentMenu = false; activity.openLanShareGallery() })
+                    DropdownMenuItem(text = { Text("照片图库") }, onClick = { attachmentMenu = false; onOpenGallery() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text("选择文件") }, onClick = { attachmentMenu = false; activity.openLanShareFiles() })
+                    DropdownMenuItem(text = { Text("选择文件") }, onClick = { attachmentMenu = false; onOpenFiles() })
                 }
             }
             BasicTextField(
@@ -179,13 +176,18 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
                 textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp),
                 cursorBrush = SolidColor(primary),
                 modifier = Modifier.weight(1f).height(44.dp).background(inputPanel, RoundedCornerShape(24.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
-                decorationBox = { field -> Box { if (message.isEmpty()) Text(activity.pendingLanUploadName?.let { "已选择：$it" } ?: "输入文字", color = secondary, fontSize = 15.sp); field() } }
+                decorationBox = { field -> Box { if (message.isEmpty()) Text(lanState.pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = secondary, fontSize = 15.sp); field() } }
             )
             Spacer(Modifier.width(8.dp))
             Button(
                 onClick = {
-                    if (activity.pendingLanUploadUri != null) activity.uploadSelectedLanShareFile()
-                    else message.takeIf { it.isNotBlank() }?.let(activity::uploadLanShareMessage)
+                    if (lanState.pendingUploadUri != null) {
+                        viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
+                            lanState.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
+                        }
+                    } else message.takeIf { it.isNotBlank() }?.let { text ->
+                        lanState.session?.let { session -> viewModel.uploadText(session, text) }
+                    }
                 },
                 modifier = Modifier.size(48.dp),
                 contentPadding = PaddingValues(0.dp),
@@ -197,7 +199,8 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
 
     if (qrOpen) {
         ComposeLanShareQrDialog(
-            activity = activity,
+            onCopyAddress = onCopyAddress,
+            onHideQr = { viewModel.setQrVisible(false) },
             session = session,
             dark = dark,
             primary = primary,
@@ -207,26 +210,14 @@ internal fun ComposeLanSharePage(activity: MainActivity) {
     }
 }
 
-internal fun MainActivity.syncLanShareViewModelState() {
-    lanShareViewModel.sync(
-        lanShareSession,
-        lanShareIsHost,
-        lanShareQrVisible,
-        lanShareBrowserConnected,
-        lanShareFiles,
-        lanShareOwnFileIds.toSet(),
-        lanSharePreviewFiles.toMap(),
-    )
-}
-
 @Composable
-private fun ComposeLanShareBubble(activity: MainActivity, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color) {
+private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
     val mine = file.id in state.ownFileIds
-    val previewFile = (activity.lanShareManager.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
+    val previewFile = (viewModel.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
     val bubbleColor = if (mine) (if (dark) Color(0xff0a84ff).copy(alpha = .48f) else Color(0xff0a84ff).copy(alpha = .40f)) else if (dark) Color(0xff2c2c2e).copy(alpha = .62f) else Color.White.copy(alpha = .82f)
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-        Surface(modifier = Modifier.width(260.dp).clickable { activity.saveLanShareFile(file) }, shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp) {
+        Surface(modifier = Modifier.width(260.dp).clickable { onSaveFile(file) }, shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp) {
             Column(Modifier.padding(if (preview == null) 12.dp else 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 preview?.let { bitmap ->
                     val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)
@@ -242,28 +233,27 @@ private fun ComposeLanShareBubble(activity: MainActivity, state: LanShareUiState
 
 @Composable
 private fun ComposeLanShareQrDialog(
-    activity: MainActivity,
     session: LanShareSession,
     dark: Boolean,
     primary: Color,
     secondary: Color,
     onDismiss: () -> Unit,
+    onHideQr: () -> Unit,
+    onCopyAddress: (String) -> Unit,
 ) {
     val foreground = if (dark) 0xff111318.toInt() else AndroidColor.BLACK
     val background = if (dark) 0xfff1f3f6.toInt() else AndroidColor.WHITE
     val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, background) }
     Dialog(
         onDismissRequest = {
-            activity.lanShareQrVisible = false
-            activity.syncLanShareViewModelState()
+            onHideQr()
             onDismiss()
         },
         properties = DialogProperties(dismissOnClickOutside = false, usePlatformDefaultWidth = false),
     ) {
         Box(
             modifier = Modifier.fillMaxSize().clickable {
-                activity.lanShareQrVisible = false
-                activity.syncLanShareViewModelState()
+                onHideQr()
                 onDismiss()
             },
             contentAlignment = Alignment.Center,
@@ -280,8 +270,7 @@ private fun ComposeLanShareQrDialog(
                     Row(Modifier.width(240.dp).height(42.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(session.baseUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                         IconButton(onClick = {
-                            (activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("局域网传输地址", session.baseUrl))
-                            activity.toast("已复制局域网传输地址")
+                            onCopyAddress(session.baseUrl)
                         }, modifier = Modifier.size(42.dp)) { Icon(painterResource(R.drawable.ic_copy), "复制局域网传输地址", tint = primary) }
                     }
                 }
@@ -301,8 +290,9 @@ private fun createLanShareQrBitmap(value: String, foreground: Int, background: I
 /** Beta 测试中心的二维码模拟也复用实际二维码弹窗的 Compose 结构。 */
 internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShareSession? = null) {
     val simulated = simulatedSession != null
-    val session = simulatedSession ?: lanShareSession
-    if ((!lanShareIsHost && !simulated) || session == null) {
+    val lanState = lanShareViewModel.uiState.value
+    val session = simulatedSession ?: lanState.session
+    if ((!lanState.isHost && !simulated) || session == null) {
         toast("请先创建分享房间")
         return
     }
@@ -333,7 +323,7 @@ internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShare
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("关闭", dark, {
-                    if (!simulated) lanShareQrVisible = false
+                    if (!simulated) lanShareViewModel.setQrVisible(false)
                     dismiss()
                 })
             }

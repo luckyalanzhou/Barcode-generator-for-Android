@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.graphics.Bitmap
-import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,12 +19,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.produceState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,12 +34,18 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
 @Composable
-internal fun ComposeResultsPage(activity: MainActivity) {
-    val dark = activity.isDark()
+internal fun ComposeResultsPage(
+    viewModel: BarcodeViewModel,
+    settings: SettingsUiState,
+    dark: Boolean,
+    onSaveFavorite: () -> Unit,
+    onShare: () -> Unit,
+) {
+    val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
     val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
     val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
     val actionColor = if (dark) Color(0xffd7e3f5) else Color(0xff2453a6)
-    val items = activity.resultItems
+    val items = resultState.items
 
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -53,7 +59,7 @@ internal fun ComposeResultsPage(activity: MainActivity) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (!activity.showingHistoryResult) {
+        if (!resultState.showingHistoryResult) {
             item {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
@@ -62,17 +68,16 @@ internal fun ComposeResultsPage(activity: MainActivity) {
                 ) {
                     Spacer(Modifier.weight(1f))
                     ResultAction(R.drawable.ic_action_edit, "编辑", actionColor) {
-                        activity.inputDraft = items.map { it.text }.toMutableList()
-                        activity.pendingGenerateFormat = items.firstOrNull()?.format
-                        activity.page = "generate"
-                        activity.render()
+                        viewModel.editCurrentResult()
                     }
-                    ResultAction(R.drawable.ic_action_favorite, "收藏", actionColor) { activity.saveResultAsFavorite() }
-                    ResultAction(R.drawable.ic_action_share, "分享", actionColor) { activity.shareResultPage() }
+                    ResultAction(R.drawable.ic_action_favorite, "收藏", actionColor, onSaveFavorite)
+                    ResultAction(R.drawable.ic_action_share, "分享", actionColor, onShare)
                 }
             }
         }
-        items(items, key = { it.id }) { item -> ComposeResultBarcode(activity, item, primary) }
+        items(items, key = { it.id }) { item ->
+            ComposeResultBarcode(viewModel, item, primary, settings, dark)
+        }
     }
 }
 @Composable
@@ -87,30 +92,24 @@ private fun ResultAction(icon: Int, label: String, tint: Color, onClick: () -> U
 }
 
 @Composable
-internal fun ComposeResultBarcode(activity: MainActivity, item: CodeItem, textColor: Color) {
-    val dark = activity.isDark()
+internal fun ComposeResultBarcode(
+    viewModel: BarcodeViewModel,
+    item: CodeItem,
+    textColor: Color,
+    settings: SettingsUiState,
+    dark: Boolean,
+) {
     val isCode128 = item.format == "Code 128-B"
-    val barHeight = activity.style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
-    val barWidth = activity.style.barWidth.roundToInt().coerceIn(120, 360)
-    val textSize = activity.style.textSize.coerceIn(10f, 24f)
-    val showFormat = activity.style.showFormat
-    val cacheKey = activity.localBarcodeFileStore.imageKey(item, barWidth, barHeight, textSize, showFormat, dark)
+    val style = settings.style
+    val density = LocalDensity.current.density
+    val barHeight = style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
+    val barWidth = style.barWidth.roundToInt().coerceIn(120, 360)
+    val textSize = style.textSize.coerceIn(10f, 24f)
+    val showFormat = style.showFormat
     // 先读取已生成的图片；未命中时才在后台生成并写回，页面导航不等待。
-    val displayed by produceState<Bitmap?>(initialValue = null, cacheKey) {
+    val displayed by produceState<Bitmap?>(initialValue = null, item, barWidth, barHeight, textSize, showFormat, dark) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            activity.localBarcodeFileStore.readImage(cacheKey) ?: run {
-                val encoded = activity.encode(
-                    item.text,
-                    activity.formats.firstOrNull { it.first == item.format }?.second
-                        ?: com.google.zxing.BarcodeFormat.CODE_128,
-                    withBackground = dark,
-                ) ?: return@withContext null
-                val generated = if (isCode128) {
-                    addBarcodeQuietZone(trimBarcodeHorizontal(encoded), if (dark) AndroidColor.WHITE else AndroidColor.TRANSPARENT)
-                } else encoded
-                activity.localBarcodeFileStore.writeImage(cacheKey, generated)
-                generated
-            }
+            viewModel.loadOrCreateBarcodeImage(item, style, dark, density)
         }
     }
 

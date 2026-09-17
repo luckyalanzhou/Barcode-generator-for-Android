@@ -19,11 +19,11 @@ import androidx.compose.ui.unit.sp
 
 /** 条码预览弹窗完全使用 Compose，保存/分享仍复用原有媒体存储业务。 */
 internal fun MainActivity.previewCompose(item: CodeItem) {
-    val format = formats.firstOrNull { it.first == item.format }?.second ?: run {
+    val format = barcodeFormats.firstOrNull { it.first == item.format }?.second ?: run {
         toast("不支持的条码格式")
         return
     }
-    val bitmap = encode(item.text, format) ?: run {
+    val bitmap = viewModel.createBarcodeImage(item.text, format, settingsViewModel.style, isDark(), resources.displayMetrics.density) ?: run {
         toast("内容不符合该格式")
         return
     }
