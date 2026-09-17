@@ -2,15 +2,6 @@ name: Build Android Beta APK
 
 on:
   workflow_dispatch:
-    inputs:
-      version_name:
-        description: "Beta 版本号，例如 1.0.0"
-        required: true
-        type: string
-      version_code:
-        description: "Beta versionCode，例如 1"
-        required: true
-        type: string
 permissions:
   contents: write
 
@@ -57,17 +48,30 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Read beta version
+      - name: Bump beta version
         id: app-version
-        env:
-          VERSION_NAME: ${{ inputs.version_name }}
-          VERSION_CODE: ${{ inputs.version_code }}
         run: |
           set -euo pipefail
-          [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::versionName 格式无效"; exit 1; }
-          [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] || { echo "::error::versionCode 格式无效"; exit 1; }
-          echo "version=$VERSION_NAME" >> "$GITHUB_OUTPUT"
-          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          version_file="beta-version.properties"
+          test -f "$version_file" || { echo "::error::${version_file} not found"; exit 1; }
+          base_version="$(sed -nE 's/^versionName=([^[:space:]]+)$/\1/p' "$version_file")"
+          base_code="$(sed -nE 's/^versionCode=([0-9]+)$/\1/p' "$version_file")"
+          test -n "$base_version" || { echo "::error::versionName not found"; exit 1; }
+          test -n "$base_code" || { echo "::error::versionCode not found"; exit 1; }
+          IFS=. read -r major minor patch <<< "$base_version"
+          for part in "$major" "$minor" "$patch" "$base_code"; do
+            [[ "$part" =~ ^[0-9]+$ ]] || { echo "::error::版本基线格式无效"; exit 1; }
+          done
+          version_name="$major.$minor.$((patch + 1))"
+          version_code=$((base_code + 1))
+          printf 'versionName=%s\nversionCode=%s\n' "$version_name" "$version_code" > "$version_file"
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+          git add "$version_file"
+          git commit -m "beta: 自动升级版本到 ${version_name}"
+          git push origin HEAD:beta
+          echo "version=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
