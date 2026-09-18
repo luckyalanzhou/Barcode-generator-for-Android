@@ -188,12 +188,12 @@ internal fun ComposeGeneratePage(
                     if (values.size >= 100) onNotice("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
                     else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
                 }, contentAlignment = Alignment.Center
-            ) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(AddIcon, "添加一行", Modifier.size(20.dp), tint = textColor); Spacer(Modifier.width(4.dp)); Text("添加一行", color = textColor, fontSize = 15.sp) } }
+            ) { Row(Modifier.background(Color.Transparent), verticalAlignment = Alignment.CenterVertically) { Icon(AddIcon, "添加一行", Modifier.size(20.dp), tint = textColor); Spacer(Modifier.width(4.dp)); Text("添加一行", color = textColor, fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) } }
             Box(
                 modifier = Modifier.weight(1f).globalButtonChrome(actionShape, 2.dp).height(52.dp)
                     .clip(actionShape).background(Color.Transparent).border(1.dp, cameraBorder, actionShape).clickable(onClick = onCaptureText),
                 contentAlignment = Alignment.Center
-            ) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(PhotoCameraIcon, "拍照取字", Modifier.size(22.dp), tint = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4)); Spacer(Modifier.width(6.dp)); Text("拍照取字", color = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4), fontSize = 15.sp) } }
+            ) { Row(Modifier.background(Color.Transparent), verticalAlignment = Alignment.CenterVertically) { Icon(PhotoCameraIcon, "拍照取字", Modifier.size(22.dp), tint = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4)); Spacer(Modifier.width(6.dp)); Text("拍照取字", color = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4), fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) } }
         }
 
         Box {
