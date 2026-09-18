@@ -17,6 +17,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -163,7 +164,14 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
                 shape = RoundedCornerShape(8.dp),
-                label = { Text("收藏文件名") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color(0xff1f1f1f),
+                    unfocusedTextColor = Color(0xff1f1f1f),
+                    focusedLabelColor = Color(0xff1f1f1f),
+                    unfocusedLabelColor = Color(0xff1f1f1f),
+                    cursorColor = Color(0xff1f1f1f),
+                ),
+                label = { Text("收藏文件名", color = Color(0xff1f1f1f)) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
@@ -212,7 +220,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
         var folder by remember { mutableStateOf(group.folder) }
         ComposeGlassDialogCard(dark) {
             Text("编辑收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
-            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), label = { Text("收藏文件名") })
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color(0xff1f1f1f), unfocusedTextColor = Color(0xff1f1f1f), focusedLabelColor = Color(0xff1f1f1f), unfocusedLabelColor = Color(0xff1f1f1f), cursorColor = Color(0xff1f1f1f)), label = { Text("收藏文件名", color = Color(0xff1f1f1f)) })
             OutlinedTextField(folder, { folder = it }, Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("文件夹") })
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
@@ -484,14 +492,21 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     Text("新建二级文件夹", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
                 }
             }
-            Text("收藏文件名", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            Text("收藏文件名", color = Color(0xff1f1f1f), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 singleLine = true,
                 shape = RoundedCornerShape(8.dp),
-                label = { Text("收藏文件名") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color(0xff1f1f1f),
+                    unfocusedTextColor = Color(0xff1f1f1f),
+                    focusedLabelColor = Color(0xff1f1f1f),
+                    unfocusedLabelColor = Color(0xff1f1f1f),
+                    cursorColor = Color(0xff1f1f1f),
+                ),
+                label = { Text("收藏文件名", color = Color(0xff1f1f1f)) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

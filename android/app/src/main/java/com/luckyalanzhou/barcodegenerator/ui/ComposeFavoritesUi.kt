@@ -4,7 +4,7 @@ import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.DriveFileMoveIcon
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
-import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
+import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
@@ -303,7 +303,7 @@ private fun FavoriteGroupRow(
                 .combinedClickable(interactionSource, indication = null, onClick = onClick, onLongClick = onLongClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(FavoriteFilledIcon, "已收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
+            Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
             Text(group.name, color = fileColor, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)

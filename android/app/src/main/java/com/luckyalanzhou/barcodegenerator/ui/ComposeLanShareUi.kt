@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
+import com.luckyalanzhou.barcodegenerator.icons.CircleFilledIcon
+import com.luckyalanzhou.barcodegenerator.icons.CircleIcon
 import com.luckyalanzhou.barcodegenerator.icons.ContentCopyIcon
 import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
 import com.luckyalanzhou.barcodegenerator.icons.QrCode2Icon
@@ -195,10 +197,16 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
 
 @Composable
 private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
+    val statusColor = if (connected) Color(0xff22c55e) else secondary
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        Text(if (connected) "●" else "○", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
+        Icon(
+            imageVector = if (connected) CircleFilledIcon else CircleIcon,
+            contentDescription = if (connected) "已连接" else "等待连接",
+            tint = statusColor,
+            modifier = Modifier.size(18.dp),
+        )
         Spacer(Modifier.width(5.dp))
-        Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
+        Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = statusColor, fontSize = 15.sp)
     }
 }
 

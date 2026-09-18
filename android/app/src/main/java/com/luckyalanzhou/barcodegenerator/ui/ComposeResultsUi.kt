@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
+import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
 
 import android.graphics.Bitmap
@@ -51,6 +52,7 @@ internal fun ComposeResultsPage(
     val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
     val actionColor = if (dark) Color(0xffd7e3f5) else Color(0xff2453a6)
     val items = resultState.items
+    val favoriteActionIcon = if (items.isNotEmpty() && items.all { it.favorite }) FavoriteFilledIcon else FavoriteIcon
 
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -75,7 +77,7 @@ internal fun ComposeResultsPage(
                     ResultAction(EditIcon, "编辑", actionColor) {
                         viewModel.editCurrentResult()
                     }
-                    ResultAction(FavoriteIcon, "收藏", actionColor, onSaveFavorite)
+                    ResultAction(favoriteActionIcon, "收藏", actionColor, onSaveFavorite)
                     ResultAction(IosShareIcon, "分享", actionColor, onShare)
                 }
             }

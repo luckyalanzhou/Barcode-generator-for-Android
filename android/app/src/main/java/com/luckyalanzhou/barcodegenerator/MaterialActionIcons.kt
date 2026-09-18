@@ -67,6 +67,18 @@ internal object MaterialActionIcons {
         horizontalLineToRelative(2f); verticalLineToRelative(9.75f); close()
     }.build() }
 
+    val circle: ImageVector by lazy { ImageVector.Builder("circle", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(12f, 2f); quadTo(6.48f, 2f, 2f, 12f); quadTo(6.48f, 22f, 12f, 22f)
+        quadTo(17.52f, 22f, 22f, 12f); quadTo(17.52f, 2f, 12f, 2f); close()
+        moveTo(12f, 4f); quadTo(7.58f, 4f, 4f, 12f); quadTo(7.58f, 20f, 12f, 20f)
+        quadTo(16.42f, 20f, 20f, 12f); quadTo(16.42f, 4f, 12f, 4f); close()
+    }.build() }
+
+    val circleFilled: ImageVector by lazy { ImageVector.Builder("circle_filled", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(12f, 2f); quadTo(6.48f, 2f, 2f, 12f); quadTo(6.48f, 22f, 12f, 22f)
+        quadTo(17.52f, 22f, 22f, 12f); quadTo(17.52f, 2f, 12f, 2f); close()
+    }.build() }
+
     val iosShare: ImageVector by lazy { ImageVector.Builder("ios_share", 24.dp, 24.dp, 24f, 24f).path {
         moveTo(6f, 22f); quadTo(5.18f, 22f, 4.59f, 21.41f); reflectiveQuadTo(4f, 20f); verticalLineTo(10f)
         quadTo(4f, 9.17f, 4.59f, 8.59f); reflectiveQuadTo(6f, 8f); horizontalLineTo(9f); verticalLineToRelative(2f)
