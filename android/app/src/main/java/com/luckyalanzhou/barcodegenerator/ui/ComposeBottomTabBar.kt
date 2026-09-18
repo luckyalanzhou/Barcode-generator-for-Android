@@ -62,7 +62,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     }
     val selectedColor = if (dark) Color(0xfff4f7ff) else Color(0xff246fc4)
     val unselectedColor = if (dark) Color(0xffc4cada) else Color(0xff64748b)
-    val selectedBackground = if (dark) Color(0xff1b2838).copy(alpha = 0.92f) else Color.White.copy(alpha = 0.86f)
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
@@ -135,15 +134,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     clip = false
                 }
                 .clip(glassShape)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (dark) 0.16f else 0.72f),
-                            selectedBackground,
-                            if (dark) Color(0xff9ecbff).copy(alpha = 0.10f) else Color.White.copy(alpha = 0.42f),
-                        ),
-                    ),
-                )
                 .border(
                     width = 1.dp,
                     brush = Brush.verticalGradient(
