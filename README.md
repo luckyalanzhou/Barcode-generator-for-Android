@@ -2,9 +2,9 @@
 
 Android 条码生成器的 Beta 测试分支。此分支用于验证新功能、现代化 Android 架构迁移和交互动画；测试确认稳定后，才会合并到 `main` 正式版。
 
-> 当前 Beta 版本：`1.0.57`  
-> 当前分支：`beta`  
-> 测试包名：`com.luckyalanzhou.barcodegenerator.test`  
+> 当前 Beta 版本：`1.0.57`<br>
+> 当前分支：`beta`<br>
+> 测试包名：`com.luckyalanzhou.barcodegenerator.test`<br>
 > 稳定性说明：测试版，不建议作为唯一的生产环境应用使用。
 
 ## 当前 Beta 状态
