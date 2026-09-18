@@ -128,6 +128,7 @@ internal fun ComposeSettingsPage(
                             listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                                 if (index > 0) ComposeDropdownDivider(dark)
                                 androidx.compose.material3.DropdownMenuItem(
+                                    modifier = Modifier.height(40.dp),
                                     text = { Text(label) },
                                     onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) },
                                 )
@@ -187,6 +188,7 @@ internal fun ComposeSettingsPage(
                             ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                                 if (index > 0) ComposeDropdownDivider(dark)
                                 androidx.compose.material3.DropdownMenuItem(
+                                    modifier = Modifier.height(40.dp),
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null)
@@ -243,7 +245,18 @@ internal fun ComposeSettingsPage(
                         Text("作者：Alan", color = colors.secondary, fontSize = 13.sp)
                         Text("版本：${BuildConfig.VERSION_NAME}", color = colors.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                     }
-                    OutlinedButton(onClick = onCheckForUpdates, shape = RoundedCornerShape(12.dp)) { Text("检查更新") }
+                    ComposeGenerateActionButton(
+                        icon = null,
+                        iconDescription = "检查更新",
+                        label = "检查更新",
+                        containerColor = colors.button,
+                        contentColor = colors.primary,
+                        borderColor = colors.primary.copy(alpha = if (dark) .32f else .22f),
+                        modifier = Modifier.width(132.dp),
+                        iconSize = 20.dp,
+                        contentSpacing = 5.dp,
+                        onClick = onCheckForUpdates,
+                    )
                 }
                 Spacer(Modifier.height(6.dp))
             }
@@ -372,19 +385,20 @@ private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloating
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                valueParts.firstOrNull().orEmpty(),
+            val valueStyle = androidx.compose.ui.text.TextStyle(
                 color = accent,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Normal,
+            )
+            Text(
+                valueParts.firstOrNull().orEmpty(),
+                style = valueStyle,
                 textAlign = TextAlign.End,
                 modifier = Modifier.width(38.dp),
             )
             Text(
                 valueParts.getOrNull(1).orEmpty(),
-                color = accent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
+                style = valueStyle,
                 textAlign = TextAlign.End,
                 modifier = Modifier.width(20.dp),
             )

@@ -132,6 +132,7 @@ private fun ComposeChoiceField(
             options.forEachIndexed { index, option ->
                 if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
+                    modifier = Modifier.height(40.dp),
                     text = { Text(option) },
                     onClick = { onSelected(option); expanded = false },
                 )

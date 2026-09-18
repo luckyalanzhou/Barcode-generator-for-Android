@@ -225,7 +225,7 @@ private fun BoxScope.LanShareComposer(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
         color = panel,
         shadowElevation = 4.dp,
-        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+        shape = RoundedCornerShape(18.dp),
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
@@ -238,11 +238,11 @@ private fun BoxScope.LanShareComposer(
                     containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                     tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 168.dp,
                 ) {
-                    DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片") }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text("照片图库") }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("照片图库") }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text("选择文件") }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件") }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
                 }
             }
             BasicTextField(
@@ -293,9 +293,11 @@ private fun ComposeLanShareQrDialog(
     onHideQr: () -> Unit,
     onCopyAddress: (String) -> Unit,
 ) {
+    val qrSize = 280.dp
+    val dialogWidth = qrSize + 24.dp
     val foreground = if (dark) 0xff111318.toInt() else AndroidColor.BLACK
     val background = if (dark) 0xfff1f3f6.toInt() else AndroidColor.WHITE
-    val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, background) }
+    val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, background, qrSize.value.toInt()) }
     Dialog(
         onDismissRequest = {
             onHideQr()
@@ -311,19 +313,19 @@ private fun ComposeLanShareQrDialog(
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                modifier = Modifier.clickable { },
+                modifier = Modifier.width(dialogWidth).clickable { },
                 shape = RoundedCornerShape(22.dp),
                 color = if (dark) Color(0xff1c1c1e) else Color.White,
                 shadowElevation = 1.dp,
             ) {
-                Box(Modifier.padding(top = 14.dp, bottom = 10.dp)) {
+                Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(240.dp).background(Color(background)), contentScale = ContentScale.FillBounds)
-                    Row(Modifier.width(240.dp).height(42.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(qrSize).background(Color(background)), contentScale = ContentScale.FillBounds)
+                    Row(Modifier.width(qrSize).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(session.baseUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                         IconButton(onClick = {
                             onCopyAddress(session.baseUrl)
-                        }, modifier = Modifier.size(42.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
+                        }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
                     }
                 }
             }
@@ -332,8 +334,8 @@ private fun ComposeLanShareQrDialog(
     }
 }
 
-private fun createLanShareQrBitmap(value: String, foreground: Int, background: Int): Bitmap {
-    val matrix = com.google.zxing.MultiFormatWriter().encode(value, com.google.zxing.BarcodeFormat.QR_CODE, 240, 240, mapOf(com.google.zxing.EncodeHintType.MARGIN to 1))
+private fun createLanShareQrBitmap(value: String, foreground: Int, background: Int, size: Int = 280): Bitmap {
+    val matrix = com.google.zxing.MultiFormatWriter().encode(value, com.google.zxing.BarcodeFormat.QR_CODE, size, size, mapOf(com.google.zxing.EncodeHintType.MARGIN to 1))
     return Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image ->
         for (x in 0 until matrix.width) for (y in 0 until matrix.height) image.setPixel(x, y, if (matrix[x, y]) foreground else background)
     }

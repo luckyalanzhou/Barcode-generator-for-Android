@@ -229,12 +229,12 @@ private fun FavoriteFolderRow(
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(enabled = false, text = { Text("编辑文件夹", fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑文件夹", fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             val actions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
             actions.forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
-                DropdownMenuItem(text = { Text(label) }, onClick = {
+                DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(label) }, onClick = {
                     onMenuDismiss()
                     when {
                         row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
@@ -296,11 +296,11 @@ private fun FavoriteGroupRow(
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(enabled = false, text = { Text("编辑收藏文件", fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
-                DropdownMenuItem(text = { Text(label) }, onClick = {
+                DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(label) }, onClick = {
                     onMenuDismiss()
                     when (index) {
                         0 -> onShowMoveDialog(group)
