@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.BarcodeDatabase
 import com.luckyalanzhou.barcodegenerator.FavoritesBackupUseCase
 import com.luckyalanzhou.barcodegenerator.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.LanShareManager
+import com.luckyalanzhou.barcodegenerator.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.SettingsStore
@@ -44,6 +45,11 @@ object AppModule {
     @Singleton
     internal fun provideSettingsStore(@ApplicationContext context: Context): SettingsStore =
         SettingsStore(context)
+
+    @Provides
+    @Singleton
+    internal fun provideLocalBarcodeFileStore(@ApplicationContext context: Context): LocalBarcodeFileStore =
+        LocalBarcodeFileStore(context)
 
     @Provides
     @Singleton

@@ -95,11 +95,6 @@ data class CameraCaptureState(
     val startedAtMillis: Long = 0L,
 )
 
-data class SystemRequestState(
-    val externalActivityRequest: Int? = null,
-    val permissionRequest: Int? = null,
-)
-
 data class UpdateUiState(
     val startupCheckStarted: Boolean = false,
     val availableVersion: String? = null,
@@ -149,8 +144,8 @@ class BarcodeViewModel @Inject constructor(
     private val favoritesBackupUseCase: FavoritesBackupUseCase,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
     @ApplicationContext private val appContext: Context,
+    private val localBarcodeFileStore: LocalBarcodeFileStore,
 ) : ViewModel() {
-    private val localBarcodeFileStore by lazy { LocalBarcodeFileStore(appContext) }
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
@@ -173,8 +168,9 @@ class BarcodeViewModel @Inject constructor(
 
     private val _cameraCaptureState = MutableStateFlow(CameraCaptureState())
     val cameraCaptureState: StateFlow<CameraCaptureState> = _cameraCaptureState.asStateFlow()
-    private val _systemRequestState = MutableStateFlow(SystemRequestState())
-    val systemRequestState: StateFlow<SystemRequestState> = _systemRequestState.asStateFlow()
+    // 平台 ActivityResult 回调的关联码是一次性桥接状态，不参与 Compose UI 渲染。
+    private var pendingExternalActivityRequest: Int? = null
+    private var pendingPermissionRequest: Int? = null
 
     private val _fireworksVisible = MutableStateFlow(false)
     val fireworksVisible: StateFlow<Boolean> = _fireworksVisible.asStateFlow()
@@ -455,22 +451,22 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun beginExternalActivityRequest(requestCode: Int) {
-        _systemRequestState.update { it.copy(externalActivityRequest = requestCode) }
+        pendingExternalActivityRequest = requestCode
     }
 
     fun consumeExternalActivityRequest(): Int {
-        val requestCode = _systemRequestState.value.externalActivityRequest ?: 0
-        _systemRequestState.update { it.copy(externalActivityRequest = null) }
+        val requestCode = pendingExternalActivityRequest ?: 0
+        pendingExternalActivityRequest = null
         return requestCode
     }
 
     fun beginPermissionRequest(requestCode: Int) {
-        _systemRequestState.update { it.copy(permissionRequest = requestCode) }
+        pendingPermissionRequest = requestCode
     }
 
     fun consumePermissionRequest(): Int {
-        val requestCode = _systemRequestState.value.permissionRequest ?: 0
-        _systemRequestState.update { it.copy(permissionRequest = null) }
+        val requestCode = pendingPermissionRequest ?: 0
+        pendingPermissionRequest = null
         return requestCode
     }
 

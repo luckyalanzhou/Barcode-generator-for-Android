@@ -3,13 +3,13 @@ package com.luckyalanzhou.barcodegenerator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import java.io.File
 import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 
-/** 应用私有的条码文件缓存；Room 仍然是索引和查询的唯一数据源。 */
-internal class LocalBarcodeFileStore(context: Context) {
+/** 应用私有文件数据源；Room 仍然是条码索引和查询的唯一数据源。 */
+class LocalBarcodeFileStore(context: Context) {
     private val root = File(context.filesDir, "barcode-data")
     private val historyRoot = File(root, "history")
     private val favoritesRoot = File(root, "favorites")
@@ -30,6 +30,7 @@ internal class LocalBarcodeFileStore(context: Context) {
         val raw = listOf(item.text, item.format, width, height, textSize, showFormat, dark).joinToString("|")
         return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
     }
+
     @Synchronized
     fun rebuildHistory(items: List<CodeItem>) {
         historyRoot.deleteRecursively()
@@ -54,8 +55,7 @@ internal class LocalBarcodeFileStore(context: Context) {
             val groupItems = group.itemIds.mapNotNull(itemById::get)
             if (groupItems.isEmpty()) return@forEach
             val parts = splitFolder(group.folder)
-            val directory = listOf(parts.first, parts.second)
-                .filter { it.isNotBlank() }
+            val directory = listOf(parts.first, parts.second).filter { it.isNotBlank() }
                 .fold(favoritesRoot) { parent, name -> File(parent, safeSegment(name)) }
             directory.mkdirs()
             val favorite = JSONObject().apply {
@@ -102,5 +102,3 @@ internal class LocalBarcodeFileStore(context: Context) {
         }
     }
 }
-
-
