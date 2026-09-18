@@ -352,7 +352,13 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             // Beta 测试中心也直接作为 Compose 内容路由，不再嵌套旧 AndroidView。
             AppRoute.BetaTestCenter -> {
-                BetaTestCenterComposePage(dark, dependencies.betaTestEntries, dependencies.actions::shareDebugLog)
+                BetaTestCenterComposePage(
+                    dark = dark,
+                    entries = dependencies.betaTestEntries,
+                    viewModel = dependencies.viewModel,
+                    onNavigate = dependencies.viewModel::navigateTo,
+                    onShareDebugLog = dependencies.actions::shareDebugLog,
+                )
             }
             else -> Box(Modifier.fillMaxSize())
         }
