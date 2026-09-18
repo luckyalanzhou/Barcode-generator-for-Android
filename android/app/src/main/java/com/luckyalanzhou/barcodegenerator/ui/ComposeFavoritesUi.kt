@@ -1,7 +1,13 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
+import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
+import com.luckyalanzhou.barcodegenerator.icons.DriveFileMoveIcon
+import com.luckyalanzhou.barcodegenerator.icons.EditIcon
+import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 import com.luckyalanzhou.barcodegenerator.icons.SearchIcon
 
 import androidx.compose.animation.animateColorAsState
@@ -217,7 +223,12 @@ private fun FavoriteFolderRow(
             Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
             Text(row.label, color = folderColor, fontSize = if (row.level == 0) 18.sp else 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
-            Text(if (row.collapsed) "›" else "⌄", color = secondary, fontSize = 22.sp, modifier = Modifier.width(25.dp), textAlign = TextAlign.Center)
+            Icon(
+                imageVector = if (row.collapsed) KeyboardArrowRightIcon else KeyboardArrowDownIcon,
+                contentDescription = if (row.collapsed) "展开文件夹" else "收起文件夹",
+                tint = secondary,
+                modifier = Modifier.size(24.dp),
+            )
         }
         AnchoredDropdownMenu(
             dark = dark,
@@ -234,17 +245,28 @@ private fun FavoriteFolderRow(
             val actions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
             actions.forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
-                DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(label) }, onClick = {
-                    onMenuDismiss()
-                    when {
-                        row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
-                        index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
-                            val parent = row.path.substringBeforeLast('/', "")
-                            viewModel.renameFavoriteFolderAndPersist(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
+                val deleteAction = label == "删除"
+                DropdownMenuItem(
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    text = { Text(label) },
+                    trailingIcon = if (deleteAction) {
+                        { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), modifier = Modifier.size(20.dp)) }
+                    } else {
+                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = if (dark) Color(0xffc8d5e8) else Color(0xff667085), modifier = Modifier.size(20.dp)) }
+                    },
+                    onClick = {
+                        onMenuDismiss()
+                        when {
+                            row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
+                            index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
+                                val parent = row.path.substringBeforeLast('/', "")
+                                viewModel.renameFavoriteFolderAndPersist(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
+                            }
+                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { viewModel.deleteFavoriteFolderAndPersist(row.path) }
                         }
-                        else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { viewModel.deleteFavoriteFolderAndPersist(row.path) }
-                    }
-                })
+                    },
+                )
             }
         }
     }
@@ -281,7 +303,7 @@ private fun FavoriteGroupRow(
                 .combinedClickable(interactionSource, indication = null, onClick = onClick, onLongClick = onLongClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
+            Icon(FavoriteFilledIcon, "已收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
             Text(group.name, color = fileColor, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)
@@ -300,14 +322,27 @@ private fun FavoriteGroupRow(
             ComposeDropdownDivider(dark)
             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
-                DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(label) }, onClick = {
-                    onMenuDismiss()
-                    when (index) {
-                        0 -> onShowMoveDialog(group)
-                        1 -> onShowRenameDialog(group)
-                        else -> onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { viewModel.deleteFavoriteGroupAndPersist(group.id) }
-                    }
-                })
+                DropdownMenuItem(
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    text = { Text(label) },
+                    trailingIcon = {
+                        val icon = when (index) {
+                            0 -> DriveFileMoveIcon
+                            1 -> EditIcon
+                            else -> DeleteIcon
+                        }
+                        Icon(icon, contentDescription = label, tint = if (index == 2) { if (dark) Color(0xffffb0b0) else Color(0xffe58b8b) } else { if (dark) Color(0xffc8d5e8) else Color(0xff667085) }, modifier = Modifier.size(20.dp))
+                    },
+                    onClick = {
+                        onMenuDismiss()
+                        when (index) {
+                            0 -> onShowMoveDialog(group)
+                            1 -> onShowRenameDialog(group)
+                            else -> onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { viewModel.deleteFavoriteGroupAndPersist(group.id) }
+                        }
+                    },
+                )
             }
         }
     }

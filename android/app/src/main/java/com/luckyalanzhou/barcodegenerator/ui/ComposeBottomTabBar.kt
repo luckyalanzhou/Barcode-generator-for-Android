@@ -199,7 +199,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                             imageVector = tab.icon,
                             contentDescription = tab.description,
                             tint = itemColor,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(26.dp),
                         )
                         Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }

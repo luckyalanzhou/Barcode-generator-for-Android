@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -74,7 +77,7 @@ internal fun HistoryComposePage(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onClear) {
-                    Text("清空", color = clearColor)
+                    Text("一键清空", color = clearColor)
                 }
             }
         }
@@ -183,16 +186,23 @@ internal fun HistoryBatchPickerDialogContent(
             color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
             fontSize = 20.sp,
         )
-        batch.forEach { item ->
-            DialogAction(
-                item.text,
-                dark,
-                {
-                    onDismiss()
-                    onEdit(item)
-                },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 480.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            batch.forEach { item ->
+                DialogAction(
+                    item.text,
+                    dark,
+                    {
+                        onDismiss()
+                        onEdit(item)
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
         }
     }
 }

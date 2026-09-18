@@ -230,9 +230,14 @@ internal fun DialogAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     primary: Boolean = false,
+    destructive: Boolean = false,
 ) {
     val onMetric = LocalDialogMetric.current
-    val foreground = if (primary) Color.White else if (dark) Color(0xffb8ccff) else Color(0xff2166d1)
+    val foreground = when {
+        primary -> Color.White
+        destructive -> if (dark) Color(0xffffb0b0) else Color(0xffd66f6f)
+        else -> if (dark) Color(0xffb8ccff) else Color(0xff2166d1)
+    }
     val border = if (primary) foreground.copy(alpha = 0.62f) else if (dark) Color(0xff52657f) else Color(0xffb7c7df)
     val background = if (primary) {
         if (dark) Color(0xff246fca) else Color(0xff2d7fda)
@@ -339,7 +344,12 @@ internal fun MainActivity.showComposeConfirmDialog(
             Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") }, color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
-                DialogAction(positive, dark, { onConfirm(); dismiss() }, modifier = Modifier.padding(start = 8.dp))
+                DialogAction(
+                    positive,
+                    dark,
+                    { onConfirm(); dismiss() },
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
         }
     }

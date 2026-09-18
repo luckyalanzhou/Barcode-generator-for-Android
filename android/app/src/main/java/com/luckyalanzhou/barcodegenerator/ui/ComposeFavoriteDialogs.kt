@@ -297,17 +297,45 @@ private fun isValidFavoriteFolderPath(value: String): Boolean {
     }
 }
 
+private fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) {
+    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+        val dark = isDark()
+        ComposeGlassDialogCard(dark) {
+            Text(
+                "一键清空历史记录",
+                color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
+                fontSize = 20.sp,
+            )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                DialogAction("取消", dark, dismiss)
+                DialogAction(
+                    "确定",
+                    dark,
+                    { onConfirm(); dismiss() },
+                    modifier = Modifier.padding(start = 8.dp),
+                    destructive = true,
+                )
+            }
+        }
+    }
+}
+
 internal fun MainActivity.confirmClearCompose(favoritesOnly: Boolean) {
-    showComposeConfirmDialog(
-        title = if (favoritesOnly) "清空收藏" else "清空历史",
-        message = if (favoritesOnly) "确定删除全部收藏吗？" else "仅清空历史记录，收藏内容不会删除。",
-        positive = "删除",
-    ) {
-        if (favoritesOnly) {
-            viewModel.clearFavoritesAndPersist()
-        } else {
+    if (!favoritesOnly) {
+        showClearHistoryConfirmCompose {
             viewModel.clearHistoryAndPersist()
         }
+        return
+    }
+    showComposeConfirmDialog(
+        title = "清空收藏",
+        message = "确定删除全部收藏吗？",
+        positive = "删除",
+    ) {
+        viewModel.clearFavoritesAndPersist()
     }
 }
 

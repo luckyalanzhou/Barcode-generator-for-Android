@@ -111,6 +111,49 @@ internal object MaterialActionIcons {
         moveToRelative(12f, -12f); verticalLineTo(5.25f); horizontalLineToRelative(1.5f); verticalLineToRelative(1.5f); horizontalLineToRelative(-1.5f); close()
     }.build() }
 
+    val createNewFolder: ImageVector by lazy { ImageVector.Builder("create_new_folder", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(14f, 16f); horizontalLineToRelative(2f); verticalLineTo(14f); horizontalLineToRelative(2f); verticalLineTo(12f)
+        horizontalLineTo(16f); verticalLineTo(10f); horizontalLineTo(14f); verticalLineToRelative(2f); horizontalLineTo(12f)
+        verticalLineToRelative(2f); horizontalLineToRelative(2f); verticalLineToRelative(2f); close()
+        moveTo(4f, 20f); quadTo(3.18f, 20f, 2.59f, 19.41f); reflectiveQuadTo(2f, 18f); verticalLineTo(6f)
+        quadTo(2f, 5.18f, 2.59f, 4.59f); reflectiveQuadTo(4f, 4f); horizontalLineToRelative(6f); lineToRelative(2f, 2f)
+        horizontalLineToRelative(8f); quadToRelative(0.83f, 0f, 1.41f, 0.59f); quadTo(22f, 7.18f, 22f, 8f)
+        verticalLineTo(18f); quadTo(22f, 18.82f, 21.41f, 19.41f); reflectiveQuadTo(20f, 20f); horizontalLineTo(4f); close()
+        moveTo(4f, 18f); horizontalLineTo(20f); verticalLineTo(8f); horizontalLineTo(11.18f); lineToRelative(-2f, -2f)
+        horizontalLineTo(4f); verticalLineTo(18f); close(); moveToRelative(0f, 0f); verticalLineTo(6f); verticalLineTo(8f); verticalLineTo(18f); close()
+    }.build() }
+
+    val keyboardArrowRight: ImageVector by lazy { ImageVector.Builder("keyboard_arrow_right", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(8.59f, 16.59f); lineTo(13.17f, 12f); lineTo(8.59f, 7.41f); lineTo(10f, 6f)
+        lineTo(16f, 12f); lineTo(10f, 18f); lineTo(8.59f, 16.59f); close()
+    }.build() }
+
+    val keyboardArrowDown: ImageVector by lazy { ImageVector.Builder("keyboard_arrow_down", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(7.41f, 8.59f); lineTo(12f, 13.17f); lineTo(16.59f, 8.59f); lineTo(18f, 10f)
+        lineTo(12f, 16f); lineTo(6f, 10f); lineTo(7.41f, 8.59f); close()
+    }.build() }
+
+    val driveFileMove: ImageVector by lazy { ImageVector.Builder("drive_file_move", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(4.31f, 19.5f); quadToRelative(-0.76f, 0f, -1.28f, -0.52f); reflectiveQuadTo(2.5f, 17.69f)
+        verticalLineTo(6.31f); quadTo(2.5f, 5.55f, 3.03f, 5.03f); reflectiveQuadTo(4.31f, 4.5f)
+        horizontalLineTo(9.8f); lineToRelative(2f, 2f); horizontalLineToRelative(7.89f)
+        quadToRelative(0.76f, 0f, 1.28f, 0.52f); reflectiveQuadTo(21.5f, 8.31f); verticalLineToRelative(9.38f)
+        quadToRelative(0f, 0.76f, -0.52f, 1.28f); reflectiveQuadTo(19.69f, 19.5f); horizontalLineTo(4.31f); close()
+        moveTo(12.8f, 13.75f); lineToRelative(-1.77f, 1.77f); lineToRelative(1.05f, 1.05f)
+        lineTo(15.65f, 13f); lineTo(12.08f, 9.43f); lineToRelative(-1.05f, 1.05f); lineToRelative(1.77f, 1.77f)
+        horizontalLineTo(8.35f); verticalLineToRelative(1.5f); horizontalLineTo(12.8f); close()
+    }.build() }
+
+    val favoriteFilled: ImageVector by lazy { ImageVector.Builder("favorite_filled", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(12f, 21f); lineTo(10.55f, 19.7f); quadTo(8.03f, 17.43f, 6.38f, 15.78f)
+        quadTo(4.73f, 14.13f, 3.75f, 12.81f); quadTo(2.78f, 11.5f, 2.39f, 10.4f)
+        reflectiveQuadTo(2f, 8.15f); quadTo(2f, 5.8f, 3.58f, 4.22f); reflectiveQuadTo(7.5f, 2.65f)
+        quadToRelative(1.3f, 0f, 2.48f, 0.55f); reflectiveQuadTo(12f, 4.75f); quadToRelative(0.85f, -1f, 2.03f, -1.55f)
+        reflectiveQuadTo(16.5f, 2.65f); quadToRelative(2.35f, 0f, 3.93f, 1.57f); reflectiveQuadTo(22f, 8.15f)
+        quadTo(22f, 9.3f, 21.61f, 10.4f); reflectiveQuadToRelative(-1.36f, 2.41f); quadToRelative(-0.97f, 1.31f, -2.63f, 2.96f)
+        quadToRelative(-1.65f, 1.65f, -4.17f, 3.92f); lineTo(12f, 21f); close()
+    }.build() }
+
     val edit: ImageVector by lazy { ImageVector.Builder("edit", 24.dp, 24.dp, 24f, 24f).path {
         moveTo(5f, 19f); horizontalLineTo(6.43f); lineTo(16.2f, 9.23f); lineTo(14.78f, 7.8f); lineTo(5f, 17.58f); verticalLineTo(19f); close()
         moveTo(3f, 21f); verticalLineTo(16.75f); lineTo(16.2f, 3.57f); quadTo(16.5f, 3.3f, 16.86f, 3.15f)
