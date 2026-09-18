@@ -992,23 +992,22 @@ class BarcodeViewModel @Inject constructor(
         val favoriteFileGroups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val favoriteFileItems = items.map { it.copy() }
         localBarcodeFileStore.rebuildFavorites(favoriteFileGroups, favoriteFileItems)
-        val itemSnapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500))
-            .map { CodeItemEntity(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder, it.inHistory) }
-        val groupSnapshot = favoriteGroups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) }
+        val itemSnapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
+        val groupSnapshot = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val groupItemSnapshot = favoriteGroups.flatMap { group ->
-            group.itemIds.map { FavoriteGroupItemEntity(group.id, it) }
+            group.itemIds.map { FavoriteGroupItem(group.id, it) }
         }
-        val folderSnapshot = favoriteFolders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity)
+        val folderSnapshot = favoriteFolders.filter { it.isNotBlank() }.distinct()
         publishDataState()
         enqueuePersistence {
-            barcodeRepository.saveAllFavorites(itemSnapshot, groupSnapshot, groupItemSnapshot, folderSnapshot)
+            barcodeRepository.saveAll(BarcodeSnapshot(itemSnapshot, groupSnapshot, groupItemSnapshot, folderSnapshot))
         }
     }
 
     fun persistItems() {
         localBarcodeFileStore.rebuildHistory(items.map { it.copy() }.filter { it.inHistory })
         val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500))
-            .map { CodeItemEntity(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder, it.inHistory) }
+            .map { it.copy() }
         publishDataState()
         enqueuePersistence { barcodeRepository.saveItems(snapshot) }
     }
@@ -1040,7 +1039,7 @@ class BarcodeViewModel @Inject constructor(
     suspend fun loadFavoriteFoldersFromRepository() {
         favoriteFolders.clear()
         favoriteFolders.addAll(
-            (barcodeRepository.loadFolders().map { it.name } + favoriteGroups.map { it.folder })
+            (barcodeRepository.loadFolders() + favoriteGroups.map { it.folder })
                 .filter { it.isNotBlank() && it != "默认" }
                 .distinct()
                 .sorted()
@@ -1049,7 +1048,15 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun migrateLegacyDataIfNeeded(legacyPrefs: SharedPreferences) {
-        barcodeRepository.migrateLegacyDataIfNeeded(legacyPrefs)
+        barcodeRepository.migrateLegacyDataIfNeeded(
+            LegacyBarcodeData(
+                itemsJson = legacyPrefs.getString("items", null),
+                groupsJson = legacyPrefs.getString("favorite_groups", null),
+                folders = legacyPrefs.getStringSet("favorite_folders", emptySet()).orEmpty(),
+            )
+        )
+        legacyPrefs.edit().putBoolean("room_data_migrated", true).remove("items")
+            .remove("favorite_groups").remove("favorite_folders").remove("next_item_id").remove("next_group_id").apply()
     }
 
     suspend fun loadPersistedData(legacyPrefs: SharedPreferences) {
@@ -1075,14 +1082,14 @@ class BarcodeViewModel @Inject constructor(
         favoritesBackupUseCase.restore(resolver, uri)
 
     fun persistFavoriteGroups() {
-        val groups = favoriteGroups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) }
-        val links = favoriteGroups.flatMap { group -> group.itemIds.map { FavoriteGroupItemEntity(group.id, it) } }
+        val groups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
+        val links = favoriteGroups.flatMap { group -> group.itemIds.map { FavoriteGroupItem(group.id, it) } }
         publishDataState()
         enqueuePersistence { barcodeRepository.saveFavoriteGroups(groups, links) }
     }
 
     fun persistFavoriteFolders() {
-        val folders = favoriteFolders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity)
+        val folders = favoriteFolders.filter { it.isNotBlank() }.distinct()
         publishDataState()
         enqueuePersistence { barcodeRepository.saveFavoriteFolders(folders) }
     }

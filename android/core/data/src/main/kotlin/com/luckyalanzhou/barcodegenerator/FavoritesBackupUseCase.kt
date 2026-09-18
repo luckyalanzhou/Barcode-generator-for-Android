@@ -6,7 +6,7 @@ import android.net.Uri
 /** 收藏备份用例：协调 ZIP 格式与 Repository，UI 不再直接访问 DAO 或事务。 */
 class FavoritesBackupUseCase(private val repository: BarcodeRepository) {
     suspend fun export(resolver: ContentResolver, uri: Uri) {
-        val entities = repository.loadTransferEntities()
+        val entities = repository.loadSnapshot().toTransferEntities()
         FavoritesTransferManager.export(resolver, uri, entities.groups, entities.links, entities.items, entities.folders)
     }
 
@@ -14,9 +14,9 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) {
         FavoritesTransferManager.restore(resolver, uri)
 
     suspend fun import(backup: InterchangeBackup): Pair<Int, Int> {
-        val existing = repository.loadTransferEntities()
+        val existing = repository.loadSnapshot().toTransferEntities()
         val transfer = FavoritesTransferManager.appendEntities(backup, existing.items, existing.groups, existing.links)
-        repository.appendTransfer(transfer)
+        repository.appendSnapshot(transfer.toSnapshot())
         return transfer.items.size to transfer.groups.size
     }
 }

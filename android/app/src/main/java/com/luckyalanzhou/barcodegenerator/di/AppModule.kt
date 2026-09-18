@@ -3,10 +3,11 @@ package com.luckyalanzhou.barcodegenerator.di
 import android.content.Context
 import com.luckyalanzhou.barcodegenerator.BarcodeDao
 import com.luckyalanzhou.barcodegenerator.BarcodeDatabase
-import com.luckyalanzhou.barcodegenerator.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.FavoritesBackupUseCase
 import com.luckyalanzhou.barcodegenerator.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.LanShareManager
+import com.luckyalanzhou.barcodegenerator.RoomBarcodeRepository
+import com.luckyalanzhou.barcodegenerator.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.SettingsStore
 import dagger.Module
 import dagger.Provides
@@ -30,7 +31,7 @@ object AppModule {
     @Provides
     @Singleton
     internal fun provideBarcodeRepository(database: BarcodeDatabase): BarcodeRepository =
-        BarcodeRepository(database)
+        RoomBarcodeRepository(database)
 
     @Provides
     internal fun provideGenerateBarcodesUseCase(): GenerateBarcodesUseCase = GenerateBarcodesUseCase()
