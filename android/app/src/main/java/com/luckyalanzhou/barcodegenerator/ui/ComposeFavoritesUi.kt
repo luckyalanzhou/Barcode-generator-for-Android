@@ -37,8 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -71,7 +70,7 @@ internal fun ComposeFavoritesPage(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
+    val hapticView = LocalView.current
     val favoritesState by viewModel.dataState.collectAsStateWithLifecycle()
     val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
@@ -144,7 +143,10 @@ internal fun ComposeFavoritesPage(
                                         viewModel.toggleFavoriteFolder(row.path, folderPaths)
                                     },
                                     onLongClick = {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        hapticView.performHapticFeedback(
+                                            android.view.HapticFeedbackConstants.LONG_PRESS,
+                                            android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
+                                        )
                                         folderMenu = row.path to row.level
                                     }
                                 ),
@@ -220,7 +222,10 @@ internal fun ComposeFavoritesPage(
                                         viewModel.openFavoriteGroup(group)
                                     },
                                     onLongClick = {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        hapticView.performHapticFeedback(
+                                            android.view.HapticFeedbackConstants.LONG_PRESS,
+                                            android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
+                                        )
                                         fileMenu = group
                                     }
                                 ),

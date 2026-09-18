@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
@@ -73,6 +75,9 @@ internal fun ComposeGeneratePage(
     val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
     val cardColor = if (dark) Color(0xff182330).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.88f)
     val inputColor = if (dark) Color(0xff202c3a) else Color(0xfff4f6fa)
+    val cardBorder = if (dark) Color.White.copy(alpha = 0.10f) else Color(0xffdfe5ed).copy(alpha = 0.72f)
+    val inputBorder = if (dark) Color.White.copy(alpha = 0.12f) else Color(0xffe3e8f0)
+    val focusedInputBorder = if (dark) Color(0xff8dbcf0).copy(alpha = 0.72f) else Color(0xff7da7d6).copy(alpha = 0.76f)
     val density = LocalDensity.current
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
@@ -107,8 +112,12 @@ internal fun ComposeGeneratePage(
 
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(
-            Modifier.fillMaxWidth().heightIn(min = 72.dp, max = 296.dp).clip(RoundedCornerShape(18.dp))
-                .background(cardColor).padding(horizontal = 14.dp, vertical = 10.dp)
+            Modifier.fillMaxWidth().heightIn(min = 72.dp, max = 296.dp)
+                .shadow(8.dp, RoundedCornerShape(18.dp), clip = false)
+                .clip(RoundedCornerShape(18.dp))
+                .background(cardColor)
+                .border(1.dp, cardBorder, RoundedCornerShape(18.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 values.forEachIndexed { index, value ->
@@ -119,7 +128,11 @@ internal fun ComposeGeneratePage(
                             singleLine = true,
                             textStyle = TextStyle(color = textColor, fontSize = 16.sp),
                             cursorBrush = SolidColor(textColor),
-                            modifier = Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(14.dp)).background(inputColor)
+                            modifier = Modifier.weight(1f).height(48.dp)
+                                .shadow(1.dp, RoundedCornerShape(14.dp), clip = false)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(inputColor)
+                                .border(1.dp, if (focusedIndex == index) focusedInputBorder else inputBorder, RoundedCornerShape(14.dp))
                                 .onFocusChanged { if (it.isFocused) focusedIndex = index }.padding(horizontal = 12.dp, vertical = 13.dp),
                             decorationBox = { field ->
                                 Box { if (value.isEmpty()) Text("\u8f93\u5165\u4e00\u884c\u6761\u7801\u5185\u5bb9", color = secondary, fontSize = 16.sp); field() }

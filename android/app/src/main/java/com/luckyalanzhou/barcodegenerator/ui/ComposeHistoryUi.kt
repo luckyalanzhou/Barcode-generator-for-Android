@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ internal fun HistoryComposePage(
     val primary = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230)
     val secondary = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff6b7280)
     val card = if (dark) ComposeColor(0xff1b222d) else ComposeColor(0xfff7f9fc)
+    val hapticView = LocalView.current
     Column(Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
@@ -71,7 +73,16 @@ internal fun HistoryComposePage(
                     val batch = originalBatch.sortedBy { it.id }
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 3.dp)
-                            .combinedClickable(onClick = { onOpen(batch) }, onLongClick = { onEdit(batch) }),
+                            .combinedClickable(
+                                onClick = { onOpen(batch) },
+                                onLongClick = {
+                                    hapticView.performHapticFeedback(
+                                        android.view.HapticFeedbackConstants.LONG_PRESS,
+                                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
+                                    )
+                                    onEdit(batch)
+                                },
+                            ),
                         shape = RoundedCornerShape(12.dp), color = card, tonalElevation = 0.dp, shadowElevation = 0.dp
                     ) {
                         Row(Modifier.fillMaxWidth().height(46.dp).padding(start = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
