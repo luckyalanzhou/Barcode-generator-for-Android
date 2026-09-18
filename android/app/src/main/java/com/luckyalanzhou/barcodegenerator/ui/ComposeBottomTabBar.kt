@@ -2,8 +2,6 @@ package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,9 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -118,7 +117,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     ) {
         val tabWidth = (maxWidth - 12.dp) / tabs.size
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
-        val glassShape = RoundedCornerShape(18.dp)
         Box(
             // 液态玻璃包住完整的图标+文字单元；外层 itemScale 让二者保持同一套动画。
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(52.dp)
@@ -127,21 +125,19 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                 .graphicsLayer {
                     scaleX = glassScale.value
                     scaleY = glassScale.value
-                    shadowElevation = 10.dp.toPx()
-                    shape = glassShape
-                    clip = false
                 }
-                .clip(glassShape)
-                .border(
-                    width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (dark) 0.42f else 0.88f),
-                            Color.White.copy(alpha = if (dark) 0.10f else 0.34f),
+                .drawBehind {
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = if (dark) 0.42f else 0.88f),
+                                Color.White.copy(alpha = if (dark) 0.10f else 0.34f),
+                            ),
                         ),
-                    ),
-                    shape = glassShape,
-                )
+                        cornerRadius = CornerRadius(18.dp.toPx()),
+                        style = Stroke(width = 1.dp.toPx()),
+                    )
+                }
         )
         Row(
             modifier = Modifier.fillMaxSize(),
