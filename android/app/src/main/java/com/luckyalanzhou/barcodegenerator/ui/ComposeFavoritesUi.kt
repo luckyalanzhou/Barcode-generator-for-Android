@@ -37,7 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +71,7 @@ internal fun ComposeFavoritesPage(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
-    val anchor = LocalView.current
+    val hapticFeedback = LocalHapticFeedback.current
     val favoritesState by viewModel.dataState.collectAsStateWithLifecycle()
     val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
@@ -142,7 +143,10 @@ internal fun ComposeFavoritesPage(
                                     onClick = {
                                         viewModel.toggleFavoriteFolder(row.path, folderPaths)
                                     },
-                                    onLongClick = { anchor.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); folderMenu = row.path to row.level }
+                                    onLongClick = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        folderMenu = row.path to row.level
+                                    }
                                 ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -215,7 +219,10 @@ internal fun ComposeFavoritesPage(
                                     onClick = {
                                         viewModel.openFavoriteGroup(group)
                                     },
-                                    onLongClick = { anchor.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); fileMenu = group }
+                                    onLongClick = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        fileMenu = group
+                                    }
                                 ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
