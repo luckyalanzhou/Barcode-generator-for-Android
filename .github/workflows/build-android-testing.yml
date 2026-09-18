@@ -48,8 +48,10 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Bump beta version
+      - name: Calculate beta version
         id: app-version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           version_file="beta-version.properties"
@@ -58,18 +60,35 @@ jobs:
           base_code="$(sed -nE 's/^versionCode=([0-9]+)$/\1/p' "$version_file")"
           test -n "$base_version" || { echo "::error::versionName not found"; exit 1; }
           test -n "$base_code" || { echo "::error::versionCode not found"; exit 1; }
-          IFS=. read -r major minor patch <<< "$base_version"
-          for part in "$major" "$minor" "$patch" "$base_code"; do
-            [[ "$part" =~ ^[0-9]+$ ]] || { echo "::error::版本基线格式无效"; exit 1; }
+          IFS=. read -r base_major base_minor base_patch <<< "$base_version"
+          for part in "$base_major" "$base_minor" "$base_patch" "$base_code"; do
+            [[ "$part" =~ ^[0-9]+$ ]] || { echo "::error::版本号格式无效"; exit 1; }
           done
-          version_name="$major.$minor.$((patch + 1))"
-          version_code=$((base_code + 1))
-          printf 'versionName=%s\nversionCode=%s\n' "$version_name" "$version_code" > "$version_file"
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
-          git add "$version_file"
-          git commit -m "beta: 自动升级版本到 ${version_name}"
-          git push origin HEAD:beta
+
+          # 读取最新成功发布的 Beta 版本，严格递增 patch；构建失败不会消耗版本号。
+          latest_version="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.tag_name | startswith("android-test-v")) | .tag_name' \
+            | sed -nE 's/^android-test-v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' \
+            | sort -V | tail -n 1 || true)"
+
+          if [[ -n "$latest_version" ]]; then
+            IFS=. read -r latest_major latest_minor latest_patch <<< "$latest_version"
+            [[ "$latest_major" =~ ^[0-9]+$ && "$latest_minor" =~ ^[0-9]+$ && "$latest_patch" =~ ^[0-9]+$ ]] || {
+              echo "::error::最新 Beta Release 版本格式无效: $latest_version"
+              exit 1
+            }
+            # 手动提高 beta-version.properties 时，以手动版本为准；否则沿用远端最新版本。
+            current_version="$(printf '%s\n%s\n' "$base_version" "$latest_version" | sort -V | tail -n 1)"
+            IFS=. read -r major minor patch <<< "$current_version"
+            next_patch=$((patch + 1))
+            version_name="$major.$minor.$next_patch"
+            version_code=$((base_code + next_patch - base_patch))
+          else
+            version_name="$base_major.$base_minor.$((base_patch + 1))"
+            version_code=$((base_code + 1))
+          fi
+
+          echo "latest=$latest_version; base=$base_version; version=$version_name; versionCode=$version_code"
           echo "version=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
