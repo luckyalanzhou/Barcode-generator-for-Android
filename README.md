@@ -5,7 +5,7 @@
 > 当前正式 Release：`v1.0.0`<br>
 > 当前分支：`main`<br>
 > 正式包名：`com.luckyalanzhou.barcodegenerator`<br>
-> 最低 Android 版本：API 26  
+> 最低 Android 版本：API 26<br>
 > 编译/目标 SDK：35
 
 ## 正式版状态
