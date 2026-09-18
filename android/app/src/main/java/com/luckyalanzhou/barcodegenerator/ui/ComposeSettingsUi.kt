@@ -355,6 +355,7 @@ private fun SettingsDropdown(dark: Boolean, expanded: Boolean, width: androidx.c
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloatingPointRange<Float>, valueText: String, color: Color, accent: Color, onChange: (Float) -> Unit) {
+    val sliderAccent = accent.copy(alpha = 0.72f)
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
         Slider(
@@ -373,11 +374,11 @@ private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloating
             ),
             track = { sliderState ->
                 val fraction = ((sliderState.value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
-                Box(Modifier.fillMaxWidth().height(4.dp).background(accent.copy(alpha = .18f), RoundedCornerShape(2.dp))) {
-                    Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(accent, RoundedCornerShape(2.dp)))
+                Box(Modifier.fillMaxWidth().height(4.dp).background(sliderAccent.copy(alpha = .18f), RoundedCornerShape(2.dp))) {
+                    Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(sliderAccent, RoundedCornerShape(2.dp)))
                 }
             },
-            thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(accent)) },
+            thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(sliderAccent)) },
         )
         val valueParts = valueText.split(' ', limit = 2)
         Row(
@@ -386,7 +387,7 @@ private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloating
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val valueStyle = androidx.compose.ui.text.TextStyle(
-                color = accent,
+                color = sliderAccent,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Normal,
             )
