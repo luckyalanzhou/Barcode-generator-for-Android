@@ -14,7 +14,6 @@ Android 条码生成器的 Beta 测试分支。此分支用于验证新功能、
 - 选中框当前高度为 `56dp`；图标和文字在动画结束后恢复原始尺寸。
 - 增加 Beta 测试中心、调试日志导出和 Beta 专用诊断能力。
 - Beta 使用独立 applicationId，可与正式版并行安装，不覆盖正式版数据和应用入口。
-- Beta 版本号由 GitHub Actions 构建前自动递增，并由构建流程提交回 `beta` 分支。
 
 ## 功能
 
@@ -42,36 +41,6 @@ Beta Release 与正式版使用不同的包名，可以同时安装：
 Beta：  com.luckyalanzhou.barcodegenerator.test
 ```
 
-## 本地构建
-
-项目要求 JDK 17、Android SDK 35 和 Gradle Wrapper。Windows PowerShell 示例：
-
-```powershell
-cd android
-$env:JAVA_HOME = "D:\Java17"
-$env:GRADLE_USER_HOME = "D:\Barcode_build\gradle-home"
-$env:ANDROID_USER_HOME = "D:\Barcode_build\android-home"
-$env:ANDROID_SDK_ROOT = "D:\Android\Sdk"
-.\gradlew.bat :app:assembleBetaDebug :app:testBetaDebugUnitTest --no-daemon --no-configuration-cache
-```
-
-本地调试安装如需与其他本地包完全隔离，可增加 `-PlocalDebugPackageSuffix=true`，此时包名为：
-
-```text
-com.luckyalanzhou.barcodegenerator.test.debug
-```
-
-## Beta 构建流程
-
-Beta 构建由 `.github/workflows/build-android-testing.yml` 手动触发，流程会：
-
-1. 自动递增 `android/beta-version.properties` 中的版本号和 versionCode。
-2. 使用 GitHub Actions 作者信息提交版本递增变更。
-3. 使用 Release 签名构建 Beta APK。
-4. 上传构建 Artifact，并发布 `android-test-vx.y.z` Release。
-
-提交 Beta 功能后，只触发 Beta 工作流；未经测试确认，不推送或构建 `main` 正式版。
-
 ## 项目结构
 
 ```text
@@ -81,8 +50,6 @@ android/
 ├─ core/data/       # Room、文件和数据仓储
 └─ core/ui/         # Compose 动画和共享 UI 配置
 ```
-
-Beta 通过 `official` 和 `beta` product flavor 区分正式包与测试包；正式版只从 `main` 分支构建。
 
 ## 分支约定
 
