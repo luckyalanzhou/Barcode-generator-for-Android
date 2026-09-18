@@ -108,31 +108,33 @@ internal fun ComposeSettingsPage(
             SettingsSection("显示", colors.secondary) {
                 SettingsCard(colors.card, dark) {
                     SettingsRow("外观", colors.primary) {
-                        SettingsDropdownButton(
-                            text = when (settings.scheme) {
-                                "dark" -> "深色"
-                                "light" -> "浅色"
-                                else -> "跟随系统"
-                            },
-                            color = colors.button,
-                            contentColor = colors.primary,
-                            onClick = { schemeMenu = true },
-                            onMeasured = { schemeButtonWidth = it },
-                        )
-                        SettingsDropdown(
-                            dark = dark,
-                            expanded = schemeMenu,
-                            menuWidth = 132.dp,
-                            anchorWidth = schemeWidth,
-                            onDismiss = { schemeMenu = false },
-                        ) {
-                            listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
-                                if (index > 0) ComposeDropdownDivider(dark)
-                                androidx.compose.material3.DropdownMenuItem(
-                                    modifier = Modifier.height(40.dp),
-                                    text = { Text(label) },
-                                    onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) },
-                                )
+                        Box {
+                            SettingsDropdownButton(
+                                text = when (settings.scheme) {
+                                    "dark" -> "深色"
+                                    "light" -> "浅色"
+                                    else -> "跟随系统"
+                                },
+                                color = colors.button,
+                                contentColor = colors.primary,
+                                onClick = { schemeMenu = true },
+                                onMeasured = { schemeButtonWidth = it },
+                            )
+                            SettingsDropdown(
+                                dark = dark,
+                                expanded = schemeMenu,
+                                menuWidth = 132.dp,
+                                anchorWidth = schemeWidth,
+                                onDismiss = { schemeMenu = false },
+                            ) {
+                                listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
+                                    if (index > 0) ComposeDropdownDivider(dark)
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        modifier = Modifier.height(40.dp),
+                                        text = { Text(label) },
+                                        onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -173,36 +175,38 @@ internal fun ComposeSettingsPage(
                     SettingsDivider(dark)
                     SettingsRow("OCR 字符纠错", colors.primary) {
                         val selected = ocrReplacementLabels.filter { (_, bit) -> settings.ocrMask and bit != 0 }.map { it.first }
-                        SettingsDropdownButton(
-                            text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
-                            color = colors.button,
-                            contentColor = colors.primary,
-                            onClick = { ocrMenu = true },
-                            onMeasured = { ocrButtonWidth = it },
-                        )
-                        SettingsDropdown(
-                            dark = dark,
-                            expanded = ocrMenu,
-                            menuWidth = 164.dp,
-                            anchorWidth = ocrWidth,
-                            onDismiss = { ocrMenu = false },
-                        ) {
-                            ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
-                                if (index > 0) ComposeDropdownDivider(dark)
-                                androidx.compose.material3.DropdownMenuItem(
-                                    modifier = Modifier.height(40.dp),
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null)
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(label, maxLines = 1, softWrap = false)
-                                        }
-                                    },
-                                    onClick = {
-                                        val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
-                                        settingsViewModel.setOcrMaskPersisted(mask)
-                                    },
-                                )
+                        Box {
+                            SettingsDropdownButton(
+                                text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
+                                color = colors.button,
+                                contentColor = colors.primary,
+                                onClick = { ocrMenu = true },
+                                onMeasured = { ocrButtonWidth = it },
+                            )
+                            SettingsDropdown(
+                                dark = dark,
+                                expanded = ocrMenu,
+                                menuWidth = 164.dp,
+                                anchorWidth = ocrWidth,
+                                onDismiss = { ocrMenu = false },
+                            ) {
+                                ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
+                                    if (index > 0) ComposeDropdownDivider(dark)
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        modifier = Modifier.height(40.dp),
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null)
+                                                Spacer(Modifier.width(6.dp))
+                                                Text(label, maxLines = 1, softWrap = false)
+                                            }
+                                        },
+                                        onClick = {
+                                            val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
+                                            settingsViewModel.setOcrMaskPersisted(mask)
+                                        },
+                                    )
+                                }
                             }
                         }
                     }

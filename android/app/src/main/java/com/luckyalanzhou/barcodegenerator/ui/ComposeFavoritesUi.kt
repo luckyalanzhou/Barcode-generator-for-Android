@@ -253,7 +253,7 @@ private fun FavoriteFolderRow(
                     trailingIcon = if (deleteAction) {
                         { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), modifier = Modifier.size(20.dp)) }
                     } else {
-                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = if (dark) Color(0xffc8d5e8) else Color(0xff667085), modifier = Modifier.size(20.dp)) }
+                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = Color(0xff1f1f1f), modifier = Modifier.size(20.dp)) }
                     },
                     onClick = {
                         onMenuDismiss()
@@ -332,7 +332,7 @@ private fun FavoriteGroupRow(
                             1 -> EditIcon
                             else -> DeleteIcon
                         }
-                        Icon(icon, contentDescription = label, tint = if (index == 2) { if (dark) Color(0xffffb0b0) else Color(0xffe58b8b) } else { if (dark) Color(0xffc8d5e8) else Color(0xff667085) }, modifier = Modifier.size(20.dp))
+                        Icon(icon, contentDescription = label, tint = if (index == 2) { if (dark) Color(0xffffb0b0) else Color(0xffe58b8b) } else Color(0xff1f1f1f), modifier = Modifier.size(20.dp))
                     },
                     onClick = {
                         onMenuDismiss()
