@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -90,7 +92,7 @@ internal fun ComposeAppShell(
             (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES)
     val background = Color(if (dark) 0xff000000.toInt() else 0xfff2f2f7.toInt())
-    val chromeVisible = appUiState.chromeVisible
+    val chromeVisible = AppRoute.fromPage(appUiState.page).chromeVisible
     val animation = rememberComposeAnimationConfig()
 
     LaunchedEffect(appUiState.page) {
@@ -196,7 +198,7 @@ internal fun ComposeAppShell(
 
 private fun routeForPage(page: String): String = AppRoute.fromPage(page).pageName
 
-/** 页面路由渲染器；页面状态唯一来源是 ViewModel，转场由上层 AnimatedContent 负责。 */
+/** 页面路由渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
 @Composable
 private fun ComposeNavigationHost(dependencies: ComposeAppShellDependencies, displayPage: String, dark: Boolean) {
     ComposePageRoute(dependencies, routeForPage(displayPage), dark)

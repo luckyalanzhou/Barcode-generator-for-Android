@@ -49,14 +49,10 @@ import kotlinx.coroutines.yield
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class AppUiState(
-    val route: AppRoute = AppRoute.Generate,
+    val page: String = "generate",
     val selectedTab: Int = 0,
     val settingsReturnPage: String = "generate",
-) {
-    val page: String get() = route.pageName
-    val title: String get() = route.title
-    val chromeVisible: Boolean get() = route.chromeVisible
-}
+)
 
 /**
  * 条码、收藏和文件夹的统一只读快照。
@@ -197,11 +193,21 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun navigateTo(page: String) {
+        val normalizedPage = when (page) {
+            "generate", "history", "favorites", "settings", "favoriteDetail",
+            "results", "lanShare", "betaTestCenter" -> page
+            else -> "generate"
+        }
         _uiState.update {
-            val route = AppRoute.fromPage(page)
             it.copy(
-                route = route,
-                selectedTab = route.mainTabIndex ?: it.selectedTab,
+                page = normalizedPage,
+                selectedTab = when (normalizedPage) {
+                    "generate" -> 0
+                    "history" -> 1
+                    "favorites" -> 2
+                    "settings" -> 3
+                    else -> it.selectedTab
+                },
             )
         }
     }

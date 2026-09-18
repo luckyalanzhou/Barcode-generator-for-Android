@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

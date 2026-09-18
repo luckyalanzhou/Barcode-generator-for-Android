@@ -1,11 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
 
-/**
- * 应用页面的唯一路由定义。
- *
- * 页面名称、标题、是否显示底部 Tab 以及对应的主 Tab 索引集中在这里，
- * 避免 Activity、Compose 壳和 render() 各自维护一份字符串判断。
- */
+/** UI 层页面路由；页面标题、Chrome 和主 Tab 映射不进入业务 ViewModel。 */
 enum class AppRoute(
     val pageName: String,
     val title: String,
