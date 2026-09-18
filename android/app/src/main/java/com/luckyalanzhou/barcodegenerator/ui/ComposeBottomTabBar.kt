@@ -121,7 +121,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
         Box(
             // 液态玻璃包住完整的图标+文字单元；外层 itemScale 让二者保持同一套动画。
-            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(54.dp)
+            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(56.dp)
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
                 .graphicsLayer {
@@ -159,21 +159,22 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                 val selected = selectedIndex == index
                 val hovered = dragging && hoveredIndex == index
                 val itemColor = if (selected) selectedColor else unselectedColor
-                val itemScale = remember { Animatable(if (selected) 1f else 0.96f) }
+                // 1f is the normal icon + label size. The spring is transient;
+                // every interaction settles back to the same original size.
+                val itemScale = remember { Animatable(1f) }
                 var itemInitialized by remember { mutableStateOf(false) }
-                LaunchedEffect(selected, hovered) {
+                LaunchedEffect(selected, hovered, dragging) {
                     if (!itemInitialized) {
-                        itemScale.snapTo(if (selected) 1f else 0.96f)
+                        itemScale.snapTo(1f)
                         itemInitialized = true
                     } else if (hovered) {
-                        itemScale.snapTo(0.90f)
                         itemScale.animateTo(1.12f, animation.bouncySpring())
                         itemScale.animateTo(1f, animation.settleSpring())
                     } else if (selected) {
-                        itemScale.snapTo(0.88f)
-                        itemScale.animateTo(1f, animation.bouncySpring())
+                        itemScale.animateTo(1.10f, animation.bouncySpring())
+                        itemScale.animateTo(1f, animation.settleSpring())
                     } else {
-                        itemScale.animateTo(0.96f, animation.settleSpring())
+                        itemScale.animateTo(1f, animation.settleSpring())
                     }
                 }
                 Box(
