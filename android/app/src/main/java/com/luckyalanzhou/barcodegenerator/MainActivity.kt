@@ -74,7 +74,6 @@ class MainActivity : AppCompatActivity() {
     }
     internal var composeShellReady: Boolean = false
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
-    private val legacyPrefs by lazy { getSharedPreferences("barcode_app", MODE_PRIVATE) }
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
@@ -117,8 +116,8 @@ class MainActivity : AppCompatActivity() {
             var startupError: Throwable? = null
             try {
                 withContext(Dispatchers.IO) {
-                    settingsViewModel.loadPersistedState(legacyPrefs)
-                    viewModel.loadPersistedData(legacyPrefs)
+                    settingsViewModel.loadPersistedState()
+                    viewModel.loadPersistedData()
                 }
             } catch (error: Exception) {
                 // 数据层损坏或升级失败不能让 Activity 直接因未处理协程异常闪退；

@@ -1,8 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
-import android.content.Context
 import android.content.ContentResolver
-import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ColorMatrix
@@ -11,13 +9,7 @@ import android.graphics.Paint
 import android.graphics.Color
 import android.net.Uri
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
-import java.util.Comparator
-import java.util.Locale
 import kotlin.math.roundToInt
-import org.json.JSONArray
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,23 +22,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
-import com.google.zxing.BinaryBitmap
-import com.google.zxing.MultiFormatReader
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
-import com.google.zxing.RGBLuminanceSource
-import com.google.zxing.common.HybridBinarizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
-import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class AppUiState(
     val page: String = "generate",
@@ -139,8 +121,13 @@ class BarcodeViewModel @Inject constructor(
     private val barcodeRepository: BarcodeRepository,
     private val favoritesBackupUseCase: FavoritesBackupUseCase,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
-    @ApplicationContext private val appContext: Context,
     private val localBarcodeFileStore: LocalBarcodeFileStore,
+    private val updateDownloadService: UpdateDownloadService,
+    private val updateCheckService: UpdateCheckService,
+    private val ocrTextService: OcrTextService,
+    private val barcodeDecodeService: BarcodeDecodeService,
+    private val legacyBarcodeDataMigrator: LegacyBarcodeDataMigrator,
+    private val apkUpdateValidator: ApkUpdateValidator,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
@@ -498,137 +485,24 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
-        val enhanced = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val matrix = ColorMatrix().apply {
-            setSaturation(0f)
-            val scale = 1.35f
-            val offset = -44.8f
-            set(floatArrayOf(scale, 0f, 0f, 0f, offset, 0f, scale, 0f, 0f, offset, 0f, 0f, scale, 0f, offset, 0f, 0f, 0f, 1f, 0f))
+        viewModelScope.launch {
+            val normalized = ocrTextService.recognize(bitmap, confusionMask)
+            if (normalized.isEmpty()) _events.emit(BarcodeEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
+            else {
+                _events.emit(BarcodeEvent.RecognizedText(normalized))
+                _events.emit(BarcodeEvent.Notice("文字识别成功，已按行添加到输入框"))
+            }
         }
-        Canvas(enhanced).drawBitmap(
-            bitmap,
-            0f,
-            0f,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) },
-        )
-        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-        recognizer.process(InputImage.fromBitmap(enhanced, 0))
-            .addOnSuccessListener { results ->
-                val normalized = results.text.map { char ->
-                    when {
-                        char in "Oo" && confusionMask and SettingsStore.OCR_REPLACE_O_ZERO != 0 -> '0'
-                        char in "Iil" && confusionMask and SettingsStore.OCR_REPLACE_I_ONE != 0 -> '1'
-                        char in "Ss" && confusionMask and SettingsStore.OCR_REPLACE_S_FIVE != 0 -> '5'
-                        char in "Bb" && confusionMask and SettingsStore.OCR_REPLACE_B_EIGHT != 0 -> '8'
-                        else -> char
-                    }
-                }.joinToString("").lines().filter { it.isNotBlank() }
-                viewModelScope.launch {
-                    if (normalized.isEmpty()) _events.emit(BarcodeEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
-                    else {
-                        _events.emit(BarcodeEvent.RecognizedText(normalized))
-                        _events.emit(BarcodeEvent.Notice("文字识别成功，已按行添加到输入框"))
-                    }
-                }
-            }
-            .addOnFailureListener {
-                viewModelScope.launch { _events.emit(BarcodeEvent.Notice("文字识别失败，请重试")) }
-            }
-            .addOnCompleteListener {
-                recognizer.close()
-                enhanced.recycle()
-            }
     }
 
-    suspend fun decodeBarcode(bitmap: Bitmap): String? = withContext(Dispatchers.Default) {
-        try {
-            val pixels = IntArray(bitmap.width * bitmap.height)
-            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-            MultiFormatReader().decode(
-                BinaryBitmap(HybridBinarizer(RGBLuminanceSource(bitmap.width, bitmap.height, pixels)))
-            ).text
-        } catch (_: Exception) {
-            null
-        }
-    }
+    suspend fun decodeBarcode(bitmap: Bitmap): String? = barcodeDecodeService.decode(bitmap)
     fun setStartupUpdateCheckStarted(value: Boolean) {
         _updateUiState.update { it.copy(startupCheckStarted = value) }
     }
 
-    suspend fun checkForUpdates(): UpdateCheckResult = withContext(Dispatchers.IO) {
-        try {
-            val connection = (URL("https://api.github.com/repos/luckyalanzhou/Barcode-generator-for-android/releases?per_page=100")
-                .openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 8000
-                readTimeout = 8000
-                setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "BarcodeGenerator/${BuildConfig.VERSION_NAME}")
-            }
-            val releases = try {
-                if (connection.responseCode !in 200..299) throw IllegalStateException("GitHub HTTP ${connection.responseCode}")
-                connection.inputStream.bufferedReader().use { JSONArray(it.readText()) }
-            } finally {
-                connection.disconnect()
-            }
-            val release = (0 until releases.length())
-                .mapNotNull { releases.optJSONObject(it) }
-                .filter { it.optString("tag_name").startsWith(BuildConfig.UPDATE_TAG_PREFIX) }
-                .maxWithOrNull(Comparator { left, right ->
-                    UpdateSecurity.compareVersions(
-                        parseAppVersion(left.optString("tag_name")) ?: "0.0.0",
-                        parseAppVersion(right.optString("tag_name")) ?: "0.0.0",
-                    )
-                })
-            val releaseTag = release?.optString("tag_name")?.takeIf { it.isNotBlank() }
-                ?: return@withContext UpdateCheckResult.Failed("暂时无法获取更新信息")
-            val apkAsset = release.optJSONArray("assets")?.let { assets ->
-                (0 until assets.length())
-                    .mapNotNull { assets.optJSONObject(it) }
-                    .firstOrNull { asset ->
-                        val assetName = asset.optString("name")
-                        val isOfficialRelease = BuildConfig.UPDATE_TAG_PREFIX == "android-v" &&
-                            assetName.matches(Regex("""^BarcodeGenerator[0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?\\.apk$"""))
-                        val isChannelAsset = BuildConfig.UPDATE_TAG_PREFIX != "android-v" &&
-                            assetName.startsWith(BuildConfig.APK_FILE_PREFIX) && assetName.endsWith(".apk", true)
-                        isOfficialRelease || isChannelAsset
-                    }
-            }
-            val downloadUrl = apkAsset?.optString("browser_download_url")?.takeIf { it.isNotBlank() }
-                ?: return@withContext UpdateCheckResult.Failed("暂时无法获取更新信息")
-            val latest = parseAppVersion(releaseTag)
-                ?: return@withContext UpdateCheckResult.Failed("版本信息格式不正确")
-            val expectedSize = apkAsset.optLong("size", 0L).takeIf { it > 0L }
-            val expectedSha256 = apkAsset.optString("digest")
-                .removePrefix("sha256:")
-                .trim()
-                .lowercase(Locale.US)
-                .takeIf { it.matches(Regex("[0-9a-f]{64}")) }
-            val result = if (UpdateSecurity.compareVersions(latest, BuildConfig.VERSION_NAME) > 0) {
-                UpdateCheckResult.Available(latest, downloadUrl, expectedSize, expectedSha256)
-            } else {
-                UpdateCheckResult.UpToDate
-            }
-            if (result is UpdateCheckResult.Available) {
-                setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
-            } else {
-                clearAvailableUpdate()
-            }
-            result
-        } catch (error: Exception) {
-            DebugLog.record("update", "check failed", error)
-            UpdateCheckResult.Failed(error.message ?: "检查更新失败，请稍后重试")
-        }
-    }
-
-    private fun parseAppVersion(releaseTag: String): String? {
-        val value = releaseTag.trim().removePrefix(BuildConfig.UPDATE_TAG_PREFIX).removePrefix("v")
-        val parts = value.split(".")
-        if (parts.size < 3 || parts.size > 4 ||
-            parts.take(3).any { it.isEmpty() || it.length > 9 || it.toLongOrNull() == null }
-        ) return null
-        if (parts.size == 4 && (parts[3].isEmpty() || parts[3].length > 12 || parts[3].toLongOrNull() == null)) return null
-        return parts.take(3).joinToString(".")
+    suspend fun checkForUpdates(): UpdateCheckResult = updateCheckService.check().also { result ->
+        if (result is UpdateCheckResult.Available) setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
+        else clearAvailableUpdate()
     }
 
     fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) {
@@ -670,91 +544,12 @@ class BarcodeViewModel @Inject constructor(
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
-    ): File = withContext(Dispatchers.IO) {
-        val temp = File(appContext.cacheDir, "barcode-generator-update.apk.part")
-        val official = File(appContext.cacheDir, "barcode-generator-update.apk")
-        var connection: HttpURLConnection? = null
-        try {
-            val limit = UpdateSecurity.MAX_APK_DOWNLOAD_BYTES
-            require(expectedSha256 != null) { "该版本缺少 SHA-256 校验信息，无法安全更新" }
-            require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
-            require(Uri.parse(apkUrl).scheme.equals("https", ignoreCase = true)) { "更新包必须使用 HTTPS 下载" }
-            connection = URL(apkUrl).openConnection() as HttpURLConnection
-            connection.apply {
-                connectTimeout = 15000
-                readTimeout = 30000
-                instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "BarcodeGenerator/" + BuildConfig.VERSION_NAME)
-            }
-            require(connection.responseCode in 200..299) { "HTTP ${connection.responseCode}" }
-            DebugLog.record("update", "download response=${connection.responseCode} contentLength=${connection.contentLengthLong}")
-            val total = connection.contentLengthLong.takeIf { it > 0 } ?: expectedSize
-            require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
-            temp.delete()
-            connection.inputStream.use { input ->
-                temp.outputStream().use { output ->
-                    val buffer = ByteArray(16 * 1024)
-                    var done = 0L
-                    var count: Int
-                    while (input.read(buffer).also { count = it } != -1) {
-                        ensureActive()
-                        require(done + count <= limit) { "更新包超过 500 MB 限制" }
-                        output.write(buffer, 0, count)
-                        done += count
-                        if (total != null) {
-                            val currentProgress = (done * 100 / total).toInt().coerceIn(0, 100)
-                            setUpdateDownloadProgress(currentProgress, false, "已下载 ${currentProgress}%")
-                        } else {
-                            setUpdateDownloadProgress(0, true, "正在下载… ${done / 1024} KB")
-                        }
-                    }
-                }
-            }
-            require(temp.isFile && temp.length() > 0L) { "APK 为空" }
-            require(expectedSize == null || temp.length() == expectedSize) {
-                "文件大小校验失败：${temp.length()} / $expectedSize"
-            }
-            val digest = MessageDigest.getInstance("SHA-256")
-            val actual = temp.inputStream().use { input ->
-                val buffer = ByteArray(16 * 1024)
-                var count: Int
-                while (input.read(buffer).also { count = it } != -1) digest.update(buffer, 0, count)
-                digest.digest().joinToString("") { "%02x".format(it) }
-            }
-            require(actual.equals(expectedSha256, true)) { "SHA-256 校验失败" }
-            official.delete()
-            require(temp.renameTo(official)) { "无法保存更新文件" }
-            appContext.cacheDir.listFiles()
-                ?.filter { it.name.startsWith("barcode-generator-update") && it != official }
-                ?.forEach { it.delete() }
-            DebugLog.record("update", "download validated size=${official.length()}")
-            official
-        } finally {
-            connection?.disconnect()
-            if (!official.isFile) temp.delete()
-        }
+    ): File = updateDownloadService.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
+        setUpdateDownloadProgress(progress, indeterminate, status)
     }
 
     fun validateDownloadedApk(file: File) {
-        val packageManager = appContext.packageManager
-        val signingFlags = if (android.os.Build.VERSION.SDK_INT >= 28) {
-            android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES
-        } else {
-            android.content.pm.PackageManager.GET_SIGNATURES
-        }
-        val info = packageManager.getPackageArchiveInfo(file.absolutePath, signingFlags)
-            ?: throw IllegalStateException("无法读取 APK 信息")
-        if (info.packageName != appContext.packageName) throw IllegalStateException("APK 包名与当前应用不一致")
-        val versionCode = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        if (versionCode <= BuildConfig.VERSION_CODE) throw IllegalStateException("APK 版本不是当前版本的更高版本")
-        val downloaded = if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-        val installedInfo = packageManager.getPackageInfo(appContext.packageName, signingFlags)
-        val installed = if (android.os.Build.VERSION.SDK_INT >= 28) installedInfo.signingInfo?.apkContentsSigners else installedInfo.signatures
-        if (downloaded.isNullOrEmpty() || installed.isNullOrEmpty() ||
-            downloaded.map { it.toCharsString() }.toSet() != installed.map { it.toCharsString() }.toSet()
-        ) {
-            throw IllegalStateException("APK 签名与当前应用不一致")
-        }
+        apkUpdateValidator.validate(file)
     }
 
     fun startUpdateDownload(apkUrl: String, expectedSize: Long?, expectedSha256: String?) {
@@ -1049,20 +844,8 @@ class BarcodeViewModel @Inject constructor(
         publishDataState()
     }
 
-    suspend fun migrateLegacyDataIfNeeded(legacyPrefs: SharedPreferences) {
-        barcodeRepository.migrateLegacyDataIfNeeded(
-            LegacyBarcodeData(
-                itemsJson = legacyPrefs.getString("items", null),
-                groupsJson = legacyPrefs.getString("favorite_groups", null),
-                folders = legacyPrefs.getStringSet("favorite_folders", emptySet()).orEmpty(),
-            )
-        )
-        legacyPrefs.edit().putBoolean("room_data_migrated", true).remove("items")
-            .remove("favorite_groups").remove("favorite_folders").remove("next_item_id").remove("next_group_id").apply()
-    }
-
-    suspend fun loadPersistedData(legacyPrefs: SharedPreferences) {
-        migrateLegacyDataIfNeeded(legacyPrefs)
+    suspend fun loadPersistedData() {
+        legacyBarcodeDataMigrator.migrateIfNeeded()
         loadItemsFromRepository()
         loadFavoriteGroupsFromRepository()
         loadFavoriteFoldersFromRepository()

@@ -96,12 +96,13 @@ internal fun ComposeAppShell(
             (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES)
     val background = Color(if (dark) 0xff000000.toInt() else 0xfff2f2f7.toInt())
-    val chromeVisible = AppRoute.fromPage(appUiState.page).chromeVisible
+    val currentRoute = AppRoute.fromPage(appUiState.page)
+    val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
 
-    LaunchedEffect(appUiState.page) {
-        dependencies.actions.syncBarcodeDisplaySettings(appUiState.page == "results")
-        if (appUiState.page == "lanShare" && dependencies.lanShareViewModel.uiState.value.session == null) {
+    LaunchedEffect(currentRoute) {
+        dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
+        if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
             dependencies.actions.ensureLanShare()
         }
     }
@@ -148,11 +149,11 @@ internal fun ComposeAppShell(
                 .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
             ) {
             AnimatedContent(
-                targetState = appUiState.page,
+                targetState = currentRoute,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 transitionSpec = {
-                    val fromMainTab = AppRoute.fromPage(initialState).mainTabIndex != null
-                    val toMainTab = AppRoute.fromPage(targetState).mainTabIndex != null
+                    val fromMainTab = initialState.mainTabIndex != null
+                    val toMainTab = targetState.mainTabIndex != null
                     if (fromMainTab && toMainTab) {
                         // 只有底部四个主 Tab 之间切换时使用从底部弹出的页面动画。
                         (slideInVertically(
@@ -204,7 +205,7 @@ internal fun ComposeAppShell(
                 },
                 label = "pageUpTransition",
             ) { targetPage ->
-                val targetRoute = AppRoute.fromPage(targetPage)
+                val targetRoute = targetPage
                 val targetChromeVisible = targetRoute.chromeVisible
                 Column(Modifier.fillMaxSize()) {
                     if (targetChromeVisible) {
@@ -241,19 +242,17 @@ internal fun ComposeAppShell(
     }
 }
 
-private fun routeForPage(page: String): String = AppRoute.fromPage(page).pageName
-
 /** 页面路由渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
 @Composable
-private fun ComposeNavigationHost(dependencies: ComposeAppShellDependencies, displayPage: String, dark: Boolean) {
-    ComposePageRoute(dependencies, routeForPage(displayPage), dark)
+private fun ComposeNavigationHost(dependencies: ComposeAppShellDependencies, displayPage: AppRoute, dark: Boolean) {
+    ComposePageRoute(dependencies, displayPage, dark)
 }
 
 @Composable
-private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePage: String, dark: Boolean) {
+private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePage: AppRoute, dark: Boolean) {
     key(routePage) {
         when (routePage) {
-            "generate" -> {
+            AppRoute.Generate -> {
                 val initialFormat = remember(routePage) {
                     dependencies.viewModel.generateEditorState.value.pendingFormat
                         ?: dependencies.viewModel.generateEditorState.value.formatName
@@ -270,7 +269,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onNotice = dependencies.actions::notice,
                 )
             }
-            "history" -> {
+            AppRoute.History -> {
                 val dataState by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
                 val historyEntries = dataState.items
                     .filter { it.inHistory }
@@ -292,7 +291,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     timeText = ::formatHistoryTime,
                 )
             }
-            "favorites" -> {
+            AppRoute.Favorites -> {
                 ComposeFavoritesPage(
                     viewModel = dependencies.viewModel,
                     dark = dark,
@@ -303,19 +302,19 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onConfirm = dependencies.actions::confirm,
                 )
             }
-            "favoriteDetail" -> {
+            AppRoute.FavoriteDetail -> {
                 val resultState by dependencies.viewModel.resultUiState.collectAsStateWithLifecycle()
                 val group = resultState.selectedFavoriteGroup
                 if (group == null) {
                     LaunchedEffect(Unit) {
-                        dependencies.viewModel.navigateTo("favorites")
+                        dependencies.viewModel.navigateTo(AppRoute.Favorites.pageName)
                     }
                 } else {
                     val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                     ComposeFavoriteDetailPage(dependencies.viewModel, settings, dark, group)
                 }
             }
-            "results" -> {
+            AppRoute.Results -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 ComposeResultsPage(
                     viewModel = dependencies.viewModel,
@@ -325,7 +324,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onShare = dependencies.actions::shareResult,
                 )
             }
-            "settings" -> {
+            AppRoute.Settings -> {
                 ComposeSettingsPage(
                     settingsViewModel = dependencies.settingsViewModel,
                     dark = dark,
@@ -338,7 +337,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onNotice = dependencies.actions::notice,
                 )
             }
-            "lanShare" -> {
+            AppRoute.LanShare -> {
                 // 文件传输页自行管理消息区滚动，输入卡片固定在系统导航栏上方。
                 ComposeLanSharePage(
                     viewModel = dependencies.lanShareViewModel,
@@ -352,7 +351,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             // Beta 测试中心也直接作为 Compose 内容路由，不再嵌套旧 AndroidView。
-            "betaTestCenter" -> {
+            AppRoute.BetaTestCenter -> {
                 BetaTestCenterComposePage(dark, dependencies.betaTestEntries, dependencies.actions::shareDebugLog)
             }
             else -> Box(Modifier.fillMaxSize())

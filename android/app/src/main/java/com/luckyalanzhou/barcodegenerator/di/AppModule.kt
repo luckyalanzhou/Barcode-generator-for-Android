@@ -10,6 +10,13 @@ import com.luckyalanzhou.barcodegenerator.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.SettingsStore
+import com.luckyalanzhou.barcodegenerator.UpdateDownloadService
+import com.luckyalanzhou.barcodegenerator.UpdateCheckService
+import com.luckyalanzhou.barcodegenerator.OcrTextService
+import com.luckyalanzhou.barcodegenerator.BarcodeDecodeService
+import com.luckyalanzhou.barcodegenerator.LegacySettingsMigrator
+import com.luckyalanzhou.barcodegenerator.LegacyBarcodeDataMigrator
+import com.luckyalanzhou.barcodegenerator.ApkUpdateValidator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,6 +57,41 @@ object AppModule {
     @Singleton
     internal fun provideLocalBarcodeFileStore(@ApplicationContext context: Context): LocalBarcodeFileStore =
         LocalBarcodeFileStore(context)
+
+    @Provides
+    @Singleton
+    internal fun provideUpdateDownloadService(@ApplicationContext context: Context): UpdateDownloadService =
+        UpdateDownloadService(context)
+
+    @Provides
+    @Singleton
+    internal fun provideUpdateCheckService(): UpdateCheckService = UpdateCheckService()
+
+    @Provides
+    @Singleton
+    internal fun provideApkUpdateValidator(@ApplicationContext context: Context): ApkUpdateValidator =
+        ApkUpdateValidator(context)
+
+    @Provides
+    @Singleton
+    internal fun provideOcrTextService(): OcrTextService = OcrTextService()
+
+    @Provides
+    @Singleton
+    internal fun provideBarcodeDecodeService(): BarcodeDecodeService = BarcodeDecodeService()
+
+    @Provides
+    internal fun provideLegacySettingsMigrator(
+        @ApplicationContext context: Context,
+        settingsStore: SettingsStore,
+    ): LegacySettingsMigrator = LegacySettingsMigrator(context, settingsStore)
+
+    @Provides
+    @Singleton
+    internal fun provideLegacyBarcodeDataMigrator(
+        @ApplicationContext context: Context,
+        repository: BarcodeRepository,
+    ): LegacyBarcodeDataMigrator = LegacyBarcodeDataMigrator(context, repository)
 
     @Provides
     @Singleton

@@ -1,7 +1,5 @@
 package com.luckyalanzhou.barcodegenerator
 
-import android.content.SharedPreferences
-import android.graphics.Color
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -26,6 +24,7 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsStore: SettingsStore,
+    private val legacySettingsMigrator: LegacySettingsMigrator,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -36,33 +35,9 @@ class SettingsViewModel @Inject constructor(
     internal val style: StyleSettings
         get() = currentStyle.copy()
 
-    suspend fun loadPersistedState(legacyPrefs: SharedPreferences) {
+    suspend fun loadPersistedState() {
         settingsStore.load()
-        if (!settingsStore.get(SettingsStore.SETTINGS_MIGRATED, false)) {
-            val migratedStyle = StyleSettings(
-                barColor = legacyPrefs.getInt("style_bar_color", Color.BLACK),
-                bgColor = legacyPrefs.getInt("style_bg_color", Color.WHITE),
-                showText = legacyPrefs.getBoolean("style_show_text", true),
-                textPosition = legacyPrefs.getString("style_text_position", "bottom") ?: "bottom",
-                textSize = legacyPrefs.getFloat("style_text_size", 14f),
-                barHeight = legacyPrefs.getInt("style_bar_height", 55),
-                barWidth = legacyPrefs.getFloat("style_bar_width", 220f),
-                margin = legacyPrefs.getInt("style_margin", 4),
-                showFormat = legacyPrefs.getBoolean("style_show_format", false),
-                colorScheme = legacyPrefs.getString("style_color_scheme", "system") ?: "system",
-            )
-            settingsStore.saveStyle(migratedStyle).join()
-            legacyPrefs.getString("last_update_error", "")?.takeIf { it.isNotBlank() }?.let {
-                settingsStore.setUpdateError(it).join()
-            }
-            settingsStore.markMigrated().join()
-            legacyPrefs.edit()
-                .remove("style_bar_color").remove("style_bg_color").remove("style_show_text")
-                .remove("style_text_position").remove("style_text_size").remove("style_bar_height")
-                .remove("style_bar_width").remove("style_margin").remove("style_show_format")
-                .remove("style_transparent_background").remove("style_color_scheme")
-                .remove("last_update_error").apply()
-        }
+        legacySettingsMigrator.migrateIfNeeded()
         initialize(settingsStore.loadStyle(), settingsStore.getOcrConfusionReplacementMask())
     }
 
