@@ -2,12 +2,19 @@ package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,8 +32,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
 internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetrics: Boolean = false, onSaved: (String) -> Unit) {
@@ -116,6 +125,7 @@ private fun ComposeChoiceField(
             onClick = { if (enabled) expanded = true },
             enabled = enabled,
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { buttonWidth = it.size.width },
+            shape = RoundedCornerShape(8.dp),
         ) {
             Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -370,7 +380,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
                 fontSize = 20.sp,
             )
-            Text("先选择一级文件夹，再选择二级文件夹", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            Text("选择收藏保存位置", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             if (roots.isEmpty()) {
                 Text("暂无一级文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
             } else {
@@ -378,39 +388,71 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Icon(FolderIcon, "一级文件夹", tint = if (dark) Color(0xffc8d5e8) else Color(0xff52627a), modifier = Modifier.size(24.dp))
+                        Text("① 一级文件夹", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
+                    }
                     ComposeChoiceField(
                         value = selectedRoot.ifBlank { "选择一级文件夹" },
                         options = roots,
                         dark = dark,
+                        modifier = Modifier.padding(start = 32.dp),
                         onSelected = { selectedRoot = it; selectedChild = "" },
                     )
+                    Row(
+                        modifier = Modifier.padding(start = 12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.width(20.dp).height(28.dp)) {
+                            Box(
+                                Modifier.padding(start = 7.dp).width(2.dp).height(28.dp)
+                                    .background(if (dark) Color(0xff52657f) else Color(0xffc6d6ee)),
+                            )
+                        }
+                        Icon(FolderIcon, "二级文件夹", tint = if (dark) Color(0xffc8d5e8) else Color(0xff52627a), modifier = Modifier.size(24.dp))
+                        Text("② 二级文件夹", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
+                    }
                     ComposeChoiceField(
                         value = selectedChild.ifBlank { "选择二级文件夹" },
                         options = childOptions,
                         dark = dark,
+                        modifier = Modifier.padding(start = 52.dp),
                         enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
                         onSelected = { selectedChild = it },
                     )
                 }
-                Text(
-                    "当前位置：" + selectedRoot.ifBlank { "未选择一级文件夹" } +
-                        if (selectedChild.isNotBlank()) " / $selectedChild" else "",
-                    color = if (dark) Color(0xffaeb9c9) else Color(0xff667085),
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        .background(if (dark) Color(0xff202b3a) else Color(0xffeef4fc), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("当前位置", color = if (dark) Color(0xffaeb9c9) else Color(0xff667085), fontSize = 12.sp)
+                        Row(Modifier.padding(top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            if (selectedRoot.isBlank()) {
+                                Text("未选择一级文件夹", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 14.sp)
+                            } else {
+                                Icon(FolderIcon, "当前一级文件夹", tint = if (dark) Color(0xffb8ccff) else Color(0xff2864d7), modifier = Modifier.size(18.dp))
+                                Text(selectedRoot, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (selectedChild.isNotBlank()) {
+                                    Icon(KeyboardArrowRightIcon, "层级", tint = if (dark) Color(0xffaeb9c9) else Color(0xff667085), modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
+                                    Icon(FolderIcon, "当前二级文件夹", tint = if (dark) Color(0xffb8ccff) else Color(0xff2864d7), modifier = Modifier.size(18.dp))
+                                    Text(selectedChild, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
+                    Icon(KeyboardArrowDownIcon, "展开层级", tint = if (dark) Color(0xffaeb9c9) else Color(0xff667085), modifier = Modifier.size(20.dp))
+                }
                 if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                DialogAction(
-                    "新建一级文件夹",
-                    dark,
-                    {
+                OutlinedButton(
+                    onClick = {
                         showFolderEditorCompose { folder ->
                             if (folder !in folders) folders.add(folder)
                             viewModel.createFavoriteFolder(folder)
@@ -418,12 +460,15 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                             selectedChild = ""
                         }
                     },
-                    modifier = Modifier.weight(1f),
-                )
-                DialogAction(
-                    "新建二级文件夹",
-                    dark,
-                    {
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                ) {
+                    Icon(CreateNewFolderIcon, "新建一级文件夹", modifier = Modifier.size(20.dp))
+                    Text("新建一级文件夹", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                }
+                OutlinedButton(
+                    onClick = {
                         if (selectedRoot.isBlank()) toast("请先选择一级文件夹")
                         else showSubfolderEditorCompose(selectedRoot) { child ->
                             val path = "$selectedRoot/$child"
@@ -431,8 +476,13 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                             selectedChild = child
                         }
                     },
-                    modifier = Modifier.weight(1f),
-                )
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                ) {
+                    Icon(CreateNewFolderIcon, "新建二级文件夹", modifier = Modifier.size(20.dp))
+                    Text("新建二级文件夹", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                }
             }
             Text("收藏文件名", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             OutlinedTextField(
