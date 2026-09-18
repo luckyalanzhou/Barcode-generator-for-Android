@@ -117,57 +117,17 @@ internal fun ComposeGeneratePage(
     }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(
-            Modifier.fillMaxWidth().heightIn(min = 72.dp, max = 296.dp)
-                .shadow(2.dp, RoundedCornerShape(18.dp), clip = true)
-                .clip(RoundedCornerShape(18.dp))
-                .background(cardColor)
-                .border(1.dp, cardBorder, RoundedCornerShape(18.dp))
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-        ) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                values.forEachIndexed { index, value ->
-                    Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                        BasicTextField(
-                            value = value,
-                            onValueChange = { values[index] = it; syncDraft() },
-                            singleLine = true,
-                            textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
-                            cursorBrush = SolidColor(textColor),
-                            modifier = Modifier.weight(1f).height(48.dp)
-                                .shadow(0.5.dp, RoundedCornerShape(14.dp), clip = true)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(inputColor)
-                                .border(1.dp, if (focusedIndex == index) focusedInputBorder else inputBorder, RoundedCornerShape(14.dp))
-                                .onFocusChanged { if (it.isFocused) focusedIndex = index }.padding(horizontal = 12.dp, vertical = 13.dp),
-                            decorationBox = { field ->
-                                Box {
-                                    if (value.isEmpty()) Text(
-                                        "\u8f93\u5165\u4e00\u884c\u6761\u7801\u5185\u5bb9",
-                                        color = secondary,
-                                        fontSize = 16.sp,
-                                        style = LocalTextStyle.current.copy(background = Color.Transparent),
-                                    )
-                                    field()
-                                }
-                            }
-                        )
-                        if (values.size > 1) {
-                            Spacer(Modifier.width(4.dp))
-                            SmallInputAction(ArrowCircleUpIcon, "上移", enabled = index > 0, iconSize = 27.dp) {
-                                val other = values[index - 1]; values[index - 1] = values[index]; values[index] = other; syncDraft()
-                            }
-                            SmallInputAction(ArrowCircleDownIcon, "下移", enabled = index < values.lastIndex, iconSize = 27.dp) {
-                                val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft()
-                            }
-                            SmallInputAction(DeleteIcon, "删除", enabled = true, iconTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), iconSize = 24.dp, onLongClick = { clearDialog = true }) {
-                                if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft()
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        ComposeGenerateInputPanel(
+            values = values,
+            dark = dark,
+            focusedIndex = focusedIndex,
+            onValueChange = { index, value -> values[index] = value; syncDraft() },
+            onFocus = { focusedIndex = it },
+            onMoveUp = { index -> val other = values[index - 1]; values[index - 1] = values[index]; values[index] = other; syncDraft() },
+            onMoveDown = { index -> val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft() },
+            onDelete = { index -> if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft() },
+            onDeleteLongClick = { clearDialog = true },
+        )
 
         val count = values.count { it.trim().isNotEmpty() }
         val cameraBorder = if (dark) Color(0xff8b929e) else Color(0xff737373)
