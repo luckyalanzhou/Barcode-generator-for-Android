@@ -289,21 +289,17 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             "settings" -> {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
-                ) {
-                    ComposeSettingsPage(
-                        settingsViewModel = dependencies.settingsViewModel,
-                        dark = dark,
-                        onApplyAppearance = dependencies.actions::applyAppearance,
-                        onEnterLanShare = dependencies.actions::enterLanShare,
-                        onRestoreFavorites = dependencies.actions::restoreFavorites,
-                        onExportFavorites = dependencies.actions::exportFavorites,
-                        onFeatureSelfTest = dependencies.actions::featureSelfTest,
-                        onCheckForUpdates = dependencies.actions::checkForUpdates,
-                        onNotice = dependencies.actions::notice,
-                    )
-                }
+                ComposeSettingsPage(
+                    settingsViewModel = dependencies.settingsViewModel,
+                    dark = dark,
+                    onApplyAppearance = dependencies.actions::applyAppearance,
+                    onEnterLanShare = dependencies.actions::enterLanShare,
+                    onRestoreFavorites = dependencies.actions::restoreFavorites,
+                    onExportFavorites = dependencies.actions::exportFavorites,
+                    onFeatureSelfTest = dependencies.actions::featureSelfTest,
+                    onCheckForUpdates = dependencies.actions::checkForUpdates,
+                    onNotice = dependencies.actions::notice,
+                )
             }
             "lanShare" -> {
                 // 文件传输页自行管理消息区滚动，输入卡片固定在系统导航栏上方。
