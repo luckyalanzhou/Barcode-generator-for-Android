@@ -122,7 +122,8 @@ internal fun ComposeSettingsPage(
                         SettingsDropdown(
                             dark = dark,
                             expanded = schemeMenu,
-                            width = schemeWidth ?: 132.dp,
+                            menuWidth = 132.dp,
+                            anchorWidth = schemeWidth,
                             onDismiss = { schemeMenu = false },
                         ) {
                             listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
@@ -182,7 +183,8 @@ internal fun ComposeSettingsPage(
                         SettingsDropdown(
                             dark = dark,
                             expanded = ocrMenu,
-                            width = ocrWidth ?: 164.dp,
+                            menuWidth = 164.dp,
+                            anchorWidth = ocrWidth,
                             onDismiss = { ocrMenu = false },
                         ) {
                             ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
@@ -336,7 +338,14 @@ private fun SettingsSmallButton(text: String, color: Color, buttonColor: Color, 
 }
 
 @Composable
-private fun SettingsDropdown(dark: Boolean, expanded: Boolean, width: androidx.compose.ui.unit.Dp, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsDropdown(
+    dark: Boolean,
+    expanded: Boolean,
+    menuWidth: androidx.compose.ui.unit.Dp,
+    anchorWidth: androidx.compose.ui.unit.Dp?,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     AnchoredDropdownMenu(
         dark = dark,
         expanded = expanded,
@@ -345,8 +354,8 @@ private fun SettingsDropdown(dark: Boolean, expanded: Boolean, width: androidx.c
         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
         tonalElevation = 0.dp,
         shadowElevation = 1.dp,
-        menuWidth = width.coerceAtLeast(132.dp),
-        anchorWidth = width,
+        menuWidth = menuWidth.coerceAtLeast(132.dp),
+        anchorWidth = anchorWidth,
         alignEndWithAnchor = true,
         content = content,
     )

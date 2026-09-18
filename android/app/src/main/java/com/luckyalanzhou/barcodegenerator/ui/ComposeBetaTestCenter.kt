@@ -109,7 +109,7 @@ internal fun BetaTestCenterComposePage(
         item(key = "beta-test-log-export") {
             Button(
                 onClick = onShareDebugLog,
-                modifier = Modifier.fillMaxWidth().height(44.dp).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp),
+                modifier = Modifier.fillMaxWidth().height(44.dp).globalButtonChrome(RoundedCornerShape(14.dp), 0.5.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = primary),
             ) { Text("导出调试日志", maxLines = 1) }

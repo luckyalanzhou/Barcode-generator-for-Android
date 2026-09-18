@@ -155,15 +155,15 @@ internal fun ComposeAppShell(
                     val fromMainTab = initialState.mainTabIndex != null
                     val toMainTab = targetState.mainTabIndex != null
                     if (fromMainTab && toMainTab) {
-                        // 只有底部四个主 Tab 之间切换时使用从底部弹出的页面动画。
+                        // 主 Tab 使用轻量淡入与 8dp 微上移；液态玻璃选中框负责横向弹簧移动。
                         (slideInVertically(
-                            animationSpec = animation.settleSpring(),
-                            initialOffsetY = { it },
-                        ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
+                            animationSpec = tween(210),
+                            initialOffsetY = { 8 },
+                        ) + fadeIn(tween(190))) togetherWith
                             (slideOutVertically(
-                                animationSpec = animation.settleSpring(),
-                                targetOffsetY = { it / 3 },
-                            ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using
+                                animationSpec = tween(170),
+                                targetOffsetY = { -4 },
+                            ) + fadeOut(tween(150))) using
                             SizeTransform(clip = false)
                     } else {
                         // 非主 Tab 页面使用稳定的伪随机选择，避免重组时真正随机导致动画跳变。

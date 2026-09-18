@@ -163,7 +163,6 @@ internal fun ComposeGeneratePage(
         )
 
         val count = values.count { it.trim().isNotEmpty() }
-        val cameraBorder = if (dark) Color(0xff8b929e) else Color(0xff737373)
         val generateEnabled = count > 0
         val generateContainer = if (generateEnabled) {
             if (dark) Color(0xff2d72d9) else Color(0xff2f6fda)
@@ -192,9 +191,9 @@ internal fun ComposeGeneratePage(
                 icon = PhotoCameraIcon,
                 iconDescription = "拍照取字",
                 label = "拍照取字",
-                containerColor = Color.Transparent,
+                // 与“添加一行”共用同一张卡片容器，避免单独的描边造成外观不一致。
+                containerColor = cardColor,
                 contentColor = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4),
-                borderColor = cameraBorder,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )

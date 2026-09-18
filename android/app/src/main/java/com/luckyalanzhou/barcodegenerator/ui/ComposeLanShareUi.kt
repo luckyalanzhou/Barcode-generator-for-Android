@@ -224,7 +224,7 @@ private fun BoxScope.LanShareComposer(
     Surface(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
         color = panel,
-        shadowElevation = 4.dp,
+        shadowElevation = 1.dp,
         shape = RoundedCornerShape(18.dp),
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
