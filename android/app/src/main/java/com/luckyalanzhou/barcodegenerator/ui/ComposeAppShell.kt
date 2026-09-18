@@ -35,12 +35,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.LocalConfiguration
+
+/** Compose 根层所需的状态和事件边界；Activity 只在入口处组装这些依赖。 */
+internal data class ComposeAppShellDependencies(
+    val viewModel: BarcodeViewModel,
+    val settingsViewModel: SettingsViewModel,
+    val lanShareViewModel: LanShareViewModel,
+    val actions: ComposeAppShellActions,
+    val betaTestEntries: List<BetaTestEntry>,
+)
 
 /** 创建唯一的 Compose 根节点；业务状态仍由 MainActivity/ViewModel 保存。 */
 internal fun MainActivity.buildComposeShell() {
@@ -51,25 +57,13 @@ internal fun MainActivity.buildComposeShell() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 ComposeAppShell(
-                    activity = activity,
-                    onTabSelected = { index ->
-                        if (activity.viewModel.uiState.value.page == "lanShare") activity.closeLanShare()
-                        activity.viewModel.selectMainTab(index)
-                    },
-                    onSyncBarcodeDisplaySettings = activity::syncBarcodeDisplaySettings,
-                    onEnsureLanShare = activity::enterLanShare,
-                    onShowUpdateDialog = { update ->
-                        val latest = update.availableVersion
-                        val downloadUrl = update.availableUrl
-                        if (latest != null && downloadUrl != null) {
-                            activity.showUpdateAvailableDialogCompose(
-                                latest = latest,
-                                downloadUrl = downloadUrl,
-                                expectedSize = update.expectedSize,
-                                expectedSha256 = update.sha256,
-                            )
-                        }
-                    },
+                    dependencies = ComposeAppShellDependencies(
+                        viewModel = activity.viewModel,
+                        settingsViewModel = activity.settingsViewModel,
+                        lanShareViewModel = activity.lanShareViewModel,
+                        actions = activity.composeAppShellActions(),
+                        betaTestEntries = activity.betaTestEntries(),
+                    ),
                 )
             }
         }
@@ -84,16 +78,12 @@ internal fun MainActivity.buildComposeShell() {
  */
 @Composable
 internal fun ComposeAppShell(
-    activity: MainActivity,
-    onTabSelected: (Int) -> Unit,
-    onSyncBarcodeDisplaySettings: (Boolean) -> Unit,
-    onEnsureLanShare: () -> Unit,
-    onShowUpdateDialog: (UpdateUiState) -> Unit,
+    dependencies: ComposeAppShellDependencies,
 ) {
-    val appUiState by activity.viewModel.uiState.collectAsStateWithLifecycle()
-    val settingsUiState by activity.settingsViewModel.uiState.collectAsStateWithLifecycle()
-    val updateUiState by activity.viewModel.updateUiState.collectAsStateWithLifecycle()
-    val fireworksVisible by activity.viewModel.fireworksVisible.collectAsStateWithLifecycle()
+    val appUiState by dependencies.viewModel.uiState.collectAsStateWithLifecycle()
+    val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val updateUiState by dependencies.viewModel.updateUiState.collectAsStateWithLifecycle()
+    val fireworksVisible by dependencies.viewModel.fireworksVisible.collectAsStateWithLifecycle()
     val uiMode = LocalConfiguration.current.uiMode
     val dark = settingsUiState.style.colorScheme == "dark" ||
         (settingsUiState.style.colorScheme == "system" &&
@@ -104,9 +94,9 @@ internal fun ComposeAppShell(
     val animation = rememberComposeAnimationConfig()
 
     LaunchedEffect(appUiState.page) {
-        onSyncBarcodeDisplaySettings(appUiState.page == "results")
-        if (appUiState.page == "lanShare" && activity.lanShareViewModel.uiState.value.session == null) {
-            onEnsureLanShare()
+        dependencies.actions.syncBarcodeDisplaySettings(appUiState.page == "results")
+        if (appUiState.page == "lanShare" && dependencies.lanShareViewModel.uiState.value.session == null) {
+            dependencies.actions.ensureLanShare()
         }
     }
 
@@ -119,7 +109,7 @@ internal fun ComposeAppShell(
             updateUiState.availableVersion != null &&
             updateUiState.availableUrl != null
         ) {
-            onShowUpdateDialog(updateUiState)
+        dependencies.actions.showUpdateDialog(updateUiState)
         }
     }
 
@@ -181,7 +171,7 @@ internal fun ComposeAppShell(
                         )
                     }
                     Box(Modifier.fillMaxWidth().weight(1f)) {
-                        ComposeNavigationHost(activity, targetPage, dark)
+                        ComposeNavigationHost(dependencies, targetPage, dark)
                     }
                 }
             }
@@ -190,7 +180,7 @@ internal fun ComposeAppShell(
                 BarcodeComposeBottomTabBar(
                     selectedIndex = appUiState.selectedTab,
                     dark = dark,
-                    onTabSelected = onTabSelected,
+                    onTabSelected = dependencies.actions::selectTab,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(72.dp),
@@ -206,56 +196,35 @@ internal fun ComposeAppShell(
 
 private fun routeForPage(page: String): String = AppRoute.fromPage(page).pageName
 
-/** Navigation Compose 容器；页面业务仍由现有兼容层提供，逐步迁移期间保持返回目标不变。 */
+/** 页面路由渲染器；页面状态唯一来源是 ViewModel，转场由上层 AnimatedContent 负责。 */
 @Composable
-private fun ComposeNavigationHost(activity: MainActivity, displayPage: String, dark: Boolean) {
-    val initialRoute = remember(displayPage) { routeForPage(displayPage) }
-    val navController = rememberNavController()
-    val targetRoute = routeForPage(displayPage)
-
-    LaunchedEffect(targetRoute) {
-        if (navController.currentDestination?.route != targetRoute) {
-            navController.navigate(targetRoute) {
-                launchSingleTop = true
-            }
-        }
-    }
-
-    NavHost(navController = navController, startDestination = initialRoute) {
-        composable("generate") { ComposePageRoute(activity, "generate", dark) }
-        composable("history") { ComposePageRoute(activity, "history", dark) }
-        composable("favorites") { ComposePageRoute(activity, "favorites", dark) }
-        composable("favoriteDetail") { ComposePageRoute(activity, "favoriteDetail", dark) }
-        composable("results") { ComposePageRoute(activity, "results", dark) }
-        composable("settings") { ComposePageRoute(activity, "settings", dark) }
-        composable("lanShare") { ComposePageRoute(activity, "lanShare", dark) }
-        composable("betaTestCenter") { ComposePageRoute(activity, "betaTestCenter", dark) }
-    }
+private fun ComposeNavigationHost(dependencies: ComposeAppShellDependencies, displayPage: String, dark: Boolean) {
+    ComposePageRoute(dependencies, routeForPage(displayPage), dark)
 }
 
 @Composable
-private fun ComposePageRoute(activity: MainActivity, routePage: String, dark: Boolean) {
+private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePage: String, dark: Boolean) {
     key(routePage) {
         when (routePage) {
             "generate" -> {
                 val initialFormat = remember(routePage) {
-                    activity.viewModel.generateEditorState.value.pendingFormat
-                        ?: activity.viewModel.generateEditorState.value.formatName
+                    dependencies.viewModel.generateEditorState.value.pendingFormat
+                        ?: dependencies.viewModel.generateEditorState.value.formatName
                 }
                 LaunchedEffect(routePage) {
-                    activity.viewModel.clearPendingGenerateFormat()
-                    activity.viewModel.updateGenerateFormat(initialFormat)
+                    dependencies.viewModel.clearPendingGenerateFormat()
+                    dependencies.viewModel.updateGenerateFormat(initialFormat)
                 }
                 ComposeGeneratePage(
-                    viewModel = activity.viewModel,
+                    viewModel = dependencies.viewModel,
                     initialFormat = initialFormat,
                     dark = dark,
-                    onCaptureText = activity::captureText,
-                    onNotice = activity::toast,
+                    onCaptureText = dependencies.actions::captureText,
+                    onNotice = dependencies.actions::notice,
                 )
             }
             "history" -> {
-                val dataState by activity.viewModel.dataState.collectAsStateWithLifecycle()
+                val dataState by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
                 val historyEntries = dataState.items
                     .filter { it.inHistory }
                     .map { it.copy() }
@@ -266,16 +235,13 @@ private fun ComposePageRoute(activity: MainActivity, routePage: String, dark: Bo
                     HistoryComposePage(
                         entries = historyEntries,
                         dark = dark,
-                        onClear = { activity.confirmClearCompose(false) },
+                        onClear = dependencies.actions::clearHistory,
                         onOpen = { batch ->
-                            activity.viewModel.openHistoryResult(batch)
+                            dependencies.viewModel.openHistoryResult(batch)
                         },
-                        onEdit = { batch ->
-                            if (batch.size == 1) activity.showItemEditorCompose(batch.first())
-                            else activity.showHistoryBatchPickerCompose(batch)
-                        },
+                        onEdit = dependencies.actions::editHistory,
                         onDelete = { batch ->
-                            activity.viewModel.deleteHistoryBatch(batch)
+                            dependencies.viewModel.deleteHistoryBatch(batch)
                         },
                         timeText = ::formatHistoryTime,
                     )
@@ -286,42 +252,40 @@ private fun ComposePageRoute(activity: MainActivity, routePage: String, dark: Bo
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 ) {
                     ComposeFavoritesPage(
-                        viewModel = activity.viewModel,
+                        viewModel = dependencies.viewModel,
                         dark = dark,
-                        onShowSubfolderEditor = activity::showSubfolderEditorCompose,
-                        onShowFolderEditor = { initial, onSaved -> activity.showFolderEditorCompose(initial, onSaved = onSaved) },
-                        onShowMoveDialog = activity::showFavoriteMoveDialogCompose,
-                        onShowRenameDialog = activity::showFavoriteRenameDialogCompose,
-                        onConfirm = { title, message, positive, onConfirm ->
-                            activity.showComposeConfirmDialog(title, message, positive, onConfirm)
-                        },
+                        onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
+                        onShowFolderEditor = dependencies.actions::showFolderEditor,
+                        onShowMoveDialog = dependencies.actions::showMoveDialog,
+                        onShowRenameDialog = dependencies.actions::showRenameDialog,
+                        onConfirm = dependencies.actions::confirm,
                     )
                 }
             }
             "favoriteDetail" -> {
-                val resultState by activity.viewModel.resultUiState.collectAsStateWithLifecycle()
+                val resultState by dependencies.viewModel.resultUiState.collectAsStateWithLifecycle()
                 val group = resultState.selectedFavoriteGroup
                 if (group == null) {
                     LaunchedEffect(Unit) {
-                        activity.viewModel.navigateTo("favorites")
+                        dependencies.viewModel.navigateTo("favorites")
                     }
                 } else {
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                     ) {
-                        val settings by activity.settingsViewModel.uiState.collectAsStateWithLifecycle()
-                        ComposeFavoriteDetailPage(activity.viewModel, settings, dark, group)
+                        val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                        ComposeFavoriteDetailPage(dependencies.viewModel, settings, dark, group)
                     }
                 }
             }
             "results" -> {
-                val settings by activity.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 ComposeResultsPage(
-                    viewModel = activity.viewModel,
+                    viewModel = dependencies.viewModel,
                     settings = settings,
                     dark = dark,
-                    onSaveFavorite = activity::saveResultAsFavoriteCompose,
-                    onShare = activity::shareResultPage,
+                    onSaveFavorite = dependencies.actions::saveFavorite,
+                    onShare = dependencies.actions::shareResult,
                 )
             }
             "settings" -> {
@@ -329,38 +293,34 @@ private fun ComposePageRoute(activity: MainActivity, routePage: String, dark: Bo
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 ) {
                     ComposeSettingsPage(
-                        settingsViewModel = activity.settingsViewModel,
+                        settingsViewModel = dependencies.settingsViewModel,
                         dark = dark,
-                        onApplyAppearance = activity::applyAppearance,
-                        onEnterLanShare = activity::enterLanShare,
-                        onRestoreFavorites = activity::restoreFavoritesImport,
-                        onExportFavorites = activity::createFavoritesExportCompose,
-                        onFeatureSelfTest = activity::showFeatureSelfTestDialog,
-                        onCheckForUpdates = { activity.checkForUpdates(silent = false) },
-                        onNotice = activity::toast,
+                        onApplyAppearance = dependencies.actions::applyAppearance,
+                        onEnterLanShare = dependencies.actions::enterLanShare,
+                        onRestoreFavorites = dependencies.actions::restoreFavorites,
+                        onExportFavorites = dependencies.actions::exportFavorites,
+                        onFeatureSelfTest = dependencies.actions::featureSelfTest,
+                        onCheckForUpdates = dependencies.actions::checkForUpdates,
+                        onNotice = dependencies.actions::notice,
                     )
                 }
             }
             "lanShare" -> {
                 // 文件传输页自行管理消息区滚动，输入卡片固定在系统导航栏上方。
                 ComposeLanSharePage(
-                    viewModel = activity.lanShareViewModel,
+                    viewModel = dependencies.lanShareViewModel,
                     dark = dark,
-                    onOpenCamera = activity::openLanShareCamera,
-                    onOpenGallery = activity::openLanShareGallery,
-                    onOpenFiles = activity::openLanShareFiles,
-                    onSaveFile = activity::saveLanShareFile,
-                    onNotice = activity::toast,
-                    onCopyAddress = { address ->
-                        (activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-                            .setPrimaryClip(android.content.ClipData.newPlainText("局域网传输地址", address))
-                        activity.toast("已复制局域网传输地址")
-                    },
+                    onOpenCamera = dependencies.actions::openLanShareCamera,
+                    onOpenGallery = dependencies.actions::openLanShareGallery,
+                    onOpenFiles = dependencies.actions::openLanShareFiles,
+                    onSaveFile = dependencies.actions::saveLanShareFile,
+                    onNotice = dependencies.actions::notice,
+                    onCopyAddress = dependencies.actions::copyLanShareAddress,
                 )
             }
             // Beta 测试中心也直接作为 Compose 内容路由，不再嵌套旧 AndroidView。
             "betaTestCenter" -> {
-                BetaTestCenterComposePage(dark, activity.betaTestEntries(), activity::shareDebugLog)
+                BetaTestCenterComposePage(dark, dependencies.betaTestEntries, dependencies.actions::shareDebugLog)
             }
             else -> Box(Modifier.fillMaxSize())
         }

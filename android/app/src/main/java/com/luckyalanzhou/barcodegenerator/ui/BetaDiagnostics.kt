@@ -6,10 +6,3 @@ internal fun MainActivity.showFeatureSelfTestDialog() {
         viewModel.navigateTo("betaTestCenter")
     }
 }
-
-/** 保留旧业务入口，但不再使用反射切换页面。 */
-internal fun MainActivity.renderBetaTestCenterPage() {
-    if (BuildConfig.DEBUG_LOG_EXPORT) {
-        viewModel.navigateTo("betaTestCenter")
-    }
-}
