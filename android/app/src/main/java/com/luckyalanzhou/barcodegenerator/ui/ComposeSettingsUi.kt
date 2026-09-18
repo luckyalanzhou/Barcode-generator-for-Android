@@ -241,8 +241,8 @@ internal fun ComposeSettingsPage(
 
         item("settings-about") {
             SettingsCard(colors.card, dark) {
-                Text("关于", color = colors.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("关于", color = colors.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("作者：Alan", color = colors.secondary, fontSize = 13.sp)
                         Text("版本：${BuildConfig.VERSION_NAME}", color = colors.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
@@ -298,7 +298,7 @@ private fun SettingsCard(color: Color, dark: Boolean, content: @Composable Colum
     Column(
         Modifier.fillMaxWidth()
             .globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 15.dp, vertical = 4.dp),
         content = content,
     )
 }
