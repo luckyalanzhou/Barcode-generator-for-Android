@@ -170,7 +170,6 @@ internal fun ComposeGeneratePage(
         }
 
         val count = values.count { it.trim().isNotEmpty() }
-        val actionShape = RoundedCornerShape(18.dp)
         val cameraBorder = if (dark) Color(0xff8b929e) else Color(0xff737373)
         val generateEnabled = count > 0
         val generateContainer = if (generateEnabled) {
@@ -182,18 +181,30 @@ internal fun ComposeGeneratePage(
         }
         val generateContent = if (generateEnabled) Color.White else if (dark) Color(0xffaeb7c5) else Color(0xff99999f)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(
-                modifier = Modifier.weight(1f).globalButtonChrome(actionShape, 2.dp).height(52.dp)
-                    .clip(actionShape).background(cardColor).clickable {
+            ComposeGenerateActionButton(
+                icon = AddIcon,
+                iconDescription = "添加一行",
+                label = "添加一行",
+                containerColor = cardColor,
+                contentColor = textColor,
+                modifier = Modifier.weight(1f),
+                iconSize = 20.dp,
+                contentSpacing = 4.dp,
+                onClick = {
                     if (values.size >= 100) onNotice("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
                     else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
-                }, contentAlignment = Alignment.Center
-            ) { Row(Modifier.background(Color.Transparent), verticalAlignment = Alignment.CenterVertically) { Icon(AddIcon, "添加一行", Modifier.size(20.dp), tint = textColor); Spacer(Modifier.width(4.dp)); Text("添加一行", color = textColor, fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) } }
-            Box(
-                modifier = Modifier.weight(1f).globalButtonChrome(actionShape, 2.dp).height(52.dp)
-                    .clip(actionShape).background(Color.Transparent).border(1.dp, cameraBorder, actionShape).clickable(onClick = onCaptureText),
-                contentAlignment = Alignment.Center
-            ) { Row(Modifier.background(Color.Transparent), verticalAlignment = Alignment.CenterVertically) { Icon(PhotoCameraIcon, "拍照取字", Modifier.size(22.dp), tint = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4)); Spacer(Modifier.width(6.dp)); Text("拍照取字", color = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4), fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) } }
+                },
+            )
+            ComposeGenerateActionButton(
+                icon = PhotoCameraIcon,
+                iconDescription = "拍照取字",
+                label = "拍照取字",
+                containerColor = Color.Transparent,
+                contentColor = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4),
+                borderColor = cameraBorder,
+                modifier = Modifier.weight(1f),
+                onClick = onCaptureText,
+            )
         }
 
         Box {
@@ -237,8 +248,8 @@ internal fun ComposeGeneratePage(
         }
 
         Box(
-            modifier = Modifier.fillMaxWidth().globalButtonChrome(actionShape, 2.dp).height(52.dp)
-                .clip(actionShape).background(generateContainer).clickable(enabled = generateEnabled) {
+            modifier = Modifier.fillMaxWidth().globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp)
+                .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled) {
                 syncDraft()
                 viewModel.updateGenerateFormat(formatName)
                 val result = viewModel.generateBarcodes(formatName)

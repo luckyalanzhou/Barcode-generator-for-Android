@@ -216,14 +216,6 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
                 cornerRadius = CornerRadius(6.dp.toPx()),
             )
         }
-        if (animated > 0f && animated < 1f) {
-            drawLine(
-                color = Color.White.copy(alpha = 0.78f),
-                start = Offset(filledWidth, 2.dp.toPx()),
-                end = Offset(filledWidth, size.height - 2.dp.toPx()),
-                strokeWidth = 2.dp.toPx(),
-            )
-        }
     }
 }
 

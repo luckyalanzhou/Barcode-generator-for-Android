@@ -1,0 +1,70 @@
+package com.luckyalanzhou.barcodegenerator
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/** 生成页操作按钮：单一 Surface 容器，避免 Material Button 的内部背景层。 */
+@Composable
+internal fun ComposeGenerateActionButton(
+    icon: ImageVector,
+    iconDescription: String,
+    label: String,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    borderColor: Color? = null,
+    iconSize: Dp = 22.dp,
+    contentSpacing: Dp = 6.dp,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val transparentTextStyle = LocalTextStyle.current.merge(
+        TextStyle(color = contentColor, background = Color.Transparent),
+    )
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(52.dp).semantics { role = Role.Button },
+        shape = shape,
+        color = containerColor,
+        contentColor = contentColor,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = borderColor?.let { BorderStroke(1.dp, it) },
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = iconDescription,
+                tint = contentColor,
+                modifier = Modifier.size(iconSize),
+            )
+            Spacer(Modifier.width(contentSpacing))
+            Text(label, style = transparentTextStyle.copy(fontSize = 15.sp))
+        }
+    }
+}
