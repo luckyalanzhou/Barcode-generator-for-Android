@@ -5,8 +5,7 @@
 > 当前正式 Release：`v1.0.0`<br>
 > 当前分支：`main`<br>
 > 正式包名：`com.luckyalanzhou.barcodegenerator`<br>
-> 最低 Android 版本：API 26<br>
-> 编译/目标 SDK：35
+> 最低 Android 版本：API 26
 
 ## 正式版状态
 
@@ -48,37 +47,6 @@ com.luckyalanzhou.barcodegenerator.test
 
 因此正式版和 Beta 可以并行安装；日常使用请优先选择正式版，测试新功能请安装 Beta 包。
 
-## 本地构建
-
-项目要求 JDK 17、Android SDK 35 和 Gradle Wrapper。Windows PowerShell 示例：
-
-```powershell
-cd android
-$env:JAVA_HOME = "D:\Java17"
-$env:GRADLE_USER_HOME = "D:\Barcode_build\gradle-home"
-$env:ANDROID_USER_HOME = "D:\Barcode_build\android-home"
-$env:ANDROID_SDK_ROOT = "D:\Android\Sdk"
-.\gradlew.bat :app:assembleOfficialDebug :app:testOfficialDebugUnitTest --no-daemon --no-configuration-cache
-```
-
-正式版 Release 构建需要 Release 签名环境变量：
-
-```text
-KEYSTORE_FILE
-KEYSTORE_PASSWORD
-KEY_ALIAS
-KEY_PASSWORD
-```
-
-## 正式版构建流程
-
-正式版由 `.github/workflows/build-android-official.yml` 在 `main` 分支手动触发。触发时必须填写：
-
-- `version_name`：三段式版本号，例如 `1.0.1`。
-- `version_code`：递增的正整数，例如 `12`。
-
-工作流会校验版本参数，使用 Release 签名构建 `assembleOfficialRelease`，上传 APK Artifact，并发布 `android-vx.y.z` GitHub Release。正式版构建不会自动修改版本文件。
-
 ## 项目结构
 
 ```text
@@ -86,11 +54,11 @@ android/
 └─ app/             # 正式版 Android 应用、界面和业务逻辑
 ```
 
-正式版的核心约束是：
+正式版的发布约束是：
 
 1. 先在 `beta` 分支完成开发和验证。
-2. Beta 构建、安装和功能测试通过后，再合并到 `main`。
-3. 只从 `main` 触发正式版 Release 构建。
+2. Beta 测试、安装和功能验证通过后，再合并到 `main`。
+3. 只发布经过验证的正式版本。
 
 ## 分支说明
 
