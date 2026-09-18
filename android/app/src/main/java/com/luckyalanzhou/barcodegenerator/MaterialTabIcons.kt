@@ -238,7 +238,39 @@ internal object MaterialTabIcons {
         }.build()
     }
 
-    val arrowCircleUp: ImageVector by lazy {
+    val arrowUpward: ImageVector by lazy {
+        ImageVector.Builder("arrow_upward", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(11.25f, 19.5f)
+            verticalLineTo(7.37f)
+            lineToRelative(-5.7f, 5.7f)
+            lineTo(4.5f, 12f)
+            lineTo(12f, 4.5f)
+            lineTo(19.5f, 12f)
+            lineToRelative(-1.05f, 1.07f)
+            lineToRelative(-5.7f, -5.7f)
+            verticalLineTo(19.5f)
+            horizontalLineToRelative(-1.5f)
+            close()
+        }.build()
+    }
+
+    val arrowDownward: ImageVector by lazy {
+        ImageVector.Builder("arrow_downward", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(11.25f, 4.5f)
+            verticalLineTo(16.63f)
+            lineToRelative(-5.7f, -5.7f)
+            lineTo(4.5f, 12f)
+            lineTo(12f, 19.5f)
+            lineTo(19.5f, 12f)
+            lineToRelative(-1.05f, -1.07f)
+            lineToRelative(-5.7f, 5.7f)
+            verticalLineTo(4.5f)
+            horizontalLineToRelative(-1.5f)
+            close()
+        }.build()
+    }
+
+    private val arrowCircleUpLegacy: ImageVector by lazy {
         ImageVector.Builder("arrow_circle_up", 24.dp, 24.dp, 24f, 24f).path {
             moveTo(11f, 16f)
             horizontalLineToRelative(2f)
@@ -284,7 +316,7 @@ internal object MaterialTabIcons {
         }.build()
     }
 
-    val arrowCircleDown: ImageVector by lazy {
+    private val arrowCircleDownLegacy: ImageVector by lazy {
         ImageVector.Builder("arrow_circle_down", 24.dp, 24.dp, 24f, 24f).path {
             moveTo(12f, 16f)
             lineToRelative(4f, -4f)

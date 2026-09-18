@@ -1,8 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
-import com.luckyalanzhou.barcodegenerator.icons.ArrowCircleDownIcon
-import com.luckyalanzhou.barcodegenerator.icons.ArrowCircleUpIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
 

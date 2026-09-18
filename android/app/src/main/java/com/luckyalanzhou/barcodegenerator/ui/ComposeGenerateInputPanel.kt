@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.icons.ArrowCircleDownIcon
-import com.luckyalanzhou.barcodegenerator.icons.ArrowCircleUpIcon
+import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
+import com.luckyalanzhou.barcodegenerator.icons.ArrowUpwardIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 
 import androidx.compose.foundation.BorderStroke
@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -88,6 +89,14 @@ internal fun ComposeGenerateInputPanel(
                     }
                 }
                 Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = (index + 1).toString(),
+                        modifier = Modifier.width(24.dp),
+                        color = secondary,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.width(6.dp))
                     Surface(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(14.dp),
@@ -124,8 +133,8 @@ internal fun ComposeGenerateInputPanel(
                     }
                     if (values.size > 1) {
                         Spacer(Modifier.width(4.dp))
-                        GenerateInputAction(ArrowCircleUpIcon, "上移", index > 0, 27.dp) { onMoveUp(index) }
-                        GenerateInputAction(ArrowCircleDownIcon, "下移", index < values.lastIndex, 27.dp) { onMoveDown(index) }
+                        GenerateInputAction(ArrowUpwardIcon, "上移", index > 0, 27.dp) { onMoveUp(index) }
+                        GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex, 27.dp) { onMoveDown(index) }
                         GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), onLongClick = onDeleteLongClick) { onDelete(index) }
                     }
                 }

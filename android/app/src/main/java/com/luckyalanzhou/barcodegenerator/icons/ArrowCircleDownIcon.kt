@@ -1,4 +1,4 @@
 package com.luckyalanzhou.barcodegenerator.icons
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.luckyalanzhou.barcodegenerator.MaterialTabIcons
-internal val ArrowCircleDownIcon: ImageVector get() = MaterialTabIcons.arrowCircleDown
+internal val ArrowDownwardIcon: ImageVector get() = MaterialTabIcons.arrowDownward
