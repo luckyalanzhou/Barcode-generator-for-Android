@@ -5,7 +5,11 @@ import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
@@ -147,15 +151,56 @@ internal fun ComposeAppShell(
                 targetState = appUiState.page,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 transitionSpec = {
-                    (slideInVertically(
-                        animationSpec = animation.settleSpring(),
-                        initialOffsetY = { it / 10 },
-                    ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
-                        (slideOutVertically(
+                    val fromMainTab = AppRoute.fromPage(initialState).mainTabIndex != null
+                    val toMainTab = AppRoute.fromPage(targetState).mainTabIndex != null
+                    if (fromMainTab && toMainTab) {
+                        // 只有底部四个主 Tab 之间切换时使用从底部弹出的页面动画。
+                        (slideInVertically(
                             animationSpec = animation.settleSpring(),
-                            targetOffsetY = { -it / 14 },
-                        ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using
-                        SizeTransform(clip = false)
+                            initialOffsetY = { it },
+                        ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
+                            (slideOutVertically(
+                                animationSpec = animation.settleSpring(),
+                                targetOffsetY = { it / 3 },
+                            ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using
+                            SizeTransform(clip = false)
+                    } else {
+                        // 非主 Tab 页面使用稳定的伪随机选择，避免重组时真正随机导致动画跳变。
+                        when (kotlin.math.abs((initialState.hashCode() * 31 + targetState.hashCode()).rem(4))) {
+                            0 -> (slideInHorizontally(
+                                animationSpec = tween(animation.pageEnterDurationMillis),
+                                initialOffsetX = { it / 2 },
+                            ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = tween(animation.pageExitDurationMillis),
+                                    targetOffsetX = { -it / 3 },
+                                ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using SizeTransform(clip = false)
+                            1 -> (slideInVertically(
+                                animationSpec = tween(animation.pageEnterDurationMillis),
+                                initialOffsetY = { -it / 3 },
+                            ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
+                                (slideOutVertically(
+                                    animationSpec = tween(animation.pageExitDurationMillis),
+                                    targetOffsetY = { it / 3 },
+                                ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using SizeTransform(clip = false)
+                            2 -> (scaleIn(
+                                initialScale = .88f,
+                                animationSpec = tween(animation.pageEnterDurationMillis),
+                            ) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
+                                (scaleOut(
+                                    targetScale = .94f,
+                                    animationSpec = tween(animation.pageExitDurationMillis),
+                                ) + fadeOut(tween(animation.pageFadeOutDurationMillis))) using SizeTransform(clip = false)
+                            else -> (fadeIn(tween(animation.pageEnterDurationMillis)) + slideInVertically(
+                                animationSpec = tween(animation.pageEnterDurationMillis),
+                                initialOffsetY = { it / 2 },
+                            )) togetherWith
+                                (fadeOut(tween(animation.pageExitDurationMillis)) + slideOutHorizontally(
+                                    animationSpec = tween(animation.pageExitDurationMillis),
+                                    targetOffsetX = { it / 4 },
+                                )) using SizeTransform(clip = false)
+                        }
+                    }
                 },
                 label = "pageUpTransition",
             ) { targetPage ->
@@ -248,19 +293,15 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             "favorites" -> {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                ) {
-                    ComposeFavoritesPage(
-                        viewModel = dependencies.viewModel,
-                        dark = dark,
-                        onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
-                        onShowFolderEditor = dependencies.actions::showFolderEditor,
-                        onShowMoveDialog = dependencies.actions::showMoveDialog,
-                        onShowRenameDialog = dependencies.actions::showRenameDialog,
-                        onConfirm = dependencies.actions::confirm,
-                    )
-                }
+                ComposeFavoritesPage(
+                    viewModel = dependencies.viewModel,
+                    dark = dark,
+                    onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
+                    onShowFolderEditor = dependencies.actions::showFolderEditor,
+                    onShowMoveDialog = dependencies.actions::showMoveDialog,
+                    onShowRenameDialog = dependencies.actions::showRenameDialog,
+                    onConfirm = dependencies.actions::confirm,
+                )
             }
             "favoriteDetail" -> {
                 val resultState by dependencies.viewModel.resultUiState.collectAsStateWithLifecycle()
@@ -270,12 +311,8 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                         dependencies.viewModel.navigateTo("favorites")
                     }
                 } else {
-                    Column(
-                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                    ) {
-                        val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
-                        ComposeFavoriteDetailPage(dependencies.viewModel, settings, dark, group)
-                    }
+                    val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                    ComposeFavoriteDetailPage(dependencies.viewModel, settings, dark, group)
                 }
             }
             "results" -> {

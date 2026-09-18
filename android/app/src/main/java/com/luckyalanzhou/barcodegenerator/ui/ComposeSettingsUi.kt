@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -365,7 +366,29 @@ private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloating
             },
             thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(accent)) },
         )
-        Text(valueText, color = accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(66.dp))
+        val valueParts = valueText.split(' ', limit = 2)
+        Row(
+            modifier = Modifier.width(74.dp).padding(end = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                valueParts.firstOrNull().orEmpty(),
+                color = accent,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(38.dp),
+            )
+            Text(
+                valueParts.getOrNull(1).orEmpty(),
+                color = accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(20.dp),
+            )
+        }
     }
 }
 
