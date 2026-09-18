@@ -25,7 +25,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -142,12 +142,21 @@ internal fun ComposeSettingsPage(
             SettingDivider(dark)
             SettingSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", primary, accent) { settingsViewModel.setMargin(it); persist(settings.copy(margin = it)) }
             SettingDivider(dark)
-            SettingRow("条码格式", primary, trailing = {
+            SettingRow("显示条码格式", primary, trailing = {
                 Box(
-                    Modifier.height(40.dp).width(64.dp),
+                    Modifier.height(40.dp).width(64.dp).clickable {
+                        val next = !settings.showFormat
+                        settingsViewModel.setShowFormat(next)
+                        persist(settings.copy(showFormat = next))
+                    },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Switch(checked = settings.showFormat, onCheckedChange = { settingsViewModel.setShowFormat(it); persist(settings.copy(showFormat = it)) })
+                    Icon(
+                        imageVector = if (settings.showFormat) MaterialTabIcons.toggleOn else MaterialTabIcons.toggleOff,
+                        contentDescription = if (settings.showFormat) "已开启显示条码格式" else "已关闭显示条码格式",
+                        tint = if (settings.showFormat) accent else secondary,
+                        modifier = Modifier.size(38.dp),
+                    )
                 }
             })
             SettingDivider(dark)

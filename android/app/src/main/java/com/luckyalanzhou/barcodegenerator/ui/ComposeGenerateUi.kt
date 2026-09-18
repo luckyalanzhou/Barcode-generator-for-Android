@@ -140,13 +140,13 @@ internal fun ComposeGeneratePage(
                         )
                         if (values.size > 1) {
                             Spacer(Modifier.width(4.dp))
-                            SmallInputAction("\u2191", enabled = index > 0) {
+                            SmallInputAction(MaterialTabIcons.arrowCircleUp, "上移", enabled = index > 0) {
                                 val other = values[index - 1]; values[index - 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction("\u2193", enabled = index < values.lastIndex) {
+                            SmallInputAction(MaterialTabIcons.arrowCircleDown, "下移", enabled = index < values.lastIndex) {
                                 val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction("\u00d7", enabled = true, icon = R.drawable.ic_delete_light, iconTint = if (dark) Color(0xffffa0a0) else Color(0xffc85c5c), onLongClick = { clearDialog = true }) {
+                            SmallInputAction(MaterialTabIcons.delete, "删除", enabled = true, iconTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), onLongClick = { clearDialog = true }) {
                                 if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft()
                             }
                         }
@@ -228,12 +228,11 @@ internal fun ComposeGeneratePage(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SmallInputAction(label: String, enabled: Boolean, icon: Int? = null, iconTint: Color = Color(0xff667085), onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, iconTint: Color = Color(0xff667085), onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Box(
         Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center
     ) {
-        if (icon != null) Icon(painterResource(icon), contentDescription = "清除输入", tint = if (enabled) iconTint else Color(0xffb5bdc9), modifier = Modifier.size(18.dp))
-        else Text(label, fontSize = 16.sp, color = if (enabled) Color(0xff667085) else Color(0xffb5bdc9))
+        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint else Color(0xffb5bdc9), modifier = Modifier.size(20.dp))
     }
 }

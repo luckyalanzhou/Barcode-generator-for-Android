@@ -133,6 +133,74 @@ internal object MaterialTabIcons {
         }.build()
     }
 
+    val history: ImageVector by lazy {
+        ImageVector.Builder("history", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(13f, 3f)
+            quadTo(8.03f, 3f, 4f, 7f)
+            verticalLineTo(4f)
+            horizontalLineTo(2f)
+            verticalLineTo(10f)
+            horizontalLineTo(8f)
+            verticalLineTo(8f)
+            horizontalLineTo(5.4f)
+            quadTo(8.5f, 5f, 13f, 5f)
+            quadTo(17.97f, 5f, 22f, 9f)
+            quadTo(22f, 13.97f, 18f, 18f)
+            quadTo(13f, 22f, 9f, 18f)
+            lineTo(7.58f, 19.42f)
+            quadTo(10.45f, 22f, 13f, 22f)
+            quadTo(17.97f, 22f, 22f, 18f)
+            quadTo(26f, 13f, 22f, 8f)
+            quadTo(18f, 3f, 13f, 3f)
+            close()
+            moveTo(12f, 8f)
+            verticalLineTo(13f)
+            lineTo(16.25f, 15.52f)
+            lineTo(17.02f, 14.24f)
+            lineTo(14f, 12.15f)
+            verticalLineTo(8f)
+            close()
+        }.build()
+    }
+
+    val toggleOff: ImageVector by lazy {
+        ImageVector.Builder("toggle_off", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(7f, 7f)
+            horizontalLineTo(17f)
+            quadTo(22f, 7f, 22f, 12f)
+            quadTo(22f, 17f, 17f, 17f)
+            horizontalLineTo(7f)
+            quadTo(2f, 17f, 2f, 12f)
+            quadTo(2f, 7f, 7f, 7f)
+            close()
+            moveTo(7f, 9f)
+            quadTo(4f, 9f, 4f, 12f)
+            quadTo(4f, 15f, 7f, 15f)
+            quadTo(10f, 15f, 10f, 12f)
+            quadTo(10f, 9f, 7f, 9f)
+            close()
+        }.build()
+    }
+
+    val toggleOn: ImageVector by lazy {
+        ImageVector.Builder("toggle_on", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(7f, 7f)
+            horizontalLineTo(17f)
+            quadTo(22f, 7f, 22f, 12f)
+            quadTo(22f, 17f, 17f, 17f)
+            horizontalLineTo(7f)
+            quadTo(2f, 17f, 2f, 12f)
+            quadTo(2f, 7f, 7f, 7f)
+            close()
+            moveTo(17f, 9f)
+            quadTo(14f, 9f, 14f, 12f)
+            quadTo(14f, 15f, 17f, 15f)
+            quadTo(20f, 15f, 20f, 12f)
+            quadTo(20f, 9f, 17f, 9f)
+            close()
+        }.build()
+    }
+
     val favorite: ImageVector by lazy {
         ImageVector.Builder("favorite", 24.dp, 24.dp, 24f, 24f).path {
             moveTo(12f, 21f)
@@ -222,6 +290,74 @@ internal object MaterialTabIcons {
             horizontalLineTo(23f)
             verticalLineTo(19f)
             horizontalLineTo(20f)
+            close()
+        }.build()
+    }
+
+    val arrowCircleUp: ImageVector by lazy {
+        ImageVector.Builder("arrow_circle_up", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(12f, 2f)
+            quadTo(6.48f, 2f, 2f, 6.48f)
+            quadTo(2f, 12f, 6.48f, 16.48f)
+            quadTo(12f, 21f, 16.48f, 16.48f)
+            quadTo(21f, 12f, 16.48f, 6.48f)
+            quadTo(12f, 2f, 12f, 2f)
+            close()
+            moveTo(13f, 12f)
+            verticalLineTo(16f)
+            horizontalLineTo(11f)
+            verticalLineTo(12f)
+            horizontalLineTo(8f)
+            lineTo(12f, 8f)
+            lineTo(16f, 12f)
+            horizontalLineTo(13f)
+            close()
+        }.build()
+    }
+
+    val arrowCircleDown: ImageVector by lazy {
+        ImageVector.Builder("arrow_circle_down", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(12f, 2f)
+            quadTo(6.48f, 2f, 2f, 6.48f)
+            quadTo(2f, 12f, 6.48f, 16.48f)
+            quadTo(12f, 21f, 16.48f, 16.48f)
+            quadTo(21f, 12f, 16.48f, 6.48f)
+            quadTo(12f, 2f, 12f, 2f)
+            close()
+            moveTo(13f, 12f)
+            verticalLineTo(8f)
+            horizontalLineTo(11f)
+            verticalLineTo(12f)
+            horizontalLineTo(8f)
+            lineTo(12f, 16f)
+            lineTo(16f, 12f)
+            horizontalLineTo(13f)
+            close()
+        }.build()
+    }
+
+    val delete: ImageVector by lazy {
+        ImageVector.Builder("delete", 24.dp, 24.dp, 24f, 24f).path {
+            moveTo(6f, 19f)
+            quadTo(6f, 21f, 8f, 21f)
+            horizontalLineTo(16f)
+            quadTo(18f, 21f, 18f, 19f)
+            verticalLineTo(7f)
+            horizontalLineTo(6f)
+            close()
+            moveTo(8f, 9f)
+            horizontalLineTo(16f)
+            verticalLineTo(19f)
+            horizontalLineTo(8f)
+            close()
+            moveTo(15.5f, 4f)
+            lineTo(14.5f, 3f)
+            horizontalLineTo(9.5f)
+            lineTo(8.5f, 4f)
+            horizontalLineTo(5f)
+            verticalLineTo(6f)
+            horizontalLineTo(19f)
+            verticalLineTo(4f)
             close()
         }.build()
     }
