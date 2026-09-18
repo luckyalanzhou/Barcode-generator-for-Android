@@ -33,8 +33,9 @@ core:ui      <-  app
 
 ## 导航
 
-- `AppRoute`、导航栈和返回行为属于 UI 层。
-- ViewModel 只发布导航意图或业务事件，不持有 UI 导航栈。
+- `AppRoute`、标题、Chrome 显示规则和页面解释属于 UI 层。
+- ViewModel 只保存可恢复的页面键和返回目标，不依赖 UI 路由枚举；页面键到 UI 路由的解释由 Compose 完成。
+- 返回行为由 Activity/Compose UI 协调，业务 ViewModel 不持有导航栈。
 - 页面之间传递稳定 ID 或不可变参数，不传递 DAO、Context 或可变实体。
 
 ## 兼容性
