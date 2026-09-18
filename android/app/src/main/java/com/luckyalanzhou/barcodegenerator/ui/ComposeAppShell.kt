@@ -233,21 +233,19 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     .groupBy { it.createdAt }
                     .toList()
                     .sortedByDescending { it.first }
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    HistoryComposePage(
-                        entries = historyEntries,
-                        dark = dark,
-                        onClear = dependencies.actions::clearHistory,
-                        onOpen = { batch ->
-                            dependencies.viewModel.openHistoryResult(batch)
-                        },
-                        onEdit = dependencies.actions::editHistory,
-                        onDelete = { batch ->
-                            dependencies.viewModel.deleteHistoryBatch(batch)
-                        },
-                        timeText = ::formatHistoryTime,
-                    )
-                }
+                HistoryComposePage(
+                    entries = historyEntries,
+                    dark = dark,
+                    onClear = dependencies.actions::clearHistory,
+                    onOpen = { batch ->
+                        dependencies.viewModel.openHistoryResult(batch)
+                    },
+                    onEdit = dependencies.actions::editHistory,
+                    onDelete = { batch ->
+                        dependencies.viewModel.deleteHistoryBatch(batch)
+                    },
+                    timeText = ::formatHistoryTime,
+                )
             }
             "favorites" -> {
                 Column(

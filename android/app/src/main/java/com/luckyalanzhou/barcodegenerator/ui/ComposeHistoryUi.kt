@@ -2,10 +2,11 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 
-import android.graphics.Color
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,16 +15,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,7 +46,7 @@ internal fun formatHistoryTime(time: Long): String {
     }
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+/** 历史页：单一 LazyColumn 承载标题、空状态和历史批次，避免外层嵌套滚动。 */
 @Composable
 internal fun HistoryComposePage(
     entries: List<Pair<Long, List<CodeItem>>>,
@@ -52,63 +55,118 @@ internal fun HistoryComposePage(
     onOpen: (List<CodeItem>) -> Unit,
     onEdit: (List<CodeItem>) -> Unit,
     onDelete: (List<CodeItem>) -> Unit,
-    timeText: (Long) -> String
+    timeText: (Long) -> String,
 ) {
-    val primary = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230)
-    val secondary = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff6b7280)
-    val card = if (dark) ComposeColor(0xff1b222d) else ComposeColor(0xfff7f9fc)
+    val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
+    val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
+    val clearColor = if (dark) Color(0xffffa0a0) else Color(0xffc85c5c)
     val hapticView = LocalView.current
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            androidx.compose.material3.TextButton(onClick = onClear) { Text("清空", color = if (dark) ComposeColor(0xffffa0a0) else ComposeColor(0xffc85c5c)) }
-        }
-        if (entries.isEmpty()) {
-            BoxedEmptyHistory(dark)
-        } else {
-            Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                entries.forEach { (time, originalBatch) ->
-                    val batch = originalBatch.sortedBy { it.id }
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 3.dp)
-                            .globalCardSurface(dark, card, RoundedCornerShape(12.dp), 2.dp)
-                            .combinedClickable(
-                                onClick = { onOpen(batch) },
-                                onLongClick = {
-                                    hapticView.performHapticFeedback(
-                                        android.view.HapticFeedbackConstants.LONG_PRESS,
-                                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
-                                    )
-                                    onEdit(batch)
-                                },
-                            ),
-                        shape = RoundedCornerShape(12.dp), color = card, tonalElevation = 0.dp, shadowElevation = 0.dp
-                    ) {
-                        Row(Modifier.fillMaxWidth().height(46.dp).padding(start = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${batch.size}条：${batch.firstOrNull()?.text?.let { if (it.length > 8) it.take(8) + "..." else it }.orEmpty()}",
-                                modifier = Modifier.weight(1f), color = primary, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
-                            )
-                            Text(timeText(time), color = secondary, fontSize = 12.sp, maxLines = 1)
-                            Spacer(Modifier.width(2.dp))
-                            IconButton(onClick = { onDelete(batch) }, modifier = Modifier.size(36.dp)) {
-                                Icon(DeleteIcon, "删除这条历史记录", tint = ComposeColor(0xffd98787))
-                            }
-                        }
-                    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        item(key = "history-header") {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onClear) {
+                    Text("清空", color = clearColor)
                 }
+            }
+        }
+
+        if (entries.isEmpty()) {
+            item(key = "history-empty") {
+                HistoryEmptyState(color = secondary)
+            }
+        } else {
+            items(
+                items = entries,
+                key = { (time, _) -> "history-$time" },
+                contentType = { "history-batch" },
+            ) { (time, originalBatch) ->
+                val batch = originalBatch.sortedBy { it.id }
+                HistoryBatchCard(
+                    batch = batch,
+                    time = timeText(time),
+                    dark = dark,
+                    primary = primary,
+                    secondary = secondary,
+                    onOpen = { onOpen(batch) },
+                    onEdit = {
+                        hapticView.performHapticFeedback(
+                            android.view.HapticFeedbackConstants.LONG_PRESS,
+                            android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
+                        )
+                        onEdit(batch)
+                    },
+                    onDelete = { onDelete(batch) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HistoryBatchCard(
+    batch: List<CodeItem>,
+    time: String,
+    dark: Boolean,
+    primary: Color,
+    secondary: Color,
+    onOpen: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val card = if (dark) Color(0xff1b222d) else Color(0xfff7f9fc)
+    val preview = batch.firstOrNull()?.text.orEmpty().let { text ->
+        if (text.length > 8) text.take(8) + "..." else text
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp)
+            .globalCardSurface(dark, card, RoundedCornerShape(12.dp), 2.dp)
+            .combinedClickable(onClick = onOpen, onLongClick = onEdit),
+        shape = RoundedCornerShape(12.dp),
+        color = card,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(46.dp).padding(start = 10.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${batch.size}条：$preview",
+                modifier = Modifier.weight(1f),
+                color = primary,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(time, color = secondary, fontSize = 12.sp, maxLines = 1)
+            Spacer(Modifier.width(2.dp))
+            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                Icon(DeleteIcon, "删除这条历史记录", tint = Color(0xffd98787))
             }
         }
     }
 }
 
 @Composable
-private fun BoxedEmptyHistory(dark: Boolean) {
-    Column(Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("暂无历史记录", color = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff6b7280), fontSize = 17.sp)
+private fun HistoryEmptyState(color: Color) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("暂无历史记录", color = color, fontSize = 17.sp)
     }
 }
 
@@ -122,7 +180,7 @@ internal fun HistoryBatchPickerDialogContent(
     ComposeGlassDialogCard(dark) {
         Text(
             "本次生成的 ${batch.size} 个条码",
-            color = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230),
+            color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
             fontSize = 20.sp,
         )
         batch.forEach { item ->

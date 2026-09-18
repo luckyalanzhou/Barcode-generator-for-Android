@@ -110,7 +110,6 @@ internal fun ComposeGeneratePage(
         AlertDialog(
             onDismissRequest = { clearDialog = false },
             title = { Text("\u6e05\u7a7a\u6240\u6709\u8f93\u5165\uff1f") },
-            text = { Text("\u5c06\u5220\u9664\u5f53\u524d\u6240\u6709\u8f93\u5165\u5185\u5bb9\uff0c\u5e76\u4fdd\u7559\u4e00\u4e2a\u7a7a\u767d\u8f93\u5165\u6846\u3002") },
             confirmButton = { Button(onClick = { values.clear(); values.add(""); syncDraft(); clearDialog = false }) { Text("\u6e05\u7a7a") } },
             dismissButton = { OutlinedButton(onClick = { clearDialog = false }) { Text("\u53d6\u6d88") } }
         )
@@ -123,9 +122,45 @@ internal fun ComposeGeneratePage(
             focusedIndex = focusedIndex,
             onValueChange = { index, value -> values[index] = value; syncDraft() },
             onFocus = { focusedIndex = it },
-            onMoveUp = { index -> val other = values[index - 1]; values[index - 1] = values[index]; values[index] = other; syncDraft() },
-            onMoveDown = { index -> val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft() },
-            onDelete = { index -> if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft() },
+            onMoveUp = {
+                index ->
+                val other = values[index - 1]
+                values[index - 1] = values[index]
+                values[index] = other
+                focusedIndex = when (focusedIndex) {
+                    index -> index - 1
+                    index - 1 -> index
+                    else -> focusedIndex
+                }
+                syncDraft()
+            },
+            onMoveDown = {
+                index ->
+                val other = values[index + 1]
+                values[index + 1] = values[index]
+                values[index] = other
+                focusedIndex = when (focusedIndex) {
+                    index -> index + 1
+                    index + 1 -> index
+                    else -> focusedIndex
+                }
+                syncDraft()
+            },
+            onDelete = {
+                index ->
+                if (values.size == 1) {
+                    values[0] = ""
+                    focusedIndex = 0
+                } else {
+                    values.removeAt(index)
+                    focusedIndex = when {
+                        focusedIndex == index -> (index - 1).coerceAtLeast(0).coerceAtMost(values.lastIndex)
+                        focusedIndex > index -> focusedIndex - 1
+                        else -> focusedIndex
+                    }
+                }
+                syncDraft()
+            },
             onDeleteLongClick = { clearDialog = true },
         )
 

@@ -28,9 +28,13 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -77,6 +81,12 @@ internal fun ComposeGenerateInputPanel(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             values.forEachIndexed { index, value ->
+                val focusRequester = remember { FocusRequester() }
+                LaunchedEffect(focusedIndex, values.size) {
+                    if (focusedIndex == index) {
+                        focusRequester.requestFocus()
+                    }
+                }
                 Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         modifier = Modifier.weight(1f).height(48.dp),
@@ -94,6 +104,7 @@ internal fun ComposeGenerateInputPanel(
                             textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
                             cursorBrush = SolidColor(textColor),
                             modifier = Modifier.fillMaxWidth().height(48.dp)
+                                .focusRequester(focusRequester)
                                 .onFocusChanged { if (it.isFocused) onFocus(index) }
                                 .padding(horizontal = 12.dp, vertical = 13.dp),
                             decorationBox = { field ->
