@@ -59,7 +59,7 @@ internal fun ComposeFavoriteDetailPage(
         } else {
             groupItems.forEach { item ->
                 Column(
-                    Modifier.fillMaxWidth().background(card, RoundedCornerShape(16.dp)).combinedClickable(
+                    Modifier.fillMaxWidth().globalCardSurface(dark, card, RoundedCornerShape(16.dp), 2.dp).combinedClickable(
                         onClick = {},
                         onLongClick = { anchor.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); viewModel.openFavoriteForEditing(currentGroup) }
                     ).padding(horizontal = 12.dp, vertical = 10.dp)

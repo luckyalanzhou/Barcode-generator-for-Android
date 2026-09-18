@@ -216,9 +216,7 @@ internal fun ComposeGlassDialogCard(
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(card)
-            .border(1.dp, border, RoundedCornerShape(20.dp))
+            .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 8.dp)
             .clickable { onMetric("弹窗卡片") }
             .padding(horizontal = 18.dp, vertical = 16.dp),
     ) { Column(content = content) }
@@ -240,6 +238,7 @@ internal fun DialogAction(
     } else Color.Transparent
     Box(
         modifier = modifier
+            .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(1.dp, border, RoundedCornerShape(12.dp))

@@ -28,6 +28,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 
 /** 安装权限提示使用 Compose；系统设置页和 APK 安装 Intent 仍使用 Android 系统能力。 */
@@ -193,33 +197,64 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
     val fill = if (dark) Color(0xff36c8ff) else Color(0xff2678db)
     val track = if (dark) Color(0xff152938) else Color(0xffe4eaf2)
     Canvas(
-        modifier = Modifier.fillMaxWidth().height(18.dp)
-            .clip(RoundedCornerShape(9.dp))
+        modifier = Modifier.fillMaxWidth().height(14.dp)
+            .clip(RoundedCornerShape(7.dp))
             .background(track)
-            .border(1.dp, fill.copy(alpha = 0.78f), RoundedCornerShape(9.dp)),
+            .border(1.dp, fill.copy(alpha = 0.45f), RoundedCornerShape(7.dp)),
     ) {
         val filledWidth = size.width * animated
         if (filledWidth > 0f) {
-            val glowWidth = 42.dp.toPx()
+            val glowWidth = 32.dp.toPx()
             drawRoundRect(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(fill.copy(alpha = .72f), fill, Color.White.copy(alpha = .92f), fill),
+                    colors = listOf(fill.copy(alpha = .70f), fill, Color.White.copy(alpha = .78f), fill),
                     startX = (filledWidth - glowWidth).coerceAtLeast(0f),
                     endX = (filledWidth + glowWidth).coerceAtMost(size.width),
                 ),
-                topLeft = Offset(1.dp.toPx(), 2.dp.toPx()),
-                size = Size((filledWidth - 2.dp.toPx()).coerceAtLeast(0f), size.height - 4.dp.toPx()),
-                cornerRadius = CornerRadius(5.dp.toPx()),
+                topLeft = Offset(1.dp.toPx(), 1.dp.toPx()),
+                size = Size((filledWidth - 2.dp.toPx()).coerceAtLeast(0f), size.height - 2.dp.toPx()),
+                cornerRadius = CornerRadius(6.dp.toPx()),
             )
         }
         if (animated > 0f && animated < 1f) {
             drawLine(
-                color = Color.White.copy(alpha = 0.9f),
+                color = Color.White.copy(alpha = 0.78f),
                 start = Offset(filledWidth, 2.dp.toPx()),
                 end = Offset(filledWidth, size.height - 2.dp.toPx()),
-                strokeWidth = 3.dp.toPx(),
+                strokeWidth = 2.dp.toPx(),
             )
         }
+    }
+}
+
+@Composable
+private fun ComposeIndeterminateProgress(dark: Boolean) {
+    val fill = if (dark) Color(0xff36c8ff) else Color(0xff2678db)
+    val track = if (dark) Color(0xff152938) else Color(0xffe4eaf2)
+    val transition = rememberInfiniteTransition(label = "downloadIndeterminate")
+    val offset by transition.animateFloat(
+        initialValue = -0.35f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing)),
+        label = "downloadShimmer",
+    )
+    Canvas(
+        Modifier.fillMaxWidth().height(14.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(track)
+            .border(1.dp, fill.copy(alpha = .45f), RoundedCornerShape(7.dp)),
+    ) {
+        val center = size.width * offset
+        drawRoundRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(fill.copy(alpha = .08f), fill, fill.copy(alpha = .08f)),
+                startX = center - 64.dp.toPx(),
+                endX = center + 64.dp.toPx(),
+            ),
+            topLeft = Offset(1.dp.toPx(), 1.dp.toPx()),
+            size = Size(size.width - 2.dp.toPx(), size.height - 2.dp.toPx()),
+            cornerRadius = CornerRadius(6.dp.toPx()),
+        )
     }
 }
 
@@ -233,21 +268,26 @@ private fun ComposeDownloadProgressDialog(
     ComposeGlassDialogCard(dark) {
         Text("下载更新", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
         if (downloadState.indeterminate) {
-            Box(
-                Modifier.fillMaxWidth().height(18.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(if (dark) Color(0xff152938) else Color(0xffe4eaf2))
-                    .border(1.dp, if (dark) Color(0xff6b7280) else Color(0xffb8c0cc), RoundedCornerShape(9.dp)),
-            )
+            ComposeIndeterminateProgress(dark)
         } else {
             ComposeSegmentedProgress(downloadState.progress, dark)
         }
-        Text(
-            downloadState.status,
-            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-            color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
-            fontSize = 14.sp,
-        )
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(
+                downloadState.status,
+                modifier = Modifier.weight(1f),
+                color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+                fontSize = 14.sp,
+                maxLines = 1,
+            )
+            if (!downloadState.indeterminate) {
+                Text(
+                    "${downloadState.progress.coerceIn(0, 100)}%",
+                    color = if (dark) Color(0xff8fdcff) else Color(0xff2678db),
+                    fontSize = 14.sp,
+                )
+            }
+        }
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
             DialogAction("取消下载", dark, onCancel)
         }

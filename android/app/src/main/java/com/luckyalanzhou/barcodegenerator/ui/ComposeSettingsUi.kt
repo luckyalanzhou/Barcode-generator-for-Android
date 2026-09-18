@@ -150,6 +150,7 @@ internal fun ComposeSettingsPage(
                 HyperOsToggle(
                     checked = settings.showFormat,
                     dark = dark,
+                    modifier = Modifier.padding(end = 8.dp),
                     onCheckedChange = { next ->
                         settingsViewModel.setShowFormat(next)
                         persist(settings.copy(showFormat = next))
@@ -227,7 +228,7 @@ internal fun ComposeSettingsPage(
 }
 
 @Composable
-private fun HyperOsToggle(checked: Boolean, dark: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun HyperOsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     val trackColor by animateColorAsState(
         targetValue = when {
             checked && dark -> Color(0xff4f8fe8)
@@ -244,7 +245,7 @@ private fun HyperOsToggle(checked: Boolean, dark: Boolean, onCheckedChange: (Boo
         label = "toggle-thumb",
     )
     Box(
-        modifier = Modifier
+        modifier = modifier
             .width(52.dp)
             .height(32.dp)
             .clip(RoundedCornerShape(16.dp))
@@ -270,7 +271,15 @@ private val ocrReplacementLabels = listOf("O → 0" to SettingsStore.OCR_REPLACE
 private fun SettingSectionLabel(text: String, color: Color) { Text(text, color = color, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) }
 
 @Composable
-private fun SettingCard(color: Color, content: @Composable ColumnScope.() -> Unit) { Column(Modifier.fillMaxWidth().background(color, RoundedCornerShape(16.dp)).padding(horizontal = 8.dp, vertical = 4.dp), content = content) }
+private fun SettingCard(color: Color, content: @Composable ColumnScope.() -> Unit) {
+    val dark = color.red < 0.2f
+    Column(
+        Modifier.fillMaxWidth()
+            .globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        content = content,
+    )
+}
 
 @Composable
 private fun SettingRow(title: String, color: Color, trailing: @Composable () -> Unit) {
@@ -335,8 +344,8 @@ private fun SettingDivider(dark: Boolean) { Spacer(Modifier.fillMaxWidth().heigh
 
 @Composable
 private fun BoxedSettingButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp), modifier = modifier.height(40.dp)) { Text(text, maxLines = 1) }
+    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp), modifier = modifier.globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) { Text(text, maxLines = 1) }
 }
 
 @Composable
-private fun SmallSettingButton(text: String, color: Color, buttonColor: Color, onClick: () -> Unit) { Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = color), shape = RoundedCornerShape(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp), modifier = Modifier.height(40.dp)) { Text(text) } }
+private fun SmallSettingButton(text: String, color: Color, buttonColor: Color, onClick: () -> Unit) { Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = color), shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp), modifier = Modifier.globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) { Text(text) } }

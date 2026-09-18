@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -158,42 +159,51 @@ internal fun ComposeFavoritesPage(
                             Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             Text(if (row.collapsed) "›" else "⌄", color = secondary, fontSize = 22.sp, modifier = Modifier.width(25.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
-                        val folderActions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
-                        AnchoredDropdownMenu(
-                            dark = dark,
-                            expanded = folderMenu?.first == row.path,
-                            onDismissRequest = { folderMenu = null },
-                            shape = RoundedCornerShape(16.dp),
-                            containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 3.dp,
-                            menuWidth = 160.dp,
-                        ) {
-                            DropdownMenuItem(
-                                enabled = false,
-                                text = { Text("编辑文件夹", fontWeight = FontWeight.SemiBold) },
-                                onClick = {},
-                            )
-                            ComposeDropdownDivider(dark)
-                            folderActions.forEachIndexed { index, label ->
-                                if (index > 0) ComposeDropdownDivider(dark)
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        folderMenu = null
-                                        when {
-                                            row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
-                                            index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
-                                                val parent = row.path.substringBeforeLast('/', "")
-                                                val renamedPath = listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/")
-                                                viewModel.renameFavoriteFolderAndPersist(row.path, renamedPath)
+                        if (folderMenu?.first == row.path) {
+                            val folderActions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
+                            Column(
+                                Modifier.fillMaxWidth()
+                                    .padding(start = if (row.level == 0) 12.dp else 28.dp, end = 8.dp)
+                                    .globalCardSurface(
+                                        dark,
+                                        if (dark) ComposeColor(0xff202b3a) else ComposeColor(0xfffbfcff),
+                                        RoundedCornerShape(16.dp),
+                                        4.dp,
+                                    )
+                                    .padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text("编辑文件夹", color = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                folderActions.forEachIndexed { index, label ->
+                                    val danger = label == "删除"
+                                    Box(
+                                        Modifier.fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(if (danger) ComposeColor(0xffd95c5c).copy(alpha = if (dark) .22f else .10f) else if (dark) ComposeColor.White.copy(alpha = .08f) else ComposeColor(0xfff1f5fa))
+                                            .clickable {
+                                                folderMenu = null
+                                                when {
+                                                    row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
+                                                    index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
+                                                        val parent = row.path.substringBeforeLast('/', "")
+                                                        val renamedPath = listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/")
+                                                        viewModel.renameFavoriteFolderAndPersist(row.path, renamedPath)
+                                                    }
+                                                    else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
+                                                        viewModel.deleteFavoriteFolderAndPersist(row.path)
+                                                    }
+                                                }
                                             }
-                                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
-                                                viewModel.deleteFavoriteFolderAndPersist(row.path)
-                                            }
-                                        }
-                                    },
-                                )
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        contentAlignment = Alignment.CenterStart,
+                                    ) {
+                                        Text(label, color = if (danger) ComposeColor(0xffdf6f6f) else if (dark) ComposeColor(0xffe7edf7) else ComposeColor(0xff243247), fontSize = 15.sp)
+                                    }
+                                }
+                                Box(
+                                    Modifier.fillMaxWidth().clickable { folderMenu = null }.padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { Text("取消", color = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff667085), fontSize = 14.sp) }
                             }
                         }
                     }

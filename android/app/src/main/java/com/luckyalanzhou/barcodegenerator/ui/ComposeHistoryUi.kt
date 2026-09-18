@@ -73,6 +73,7 @@ internal fun HistoryComposePage(
                     val batch = originalBatch.sortedBy { it.id }
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 3.dp)
+                            .globalCardSurface(dark, card, RoundedCornerShape(12.dp), 2.dp)
                             .combinedClickable(
                                 onClick = { onOpen(batch) },
                                 onLongClick = {

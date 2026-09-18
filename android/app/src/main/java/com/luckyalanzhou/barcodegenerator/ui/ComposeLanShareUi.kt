@@ -96,7 +96,7 @@ internal fun ComposeLanSharePage(
 
     Column(Modifier.fillMaxSize().background(if (dark) Color.Black else Color(0xfff4f6fb))) {
         Row(
-            Modifier.fillMaxWidth().height(80.dp).background(panel, RoundedCornerShape(18.dp)).clickable {
+            Modifier.fillMaxWidth().height(80.dp).globalCardSurface(dark, panel, RoundedCornerShape(18.dp), 3.dp).clickable {
                 if (!qrOpen && lanState.isHost) {
                     runCatching {
                         viewModel.restartHostSession()
@@ -145,7 +145,7 @@ internal fun ComposeLanSharePage(
         }
 
         Row(
-            Modifier.fillMaxWidth().background(panel, RoundedCornerShape(16.dp)).padding(8.dp),
+            Modifier.fillMaxWidth().globalCardSurface(dark, panel, RoundedCornerShape(16.dp), 3.dp).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box {

@@ -160,9 +160,9 @@ internal fun ComposeGeneratePage(
                 onClick = {
                     if (values.size >= 100) onNotice("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
                     else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
-                }, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = cardColor, contentColor = textColor)
+                }, modifier = Modifier.weight(1f).globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = cardColor, contentColor = textColor)
             ) { Text("+ \u6dfb\u52a0\u4e00\u884c", fontSize = 15.sp) }
-            OutlinedButton(onClick = onCaptureText, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(18.dp)) {
+            OutlinedButton(onClick = onCaptureText, modifier = Modifier.weight(1f).globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp)) {
                 Icon(painterResource(R.drawable.ic_camera), "\u62cd\u7167\u53d6\u5b57", Modifier.size(22.dp)); Spacer(Modifier.width(6.dp)); Text("\u62cd\u7167\u53d6\u5b57", fontSize = 15.sp)
             }
         }
@@ -221,7 +221,7 @@ internal fun ComposeGeneratePage(
                 }
             },
             enabled = count > 0,
-            modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)
+            modifier = Modifier.fillMaxWidth().globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp)
         ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", fontSize = 16.sp) }
     }
 }
