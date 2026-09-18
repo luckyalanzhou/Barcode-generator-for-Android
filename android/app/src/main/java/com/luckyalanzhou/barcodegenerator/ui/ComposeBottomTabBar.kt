@@ -31,6 +31,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -119,7 +121,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
         Box(
             // 液态玻璃包住完整的图标+文字单元；外层 itemScale 让二者保持同一套动画。
-            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(52.dp)
+            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(44.dp)
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
                 .graphicsLayer {
@@ -127,15 +129,25 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     scaleY = glassScale.value
                 }
                 .drawBehind {
+                    val inset = 1.5.dp.toPx()
+                    val rimTop = if (dark) Color(0xfff2f8ff).copy(alpha = 0.78f) else Color.White.copy(alpha = 0.98f)
+                    val rimBottom = if (dark) Color(0xff73baff).copy(alpha = 0.62f) else Color(0xff6d9fe8).copy(alpha = 0.58f)
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (dark) 0.42f else 0.88f),
-                                Color.White.copy(alpha = if (dark) 0.10f else 0.34f),
+                                rimTop,
+                                rimBottom,
                             ),
                         ),
                         cornerRadius = CornerRadius(18.dp.toPx()),
-                        style = Stroke(width = 1.dp.toPx()),
+                        style = Stroke(width = 1.35.dp.toPx()),
+                    )
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = if (dark) 0.24f else 0.62f),
+                        topLeft = Offset(inset, inset),
+                        size = Size(size.width - inset * 2f, size.height - inset * 2f),
+                        cornerRadius = CornerRadius(16.5.dp.toPx()),
+                        style = Stroke(width = 0.55.dp.toPx()),
                     )
                 }
         )
