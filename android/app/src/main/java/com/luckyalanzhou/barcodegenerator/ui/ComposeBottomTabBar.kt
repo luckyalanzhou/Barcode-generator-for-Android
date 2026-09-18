@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -38,14 +37,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private data class ComposeTabSpec(val label: String, val description: String, val icon: Int, val selectedIcon: Int)
+private data class ComposeTabSpec(val label: String, val description: String, val icon: ImageVector)
 
 @Composable
 internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
@@ -53,10 +51,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     val animation = rememberComposeAnimationConfig()
     val tabs = remember {
         listOf(
-            ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", R.drawable.ic_tab_barcode, R.drawable.ic_tab_barcode_selected),
-            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", R.drawable.ic_tab_history, R.drawable.ic_tab_history_selected),
-            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", R.drawable.ic_tab_favorite, R.drawable.ic_tab_favorite_selected),
-            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", R.drawable.ic_tab_settings, R.drawable.ic_tab_settings_selected)
+            ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", MaterialTabIcons.barcode),
+            // 历史和收藏只使用线框图标；选中态通过颜色、液态玻璃框和弹簧动画表达。
+            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", MaterialTabIcons.star),
+            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", MaterialTabIcons.favorite),
+            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", MaterialTabIcons.settings)
         )
     }
     val selectedColor = if (dark) Color(0xfff4f7ff) else Color(0xff246fc4)
@@ -65,7 +64,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
     var hoveredIndex by remember { mutableIntStateOf(-1) }
-    var glassPulseKey by remember { mutableIntStateOf(0) }
     val glassScale = remember { Animatable(1f) }
 
     LaunchedEffect(selectedIndex, dragging) {
@@ -75,11 +73,14 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         }
     }
 
-    LaunchedEffect(glassPulseKey) {
-        if (glassPulseKey == 0) return@LaunchedEffect
-        glassScale.snapTo(0.96f)
-        glassScale.animateTo(1.045f, animation.bouncySpring())
-        glassScale.animateTo(1f, animation.settleSpring())
+    LaunchedEffect(hoveredIndex, dragging) {
+        if (dragging && hoveredIndex >= 0) {
+            // 触碰到目标 Tab 后保持放大，直到手指离开或完成停留。
+            glassScale.animateTo(1.045f, animation.bouncySpring())
+        } else {
+            // 离开目标或结束触摸后，使用弹簧缩回原尺寸。
+            glassScale.animateTo(1f, animation.settleSpring())
+        }
     }
 
     BoxWithConstraints(
@@ -104,7 +105,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     if (target != lastTarget) {
                         lastTarget = target
                         hoveredIndex = target
-                        glassPulseKey++
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onTabSelected(target)
                     }
@@ -168,8 +168,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         itemScale.snapTo(1f)
                         itemInitialized = true
                     } else if (hovered) {
+                        // 停留在该 Tab 期间保持放大，离开后由下一次状态变化恢复。
                         itemScale.animateTo(1.12f, animation.bouncySpring())
-                        itemScale.animateTo(1f, animation.settleSpring())
                     } else if (selected) {
                         itemScale.animateTo(1.10f, animation.bouncySpring())
                         itemScale.animateTo(1f, animation.settleSpring())
@@ -190,9 +190,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        if (index == 3) ComposeSettingsTabIcon(selected, itemColor, animation) else Icon(
-                            painter = painterResource(if (selected) tab.selectedIcon else tab.icon),
-                            contentDescription = tab.description, tint = itemColor, modifier = Modifier.size(28.dp)
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = tab.description,
+                            tint = itemColor,
+                            modifier = Modifier.size(28.dp),
                         )
                         Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
@@ -200,33 +202,4 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
             }
         }
     }
-}
-
-@Composable
-private fun ComposeSettingsTabIcon(selected: Boolean, tint: Color, animation: ComposeAnimationConfig) {
-    val progress = remember { Animatable(0f) }
-    val scale = remember { Animatable(1f) }
-    LaunchedEffect(selected) {
-        if (selected) {
-            progress.snapTo(0f); scale.snapTo(0.5f)
-            launch { scale.animateTo(1f, animation.bouncySpring()) }
-            progress.animateTo(1f, tween(animation.iconRotationDurationMillis)); progress.animateTo(0f, tween(animation.iconRotationDurationMillis))
-        } else {
-            progress.animateTo(0f, tween(animation.iconRotationDurationMillis))
-            scale.animateTo(1f, animation.settleSpring())
-        }
-    }
-    val angle = progress.value * 45f
-    // Use one complete vector layer. The former outer/inner overlay could leave
-    // clipped-looking gaps when both layers were scaled and rotated together.
-    Icon(
-        painter = painterResource(R.drawable.ic_tab_settings_selected),
-        contentDescription = "\u8bbe\u7f6e",
-        tint = tint,
-        modifier = Modifier.size(28.dp).graphicsLayer {
-            scaleX = scale.value
-            scaleY = scale.value
-            rotationZ = angle
-        },
-    )
 }
