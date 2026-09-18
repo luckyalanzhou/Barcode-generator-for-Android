@@ -163,7 +163,7 @@ internal fun ComposeLanSharePage(
                     shape = RoundedCornerShape(16.dp),
                     containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                     tonalElevation = 0.dp,
-                    shadowElevation = 3.dp,
+                    shadowElevation = 1.dp,
                     menuWidth = 168.dp,
                 ) {
                     DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { attachmentMenu = false; onOpenCamera() })
@@ -266,7 +266,7 @@ private fun ComposeLanShareQrDialog(
                 modifier = Modifier.clickable { },
                 shape = RoundedCornerShape(22.dp),
                 color = if (dark) Color(0xff1c1c1e) else Color.White,
-                shadowElevation = 4.dp,
+                shadowElevation = 1.dp,
             ) {
                 Box(Modifier.padding(top = 14.dp, bottom = 10.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

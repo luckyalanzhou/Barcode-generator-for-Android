@@ -17,7 +17,7 @@ internal fun Modifier.globalCardSurface(
     shape: RoundedCornerShape = RoundedCornerShape(18.dp),
     elevation: Dp = 3.dp,
 ): Modifier = this
-    .shadow(elevation, shape, clip = false)
+    .shadow(minOf(elevation, 2.dp), shape, clip = true)
     .clip(shape)
     .background(color)
     .border(
@@ -30,4 +30,4 @@ internal fun Modifier.globalCardSurface(
 internal fun Modifier.globalButtonChrome(
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
     elevation: Dp = 1.5.dp,
-): Modifier = this.shadow(elevation, shape, clip = false)
+): Modifier = this.shadow(minOf(elevation, 1.dp), shape, clip = true)

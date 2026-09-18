@@ -119,7 +119,7 @@ internal fun ComposeGeneratePage(
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(
             Modifier.fillMaxWidth().heightIn(min = 72.dp, max = 296.dp)
-                .shadow(8.dp, RoundedCornerShape(18.dp), clip = false)
+                .shadow(2.dp, RoundedCornerShape(18.dp), clip = true)
                 .clip(RoundedCornerShape(18.dp))
                 .background(cardColor)
                 .border(1.dp, cardBorder, RoundedCornerShape(18.dp))
@@ -135,7 +135,7 @@ internal fun ComposeGeneratePage(
                             textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
                             cursorBrush = SolidColor(textColor),
                             modifier = Modifier.weight(1f).height(48.dp)
-                                .shadow(1.dp, RoundedCornerShape(14.dp), clip = false)
+                                .shadow(0.5.dp, RoundedCornerShape(14.dp), clip = true)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(inputColor)
                                 .border(1.dp, if (focusedIndex == index) focusedInputBorder else inputBorder, RoundedCornerShape(14.dp))
@@ -222,7 +222,7 @@ internal fun ComposeGeneratePage(
                         shape = RoundedCornerShape(16.dp),
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 1.dp,
                         menuWidth = (formatAnchorWidth ?: 148.dp).coerceAtLeast(148.dp),
                         anchorWidth = formatAnchorWidth,
                         alignEndWithAnchor = true,

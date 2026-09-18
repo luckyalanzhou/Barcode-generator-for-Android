@@ -168,7 +168,7 @@ internal fun ComposeFavoritesPage(
                             shape = RoundedCornerShape(16.dp),
                             containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
-                            shadowElevation = 3.dp,
+                            shadowElevation = 1.dp,
                             menuWidth = 160.dp,
                         ) {
                             DropdownMenuItem(
@@ -246,7 +246,7 @@ internal fun ComposeFavoritesPage(
                             shape = RoundedCornerShape(16.dp),
                             containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
                             tonalElevation = 0.dp,
-                            shadowElevation = 3.dp,
+                            shadowElevation = 1.dp,
                             menuWidth = 160.dp,
                         ) {
                             DropdownMenuItem(

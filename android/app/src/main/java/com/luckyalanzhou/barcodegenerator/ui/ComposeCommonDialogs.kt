@@ -174,7 +174,7 @@ internal fun AnchoredDropdownMenu(
     shape: Shape = RoundedCornerShape(16.dp),
     containerColor: Color = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
     tonalElevation: Dp = 0.dp,
-    shadowElevation: Dp = 3.dp,
+    shadowElevation: Dp = 1.dp,
     menuWidth: Dp? = null,
     anchorWidth: Dp? = null,
     alignEndWithAnchor: Boolean = false,
@@ -217,7 +217,7 @@ internal fun ComposeGlassDialogCard(
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
-            .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 8.dp)
+            .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
             .clickable { onMetric("弹窗卡片") }
             .padding(horizontal = 18.dp, vertical = 16.dp),
     ) { Column(content = content) }

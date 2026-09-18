@@ -123,7 +123,7 @@ internal fun ComposeSettingsPage(
                         shape = RoundedCornerShape(16.dp),
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 1.dp,
                         menuWidth = (schemeAnchorWidth ?: 132.dp).coerceAtLeast(132.dp),
                         anchorWidth = schemeAnchorWidth,
                         alignEndWithAnchor = true,
@@ -176,7 +176,7 @@ internal fun ComposeSettingsPage(
                         shape = RoundedCornerShape(16.dp),
                         containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
                         tonalElevation = 0.dp,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 1.dp,
                         menuWidth = (ocrAnchorWidth ?: 164.dp).coerceAtLeast(164.dp),
                         anchorWidth = ocrAnchorWidth,
                         alignEndWithAnchor = true,
@@ -259,7 +259,7 @@ private fun HyperOsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = 
             Modifier
                 .offset(x = thumbOffset)
                 .size(28.dp)
-                .shadow(2.dp, CircleShape)
+                .shadow(1.dp, CircleShape)
                 .clip(CircleShape)
                 .background(Color.White),
         )
