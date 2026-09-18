@@ -121,7 +121,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
         Box(
             // 液态玻璃包住完整的图标+文字单元；外层 itemScale 让二者保持同一套动画。
-            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(44.dp)
+            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(54.dp)
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
                 .graphicsLayer {
