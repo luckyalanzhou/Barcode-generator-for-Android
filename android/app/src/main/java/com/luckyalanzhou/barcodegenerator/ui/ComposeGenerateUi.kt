@@ -154,13 +154,13 @@ internal fun ComposeGeneratePage(
                         )
                         if (values.size > 1) {
                             Spacer(Modifier.width(4.dp))
-                            SmallInputAction(ArrowCircleUpIcon, "上移", enabled = index > 0) {
+                            SmallInputAction(ArrowCircleUpIcon, "上移", enabled = index > 0, iconSize = 27.dp) {
                                 val other = values[index - 1]; values[index - 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction(ArrowCircleDownIcon, "下移", enabled = index < values.lastIndex) {
+                            SmallInputAction(ArrowCircleDownIcon, "下移", enabled = index < values.lastIndex, iconSize = 27.dp) {
                                 val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction(DeleteIcon, "删除", enabled = true, iconTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), onLongClick = { clearDialog = true }) {
+                            SmallInputAction(DeleteIcon, "删除", enabled = true, iconTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), iconSize = 24.dp, onLongClick = { clearDialog = true }) {
                                 if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft()
                             }
                         }
@@ -169,16 +169,31 @@ internal fun ComposeGeneratePage(
             }
         }
 
+        val count = values.count { it.trim().isNotEmpty() }
+        val actionShape = RoundedCornerShape(18.dp)
+        val cameraBorder = if (dark) Color(0xff8b929e) else Color(0xff737373)
+        val generateEnabled = count > 0
+        val generateContainer = if (generateEnabled) {
+            if (dark) Color(0xff2d72d9) else Color(0xff2f6fda)
+        } else if (dark) {
+            Color(0xff3a414c)
+        } else {
+            Color(0xffd1d1d6)
+        }
+        val generateContent = if (generateEnabled) Color.White else if (dark) Color(0xffaeb7c5) else Color(0xff99999f)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = {
+            Box(
+                modifier = Modifier.weight(1f).globalButtonChrome(actionShape, 2.dp).height(52.dp)
+                    .clip(actionShape).background(cardColor).clickable {
                     if (values.size >= 100) onNotice("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
                     else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
-                }, modifier = Modifier.weight(1f).globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = cardColor, contentColor = textColor)
-            ) { Icon(AddIcon, "添加一行", Modifier.size(20.dp)); Spacer(Modifier.width(4.dp)); Text("添加一行", fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) }
-            OutlinedButton(onClick = onCaptureText, modifier = Modifier.weight(1f).globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp)) {
-                Icon(PhotoCameraIcon, "拍照取字", Modifier.size(22.dp)); Spacer(Modifier.width(6.dp)); Text("拍照取字", fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent))
-            }
+                }, contentAlignment = Alignment.Center
+            ) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(AddIcon, "添加一行", Modifier.size(20.dp), tint = textColor); Spacer(Modifier.width(4.dp)); Text("添加一行", color = textColor, fontSize = 15.sp) } }
+            Box(
+                modifier = Modifier.weight(1f).globalButtonChrome(actionShape, 2.dp).height(52.dp)
+                    .clip(actionShape).background(Color.Transparent).border(1.dp, cameraBorder, actionShape).clickable(onClick = onCaptureText),
+                contentAlignment = Alignment.Center
+            ) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(PhotoCameraIcon, "拍照取字", Modifier.size(22.dp), tint = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4)); Spacer(Modifier.width(6.dp)); Text("拍照取字", color = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4), fontSize = 15.sp) } }
         }
 
         Box {
@@ -221,9 +236,9 @@ internal fun ComposeGeneratePage(
             }
         }
 
-        val count = values.count { it.trim().isNotEmpty() }
-        Button(
-            onClick = {
+        Box(
+            modifier = Modifier.fillMaxWidth().globalButtonChrome(actionShape, 2.dp).height(52.dp)
+                .clip(actionShape).background(generateContainer).clickable(enabled = generateEnabled) {
                 syncDraft()
                 viewModel.updateGenerateFormat(formatName)
                 val result = viewModel.generateBarcodes(formatName)
@@ -234,19 +249,18 @@ internal fun ComposeGeneratePage(
                 } else {
                 }
             },
-            enabled = count > 0,
-            modifier = Modifier.fillMaxWidth().globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp)
-        ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", fontSize = 16.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) }
+            contentAlignment = Alignment.Center
+        ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", color = generateContent, fontSize = 16.sp) }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, iconTint: Color = Color(0xff667085), onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, iconTint: Color = Color(0xff667085), iconSize: androidx.compose.ui.unit.Dp = 20.dp, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Box(
         Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint else Color(0xffb5bdc9), modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint else Color(0xffb5bdc9), modifier = Modifier.size(iconSize))
     }
 }
