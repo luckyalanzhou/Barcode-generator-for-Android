@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -61,49 +63,74 @@ internal fun BetaTestCenterComposePage(
     val primary = if (dark) Color(0xffe9f1ff) else Color(0xff182230)
     val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff667085)
     val buttonColor = if (dark) Color(0xff172a3a) else Color(0xfff0f5fb)
-    Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = "Beta 测试中心",
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 18.dp),
-            color = primary,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
-        )
-        entries.chunked(2).forEach { rowEntries ->
+        item(key = "beta-test-header") {
+            Text(
+                text = "Beta 测试中心",
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 10.dp),
+                color = primary,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+            )
+        }
+        items(
+            items = entries.chunked(2),
+            key = { row -> row.joinToString("|") { it.label } },
+            contentType = { "beta-test-actions" },
+        ) { rowEntries ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 rowEntries.forEach { entry ->
-                    Button(
-                        onClick = entry.action,
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = primary),
-                        contentPadding = PaddingValues(horizontal = 6.dp),
-                    ) {
-                        Text(entry.label, maxLines = 1, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    }
+                    BetaTestActionButton(
+                        entry = entry,
+                        primary = primary,
+                        container = buttonColor,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 if (rowEntries.size == 1) Spacer(Modifier.weight(1f))
             }
-            Spacer(Modifier.height(8.dp))
         }
-        Text(
-            text = "相机、系统权限、局域网连接和 APK 安装仍需在真实设备上验证。",
-            modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
-            color = secondary,
-            fontSize = 12.sp,
-        )
-        Button(
-            onClick = onShareDebugLog,
-            modifier = Modifier.fillMaxWidth().height(44.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = primary),
-        ) { Text("导出调试日志", maxLines = 1) }
-        Spacer(Modifier.height(12.dp))
+        item(key = "beta-test-notice") {
+            Text(
+                text = "相机、系统权限、局域网连接和 APK 安装仍需在真实设备上验证。",
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                color = secondary,
+                fontSize = 12.sp,
+            )
+        }
+        item(key = "beta-test-log-export") {
+            Button(
+                onClick = onShareDebugLog,
+                modifier = Modifier.fillMaxWidth().height(44.dp).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = primary),
+            ) { Text("导出调试日志", maxLines = 1) }
+        }
+    }
+}
+
+@Composable
+private fun BetaTestActionButton(
+    entry: BetaTestEntry,
+    primary: Color,
+    container: Color,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = entry.action,
+        modifier = modifier.height(48.dp).globalButtonChrome(RoundedCornerShape(16.dp), 1.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = primary),
+        contentPadding = PaddingValues(horizontal = 6.dp),
+    ) {
+        Text(entry.label, maxLines = 1, fontSize = 13.sp, textAlign = TextAlign.Center)
     }
 }

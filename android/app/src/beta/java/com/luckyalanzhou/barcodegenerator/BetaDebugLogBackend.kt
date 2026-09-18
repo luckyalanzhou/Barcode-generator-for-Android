@@ -32,7 +32,7 @@ private object BetaDebugLogBackend {
                     target.writeText(target.readText(Charsets.UTF_8).takeLast((MAX_BYTES / 2).toInt()), Charsets.UTF_8)
                 }
                 target.appendText(line, Charsets.UTF_8)
-            }
+            }.onFailure { Log.e("BarcodeGenerator.DebugLog", "Beta log write failed", it) }
         }
     }
 

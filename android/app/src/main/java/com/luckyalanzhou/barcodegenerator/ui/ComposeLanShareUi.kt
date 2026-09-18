@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,7 +51,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.SolidColor
@@ -98,107 +101,62 @@ internal fun ComposeLanSharePage(
         return
     }
 
-    Column(Modifier.fillMaxSize().background(if (dark) Color.Black else Color(0xfff4f6fb))) {
-        Row(
-            Modifier.fillMaxWidth().height(80.dp).globalCardSurface(dark, panel, RoundedCornerShape(18.dp), 3.dp).clickable {
-                if (!qrOpen && lanState.isHost) {
-                    runCatching {
-                        viewModel.restartHostSession()
-                        qrOpen = true
-                    }.onFailure { onNotice(it.message ?: "无法刷新分享端口") }
-                } else if (qrOpen) {
-                    qrOpen = false
-                    viewModel.setQrVisible(false)
-                }
-            }.padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+    val listState = rememberLazyListState()
+    val background = if (dark) Color.Black else Color(0xfff4f6fb)
+    val toggleQr: () -> Unit = {
+        if (!qrOpen && lanState.isHost) {
+            runCatching { viewModel.restartHostSession(); qrOpen = true }
+                .onFailure { onNotice(it.message ?: "无法刷新分享端口") }
+        } else if (qrOpen) {
+            qrOpen = false
+            viewModel.setQrVisible(false)
+        }
+    }
+
+    Box(Modifier.fillMaxSize().background(background)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Spacer(Modifier.width(64.dp))
-            Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            IconButton(onClick = {
-                if (!qrOpen && lanState.isHost) {
-                    runCatching {
-                        viewModel.restartHostSession()
-                        qrOpen = true
-                    }.onFailure { onNotice(it.message ?: "无法刷新分享端口") }
-                } else if (qrOpen) {
-                    qrOpen = false
-                    viewModel.setQrVisible(false)
-                }
-            }, modifier = Modifier.size(60.dp)) {
-                Icon(QrCode2Icon, "显示二维码", tint = if (dark) Color(0xff8fc1ff) else accent, modifier = Modifier.size(32.dp))
+            item(key = "header", contentType = "header") {
+                LanShareHeader(dark, panel, primary, accent, toggleQr)
+            }
+            item(key = "connection", contentType = "connection") {
+                LanShareConnectionStatus(lanState.browserConnected, secondary)
+            }
+            items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
+                ComposeLanShareBubble(viewModel, lanState, file, dark, primary, secondary, onSaveFile)
             }
         }
 
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                val connected = lanState.browserConnected
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (connected) "●" else "○", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
-                }
-
-                lanState.files.forEach { file ->
-                    ComposeLanShareBubble(viewModel, lanState, file, dark, primary, secondary, onSaveFile)
-                }
-            }
-        }
-
-        Row(
-            Modifier.fillMaxWidth().globalCardSurface(dark, panel, RoundedCornerShape(16.dp), 3.dp).padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box {
-                IconButton(onClick = { attachmentMenu = true }, modifier = Modifier.size(48.dp)) {
-                Icon(AttachFileIcon, "选择附件", tint = if (dark) Color.White else Color(0xff344054), modifier = Modifier.size(28.dp))
-                }
-                AnchoredDropdownMenu(
-                    dark = dark,
-                    expanded = attachmentMenu,
-                    onDismissRequest = { attachmentMenu = false },
-                    shape = RoundedCornerShape(16.dp),
-                    containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 1.dp,
-                    menuWidth = 168.dp,
-                ) {
-                    DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { attachmentMenu = false; onOpenCamera() })
-                    ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text("照片图库") }, onClick = { attachmentMenu = false; onOpenGallery() })
-                    ComposeDropdownDivider(dark)
-                    DropdownMenuItem(text = { Text("选择文件") }, onClick = { attachmentMenu = false; onOpenFiles() })
-                }
-            }
-            BasicTextField(
-                value = message,
-                onValueChange = { message = it },
-                singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp),
-                cursorBrush = SolidColor(primary),
-                modifier = Modifier.weight(1f).height(44.dp).background(inputPanel, RoundedCornerShape(24.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
-                decorationBox = { field -> Box { if (message.isEmpty()) Text(lanState.pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = secondary, fontSize = 15.sp); field() } }
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = {
-                    if (lanState.pendingUploadUri != null) {
-                        viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
-                            lanState.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
-                        }
-                    } else message.takeIf { it.isNotBlank() }?.let { text ->
-                        lanState.session?.let { session -> viewModel.uploadText(session, text) }
+        LanShareComposer(
+            dark = dark,
+            panel = panel,
+            inputPanel = inputPanel,
+            primary = primary,
+            secondary = secondary,
+            accent = accent,
+            pendingUploadName = lanState.pendingUploadName,
+            message = message,
+            onMessageChange = { message = it },
+            onSend = {
+                if (lanState.pendingUploadUri != null) {
+                    viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
+                        lanState.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
                     }
-                },
-                modifier = Modifier.size(48.dp),
-                contentPadding = PaddingValues(0.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accent)
-            ) { Icon(IosShareIcon, "发送文字或上传附件", tint = Color.White, modifier = Modifier.size(24.dp)) }
-        }
+                } else message.takeIf { it.isNotBlank() }?.let { text ->
+                    lanState.session?.let { session -> viewModel.uploadText(session, text) }
+                }
+            },
+            onOpenAttachmentMenu = { attachmentMenu = true },
+            attachmentMenu = attachmentMenu,
+            onDismissAttachmentMenu = { attachmentMenu = false },
+            onOpenCamera = onOpenCamera,
+            onOpenGallery = onOpenGallery,
+            onOpenFiles = onOpenFiles,
+        )
     }
 
     if (qrOpen) {
@@ -211,6 +169,96 @@ internal fun ComposeLanSharePage(
             secondary = secondary,
             onDismiss = { qrOpen = false },
         )
+    }
+}
+
+@Composable
+private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: Color, onQrClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 8.dp)
+            .globalCardSurface(dark, panel, RoundedCornerShape(18.dp), 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(Modifier.width(60.dp))
+        Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        // 二维码入口只保留在右侧图标的点击区域，标题卡片本身不承担点击行为。
+        IconButton(onClick = onQrClick, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = QrCode2Icon,
+                contentDescription = "显示二维码",
+                tint = if (dark) Color(0xff8fc1ff) else accent,
+                modifier = Modifier.size(30.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Text(if (connected) "●" else "○", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
+        Spacer(Modifier.width(5.dp))
+        Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = if (connected) Color(0xff22c55e) else secondary, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun BoxScope.LanShareComposer(
+    dark: Boolean,
+    panel: Color,
+    inputPanel: Color,
+    primary: Color,
+    secondary: Color,
+    accent: Color,
+    pendingUploadName: String?,
+    message: String,
+    onMessageChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onOpenAttachmentMenu: () -> Unit,
+    attachmentMenu: Boolean,
+    onDismissAttachmentMenu: () -> Unit,
+    onOpenCamera: () -> Unit,
+    onOpenGallery: () -> Unit,
+    onOpenFiles: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
+        color = panel,
+        shadowElevation = 4.dp,
+        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+    ) {
+        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box {
+                IconButton(onClick = onOpenAttachmentMenu, modifier = Modifier.size(48.dp)) {
+                    Icon(AttachFileIcon, "选择附件", tint = if (dark) Color.White else Color(0xff344054), modifier = Modifier.size(28.dp))
+                }
+                AnchoredDropdownMenu(
+                    dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+                    tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 168.dp,
+                ) {
+                    DropdownMenuItem(text = { Text("拍摄图片") }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
+                    ComposeDropdownDivider(dark)
+                    DropdownMenuItem(text = { Text("照片图库") }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
+                    ComposeDropdownDivider(dark)
+                    DropdownMenuItem(text = { Text("选择文件") }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
+                }
+            }
+            BasicTextField(
+                value = message, onValueChange = onMessageChange, singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp),
+                cursorBrush = SolidColor(primary),
+                modifier = Modifier.weight(1f).height(44.dp).background(inputPanel, RoundedCornerShape(24.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                decorationBox = { field ->
+                    Box { if (message.isEmpty()) Text(pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = secondary, fontSize = 15.sp); field() }
+                },
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(onClick = onSend, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+                Icon(IosShareIcon, "发送文字或上传附件", tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+        }
     }
 }
 
