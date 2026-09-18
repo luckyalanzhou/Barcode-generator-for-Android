@@ -2,6 +2,9 @@ package com.luckyalanzhou.barcodegenerator
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.requiredSize
@@ -25,7 +29,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -40,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -143,21 +147,14 @@ internal fun ComposeSettingsPage(
             SettingSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", primary, accent) { settingsViewModel.setMargin(it); persist(settings.copy(margin = it)) }
             SettingDivider(dark)
             SettingRow("显示条码格式", primary, trailing = {
-                Box(
-                    Modifier.height(40.dp).width(64.dp).clickable {
-                        val next = !settings.showFormat
+                HyperOsToggle(
+                    checked = settings.showFormat,
+                    dark = dark,
+                    onCheckedChange = { next ->
                         settingsViewModel.setShowFormat(next)
                         persist(settings.copy(showFormat = next))
                     },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = if (settings.showFormat) MaterialTabIcons.toggleOn else MaterialTabIcons.toggleOff,
-                        contentDescription = if (settings.showFormat) "已开启显示条码格式" else "已关闭显示条码格式",
-                        tint = if (settings.showFormat) accent else secondary,
-                        modifier = Modifier.size(38.dp),
-                    )
-                }
+                )
             })
             SettingDivider(dark)
             SettingRow("OCR 字符纠错", primary, trailing = {
@@ -226,6 +223,44 @@ internal fun ComposeSettingsPage(
             }
             Spacer(Modifier.height(6.dp))
         }
+    }
+}
+
+@Composable
+private fun HyperOsToggle(checked: Boolean, dark: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val trackColor by animateColorAsState(
+        targetValue = when {
+            checked && dark -> Color(0xff4f8fe8)
+            checked -> Color(0xff3478d3)
+            dark -> Color(0xff4a5565)
+            else -> Color(0xffd5dbe4)
+        },
+        animationSpec = spring(stiffness = 700f),
+        label = "toggle-track",
+    )
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 20.dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 700f),
+        label = "toggle-thumb",
+    )
+    Box(
+        modifier = Modifier
+            .width(52.dp)
+            .height(32.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(trackColor)
+            .clickable { onCheckedChange(!checked) }
+            .padding(2.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            Modifier
+                .offset(x = thumbOffset)
+                .size(28.dp)
+                .shadow(2.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Color.White),
+        )
     }
 }
 

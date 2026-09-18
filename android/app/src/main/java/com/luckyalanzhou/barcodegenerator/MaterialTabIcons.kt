@@ -134,32 +134,32 @@ internal object MaterialTabIcons {
     }
 
     val history: ImageVector by lazy {
-        ImageVector.Builder("history", 24.dp, 24.dp, 24f, 24f).path {
-            moveTo(13f, 3f)
-            quadTo(8.03f, 3f, 4f, 7f)
-            verticalLineTo(4f)
-            horizontalLineTo(2f)
-            verticalLineTo(10f)
-            horizontalLineTo(8f)
-            verticalLineTo(8f)
-            horizontalLineTo(5.4f)
-            quadTo(8.5f, 5f, 13f, 5f)
-            quadTo(17.97f, 5f, 22f, 9f)
-            quadTo(22f, 13.97f, 18f, 18f)
-            quadTo(13f, 22f, 9f, 18f)
-            lineTo(7.58f, 19.42f)
-            quadTo(10.45f, 22f, 13f, 22f)
-            quadTo(17.97f, 22f, 22f, 18f)
-            quadTo(26f, 13f, 22f, 8f)
-            quadTo(18f, 3f, 13f, 3f)
-            close()
-            moveTo(12f, 8f)
-            verticalLineTo(13f)
-            lineTo(16.25f, 15.52f)
-            lineTo(17.02f, 14.24f)
-            lineTo(14f, 12.15f)
-            verticalLineTo(8f)
-            close()
+        ImageVector.Builder("history", 24.dp, 24.dp, 24f, 24f).apply {
+            path(
+                fill = null,
+                fillAlpha = 1f,
+                stroke = SolidColor(Color.Black),
+                strokeAlpha = 1f,
+                strokeLineWidth = 2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+                strokeLineMiter = 1f,
+                pathFillType = PathFillType.NonZero,
+            ) {
+                moveTo(4.5f, 8.5f)
+                quadTo(7f, 4f, 12f, 4f)
+                quadTo(18.63f, 4f, 20f, 10.5f)
+                quadTo(21.37f, 17f, 15.4f, 19.5f)
+                quadTo(9.43f, 22f, 5.5f, 16.5f)
+                quadTo(3.2f, 13.3f, 4.5f, 8.5f)
+                moveTo(4.5f, 8.5f)
+                lineTo(4.5f, 4.5f)
+                moveTo(4.5f, 8.5f)
+                lineTo(8.5f, 8.5f)
+                moveTo(12f, 8f)
+                verticalLineTo(12.5f)
+                lineTo(15.5f, 14.5f)
+            }
         }.build()
     }
 
