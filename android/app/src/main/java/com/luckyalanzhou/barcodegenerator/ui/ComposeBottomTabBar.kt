@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -122,7 +123,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
         val glassShape = RoundedCornerShape(18.dp)
         Box(
-            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
+            // 液态玻璃包住完整的图标+文字单元；外层 itemScale 让二者保持同一套动画。
+            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(52.dp)
+                .align(Alignment.Center)
                 .graphicsLayer {
                     scaleX = glassScale.value
                     scaleY = glassScale.value
