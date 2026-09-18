@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -235,7 +236,7 @@ internal fun DialogAction(
     val border = if (primary) foreground.copy(alpha = 0.62f) else if (dark) Color(0xff52657f) else Color(0xffb7c7df)
     val background = if (primary) {
         if (dark) Color(0xff246fca) else Color(0xff2d7fda)
-    } else Color.Transparent
+    } else if (dark) Color(0xff252a33) else Color(0xfff2f4f8)
     Box(
         modifier = modifier
             .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
@@ -245,7 +246,15 @@ internal fun DialogAction(
             .clickable { onMetric("按钮：$text"); onClick() }
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = foreground, fontSize = 15.sp, maxLines = 1) }
+    ) {
+        Text(
+            text,
+            color = foreground,
+            fontSize = 15.sp,
+            maxLines = 1,
+            style = LocalTextStyle.current.copy(background = Color.Transparent),
+        )
+    }
 }
 
 @Composable

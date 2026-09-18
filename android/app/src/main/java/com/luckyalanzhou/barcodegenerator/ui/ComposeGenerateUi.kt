@@ -1,5 +1,11 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.icons.AddIcon
+import com.luckyalanzhou.barcodegenerator.icons.ArrowCircleDownIcon
+import com.luckyalanzhou.barcodegenerator.icons.ArrowCircleUpIcon
+import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
+import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +31,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +52,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -126,7 +132,7 @@ internal fun ComposeGeneratePage(
                             value = value,
                             onValueChange = { values[index] = it; syncDraft() },
                             singleLine = true,
-                            textStyle = TextStyle(color = textColor, fontSize = 16.sp),
+                            textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
                             cursorBrush = SolidColor(textColor),
                             modifier = Modifier.weight(1f).height(48.dp)
                                 .shadow(1.dp, RoundedCornerShape(14.dp), clip = false)
@@ -135,18 +141,26 @@ internal fun ComposeGeneratePage(
                                 .border(1.dp, if (focusedIndex == index) focusedInputBorder else inputBorder, RoundedCornerShape(14.dp))
                                 .onFocusChanged { if (it.isFocused) focusedIndex = index }.padding(horizontal = 12.dp, vertical = 13.dp),
                             decorationBox = { field ->
-                                Box { if (value.isEmpty()) Text("\u8f93\u5165\u4e00\u884c\u6761\u7801\u5185\u5bb9", color = secondary, fontSize = 16.sp); field() }
+                                Box {
+                                    if (value.isEmpty()) Text(
+                                        "\u8f93\u5165\u4e00\u884c\u6761\u7801\u5185\u5bb9",
+                                        color = secondary,
+                                        fontSize = 16.sp,
+                                        style = LocalTextStyle.current.copy(background = Color.Transparent),
+                                    )
+                                    field()
+                                }
                             }
                         )
                         if (values.size > 1) {
                             Spacer(Modifier.width(4.dp))
-                            SmallInputAction(MaterialTabIcons.arrowCircleUp, "上移", enabled = index > 0) {
+                            SmallInputAction(ArrowCircleUpIcon, "上移", enabled = index > 0) {
                                 val other = values[index - 1]; values[index - 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction(MaterialTabIcons.arrowCircleDown, "下移", enabled = index < values.lastIndex) {
+                            SmallInputAction(ArrowCircleDownIcon, "下移", enabled = index < values.lastIndex) {
                                 val other = values[index + 1]; values[index + 1] = values[index]; values[index] = other; syncDraft()
                             }
-                            SmallInputAction(MaterialTabIcons.delete, "删除", enabled = true, iconTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), onLongClick = { clearDialog = true }) {
+                            SmallInputAction(DeleteIcon, "删除", enabled = true, iconTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), onLongClick = { clearDialog = true }) {
                                 if (values.size == 1) values[0] = "" else values.removeAt(index); syncDraft()
                             }
                         }
@@ -161,9 +175,9 @@ internal fun ComposeGeneratePage(
                     if (values.size >= 100) onNotice("\u6700\u591a\u4fdd\u7559 100 \u884c\u8f93\u5165\u6846")
                     else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
                 }, modifier = Modifier.weight(1f).globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = cardColor, contentColor = textColor)
-            ) { Text("+ \u6dfb\u52a0\u4e00\u884c", fontSize = 15.sp) }
+            ) { Icon(AddIcon, "添加一行", Modifier.size(20.dp)); Spacer(Modifier.width(4.dp)); Text("添加一行", fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) }
             OutlinedButton(onClick = onCaptureText, modifier = Modifier.weight(1f).globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp)) {
-                Icon(painterResource(R.drawable.ic_camera), "\u62cd\u7167\u53d6\u5b57", Modifier.size(22.dp)); Spacer(Modifier.width(6.dp)); Text("\u62cd\u7167\u53d6\u5b57", fontSize = 15.sp)
+                Icon(PhotoCameraIcon, "拍照取字", Modifier.size(22.dp)); Spacer(Modifier.width(6.dp)); Text("拍照取字", fontSize = 15.sp, style = LocalTextStyle.current.copy(background = Color.Transparent))
             }
         }
 
@@ -172,7 +186,7 @@ internal fun ComposeGeneratePage(
                 Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(18.dp)).background(cardColor).padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("\u6761\u7801\u7c7b\u578b", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), style = LocalTextStyle.current.copy(background = Color.Transparent))
                 Box {
                     Button(
                         onClick = { formatExpanded = true },
@@ -184,7 +198,7 @@ internal fun ComposeGeneratePage(
                         ),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                     ) {
-                        Text(formatName, color = textColor, fontSize = 15.sp, maxLines = 1, softWrap = false)
+                        Text(formatName, color = textColor, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
                     }
                     AnchoredDropdownMenu(
                         dark = dark,
@@ -222,7 +236,7 @@ internal fun ComposeGeneratePage(
             },
             enabled = count > 0,
             modifier = Modifier.fillMaxWidth().globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp), shape = RoundedCornerShape(18.dp)
-        ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", fontSize = 16.sp) }
+        ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", fontSize = 16.sp, style = LocalTextStyle.current.copy(background = Color.Transparent)) }
     }
 }
 

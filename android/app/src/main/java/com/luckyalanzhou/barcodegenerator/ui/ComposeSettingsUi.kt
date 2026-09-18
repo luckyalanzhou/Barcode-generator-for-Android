@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -344,8 +345,8 @@ private fun SettingDivider(dark: Boolean) { Spacer(Modifier.fillMaxWidth().heigh
 
 @Composable
 private fun BoxedSettingButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp), modifier = modifier.globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) { Text(text, maxLines = 1) }
+    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp), modifier = modifier.globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) { Text(text, maxLines = 1, style = LocalTextStyle.current.copy(background = Color.Transparent)) }
 }
 
 @Composable
-private fun SmallSettingButton(text: String, color: Color, buttonColor: Color, onClick: () -> Unit) { Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = color), shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp), modifier = Modifier.globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) { Text(text) } }
+private fun SmallSettingButton(text: String, color: Color, buttonColor: Color, onClick: () -> Unit) { Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = color), shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp), modifier = Modifier.globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) { Text(text, style = LocalTextStyle.current.copy(background = Color.Transparent)) } }

@@ -1,5 +1,10 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
+import com.luckyalanzhou.barcodegenerator.icons.ContentCopyIcon
+import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
+import com.luckyalanzhou.barcodegenerator.icons.QrCode2Icon
+
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
@@ -38,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -122,7 +126,7 @@ internal fun ComposeLanSharePage(
                     viewModel.setQrVisible(false)
                 }
             }, modifier = Modifier.size(60.dp)) {
-                Icon(painterResource(R.drawable.ic_qr_code), "显示二维码", tint = if (dark) Color(0xff8fc1ff) else accent, modifier = Modifier.size(32.dp))
+                Icon(QrCode2Icon, "显示二维码", tint = if (dark) Color(0xff8fc1ff) else accent, modifier = Modifier.size(32.dp))
             }
         }
 
@@ -150,7 +154,7 @@ internal fun ComposeLanSharePage(
         ) {
             Box {
                 IconButton(onClick = { attachmentMenu = true }, modifier = Modifier.size(48.dp)) {
-                    Icon(painterResource(R.drawable.ic_attachment), "选择附件", tint = if (dark) Color.White else Color(0xff344054), modifier = Modifier.size(28.dp))
+                Icon(AttachFileIcon, "选择附件", tint = if (dark) Color.White else Color(0xff344054), modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
                     dark = dark,
@@ -193,7 +197,7 @@ internal fun ComposeLanSharePage(
                 contentPadding = PaddingValues(0.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent)
-            ) { Icon(painterResource(R.drawable.ic_action_share), "发送文字或上传附件", tint = Color.White, modifier = Modifier.size(24.dp)) }
+            ) { Icon(IosShareIcon, "发送文字或上传附件", tint = Color.White, modifier = Modifier.size(24.dp)) }
         }
     }
 
@@ -223,7 +227,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)
                     Image(bitmap.asImageBitmap(), file.name, contentScale = ContentScale.Crop, modifier = Modifier.width((bitmap.width * scale).coerceAtLeast(80f).roundToInt().dp).height((bitmap.height * scale).coerceAtLeast(80f).roundToInt().dp))
                     Spacer(Modifier.height(6.dp))
-                } ?: Icon(painterResource(R.drawable.ic_attachment), "文件附件", tint = if (mine) Color.White else if (dark) Color(0xffd0d6e4) else Color(0xff52627a), modifier = Modifier.size(26.dp))
+                } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) Color.White else if (dark) Color(0xffd0d6e4) else Color(0xff52627a), modifier = Modifier.size(26.dp))
                 Text(file.name, color = if (mine) Color.White else primary, fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 Text(formatLanShareSize(file.size), color = if (mine) Color(0xffdbeafe) else secondary, fontSize = 12.sp)
             }
@@ -271,7 +275,7 @@ private fun ComposeLanShareQrDialog(
                         Text(session.baseUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                         IconButton(onClick = {
                             onCopyAddress(session.baseUrl)
-                        }, modifier = Modifier.size(42.dp)) { Icon(painterResource(R.drawable.ic_copy), "复制局域网传输地址", tint = primary) }
+                        }, modifier = Modifier.size(42.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
                     }
                 }
             }

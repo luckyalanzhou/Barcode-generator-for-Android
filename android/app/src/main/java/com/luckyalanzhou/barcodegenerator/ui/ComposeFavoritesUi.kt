@@ -1,8 +1,11 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
+import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.SearchIcon
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -39,7 +42,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,7 +113,7 @@ internal fun ComposeFavoritesPage(
             singleLine = true,
             textStyle = TextStyle(color = primary, fontSize = 17.sp),
             placeholder = { Text("搜索名称、文件夹或内容", color = secondary, fontSize = 17.sp) },
-            leadingIcon = { Icon(painterResource(R.drawable.ic_search), "搜索", tint = secondary) },
+            leadingIcon = { Icon(SearchIcon, "搜索", tint = secondary) },
             shape = RoundedCornerShape(14.dp)
         )
         if (rows.isEmpty()) {
@@ -153,57 +155,48 @@ internal fun ComposeFavoritesPage(
                                 ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(painterResource(R.drawable.ic_folder), "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
+                            Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
                             Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
                             Text(row.label, color = folderColor, fontSize = if (row.level == 0) 18.sp else 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             Text(if (row.collapsed) "›" else "⌄", color = secondary, fontSize = 22.sp, modifier = Modifier.width(25.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
-                        if (folderMenu?.first == row.path) {
+                        AnchoredDropdownMenu(
+                            dark = dark,
+                            expanded = folderMenu?.first == row.path,
+                            onDismissRequest = { folderMenu = null },
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = if (dark) ComposeColor(0xff252a33).copy(alpha = .98f) else ComposeColor.White.copy(alpha = .94f),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 3.dp,
+                            menuWidth = 160.dp,
+                        ) {
+                            DropdownMenuItem(
+                                enabled = false,
+                                text = { Text("编辑文件夹", fontWeight = FontWeight.SemiBold) },
+                                onClick = {},
+                            )
+                            ComposeDropdownDivider(dark)
                             val folderActions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
-                            Column(
-                                Modifier.fillMaxWidth()
-                                    .padding(start = if (row.level == 0) 12.dp else 28.dp, end = 8.dp)
-                                    .globalCardSurface(
-                                        dark,
-                                        if (dark) ComposeColor(0xff202b3a) else ComposeColor(0xfffbfcff),
-                                        RoundedCornerShape(16.dp),
-                                        4.dp,
-                                    )
-                                    .padding(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                Text("编辑文件夹", color = if (dark) ComposeColor(0xfff2f4f8) else ComposeColor(0xff182230), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                                folderActions.forEachIndexed { index, label ->
-                                    val danger = label == "删除"
-                                    Box(
-                                        Modifier.fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(if (danger) ComposeColor(0xffd95c5c).copy(alpha = if (dark) .22f else .10f) else if (dark) ComposeColor.White.copy(alpha = .08f) else ComposeColor(0xfff1f5fa))
-                                            .clickable {
-                                                folderMenu = null
-                                                when {
-                                                    row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
-                                                    index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
-                                                        val parent = row.path.substringBeforeLast('/', "")
-                                                        val renamedPath = listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/")
-                                                        viewModel.renameFavoriteFolderAndPersist(row.path, renamedPath)
-                                                    }
-                                                    else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
-                                                        viewModel.deleteFavoriteFolderAndPersist(row.path)
-                                                    }
-                                                }
+                            folderActions.forEachIndexed { index, label ->
+                                if (index > 0) ComposeDropdownDivider(dark)
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        folderMenu = null
+                                        when {
+                                            row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
+                                            index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
+                                                val parent = row.path.substringBeforeLast('/', "")
+                                                val renamedPath = listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/")
+                                                viewModel.renameFavoriteFolderAndPersist(row.path, renamedPath)
                                             }
-                                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                                        contentAlignment = Alignment.CenterStart,
-                                    ) {
-                                        Text(label, color = if (danger) ComposeColor(0xffdf6f6f) else if (dark) ComposeColor(0xffe7edf7) else ComposeColor(0xff243247), fontSize = 15.sp)
-                                    }
-                                }
-                                Box(
-                                    Modifier.fillMaxWidth().clickable { folderMenu = null }.padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) { Text("取消", color = if (dark) ComposeColor(0xffaeb9c9) else ComposeColor(0xff667085), fontSize = 14.sp) }
+                                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") {
+                                                viewModel.deleteFavoriteFolderAndPersist(row.path)
+                                            }
+                                        }
+                                    },
+                                )
                             }
                         }
                     }
@@ -241,7 +234,7 @@ internal fun ComposeFavoritesPage(
                                 ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(painterResource(R.drawable.ic_attachment), "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
+                            Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(group.name, color = fileColor, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)

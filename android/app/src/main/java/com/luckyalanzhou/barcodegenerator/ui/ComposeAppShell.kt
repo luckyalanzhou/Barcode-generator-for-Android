@@ -292,7 +292,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             "settings" -> {
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
                 ) {
                     ComposeSettingsPage(
                         settingsViewModel = dependencies.settingsViewModel,

@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.icons.EditIcon
+import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
+import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
+
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -26,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,11 +70,11 @@ internal fun ComposeResultsPage(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Spacer(Modifier.weight(1f))
-                    ResultAction(R.drawable.ic_action_edit, "编辑", actionColor) {
+                    ResultAction(EditIcon, "编辑", actionColor) {
                         viewModel.editCurrentResult()
                     }
-                    ResultAction(R.drawable.ic_action_favorite, "收藏", actionColor, onSaveFavorite)
-                    ResultAction(R.drawable.ic_action_share, "分享", actionColor, onShare)
+                    ResultAction(FavoriteIcon, "收藏", actionColor, onSaveFavorite)
+                    ResultAction(IosShareIcon, "分享", actionColor, onShare)
                 }
             }
         }
@@ -81,12 +84,12 @@ internal fun ComposeResultsPage(
     }
 }
 @Composable
-private fun ResultAction(icon: Int, label: String, tint: Color, onClick: () -> Unit) {
+private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
     Column(
         Modifier.width(64.dp).clickable(onClick = onClick).padding(horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(painterResource(icon), contentDescription = label, tint = tint, modifier = Modifier.width(25.dp).height(27.dp))
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.width(25.dp).height(27.dp))
         Text(label, color = tint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
     }
 }

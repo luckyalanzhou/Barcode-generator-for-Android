@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
+
 import android.graphics.Color
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,7 +95,7 @@ internal fun HistoryComposePage(
                             Text(timeText(time), color = secondary, fontSize = 12.sp, maxLines = 1)
                             Spacer(Modifier.width(2.dp))
                             IconButton(onClick = { onDelete(batch) }, modifier = Modifier.size(36.dp)) {
-                                Icon(painterResource(R.drawable.ic_delete_light), "删除这条历史记录", tint = ComposeColor(0xffd98787))
+                                Icon(DeleteIcon, "删除这条历史记录", tint = ComposeColor(0xffd98787))
                             }
                         }
                     }

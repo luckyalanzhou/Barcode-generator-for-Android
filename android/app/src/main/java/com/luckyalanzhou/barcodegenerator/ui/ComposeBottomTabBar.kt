@@ -1,5 +1,10 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
+import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
+import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
+import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -51,11 +56,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     val animation = rememberComposeAnimationConfig()
     val tabs = remember {
         listOf(
-            ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", MaterialTabIcons.barcode),
+            ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
             // 历史和收藏只使用线框图标；选中态通过颜色、液态玻璃框和弹簧动画表达。
-            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", MaterialTabIcons.history),
-            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", MaterialTabIcons.favorite),
-            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", MaterialTabIcons.settings)
+            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon),
+            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon),
+            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon)
         )
     }
     val selectedColor = if (dark) Color(0xfff4f7ff) else Color(0xff246fc4)
