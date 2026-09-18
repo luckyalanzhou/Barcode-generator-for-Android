@@ -152,6 +152,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                 onValueChange = { value = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
+                shape = RoundedCornerShape(8.dp),
                 label = { Text("收藏文件名") },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
@@ -201,7 +202,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
         var folder by remember { mutableStateOf(group.folder) }
         ComposeGlassDialogCard(dark) {
             Text("编辑收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
-            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, label = { Text("收藏文件名") })
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), label = { Text("收藏文件名") })
             OutlinedTextField(folder, { folder = it }, Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("文件夹") })
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
@@ -439,6 +440,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                 onValueChange = { name = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 singleLine = true,
+                shape = RoundedCornerShape(8.dp),
                 label = { Text("收藏文件名") },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
