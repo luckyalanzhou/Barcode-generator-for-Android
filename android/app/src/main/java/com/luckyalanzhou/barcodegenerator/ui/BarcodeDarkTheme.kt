@@ -42,6 +42,10 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     thumb = Color.White,
     success = Color(0xff4ade80),
     onAccent = Color(0xff10224a),
+    primaryBorderAlpha = .32f,
+    dialogDimAmount = .48f,
+    progressHighlight = Color.White.copy(alpha = .78f),
+    sentContent = Color.White,
 )
 
 /** 深色主题：颜色只由外观设置选择，不在页面内单独维护主题状态。 */

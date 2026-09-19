@@ -196,6 +196,7 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
     ).value
     val fill = LocalBarcodeThemeColors.current.progress
     val track = LocalBarcodeThemeColors.current.progressTrack
+    val highlight = LocalBarcodeThemeColors.current.progressHighlight
     Canvas(
         modifier = Modifier.fillMaxWidth().height(14.dp)
             .clip(RoundedCornerShape(7.dp))
@@ -207,7 +208,7 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
             val glowWidth = 32.dp.toPx()
             drawRoundRect(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(fill.copy(alpha = .70f), fill, Color.White.copy(alpha = .78f), fill),
+                    colors = listOf(fill.copy(alpha = .70f), fill, highlight, fill),
                     startX = (filledWidth - glowWidth).coerceAtLeast(0f),
                     endX = (filledWidth + glowWidth).coerceAtMost(size.width),
                 ),

@@ -267,7 +267,7 @@ private fun BoxScope.LanShareComposer(
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = onSend, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                Icon(IosShareIcon, "发送文字或上传附件", tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(IosShareIcon, "发送文字或上传附件", tint = themeColors.sentContent, modifier = Modifier.size(24.dp))
             }
         }
     }
@@ -287,8 +287,8 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)
                     Image(bitmap.asImageBitmap(), file.name, contentScale = ContentScale.Crop, modifier = Modifier.width((bitmap.width * scale).coerceAtLeast(80f).roundToInt().dp).height((bitmap.height * scale).coerceAtLeast(80f).roundToInt().dp))
                     Spacer(Modifier.height(6.dp))
-                } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) Color.White else themeColors.icon, modifier = Modifier.size(26.dp))
-                Text(file.name, color = if (mine) Color.White else primary, fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
+                } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) themeColors.sentContent else themeColors.icon, modifier = Modifier.size(26.dp))
+                Text(file.name, color = if (mine) themeColors.sentContent else primary, fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 Text(formatLanShareSize(file.size), color = if (mine) themeColors.qrBackground else secondary, fontSize = 12.sp)
             }
         }

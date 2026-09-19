@@ -257,7 +257,7 @@ internal fun ComposeSettingsPage(
                         label = "检查更新",
                         containerColor = colors.button,
                         contentColor = colors.primary,
-                        borderColor = colors.primary.copy(alpha = if (dark) .32f else .22f),
+                        borderColor = colors.primary.copy(alpha = LocalBarcodeThemeColors.current.primaryBorderAlpha),
                         modifier = Modifier.width(132.dp),
                         iconSize = 20.dp,
                         contentSpacing = 5.dp,

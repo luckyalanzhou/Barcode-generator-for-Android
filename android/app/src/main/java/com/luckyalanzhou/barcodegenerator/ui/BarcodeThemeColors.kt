@@ -44,6 +44,10 @@ internal data class BarcodeThemeColors(
     val thumb: Color,
     val success: Color,
     val onAccent: Color,
+    val primaryBorderAlpha: Float,
+    val dialogDimAmount: Float,
+    val progressHighlight: Color,
+    val sentContent: Color,
 )
 
 internal val LocalBarcodeThemeColors = staticCompositionLocalOf { BarcodeLightThemeColors }

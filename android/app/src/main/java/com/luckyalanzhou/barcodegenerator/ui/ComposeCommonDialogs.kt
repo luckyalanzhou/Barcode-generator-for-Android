@@ -93,7 +93,7 @@ internal fun MainActivity.showComposeDialog(
     dialog.setOnCancelListener { onCancel?.invoke() }
     dialog.setOnShowListener {
         dialog.window?.apply {
-            setDimAmount(if (isDark()) 0.48f else 0.34f)
+            setDimAmount(barcodeThemeColors(isDark()).dialogDimAmount)
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             // 取消系统默认的长动画，弹窗显示由 Compose 内容立即接管，避免双重过渡造成卡顿。
             setWindowAnimations(0)
@@ -224,7 +224,7 @@ internal fun DialogAction(
     val onMetric = LocalDialogMetric.current
     val colors = LocalBarcodeThemeColors.current
     val foreground = when {
-        primary -> Color.White
+        primary -> colors.onAccent
         destructive -> colors.destructive
         else -> colors.accent
     }
