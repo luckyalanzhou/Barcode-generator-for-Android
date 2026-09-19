@@ -60,10 +60,10 @@ jobs:
           base_code="$(sed -nE 's/^versionCode=([0-9]+)$/\1/p' "$version_file")"
           test -n "$base_version" || { echo "::error::versionName not found"; exit 1; }
           test -n "$base_code" || { echo "::error::versionCode not found"; exit 1; }
-          [[ "$base_version" == "1.0.0" ]] || { echo "::error::Beta versionName must remain 1.0.0"; exit 1; }
+          [[ "$base_version" == "9.9.9" ]] || { echo "::error::Beta versionName must remain 9.9.9"; exit 1; }
           [[ "$base_code" =~ ^[0-9]+$ ]] || { echo "::error::versionCode format is invalid"; exit 1; }
 
-          # Beta 固定使用 1.0.0；versionCode 使用 workflow run number 递增。
+          # Beta 固定使用 9.9.9；versionCode 使用 workflow run number 递增。
           # 运行编号允许因失败构建产生空洞，但始终保证后续成功 APK 可升级覆盖旧版本。
           version_name="$base_version"
           version_code=$((base_code + GITHUB_RUN_NUMBER - 1))
@@ -114,7 +114,7 @@ jobs:
       - name: Publish beta GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-test-v1.0.0
+          tag_name: android-test-v9.9.9
           name: Barcode Generator Beta v${{ steps.app-version.outputs.version }}
           generate_release_notes: false
           overwrite_files: true
