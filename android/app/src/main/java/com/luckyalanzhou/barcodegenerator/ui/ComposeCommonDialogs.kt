@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +50,15 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlin.math.roundToInt
 
 private val LocalDialogMetric = compositionLocalOf<(String) -> Unit> { {} }
+private val LocalDialogSelectedElement = compositionLocalOf<MutableState<String>?> { null }
+
+@Composable
+private fun Modifier.dialogMetricTarget(label: String): Modifier {
+    val selected = LocalDialogSelectedElement.current?.value == label
+    val onMetric = LocalDialogMetric.current
+    return then(if (selected) Modifier.border(2.dp, Color.Red, RectangleShape) else Modifier)
+        .clickable { onMetric(label) }
+}
 
 /** 公共 Compose 玻璃弹窗容器；弹窗宽度与旧版保持同一适度范围。 */
 internal fun MainActivity.showComposeDialog(
@@ -82,7 +92,10 @@ internal fun MainActivity.showComposeDialog(
         val dark = isDark()
         CompositionLocalProvider(LocalBarcodeThemeColors provides barcodeThemeColors(dark)) {
             MaterialTheme {
-            CompositionLocalProvider(LocalDialogMetric provides { selectedElement.value = it }) {
+            CompositionLocalProvider(
+                LocalDialogMetric provides { selectedElement.value = it },
+                LocalDialogSelectedElement provides selectedElement,
+            ) {
                 content { dialog.dismiss() }
             }
             }
@@ -132,9 +145,25 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
                 ) {
                     Text("弹窗：$label", color = colors.secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text("当前元素：${selectedElement.value}", color = colors.secondary, fontSize = 12.sp)
-                    Text("类型：Compose 元素    可见：true    可用：true", color = colors.secondary, fontSize = 12.sp)
-                    Text("位置：由当前弹窗布局决定    尺寸：自适应内容", color = colors.secondary, fontSize = 12.sp)
-                    Text("内边距：按当前元素规范    外观：圆角边框、轻阴影", color = colors.secondary, fontSize = 12.sp)
+                    when (selectedElement.value) {
+                        "标题" -> {
+                            Text("文字：当前弹窗标题", color = colors.secondary, fontSize = 12.sp)
+                            Text("外边距：上 0dp，左右 0dp    字号：18sp", color = colors.secondary, fontSize = 12.sp)
+                            Text("样式：Medium，主文字色，单行文本", color = colors.secondary, fontSize = 12.sp)
+                        }
+                        "副标题" -> {
+                            Text("文字：当前弹窗副标题/说明文字", color = colors.secondary, fontSize = 12.sp)
+                            Text("外边距：上 10dp，左右 0dp    字号：15sp", color = colors.secondary, fontSize = 12.sp)
+                            Text("样式：常规字重，次要文字色，可多行显示", color = colors.secondary, fontSize = 12.sp)
+                        }
+                        else -> {
+                            val action = selectedElement.value.removePrefix("按钮：")
+                            Text("按钮文字：$action", color = colors.secondary, fontSize = 12.sp)
+                            Text("外边距：上 16dp，按钮间距 8dp    内边距：左右 10dp、上下 7dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("尺寸：内容自适应，高度约 40dp    边框：1dp，圆角 12dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("样式：按钮色背景，点击反馈，选中为红色直角框", color = colors.secondary, fontSize = 12.sp)
+                        }
+                    }
                 }
             }
         }
@@ -224,6 +253,7 @@ internal fun DialogAction(
 ) {
     val onMetric = LocalDialogMetric.current
     val colors = LocalBarcodeThemeColors.current
+    val selected = LocalDialogSelectedElement.current?.value == "按钮：$text"
     val foreground = when {
         primary -> colors.onAccent
         destructive -> colors.destructive
@@ -236,6 +266,7 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
+            .then(if (selected) Modifier.border(2.dp, Color.Red, RectangleShape) else Modifier)
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(1.dp, border, RoundedCornerShape(12.dp))
@@ -292,10 +323,10 @@ internal fun MainActivity.showSimulatedDialogCompose(
         val dark = isDark()
         val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(title, modifier = Modifier.dialogMetricTarget("标题"), color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             Text(
                 message,
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") },
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).dialogMetricTarget("副标题"),
                 color = LocalBarcodeThemeColors.current.secondary,
                 fontSize = 15.sp,
             )
@@ -331,8 +362,8 @@ internal fun MainActivity.showComposeConfirmDialog(
         val dark = isDark()
         val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") }, color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
+            Text(title, modifier = Modifier.dialogMetricTarget("标题"), color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).dialogMetricTarget("副标题"), color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction(
