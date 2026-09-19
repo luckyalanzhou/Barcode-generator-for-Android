@@ -107,7 +107,13 @@ internal fun ComposeGeneratePage(
     if (clearDialog) {
         AlertDialog(
             onDismissRequest = { clearDialog = false },
-            title = { Text("\u6e05\u7a7a\u6240\u6709\u8f93\u5165\uff1f") },
+            title = {
+                Text(
+                    "\u6e05\u7a7a\u6240\u6709\u8f93\u5165\uff1f",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            },
             confirmButton = { Button(onClick = { values.clear(); values.add(""); syncDraft(); clearDialog = false }) { Text("\u6e05\u7a7a") } },
             dismissButton = { OutlinedButton(onClick = { clearDialog = false }) { Text("\u53d6\u6d88") } }
         )
