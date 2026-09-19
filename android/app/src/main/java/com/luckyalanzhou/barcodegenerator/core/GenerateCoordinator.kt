@@ -6,7 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 
 /** 生成流程协调器：隔离输入解析、结果快照和持久化，避免 ViewModel 继续膨胀。 */
-class BarcodeGenerationCoordinator(
+class GenerateCoordinator(
     private val useCase: GenerateBarcodesUseCase,
     private val items: MutableList<CodeItem>,
     private val readDraft: () -> List<String>,

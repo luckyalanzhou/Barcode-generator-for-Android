@@ -4,8 +4,8 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import kotlinx.coroutines.CoroutineScope
 
-/** 收藏、文件夹和收藏条码关系的业务协调器。页面路由与 Compose 状态由 ViewModel 负责。 */
-class FavoritesCoordinator(
+/** 收藏、文件夹和收藏条码关系的变更协调器。查询和分页由 FavoritesQueryCoordinator 负责。 */
+class FavoritesMutationCoordinator(
     private val items: MutableList<CodeItem>,
     private val groups: MutableList<FavoriteGroup>,
     private val folders: MutableList<String>,
@@ -14,28 +14,20 @@ class FavoritesCoordinator(
     private val publish: () -> Unit,
 ) {
     fun renameFolder(path: String, renamedPath: String) {
-        groups
-            .filter { it.folder == path || it.folder.startsWith("$path/") }
-            .forEach { group ->
-                group.folder = if (group.folder == path) renamedPath
-                else renamedPath + group.folder.removePrefix(path)
-            }
-        folders
-            .filter { it == path || it.startsWith("$path/") }
-            .toList()
-            .forEach { old ->
-                folders.remove(old)
-                folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
-            }
+        groups.filter { it.folder == path || it.folder.startsWith("$path/") }.forEach { group ->
+            group.folder = if (group.folder == path) renamedPath else renamedPath + group.folder.removePrefix(path)
+        }
+        folders.filter { it == path || it.startsWith("$path/") }.toList().forEach { old ->
+            folders.remove(old)
+            folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
+        }
         publish()
     }
 
     fun deleteFolder(path: String) {
         val removed = groups.filter { it.folder == path || it.folder.startsWith("$path/") }
         val remaining = groups.filterNot { it.folder == path || it.folder.startsWith("$path/") }
-        val orphanedItemIds = removed.flatMap { it.itemIds }.distinct().filter { itemId ->
-            remaining.none { itemId in it.itemIds }
-        }
+        val orphanedItemIds = removed.flatMap { it.itemIds }.distinct().filter { itemId -> remaining.none { itemId in it.itemIds } }
         persistence.clearFavoriteFlags(scope, orphanedItemIds)
         persistence.clearFavoriteFlagsForGroups(scope, removed.map { it.id })
         persistence.deleteFavoriteGroups(scope, removed.map { it.id })
@@ -69,38 +61,17 @@ class FavoritesCoordinator(
         if (item.favorite) persistAllFavorites() else persistItems()
     }
 
-    fun saveResultAsFavorite(
-        resultItemIds: List<Long>,
-        editingGroupId: Long?,
-        targetGroupId: Long?,
-        folder: String,
-        name: String,
-    ): Boolean {
+    fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
         val selectedItems = items.filter { it.id in resultItemIds }
         if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return false
-
-        if (editingGroupId != null && editingGroupId != targetGroupId) {
-            groups.removeAll { it.id == editingGroupId }
-        }
-        selectedItems.forEach {
-            it.favorite = true
-            it.folder = folder
-        }
+        if (editingGroupId != null && editingGroupId != targetGroupId) groups.removeAll { it.id == editingGroupId }
+        selectedItems.forEach { it.favorite = true; it.folder = folder }
         if (folder !in folders) folders.add(folder)
-
         val groupId = targetGroupId ?: ((groups.maxOfOrNull { it.id } ?: 0L) + 1L)
-        val updatedGroup = FavoriteGroup(
-            groupId,
-            folder,
-            name,
-            System.currentTimeMillis(),
-            selectedItems.map { it.id }.toMutableList(),
-        )
+        val updatedGroup = FavoriteGroup(groupId, folder, name, System.currentTimeMillis(), selectedItems.map { it.id }.toMutableList())
         val targetIndex = groups.indexOfFirst { it.id == groupId }
         if (targetIndex >= 0) groups[targetIndex] = updatedGroup else groups.add(0, updatedGroup)
-
-        items.filter { it.favorite && groups.none { group -> it.id in group.itemIds } }
-            .forEach { it.favorite = false }
+        items.filter { it.favorite && groups.none { group -> it.id in group.itemIds } }.forEach { it.favorite = false }
         persistAllFavorites()
         return true
     }
@@ -114,48 +85,13 @@ class FavoritesCoordinator(
         return true
     }
 
-    fun renameFolderAndPersist(path: String, renamedPath: String) {
-        renameFolder(path, renamedPath)
-        persistence.renameFavoriteFolder(scope, path, renamedPath)
-        persistFolders()
-    }
-
-    fun deleteFolderAndPersist(path: String) {
-        deleteFolder(path)
-        persistence.deleteFavoriteFolder(scope, path)
-        persistFolders()
-    }
-
-    fun renameGroupAndPersist(groupId: Long, name: String) {
-        groups.firstOrNull { it.id == groupId }?.name = name
-        persistAllFavorites()
-    }
-
-    fun moveGroupAndPersist(groupId: Long, folder: String) {
-        val group = groups.firstOrNull { it.id == groupId } ?: return
-        group.folder = folder
-        if (folder.isNotBlank() && folder !in folders) folders.add(folder)
-        persistAllFavorites()
-    }
-
-    fun deleteGroupAndPersist(groupId: Long) {
-        deleteGroup(groupId)
-        persistAllFavorites()
-    }
-
-    fun clearFavoritesAndPersist() {
-        groups.clear()
-        items.forEach { it.favorite = false; it.folder = "默认" }
-        persistence.clearAllFavoriteFlags(scope)
-        persistence.clearAllFavoriteGroups(scope)
-        persistAllFavorites()
-    }
-
-    fun clearHistoryAndPersist() {
-        items.forEach { it.inHistory = false }
-        persistItems()
-    }
-
+    fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(scope, path, renamedPath); persistFolders() }
+    fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(scope, path); persistFolders() }
+    fun renameGroupAndPersist(groupId: Long, name: String) { groups.firstOrNull { it.id == groupId }?.name = name; persistAllFavorites() }
+    fun moveGroupAndPersist(groupId: Long, folder: String) { groups.firstOrNull { it.id == groupId }?.let { it.folder = folder; if (folder.isNotBlank() && folder !in folders) folders.add(folder); persistAllFavorites() } }
+    fun deleteGroupAndPersist(groupId: Long) { deleteGroup(groupId); persistAllFavorites() }
+    fun clearFavoritesAndPersist() { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" }; persistence.clearAllFavoriteFlags(scope); persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
+    fun clearHistoryAndPersist() { items.forEach { it.inHistory = false }; persistItems() }
     fun persistAllFavorites() = persistence.persistAllFavorites(scope, items, groups, folders, publish)
     fun persistItems() = persistence.persistItems(scope, items, publish)
     fun persistGroups() = persistence.persistFavoriteGroups(scope, groups, publish)
