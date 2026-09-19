@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -386,8 +389,19 @@ private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloating
             ),
             track = { sliderState ->
                 val fraction = ((sliderState.value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
-                Box(Modifier.fillMaxWidth().height(4.dp).background(sliderAccent.copy(alpha = .18f), RoundedCornerShape(2.dp))) {
-                    Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(sliderAccent, RoundedCornerShape(2.dp)))
+                Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+                    val centerY = size.height / 2f
+                    val centerX = size.width * fraction
+                    val gap = 10.dp.toPx()
+                    val stroke = 4.dp.toPx()
+                    val activeEnd = (centerX - gap).coerceAtLeast(0f)
+                    val inactiveStart = (centerX + gap).coerceAtMost(size.width)
+                    if (activeEnd > 0f) {
+                        drawLine(sliderAccent, Offset(0f, centerY), Offset(activeEnd, centerY), stroke, StrokeCap.Round)
+                    }
+                    if (inactiveStart < size.width) {
+                        drawLine(sliderAccent.copy(alpha = .18f), Offset(inactiveStart, centerY), Offset(size.width, centerY), stroke, StrokeCap.Round)
+                    }
                 }
             },
             thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(sliderAccent)) },
