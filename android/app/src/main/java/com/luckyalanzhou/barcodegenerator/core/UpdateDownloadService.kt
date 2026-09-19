@@ -3,6 +3,8 @@ package com.luckyalanzhou.barcodegenerator
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -18,7 +20,7 @@ class UpdateDownloadService(
         expectedSize: Long?,
         expectedSha256: String?,
         onProgress: (progress: Int, indeterminate: Boolean, status: String) -> Unit,
-    ): File {
+    ): File = withContext(Dispatchers.IO) {
         val temp = File(context.cacheDir, "barcode-generator-update.apk.part")
         val official = File(context.cacheDir, "barcode-generator-update.apk")
         var connection: HttpURLConnection? = null
@@ -76,7 +78,7 @@ class UpdateDownloadService(
                 ?.filter { it.name.startsWith("barcode-generator-update") && it != official }
                 ?.forEach { it.delete() }
             DebugLog.record("update", "download validated size=${official.length()}")
-            return official
+            return@withContext official
         } finally {
             connection?.disconnect()
             if (!official.isFile) temp.delete()
