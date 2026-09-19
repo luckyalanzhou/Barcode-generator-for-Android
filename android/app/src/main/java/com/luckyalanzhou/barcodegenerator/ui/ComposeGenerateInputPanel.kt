@@ -89,14 +89,6 @@ internal fun ComposeGenerateInputPanel(
                     }
                 }
                 Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = (index + 1).toString(),
-                        modifier = Modifier.width(24.dp),
-                        color = secondary,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.width(6.dp))
                     Surface(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(14.dp),
@@ -106,30 +98,42 @@ internal fun ComposeGenerateInputPanel(
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
                     ) {
-                        BasicTextField(
-                            value = value,
-                            onValueChange = { onValueChange(index, it) },
-                            singleLine = true,
-                            textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
-                            cursorBrush = SolidColor(textColor),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                                .focusRequester(focusRequester)
-                                .onFocusChanged { if (it.isFocused) onFocus(index) }
-                                .padding(horizontal = 12.dp, vertical = 13.dp),
-                            decorationBox = { field ->
-                                Box {
-                                    if (value.isEmpty()) {
-                                        Text(
-                                            text = "输入一行条码内容",
-                                            color = secondary,
-                                            fontSize = 16.sp,
-                                            style = LocalTextStyle.current.copy(background = Color.Transparent),
-                                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = (index + 1).toString(),
+                                modifier = Modifier.width(32.dp),
+                                color = secondary,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                            BasicTextField(
+                                value = value,
+                                onValueChange = { onValueChange(index, it) },
+                                singleLine = true,
+                                textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
+                                cursorBrush = SolidColor(textColor),
+                                modifier = Modifier.weight(1f).height(48.dp)
+                                    .focusRequester(focusRequester)
+                                    .onFocusChanged { if (it.isFocused) onFocus(index) }
+                                    .padding(horizontal = 6.dp, vertical = 13.dp),
+                                decorationBox = { field ->
+                                    Box {
+                                        if (value.isEmpty()) {
+                                            Text(
+                                                text = "输入一行条码内容",
+                                                color = secondary,
+                                                fontSize = 16.sp,
+                                                style = LocalTextStyle.current.copy(background = Color.Transparent),
+                                            )
+                                        }
+                                        field()
                                     }
-                                    field()
-                                }
-                            },
-                        )
+                                },
+                            )
+                        }
                     }
                     if (values.size > 1) {
                         Spacer(Modifier.width(4.dp))
