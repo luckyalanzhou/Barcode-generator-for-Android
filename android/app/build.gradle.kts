@@ -12,7 +12,6 @@ val localBetaVersionName = betaVersionProperties.getProperty("versionName")
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
@@ -20,11 +19,11 @@ plugins {
 
 android {
     namespace = "com.luckyalanzhou.barcodegenerator"
-    compileSdk = 35
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 37
         versionCode = suppliedVersionCode ?: 11
         versionName = suppliedVersionName ?: "1.0.10"
     }
@@ -87,7 +86,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
