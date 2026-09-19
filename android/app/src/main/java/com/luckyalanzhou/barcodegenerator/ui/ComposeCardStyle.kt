@@ -32,4 +32,4 @@ internal fun Modifier.globalCardSurface(
 internal fun Modifier.globalButtonChrome(
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
     elevation: Dp = 1.5.dp,
-): Modifier = this.shadow(minOf(elevation, 1.dp), shape, clip = true)
+): Modifier = this.shadow(minOf(elevation, 1.dp), shape, clip = false)
