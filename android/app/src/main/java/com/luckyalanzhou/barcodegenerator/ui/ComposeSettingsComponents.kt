@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.data.SettingsStore
+import com.luckyalanzhou.barcodegenerator.domain.ocrCorrectionOptions
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -119,9 +119,4 @@ internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier 
     }
 }
 
-internal val ocrReplacementLabels = listOf(
-    "O → 0" to SettingsStore.OCR_REPLACE_O_ZERO,
-    "I → 1" to SettingsStore.OCR_REPLACE_I_ONE,
-    "S → 5" to SettingsStore.OCR_REPLACE_S_FIVE,
-    "B → 8" to SettingsStore.OCR_REPLACE_B_EIGHT,
-)
+internal val ocrReplacementLabels = ocrCorrectionOptions.map { it.label to it.bit }

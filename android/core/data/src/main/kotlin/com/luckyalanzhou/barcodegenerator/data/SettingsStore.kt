@@ -35,10 +35,6 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         val SHOW_FORMAT = booleanPreferencesKey("style_show_format")
         val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
         val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
-        const val OCR_REPLACE_O_ZERO = OcrCorrectionMask.O_ZERO
-        const val OCR_REPLACE_I_ONE = OcrCorrectionMask.I_ONE
-        const val OCR_REPLACE_S_FIVE = OcrCorrectionMask.S_FIVE
-        const val OCR_REPLACE_B_EIGHT = OcrCorrectionMask.B_EIGHT
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
     }
