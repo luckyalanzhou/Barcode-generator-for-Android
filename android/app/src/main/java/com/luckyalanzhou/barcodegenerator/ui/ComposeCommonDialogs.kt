@@ -58,6 +58,7 @@ private val LocalDialogMetric = compositionLocalOf<(String) -> Unit> { {} }
 private val LocalDialogSelectedElement = compositionLocalOf<MutableState<String>?> { null }
 private val LocalDialogElementBounds = compositionLocalOf<MutableState<Map<String, DialogElementBounds>>?> { null }
 private val LocalDialogElementVisuals = compositionLocalOf<MutableState<Map<String, DialogElementVisual>>?> { null }
+private val LocalDialogInspectOnly = compositionLocalOf { false }
 
 internal data class DialogElementBounds(
     val left: Float,
@@ -156,6 +157,7 @@ internal fun MainActivity.showComposeDialog(
                 LocalDialogSelectedElement provides selectedElement,
                 LocalDialogElementBounds provides elementBounds,
                 LocalDialogElementVisuals provides elementVisuals,
+                LocalDialogInspectOnly provides (metricsLabel != null),
             ) {
                 content { dialog.dismiss() }
             }
@@ -369,6 +371,7 @@ internal fun DialogAction(
 ) {
     val onMetric = LocalDialogMetric.current
     val colors = LocalBarcodeThemeColors.current
+    val inspectOnly = LocalDialogInspectOnly.current
     val selected = LocalDialogSelectedElement.current?.value == "按钮：$text"
     val foreground = when {
         primary -> colors.onAccent
@@ -396,7 +399,10 @@ internal fun DialogAction(
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(1.dp, border, RoundedCornerShape(12.dp))
-            .clickable { onMetric("按钮：$text"); onClick() }
+            .clickable {
+                onMetric("按钮：$text")
+                if (!inspectOnly) onClick()
+            }
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
