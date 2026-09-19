@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private data class ComposeFavoriteRow(
     val path: String,
@@ -97,16 +100,20 @@ internal fun ComposeFavoritesPage(
         (favoritesState.folders + favoritesState.groups.map { it.folder })
             .filter { it.isNotBlank() }.distinct().toSet()
     }
-    val expandedSearchPaths = remember(favoritesState, normalizedQuery) {
-        favoriteSearchExpandedPaths(favoritesState, normalizedQuery)
+    val expandedSearchPaths by produceState<Set<String>>(emptySet(), favoritesState, normalizedQuery) {
+        value = withContext(Dispatchers.Default) {
+            favoriteSearchExpandedPaths(favoritesState, normalizedQuery)
+        }
     }
 
     LaunchedEffect(folderPaths, favoritesState.groups) { viewModel.syncFavoriteTree(folderPaths) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
-    val rows = remember(favoritesState, normalizedQuery, visibleCollapsedFolders) {
-        composeFavoriteRows(favoritesState, normalizedQuery, visibleCollapsedFolders)
+    val rows by produceState<List<ComposeFavoriteRow>?>(null, favoritesState, normalizedQuery, visibleCollapsedFolders) {
+        value = withContext(Dispatchers.Default) {
+            composeFavoriteRows(favoritesState, normalizedQuery, visibleCollapsedFolders)
+        }
     }
 
     LazyColumn(
@@ -137,7 +144,17 @@ internal fun ComposeFavoritesPage(
                     textAlign = TextAlign.Center,
                 )
             }
-        } else if (rows.isEmpty()) {
+        } else if (rows == null) {
+            item(key = "favorite-tree-loading") {
+                Text(
+                    "正在整理收藏…",
+                    color = secondary,
+                    fontSize = 17.sp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else if (rows!!.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(
                     if (favoritesState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏",
@@ -148,8 +165,8 @@ internal fun ComposeFavoritesPage(
                 )
             }
         } else {
-            items(
-                items = rows,
+                items(
+                items = rows!!,
                 key = { row -> if (row.folder) "folder-${row.path}" else "group-${row.group?.id}" },
                 contentType = { row -> if (row.folder) "folder" else "favorite-group" },
             ) { row ->
