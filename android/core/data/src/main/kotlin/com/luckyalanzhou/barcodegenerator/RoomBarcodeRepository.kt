@@ -79,13 +79,15 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 val items = runCatching { JSONArray(legacy.itemsJson ?: "[]") }.getOrDefault(JSONArray())
                     .let { array ->
                         (0 until array.length()).mapNotNull { index ->
-                            runCatching { array.getJSONObject(index) }.getOrNull()?.let { item ->
-                                CodeItemEntity(
-                                    item.getLong("id"), item.getString("text"), item.getString("format"),
-                                    item.optLong("createdAt", item.getLong("id")), item.optBoolean("favorite"),
-                                    item.optString("folder", "默认"), item.optBoolean("inHistory", true),
-                                )
-                            }
+                            runCatching {
+                                array.getJSONObject(index).let { item ->
+                                    CodeItemEntity(
+                                        item.getLong("id"), item.getString("text"), item.getString("format"),
+                                        item.optLong("createdAt", item.getLong("id")), item.optBoolean("favorite"),
+                                        item.optString("folder", "默认"), item.optBoolean("inHistory", true),
+                                    )
+                                }
+                            }.getOrNull()
                         }
                     }
                 dao.saveItems(items)
@@ -95,11 +97,17 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 val links = mutableListOf<FavoriteGroupItemEntity>()
                 val array = runCatching { JSONArray(legacy.groupsJson ?: "[]") }.getOrDefault(JSONArray())
                 for (index in 0 until array.length()) {
-                    runCatching { array.getJSONObject(index) }.getOrNull()?.let { group ->
-                        val groupId = group.getLong("id")
-                        groups += FavoriteGroupEntity(groupId, group.optString("folder", "默认"), group.optString("name", "未命名收藏"), group.optLong("savedAt", groupId))
-                        val itemIds = group.optJSONArray("itemIds") ?: JSONArray()
-                        for (itemIndex in 0 until itemIds.length()) links += FavoriteGroupItemEntity(groupId, itemIds.getLong(itemIndex))
+                    runCatching {
+                        array.getJSONObject(index).let { group ->
+                            val groupId = group.getLong("id")
+                            groups += FavoriteGroupEntity(groupId, group.optString("folder", "默认"), group.optString("name", "未命名收藏"), group.optLong("savedAt", groupId))
+                            val itemIds = group.optJSONArray("itemIds") ?: JSONArray()
+                            for (itemIndex in 0 until itemIds.length()) {
+                                runCatching { itemIds.getLong(itemIndex) }
+                                    .getOrNull()
+                                    ?.let { links += FavoriteGroupItemEntity(groupId, it) }
+                            }
+                        }
                     }
                 }
                 dao.saveGroups(groups)
