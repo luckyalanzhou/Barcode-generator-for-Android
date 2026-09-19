@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 
@@ -98,7 +101,7 @@ internal fun ComposeAppShell(
             android.content.res.Configuration.UI_MODE_NIGHT_YES)
     val rootThemeColors = barcodeThemeColors(dark)
     val background = rootThemeColors.background
-    val currentRoute = AppRoute.fromPage(appUiState.page)
+    val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
 
@@ -365,7 +368,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dark = dark,
                     entries = dependencies.betaTestEntries,
                     viewModel = dependencies.viewModel,
-                    onNavigate = dependencies.viewModel::navigateTo,
+                    onNavigate = { pageName -> dependencies.viewModel.navigateTo(AppRoute.fromPage(pageName)) },
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                 )
             }

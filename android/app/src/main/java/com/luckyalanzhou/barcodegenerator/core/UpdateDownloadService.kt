@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
+
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
 import android.content.Context
 import android.net.Uri
@@ -16,6 +18,7 @@ import kotlin.coroutines.coroutineContext
 /** APK 更新下载与完整性校验的数据层服务；不持有 UI 状态，也不触碰导航。 */
 class UpdateDownloadService(
     private val context: Context,
+    private val logger: AppLogger,
 ) {
     suspend fun download(
         apkUrl: String,
@@ -39,7 +42,7 @@ class UpdateDownloadService(
                 setRequestProperty("User-Agent", "BarcodeGenerator/" + BuildConfig.VERSION_NAME)
             }
             require(connection.responseCode in 200..299) { "HTTP ${connection.responseCode}" }
-            DebugLog.record("update", "download response=${connection.responseCode} contentLength=${connection.contentLengthLong}")
+            logger.record("update", "download response=${connection.responseCode} contentLength=${connection.contentLengthLong}", null)
             val total = connection.contentLengthLong.takeIf { it > 0 } ?: expectedSize
             require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
             temp.delete()
@@ -79,7 +82,7 @@ class UpdateDownloadService(
             context.cacheDir.listFiles()
                 ?.filter { it.name.startsWith("barcode-generator-update") && it != official }
                 ?.forEach { it.delete() }
-            DebugLog.record("update", "download validated size=${official.length()}")
+            logger.record("update", "download validated size=${official.length()}", null)
             return@withContext official
         } finally {
             connection?.disconnect()

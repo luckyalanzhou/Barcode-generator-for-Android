@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.data.FavoritesTransferManager
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

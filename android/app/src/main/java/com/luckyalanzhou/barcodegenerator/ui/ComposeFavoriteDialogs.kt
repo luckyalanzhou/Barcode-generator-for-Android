@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import androidx.compose.foundation.layout.Arrangement
@@ -364,7 +366,7 @@ internal fun MainActivity.confirmClearCompose(favoritesOnly: Boolean) {
 internal fun MainActivity.saveResultAsFavoriteCompose() {
     val resultState = viewModel.resultUiState.value
     if (resultState.items.isEmpty()) return
-    val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == "favorites" }
+    val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == AppRoute.Favorites }
     val dataState = viewModel.dataState.value
     val folders = (dataState.folders + dataState.groups.map { it.folder }).filter { it.isNotBlank() }.distinct().toMutableList()
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->

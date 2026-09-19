@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
 import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
 import com.luckyalanzhou.barcodegenerator.ui.*
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
@@ -27,7 +29,9 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
         val exportFile = File(cacheDir, name)
         val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
         val result = runCatching {
-            viewModel.exportFavorites(contentResolver, exportUri)
+            val bytes = viewModel.exportFavorites()
+            contentResolver.openOutputStream(exportUri)?.use { it.write(bytes) }
+                ?: error("无法创建备份文件")
         }
         withContext(Dispatchers.Main) {
             result.onSuccess {
@@ -71,7 +75,9 @@ internal fun MainActivity.restoreFavoritesImport() {
 internal fun MainActivity.exportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            viewModel.exportFavorites(contentResolver, uri)
+            val bytes = viewModel.exportFavorites()
+            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: error("无法写入备份文件")
         }
         withContext(Dispatchers.Main) {
             result
@@ -83,7 +89,11 @@ internal fun MainActivity.exportFavorites(uri: Uri) {
 
 internal fun MainActivity.confirmImportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
-        val parsed = runCatching { viewModel.restoreFavorites(contentResolver, uri) }
+        val parsed = runCatching {
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: error("无法读取备份文件")
+            viewModel.restoreFavorites(bytes)
+        }
         withContext(Dispatchers.Main) {
             parsed
                 .onFailure { toast("无法导入收藏：${it.message ?: "文件格式无效"}") }

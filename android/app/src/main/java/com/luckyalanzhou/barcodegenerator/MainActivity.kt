@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 条码结果页每次触摸都重新获得 5 分钟亮屏时间；无操作后恢复系统熄屏规则。 */
     private fun refreshBarcodeDisplayTimeout() {
-        if (viewModel.uiState.value.page != "results") return
+        if (viewModel.uiState.value.page != AppRoute.Results) return
         syncBarcodeDisplaySettings(true)
         barcodeDisplayHandler.removeCallbacks(barcodeDisplayTimeout)
         barcodeDisplayHandler.postDelayed(barcodeDisplayTimeout, 5 * 60 * 1000L)
@@ -134,12 +134,12 @@ class MainActivity : AppCompatActivity() {
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
                 buildComposeShell()
-                if (state != null && viewModel.uiState.value.page == "generate") {
-                    viewModel.navigateTo(state.getString("page", "generate") ?: "generate")
-                    viewModel.updateSettingsReturnPage(state.getString("settings_return_page", "generate") ?: "generate")
+                if (state != null && viewModel.uiState.value.page == AppRoute.Generate) {
+                    viewModel.navigateTo(AppRoute.fromPage(state.getString("page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
+                    viewModel.updateSettingsReturnPage(AppRoute.fromPage(state.getString("settings_return_page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
                     viewModel.setStartupUpdateCheckStarted(state.getBoolean("startup_update_check_started", false))
                 }
-                if (viewModel.uiState.value.page == "lanShare" && lanShareViewModel.uiState.value.session != null) {
+                if (viewModel.uiState.value.page == AppRoute.LanShare && lanShareViewModel.uiState.value.session != null) {
                     lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
             } catch (error: Exception) {
@@ -182,8 +182,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("page", viewModel.uiState.value.page)
-        outState.putString("settings_return_page", viewModel.uiState.value.settingsReturnPage)
+        outState.putString("page", viewModel.uiState.value.page.pageName)
+        outState.putString("settings_return_page", viewModel.uiState.value.settingsReturnPage.pageName)
         outState.putBoolean("startup_update_check_started", viewModel.updateUiState.value.startupCheckStarted)
         super.onSaveInstanceState(outState)
     }
@@ -195,11 +195,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         when (viewModel.uiState.value.page) {
-            "settings" -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate")
-            "betaTestCenter" -> viewModel.navigateTo(AppRoute.Settings)
-            "lanShare" -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }
-            "favoriteDetail" -> viewModel.navigateTo(AppRoute.Favorites)
-            "results" -> viewModel.navigateTo(viewModel.resultUiState.value.returnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate")
+            AppRoute.Settings -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage)
+            AppRoute.BetaTestCenter -> viewModel.navigateTo(AppRoute.Settings)
+            AppRoute.LanShare -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }
+            AppRoute.FavoriteDetail -> viewModel.navigateTo(AppRoute.Favorites)
+            AppRoute.Results -> viewModel.navigateTo(viewModel.resultUiState.value.returnPage)
             else -> finish()
         }
     }

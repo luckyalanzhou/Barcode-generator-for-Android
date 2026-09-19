@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.data.network.*
 import com.luckyalanzhou.barcodegenerator.ui.isLanShareImageName
 
 import android.content.Context
@@ -14,12 +15,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.update
@@ -51,8 +52,8 @@ class LanShareViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LanShareUiState())
     val uiState: StateFlow<LanShareUiState> = _uiState.asStateFlow()
-    private val _events = MutableSharedFlow<LanShareEvent>(extraBufferCapacity = 4)
-    val events: SharedFlow<LanShareEvent> = _events.asSharedFlow()
+    private val _events = Channel<LanShareEvent>(Channel.BUFFERED)
+    val events: Flow<LanShareEvent> = _events.receiveAsFlow()
     private var refreshJob: Job? = null
     private var autoRefreshJob: Job? = null
 
@@ -86,7 +87,7 @@ class LanShareViewModel @Inject constructor(
     fun joinSessionFromAddress(value: String): Boolean {
         val address = value.trim()
         if (!address.startsWith("http://", ignoreCase = true)) {
-            _events.tryEmit(LanShareEvent.Error("这不是局域网分享地址"))
+            _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
             return false
         }
         val uri = Uri.parse(address)
@@ -94,7 +95,7 @@ class LanShareViewModel @Inject constructor(
             uri.query != null || uri.fragment != null || uri.userInfo != null ||
             !lanShareManager.isRouterLanHost(uri.host)
         ) {
-            _events.tryEmit(LanShareEvent.Error("这不是局域网分享地址"))
+            _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
             return false
         }
         val session = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}")
@@ -178,7 +179,7 @@ class LanShareViewModel @Inject constructor(
                     _uiState.update { it.copy(previewFiles = it.previewFiles + previews) }
                 }
             }.onFailure {
-                if (showError) _events.tryEmit(LanShareEvent.Error("无法连接到分享房间"))
+                if (showError) _events.trySend(LanShareEvent.Error("无法连接到分享房间"))
             }
         }
     }
@@ -205,9 +206,9 @@ class LanShareViewModel @Inject constructor(
                 val id = lanShareManager.upload(session, uri)
                 addOwnFileId(id)
                 refreshFiles(session, showError = false)
-                _events.emit(LanShareEvent.Notice("上传成功"))
+                _events.send(LanShareEvent.Notice("上传成功"))
             } catch (_: Exception) {
-                _events.emit(LanShareEvent.Error("上传失败"))
+                _events.send(LanShareEvent.Error("上传失败"))
             } finally {
                 temporaryFile?.delete()
             }
@@ -220,9 +221,9 @@ class LanShareViewModel @Inject constructor(
                 val id = lanShareManager.uploadText(session, text)
                 addOwnFileId(id)
                 refreshFiles(session, showError = false)
-                _events.emit(LanShareEvent.Notice("发送成功", clearInput = true))
+                _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
             } catch (_: Exception) {
-                _events.emit(LanShareEvent.Error("发送失败"))
+                _events.send(LanShareEvent.Error("发送失败"))
             }
         }
     }
@@ -231,9 +232,9 @@ class LanShareViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 lanShareManager.download(session, id, destination)
-                _events.emit(LanShareEvent.Notice("下载完成"))
+                _events.send(LanShareEvent.Notice("下载完成"))
             } catch (_: Exception) {
-                _events.emit(LanShareEvent.Error("下载失败"))
+                _events.send(LanShareEvent.Error("下载失败"))
             }
         }
     }

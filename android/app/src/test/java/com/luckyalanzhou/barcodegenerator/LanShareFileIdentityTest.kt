@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.data.network.LanShareManager
+import com.luckyalanzhou.barcodegenerator.data.network.toLanShareFile
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Test

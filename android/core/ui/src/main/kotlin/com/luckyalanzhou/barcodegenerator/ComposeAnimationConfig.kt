@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
 
 import android.content.Context
 import android.hardware.display.DisplayManager

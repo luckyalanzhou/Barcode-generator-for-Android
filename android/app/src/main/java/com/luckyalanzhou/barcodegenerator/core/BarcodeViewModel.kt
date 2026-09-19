@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator
 
-import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ColorMatrix
@@ -18,10 +17,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -29,12 +28,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
 
 data class AppUiState(
-    val page: String = "generate",
+    val page: AppRoute = AppRoute.Generate,
     val selectedTab: Int = 0,
-    val settingsReturnPage: String = "generate",
+    val settingsReturnPage: AppRoute = AppRoute.Generate,
 )
 
 /**
@@ -58,7 +58,7 @@ data class GenerateEditorState(
 data class ResultUiState(
     val items: List<CodeItem> = emptyList(),
     val showingHistoryResult: Boolean = false,
-    val returnPage: String = "generate",
+    val returnPage: AppRoute = AppRoute.Generate,
     val selectedFavoriteGroup: FavoriteGroup? = null,
 )
 
@@ -121,7 +121,7 @@ sealed interface BarcodeEvent {
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
     private val barcodeRepository: BarcodeRepository,
-    private val favoritesBackupUseCase: FavoritesBackupUseCase,
+    private val favoritesBackupRepository: FavoritesBackupRepository,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
     private val localBarcodeFileStore: LocalBarcodeFileStore,
     private val updateDownloadService: UpdateDownloadService,
@@ -130,7 +130,13 @@ class BarcodeViewModel @Inject constructor(
     private val barcodeDecodeService: BarcodeDecodeService,
     private val legacyBarcodeDataMigrator: LegacyBarcodeDataMigrator,
     private val apkUpdateValidator: ApkUpdateValidator,
+    private val appLogger: AppLogger,
 ) : ViewModel() {
+    private val barcodePersistence = BarcodePersistenceCoordinator(
+        barcodeRepository = barcodeRepository,
+        localBarcodeFileStore = localBarcodeFileStore,
+        legacyBarcodeDataMigrator = legacyBarcodeDataMigrator,
+    )
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
@@ -138,6 +144,14 @@ class BarcodeViewModel @Inject constructor(
     private val items = mutableListOf<CodeItem>()
     private val favoriteGroups = mutableListOf<FavoriteGroup>()
     private val favoriteFolders = mutableListOf<String>()
+    private val favoritesCoordinator = FavoritesCoordinator(
+        items = items,
+        groups = favoriteGroups,
+        folders = favoriteFolders,
+        persistence = barcodePersistence,
+        scope = viewModelScope,
+        publish = ::publishDataState,
+    )
 
     private val _dataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
@@ -147,6 +161,16 @@ class BarcodeViewModel @Inject constructor(
 
     private val _resultUiState = MutableStateFlow(ResultUiState())
     val resultUiState: StateFlow<ResultUiState> = _resultUiState.asStateFlow()
+
+    private val generationCoordinator = BarcodeGenerationCoordinator(
+        useCase = generateBarcodesUseCase,
+        items = items,
+        readDraft = { _generateEditorState.value.inputDraft },
+        readResult = { _resultUiState.value },
+        updateResult = { _resultUiState.value = it },
+        persistItems = ::persistItems,
+        navigate = ::navigateTo,
+    )
 
     private val _favoriteTreeUiState = MutableStateFlow(FavoriteTreeUiState())
     val favoriteTreeUiState: StateFlow<FavoriteTreeUiState> = _favoriteTreeUiState.asStateFlow()
@@ -160,14 +184,10 @@ class BarcodeViewModel @Inject constructor(
     private val _fireworksVisible = MutableStateFlow(false)
     val fireworksVisible: StateFlow<Boolean> = _fireworksVisible.asStateFlow()
 
-    private val _updateUiState = MutableStateFlow(UpdateUiState())
-    val updateUiState: StateFlow<UpdateUiState> = _updateUiState.asStateFlow()
-
-    private val _updateDownloadUiState = MutableStateFlow(UpdateDownloadUiState())
-    val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = _updateDownloadUiState.asStateFlow()
-
-    private val _updateEvents = MutableSharedFlow<UpdateEvent>(extraBufferCapacity = 4)
-    val updateEvents: SharedFlow<UpdateEvent> = _updateEvents.asSharedFlow()
+    private val updateCoordinator = UpdateCoordinator(updateDownloadService, updateCheckService, apkUpdateValidator, appLogger)
+    val updateUiState: StateFlow<UpdateUiState> = updateCoordinator.uiState
+    val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = updateCoordinator.downloadUiState
+    val updateEvents: SharedFlow<UpdateEvent> = updateCoordinator.events
 
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
@@ -183,34 +203,25 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun navigateTo(route: AppRoute) {
-        val normalizedPage = route.pageName
         _uiState.update {
             it.copy(
-                page = normalizedPage,
-                selectedTab = when (normalizedPage) {
-                    "generate" -> 0
-                    "history" -> 1
-                    "favorites" -> 2
-                    "settings" -> 3
+                page = route,
+                selectedTab = when (route.mainTabIndex) {
+                    0, 1, 2, 3 -> route.mainTabIndex
                     else -> it.selectedTab
                 },
             )
         }
     }
 
-    /** 仅用于恢复旧版本保存的 Activity 状态；业务代码应使用 AppRoute。 */
-    fun navigateTo(pageName: String) = navigateTo(AppRoute.fromPage(pageName))
-
     fun prepareMainGenerateTab() {
-        _resultUiState.update { it.copy(selectedFavoriteGroup = null, returnPage = "generate", showingHistoryResult = false) }
+        _resultUiState.update { it.copy(selectedFavoriteGroup = null, returnPage = AppRoute.Generate, showingHistoryResult = false) }
         navigateTo(AppRoute.Generate)
     }
 
     fun updateSettingsReturnPage(route: AppRoute) {
-        _uiState.update { it.copy(settingsReturnPage = route.pageName) }
+        _uiState.update { it.copy(settingsReturnPage = route) }
     }
-
-    fun updateSettingsReturnPage(pageName: String) = updateSettingsReturnPage(AppRoute.fromPage(pageName))
 
     fun clearSelectedFavoriteGroup() {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
@@ -234,7 +245,7 @@ class BarcodeViewModel @Inject constructor(
         if (index !in tabPages.indices) return
         if (index == 3) {
             openSettings()
-        } else if (_uiState.value.page != tabPages[index].pageName) {
+        } else if (_uiState.value.page != tabPages[index]) {
             if (index == 0) prepareMainGenerateTab() else navigateTo(tabPages[index])
         } else {
             updateSelectedTab(index)
@@ -242,7 +253,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun openSettings() {
-        if (_uiState.value.page == AppRoute.Settings.pageName) {
+        if (_uiState.value.page == AppRoute.Settings) {
             updateSelectedTab(3)
             return
         }
@@ -250,23 +261,23 @@ class BarcodeViewModel @Inject constructor(
         navigateTo(AppRoute.Settings)
     }
 
-    private fun mainTabPageForCurrentPage(): String = when (_uiState.value.page) {
-        "history" -> "history"
-        "favorites", "favoriteDetail" -> "favorites"
-        "settings", "betaTestCenter" -> "settings"
-        "results" -> when (_resultUiState.value.returnPage) {
-            "history" -> "history"
-            "favorites" -> "favorites"
-            "settings" -> "settings"
-            else -> "generate"
+    private fun mainTabPageForCurrentPage(): AppRoute = when (_uiState.value.page) {
+        AppRoute.History -> AppRoute.History
+        AppRoute.Favorites, AppRoute.FavoriteDetail -> AppRoute.Favorites
+        AppRoute.Settings, AppRoute.BetaTestCenter -> AppRoute.Settings
+        AppRoute.Results -> when (_resultUiState.value.returnPage) {
+            AppRoute.History -> AppRoute.History
+            AppRoute.Favorites -> AppRoute.Favorites
+            AppRoute.Settings -> AppRoute.Settings
+            else -> AppRoute.Generate
         }
-        "lanShare" -> "settings"
-        else -> "generate"
+        AppRoute.LanShare -> AppRoute.Settings
+        else -> AppRoute.Generate
     }
 
     fun openFavoriteGroup(group: FavoriteGroup) {
         val groupItems = group.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
-        _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = "favorites") }
+        _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
         updateInputDraft(groupItems.map { it.text })
         _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
         navigateTo(AppRoute.Results)
@@ -274,14 +285,14 @@ class BarcodeViewModel @Inject constructor(
 
     fun openFavoriteForEditing(group: FavoriteGroup) {
         val groupItems = group.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
-        _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = "favorites") }
+        _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
         updateInputDraft(groupItems.map { it.text })
         _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
         navigateTo(AppRoute.Generate)
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {
-        _resultUiState.update { it.copy(items = batch.sortedBy { item -> item.id }, showingHistoryResult = true, returnPage = "history") }
+        _resultUiState.update { it.copy(items = batch.sortedBy { item -> item.id }, showingHistoryResult = true, returnPage = AppRoute.History) }
         navigateTo(AppRoute.Results)
     }
 
@@ -438,24 +449,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun generateBarcodes(formatName: String): GenerateBarcodesUseCase.Output {
-        val result = generateBarcodesUseCase.execute(_generateEditorState.value.inputDraft, formatName, items)
-        if (!result.isValid) return result
-
-        val currentResult = _resultUiState.value
-        val editingFavorite = currentResult.selectedFavoriteGroup?.takeIf { currentResult.returnPage == "favorites" }
-        val generated = result.items
-        items.addAll(0, generated)
-        persistItems()
-        _resultUiState.update {
-            it.copy(
-                items = generated,
-                selectedFavoriteGroup = editingFavorite,
-                showingHistoryResult = false,
-                returnPage = if (editingFavorite != null) "favorites" else "generate",
-            )
-        }
-        navigateTo(AppRoute.Results)
-        return result
+        return generationCoordinator.generate(formatName)
     }
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
@@ -470,112 +464,25 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun decodeBarcode(bitmap: Bitmap): String? = barcodeDecodeService.decode(bitmap)
-    fun setStartupUpdateCheckStarted(value: Boolean) {
-        _updateUiState.update { it.copy(startupCheckStarted = value) }
-    }
+    fun setStartupUpdateCheckStarted(value: Boolean) = updateCoordinator.setStartupCheckStarted(value)
+    suspend fun checkForUpdates(): UpdateCheckResult = updateCoordinator.checkForUpdates()
+    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) =
+        updateCoordinator.setAvailableUpdate(version, url, expectedSize, sha256)
+    fun clearAvailableUpdate() = updateCoordinator.clearAvailableUpdate()
+    fun setUpdateDialogShowing(value: Boolean) = updateCoordinator.setDialogShowing(value)
+    fun setUpdateDownloadRunning(value: Boolean) = updateCoordinator.setDownloadRunning(value)
+    fun resetUpdateDownloadState() = updateCoordinator.resetDownloadState()
+    fun setUpdateDownloadProgress(progress: Int, indeterminate: Boolean, status: String) =
+        updateCoordinator.setDownloadProgress(progress, indeterminate, status)
+    suspend fun downloadUpdate(apkUrl: String, expectedSize: Long?, expectedSha256: String?): File =
+        updateCoordinator.downloadUpdate(apkUrl, expectedSize, expectedSha256)
+    fun validateDownloadedApk(file: File) = updateCoordinator.validateDownloadedApk(file)
+    fun startUpdateDownload(apkUrl: String, expectedSize: Long?, expectedSha256: String?) =
+        updateCoordinator.startDownload(viewModelScope, apkUrl, expectedSize, expectedSha256)
+    fun cancelUpdateDownload() = updateCoordinator.cancelDownload()
+    fun setPendingInstallPath(path: String?) = updateCoordinator.setPendingInstallPath(path)
 
-    suspend fun checkForUpdates(): UpdateCheckResult = updateCheckService.check().also { result ->
-        if (result is UpdateCheckResult.Available) setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
-        else clearAvailableUpdate()
-    }
-
-    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) {
-        _updateUiState.update {
-            it.copy(
-                availableVersion = version,
-                availableUrl = url,
-                expectedSize = expectedSize,
-                sha256 = sha256,
-            )
-        }
-    }
-
-    fun clearAvailableUpdate() {
-        setAvailableUpdate(null, null, null, null)
-    }
-
-    fun setUpdateDialogShowing(value: Boolean) {
-        _updateUiState.update { it.copy(dialogShowing = value) }
-    }
-
-    fun setUpdateDownloadRunning(value: Boolean) {
-        _updateUiState.update { it.copy(downloadRunning = value) }
-    }
-
-    fun resetUpdateDownloadState() {
-        _updateDownloadUiState.value = UpdateDownloadUiState()
-    }
-
-    fun setUpdateDownloadProgress(progress: Int, indeterminate: Boolean, status: String) {
-        _updateDownloadUiState.value = UpdateDownloadUiState(
-            progress = progress.coerceIn(0, 100),
-            indeterminate = indeterminate,
-            status = status,
-        )
-    }
-
-    suspend fun downloadUpdate(
-        apkUrl: String,
-        expectedSize: Long?,
-        expectedSha256: String?,
-    ): File = updateDownloadService.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
-        setUpdateDownloadProgress(progress, indeterminate, status)
-    }
-
-    fun validateDownloadedApk(file: File) {
-        apkUpdateValidator.validate(file)
-    }
-
-    fun startUpdateDownload(apkUrl: String, expectedSize: Long?, expectedSha256: String?) {
-        if (_updateUiState.value.downloadRunning) return
-        val generation = ++updateDownloadGeneration
-        resetUpdateDownloadState()
-        setUpdateDownloadRunning(true)
-        updateDownloadJob = viewModelScope.launch {
-            try {
-                val official = downloadUpdate(apkUrl, expectedSize, expectedSha256)
-                _updateEvents.emit(UpdateEvent.DownloadReady(official.absolutePath))
-            } catch (error: CancellationException) {
-                // 用户取消下载时不显示失败提示。
-            } catch (error: Exception) {
-                DebugLog.record("update", "download failed", error)
-                _updateEvents.emit(
-                    UpdateEvent.DownloadFailed(
-                        apkUrl = apkUrl,
-                        expectedSize = expectedSize,
-                        expectedSha256 = expectedSha256,
-                        reason = error.message ?: "未知错误",
-                    )
-                )
-            } finally {
-                if (updateDownloadGeneration == generation) {
-                    setUpdateDownloadRunning(false)
-                    updateDownloadJob = null
-                }
-            }
-        }
-    }
-
-    fun cancelUpdateDownload() {
-        updateDownloadGeneration++
-        updateDownloadJob?.cancel()
-        updateDownloadJob = null
-        setUpdateDownloadRunning(false)
-    }
-    private var updateDownloadGeneration: Long = 0L
-    private var updateDownloadJob: Job? = null
-    fun setPendingInstallPath(path: String?) {
-        _updateUiState.update { it.copy(pendingInstallPath = path) }
-    }
-
-    fun takePendingInstallPath(): String? {
-        val path = _updateUiState.value.pendingInstallPath
-        _updateUiState.update { it.copy(pendingInstallPath = null) }
-        return path
-    }
-    private val persistenceLock = Any()
-    private var persistenceWriteTail: Job? = null
-
+    fun takePendingInstallPath(): String? = updateCoordinator.takePendingInstallPath()
     fun syncFavoriteTree(folders: Set<String>) {
         val validFolders = folders.filter { it.isNotBlank() }.toSet()
         val current = _favoriteTreeUiState.value
@@ -627,87 +534,43 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun renameFavoriteFolder(path: String, renamedPath: String) {
-        favoriteGroups
-            .filter { it.folder == path || it.folder.startsWith("$path/") }
-            .forEach { group ->
-                group.folder = if (group.folder == path) renamedPath
-                else renamedPath + group.folder.removePrefix(path)
-            }
-        favoriteFolders
-            .filter { it == path || it.startsWith("$path/") }
-            .toList()
-            .forEach { old ->
-                favoriteFolders.remove(old)
-                favoriteFolders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
-            }
-        publishDataState()
+        favoritesCoordinator.renameFolder(path, renamedPath)
     }
 
-    fun deleteFavoriteFolder(path: String) {
-        favoriteGroups.removeAll { it.folder == path || it.folder.startsWith("$path/") }
-        favoriteFolders.removeAll { it == path || it.startsWith("$path/") }
-        publishDataState()
-    }
+    fun deleteFavoriteFolder(path: String) = favoritesCoordinator.deleteFolder(path)
 
-    fun deleteFavoriteGroup(groupId: Long) {
-        val group = favoriteGroups.firstOrNull { it.id == groupId } ?: return
-        favoriteGroups.removeAll { it.id == groupId }
-        items.filter { it.id in group.itemIds }
-            .filter { item -> favoriteGroups.none { remaining -> item.id in remaining.itemIds } }
-            .forEach { it.favorite = false }
-        if (group.folder !in favoriteFolders) favoriteFolders.add(group.folder)
-        publishDataState()
-    }
+    fun deleteFavoriteGroup(groupId: Long) = favoritesCoordinator.deleteGroup(groupId)
 
-    fun deleteBarcodeItem(itemId: Long) {
-        items.removeAll { it.id == itemId }
-        favoriteGroups.forEach { group -> group.itemIds.removeAll { it == itemId } }
-        persistAllFavorites()
-    }
+    fun deleteBarcodeItem(itemId: Long) = favoritesCoordinator.deleteItem(itemId)
 
-    fun updateBarcodeItem(itemId: Long, text: String, format: String) {
-        val item = items.firstOrNull { it.id == itemId } ?: return
-        item.text = text
-        item.format = format
-        if (item.favorite) persistAllFavorites() else persistItems()
-    }
+    fun updateBarcodeItem(itemId: Long, text: String, format: String) = favoritesCoordinator.updateItem(itemId, text, format)
 
     fun renameFavoriteFolderAndPersist(path: String, renamedPath: String) {
-        renameFavoriteFolder(path, renamedPath)
-        persistAllFavorites()
+        favoritesCoordinator.renameFolderAndPersist(path, renamedPath)
     }
 
     fun deleteFavoriteFolderAndPersist(path: String) {
-        deleteFavoriteFolder(path)
-        persistAllFavorites()
+        favoritesCoordinator.deleteFolderAndPersist(path)
     }
 
     fun renameFavoriteGroupAndPersist(groupId: Long, name: String) {
-        favoriteGroups.firstOrNull { it.id == groupId }?.name = name
-        persistAllFavorites()
+        favoritesCoordinator.renameGroupAndPersist(groupId, name)
     }
 
     fun moveFavoriteGroupAndPersist(groupId: Long, folder: String) {
-        val group = favoriteGroups.firstOrNull { it.id == groupId } ?: return
-        group.folder = folder
-        if (folder.isNotBlank() && folder !in favoriteFolders) favoriteFolders.add(folder)
-        persistAllFavorites()
+        favoritesCoordinator.moveGroupAndPersist(groupId, folder)
     }
 
     fun deleteFavoriteGroupAndPersist(groupId: Long) {
-        deleteFavoriteGroup(groupId)
-        persistAllFavorites()
+        favoritesCoordinator.deleteGroupAndPersist(groupId)
     }
 
     fun clearFavoritesAndPersist() {
-        favoriteGroups.clear()
-        items.forEach { it.favorite = false; it.folder = "默认" }
-        persistAllFavorites()
+        favoritesCoordinator.clearFavoritesAndPersist()
     }
 
     fun clearHistoryAndPersist() {
-        items.forEach { it.inHistory = false }
-        persistItems()
+        favoritesCoordinator.clearHistoryAndPersist()
     }
 
     fun saveResultAsFavorite(
@@ -717,33 +580,7 @@ class BarcodeViewModel @Inject constructor(
         folder: String,
         name: String,
     ): Boolean {
-        val selectedItems = items.filter { it.id in resultItemIds }
-        if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return false
-
-        if (editingGroupId != null && editingGroupId != targetGroupId) {
-            favoriteGroups.removeAll { it.id == editingGroupId }
-        }
-        selectedItems.forEach {
-            it.favorite = true
-            it.folder = folder
-        }
-        if (folder !in favoriteFolders) favoriteFolders.add(folder)
-
-        val groupId = targetGroupId ?: ((favoriteGroups.maxOfOrNull { it.id } ?: 0L) + 1L)
-        val updatedGroup = FavoriteGroup(
-            groupId,
-            folder,
-            name,
-            System.currentTimeMillis(),
-            selectedItems.map { it.id }.toMutableList(),
-        )
-        val targetIndex = favoriteGroups.indexOfFirst { it.id == groupId }
-        if (targetIndex >= 0) favoriteGroups[targetIndex] = updatedGroup
-        else favoriteGroups.add(0, updatedGroup)
-
-        items.filter { it.favorite && favoriteGroups.none { group -> it.id in group.itemIds } }
-            .forEach { it.favorite = false }
-        persistAllFavorites()
+        if (!favoritesCoordinator.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
         navigateTo(AppRoute.Favorites)
         return true
@@ -751,36 +588,17 @@ class BarcodeViewModel @Inject constructor(
 
     fun updateFavoriteGroupAndPersist(groupId: Long, name: String, folder: String): Boolean {
         val group = favoriteGroups.firstOrNull { it.id == groupId } ?: return false
-        group.name = name
-        group.folder = folder
-        if (folder !in favoriteFolders) favoriteFolders.add(folder)
+        if (!favoritesCoordinator.updateGroup(groupId, name, folder)) return false
         _resultUiState.update { it.copy(selectedFavoriteGroup = group) }
-        persistAllFavorites()
         return true
     }
 
     fun persistAllFavorites() {
-        val favoriteFileGroups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val favoriteFileItems = items.map { it.copy() }
-        localBarcodeFileStore.rebuildFavorites(favoriteFileGroups, favoriteFileItems)
-        val itemSnapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
-        val groupSnapshot = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val groupItemSnapshot = favoriteGroups.flatMap { group ->
-            group.itemIds.map { FavoriteGroupItem(group.id, it) }
-        }
-        val folderSnapshot = favoriteFolders.filter { it.isNotBlank() }.distinct()
-        publishDataState()
-        enqueuePersistence {
-            barcodeRepository.saveAll(BarcodeSnapshot(itemSnapshot, groupSnapshot, groupItemSnapshot, folderSnapshot))
-        }
+        favoritesCoordinator.persistAllFavorites()
     }
 
     fun persistItems() {
-        localBarcodeFileStore.rebuildHistory(items.map { it.copy() }.filter { it.inHistory })
-        val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500))
-            .map { it.copy() }
-        publishDataState()
-        enqueuePersistence { barcodeRepository.saveItems(snapshot) }
+        favoritesCoordinator.persistItems()
     }
 
     suspend fun loadItemsFromRepository() {
@@ -819,76 +637,34 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun loadPersistedData() {
-        legacyBarcodeDataMigrator.migrateIfNeeded()
         _dataState.value = _dataState.value.copy(isReady = false)
-        val snapshot = barcodeRepository.loadSnapshot()
-        val loadedGroups = snapshot.groups.map { group ->
-            FavoriteGroup(
-                group.id,
-                group.folder.takeUnless { it == "默认" } ?: "",
-                group.name,
-                group.savedAt,
-                snapshot.links.filter { it.groupId == group.id }.map { it.itemId }.toMutableList(),
-            )
-        }
-        val loadedFolders = (snapshot.folders + loadedGroups.map { it.folder })
-            .filter { it.isNotBlank() && it != "默认" }
-            .distinct()
-            .sorted()
-
+        val loaded = barcodePersistence.load()
         items.clear()
-        items.addAll(snapshot.items.map {
-            it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "")
-        })
+        items.addAll(loaded.items)
         favoriteGroups.clear()
-        favoriteGroups.addAll(loadedGroups)
+        favoriteGroups.addAll(loaded.groups)
         favoriteFolders.clear()
-        favoriteFolders.addAll(loadedFolders)
+        favoriteFolders.addAll(loaded.folders)
         publishDataState(isReady = true)
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {
-        val counts = favoritesBackupUseCase.import(backup)
+        val counts = favoritesBackupRepository.import(backup)
         loadItemsFromRepository()
         loadFavoriteGroupsFromRepository()
         loadFavoriteFoldersFromRepository()
         return counts
     }
 
-    suspend fun exportFavorites(resolver: ContentResolver, uri: Uri) {
-        favoritesBackupUseCase.export(resolver, uri)
-    }
+    suspend fun exportFavorites(): ByteArray = favoritesBackupRepository.export()
 
-    fun restoreFavorites(resolver: ContentResolver, uri: Uri): InterchangeBackup =
-        favoritesBackupUseCase.restore(resolver, uri)
+    fun restoreFavorites(bytes: ByteArray): InterchangeBackup = favoritesBackupRepository.restore(bytes)
 
     fun persistFavoriteGroups() {
-        val groups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val links = favoriteGroups.flatMap { group -> group.itemIds.map { FavoriteGroupItem(group.id, it) } }
-        publishDataState()
-        enqueuePersistence { barcodeRepository.saveFavoriteGroups(groups, links) }
+        favoritesCoordinator.persistGroups()
     }
 
     fun persistFavoriteFolders() {
-        val folders = favoriteFolders.filter { it.isNotBlank() }.distinct()
-        publishDataState()
-        enqueuePersistence { barcodeRepository.saveFavoriteFolders(folders) }
-    }
-
-    private fun enqueuePersistence(write: suspend () -> Unit) {
-        val next: Job
-        synchronized(persistenceLock) {
-            val previous = persistenceWriteTail
-            next = viewModelScope.launch(Dispatchers.IO) {
-                previous?.join()
-                write()
-            }
-            persistenceWriteTail = next
-        }
-        next.invokeOnCompletion {
-            synchronized(persistenceLock) {
-                if (persistenceWriteTail === next) persistenceWriteTail = null
-            }
-        }
+        favoritesCoordinator.persistFolders()
     }
 }

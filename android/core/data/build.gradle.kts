@@ -20,6 +20,8 @@ android {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(libs.nanohttpd)
+    implementation(libs.nanohttpd.websocket)
     api(libs.room.runtime)
     implementation(libs.room.ktx)
     api(libs.datastore.preferences)

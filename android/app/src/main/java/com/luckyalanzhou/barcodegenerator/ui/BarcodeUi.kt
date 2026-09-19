@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
 
 import android.content.ContentValues
 import android.content.Intent

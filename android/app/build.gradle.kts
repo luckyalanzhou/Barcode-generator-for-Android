@@ -113,6 +113,4 @@ dependencies {
     implementation(libs.activity.ktx)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.nanohttpd)
-    implementation(libs.nanohttpd.websocket)
 }

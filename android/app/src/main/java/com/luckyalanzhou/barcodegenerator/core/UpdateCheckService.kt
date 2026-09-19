@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,7 +12,7 @@ import java.util.Comparator
 import java.util.Locale
 
 /** GitHub 更新元数据数据源；只负责请求和解析，不持有 ViewModel 状态。 */
-class UpdateCheckService {
+class UpdateCheckService(private val logger: AppLogger) {
     suspend fun check(): UpdateCheckResult = withContext(Dispatchers.IO) {
         try {
             val connection = (URL("https://api.github.com/repos/luckyalanzhou/Barcode-generator-for-android/releases?per_page=100")
@@ -70,7 +71,7 @@ class UpdateCheckService {
                 UpdateCheckResult.Available(latest, downloadUrl, expectedSize, expectedSha256)
             } else UpdateCheckResult.UpToDate
         } catch (error: Exception) {
-            DebugLog.record("update", "check failed", error)
+            logger.record("update", "check failed", error)
             UpdateCheckResult.Failed(error.message ?: "检查更新失败，请稍后重试")
         }
     }

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.domain.OcrCorrectionMask
+
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ColorMatrix
@@ -25,10 +27,10 @@ class OcrTextService {
             .addOnSuccessListener { results ->
                 val normalized = results.text.map { char ->
                     when {
-                        char in "Oo" && confusionMask and SettingsStore.OCR_REPLACE_O_ZERO != 0 -> '0'
-                        char in "Iil" && confusionMask and SettingsStore.OCR_REPLACE_I_ONE != 0 -> '1'
-                        char in "Ss" && confusionMask and SettingsStore.OCR_REPLACE_S_FIVE != 0 -> '5'
-                        char in "Bb" && confusionMask and SettingsStore.OCR_REPLACE_B_EIGHT != 0 -> '8'
+                        char in "Oo" && confusionMask and OcrCorrectionMask.O_ZERO != 0 -> '0'
+                        char in "Iil" && confusionMask and OcrCorrectionMask.I_ONE != 0 -> '1'
+                        char in "Ss" && confusionMask and OcrCorrectionMask.S_FIVE != 0 -> '5'
+                        char in "Bb" && confusionMask and OcrCorrectionMask.B_EIGHT != 0 -> '8'
                         else -> char
                     }
                 }.joinToString("").lines().filter { it.isNotBlank() }

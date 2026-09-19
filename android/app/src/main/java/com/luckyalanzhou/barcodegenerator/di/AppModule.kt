@@ -1,21 +1,16 @@
 package com.luckyalanzhou.barcodegenerator.di
 
 import android.content.Context
-import com.luckyalanzhou.barcodegenerator.BarcodeDao
-import com.luckyalanzhou.barcodegenerator.BarcodeDatabase
-import com.luckyalanzhou.barcodegenerator.FavoritesBackupUseCase
-import com.luckyalanzhou.barcodegenerator.GenerateBarcodesUseCase
-import com.luckyalanzhou.barcodegenerator.LanShareManager
-import com.luckyalanzhou.barcodegenerator.LocalBarcodeFileStore
-import com.luckyalanzhou.barcodegenerator.RoomBarcodeRepository
-import com.luckyalanzhou.barcodegenerator.BarcodeRepository
-import com.luckyalanzhou.barcodegenerator.SettingsStore
+import com.luckyalanzhou.barcodegenerator.data.network.LanShareManager
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.ui.DebugLog
 import com.luckyalanzhou.barcodegenerator.UpdateDownloadService
 import com.luckyalanzhou.barcodegenerator.UpdateCheckService
 import com.luckyalanzhou.barcodegenerator.OcrTextService
 import com.luckyalanzhou.barcodegenerator.BarcodeDecodeService
-import com.luckyalanzhou.barcodegenerator.LegacySettingsMigrator
-import com.luckyalanzhou.barcodegenerator.LegacyBarcodeDataMigrator
+import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
+import com.luckyalanzhou.barcodegenerator.data.LegacyBarcodeDataMigrator
 import com.luckyalanzhou.barcodegenerator.ApkUpdateValidator
 import dagger.Module
 import dagger.Provides
@@ -49,9 +44,16 @@ object AppModule {
         FavoritesBackupUseCase(repository)
 
     @Provides
+    internal fun provideFavoritesBackupRepository(useCase: FavoritesBackupUseCase): FavoritesBackupRepository = useCase
+
+    @Provides
     @Singleton
     internal fun provideSettingsStore(@ApplicationContext context: Context): SettingsStore =
         SettingsStore(context)
+
+    @Provides
+    @Singleton
+    internal fun provideSettingsRepository(settingsStore: SettingsStore): SettingsRepository = settingsStore
 
     @Provides
     @Singleton
@@ -60,12 +62,12 @@ object AppModule {
 
     @Provides
     @Singleton
-    internal fun provideUpdateDownloadService(@ApplicationContext context: Context): UpdateDownloadService =
-        UpdateDownloadService(context)
+    internal fun provideUpdateDownloadService(@ApplicationContext context: Context, logger: AppLogger): UpdateDownloadService =
+        UpdateDownloadService(context, logger)
 
     @Provides
     @Singleton
-    internal fun provideUpdateCheckService(): UpdateCheckService = UpdateCheckService()
+    internal fun provideUpdateCheckService(logger: AppLogger): UpdateCheckService = UpdateCheckService(logger)
 
     @Provides
     @Singleton
@@ -96,5 +98,11 @@ object AppModule {
     @Provides
     @Singleton
     internal fun provideLanShareManager(@ApplicationContext context: Context): LanShareManager =
-        LanShareManager(context)
+        LanShareManager(context, provideAppLogger())
+
+    @Provides
+    @Singleton
+    internal fun provideAppLogger(): AppLogger = AppLogger { tag, message, error ->
+        DebugLog.record(tag, message, error)
+    }
 }

@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
+import com.luckyalanzhou.barcodegenerator.domain.*
 
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
@@ -23,7 +25,7 @@ data class SettingsUiState(
 /** 设置页状态与设置持久化之间的边界。 */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsStore: SettingsStore,
+    private val settingsRepository: SettingsRepository,
     private val legacySettingsMigrator: LegacySettingsMigrator,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -36,21 +38,21 @@ class SettingsViewModel @Inject constructor(
         get() = currentStyle.copy()
 
     suspend fun loadPersistedState() {
-        settingsStore.load()
+        settingsRepository.load()
         legacySettingsMigrator.migrateIfNeeded()
-        initialize(settingsStore.loadStyle(), settingsStore.getOcrConfusionReplacementMask())
+        initialize(settingsRepository.loadStyle(), settingsRepository.getOcrConfusionReplacementMask())
     }
 
-    fun save(): Job = settingsStore.saveStyle(style)
+    fun save(): Job = settingsRepository.saveStyle(style)
 
     fun setOcrMaskPersisted(mask: Int): Job {
         setOcrMask(mask)
-        return settingsStore.setOcrConfusionReplacementMask(mask)
+        return settingsRepository.setOcrConfusionReplacementMask(mask)
     }
 
-    fun getOcrMask(): Int = settingsStore.getOcrConfusionReplacementMask()
+    fun getOcrMask(): Int = settingsRepository.getOcrConfusionReplacementMask()
 
-    fun recordUpdateError(message: String): Job = settingsStore.setUpdateError(message)
+    fun recordUpdateError(message: String): Job = settingsRepository.setUpdateError(message)
 
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return

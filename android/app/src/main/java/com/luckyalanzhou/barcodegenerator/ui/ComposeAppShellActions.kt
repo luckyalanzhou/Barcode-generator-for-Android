@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.data.*
+import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.data.network.LanShareFile
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */
@@ -37,7 +40,7 @@ internal interface ComposeAppShellActions {
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
 internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = object : ComposeAppShellActions {
     override fun selectTab(index: Int) {
-        if (viewModel.uiState.value.page == "lanShare") closeLanShare()
+        if (viewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
         viewModel.selectMainTab(index)
     }
 

@@ -1,6 +1,7 @@
 [versions]
 agp = "9.4.0"
 kotlin = "2.4.20"
+coroutines = "1.10.2"
 ksp = "2.3.12"
 hilt = "2.60.1"
 composeBom = "2026.09.00"
@@ -19,6 +20,7 @@ nanohttpd = "2.3.1"
 benchmark = "1.5.0"
 
 [libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
