@@ -256,10 +256,12 @@ internal fun ComposeGlassDialogCard(
 ) {
     val onMetric = LocalDialogMetric.current
     val card = LocalBarcodeThemeColors.current.surface
+    val cardSelected = LocalDialogSelectedElement.current?.value == "弹窗卡片"
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
             .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
+            .dialogMetricBounds(cardSelected)
             .clickable { onMetric("弹窗卡片") }
             .padding(horizontal = horizontalPadding, vertical = 16.dp),
     ) { Column(content = content) }
