@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.view.View
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.FileProvider
 import androidx.compose.ui.graphics.toArgb
 import kotlin.math.roundToInt
@@ -23,12 +22,8 @@ internal fun MainActivity.appBackground() = barcodeThemeColors(isDark()).backgro
 internal fun MainActivity.primaryText() = barcodeThemeColors(isDark()).primary.toArgb()
 internal fun MainActivity.secondaryText() = barcodeThemeColors(isDark()).secondary.toArgb()
 internal fun MainActivity.applyAppearance() {
-    val mode = when (settingsViewModel.style.colorScheme) {
-        "dark" -> AppCompatDelegate.MODE_NIGHT_YES
-        "light" -> AppCompatDelegate.MODE_NIGHT_NO
-        else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-    }
-    AppCompatDelegate.setDefaultNightMode(mode)
+    // ComposeAppShell 根据 SettingsUiState 实时选择浅色/深色主题；
+    // 这里只同步系统栏，避免 AppCompatDelegate 重建 Activity 造成画面闪烁。
     syncSystemBars()
 }
 

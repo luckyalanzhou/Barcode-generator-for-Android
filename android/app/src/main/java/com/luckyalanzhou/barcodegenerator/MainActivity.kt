@@ -131,7 +131,6 @@ class MainActivity : AppCompatActivity() {
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
                 buildComposeShell()
-                applyAppearance()
                 if (state != null && viewModel.uiState.value.page == "generate") {
                     viewModel.navigateTo(state.getString("page", "generate") ?: "generate")
                     viewModel.updateSettingsReturnPage(state.getString("settings_return_page", "generate") ?: "generate")
