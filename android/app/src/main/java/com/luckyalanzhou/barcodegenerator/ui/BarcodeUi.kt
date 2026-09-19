@@ -11,8 +11,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.view.View
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.graphics.toArgb
 import kotlin.math.roundToInt
 
@@ -34,8 +34,10 @@ internal fun MainActivity.applyAppearance() {
 /** 在主题重建完成后同步系统栏，避免沿用旧颜色。 */
 internal fun MainActivity.syncSystemBars() {
     val background = appBackground()
-    window.decorView.systemUiVisibility =
-        if (isDark()) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+    WindowInsetsControllerCompat(window, window.decorView).apply {
+        isAppearanceLightStatusBars = !isDark()
+        isAppearanceLightNavigationBars = !isDark()
+    }
     window.statusBarColor = background
     window.navigationBarColor = background
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
@@ -125,8 +127,10 @@ internal fun MainActivity.showFireworksEasterEgg() {
     viewModel.showFireworks()
     window.statusBarColor = Color.BLACK
     window.navigationBarColor = Color.BLACK
-    val lightSystemBars = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-    window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and lightSystemBars.inv()
+    WindowInsetsControllerCompat(window, window.decorView).apply {
+        isAppearanceLightStatusBars = false
+        isAppearanceLightNavigationBars = false
+    }
 }
 
 internal fun MainActivity.dismissFireworksEasterEgg() {

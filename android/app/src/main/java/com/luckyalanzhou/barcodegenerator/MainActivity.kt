@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.content.FileProvider
+import androidx.core.os.BundleCompat
 import androidx.core.view.WindowCompat
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
@@ -289,7 +290,7 @@ class MainActivity : AppCompatActivity() {
         val bitmap = when (requestCode) {
             43, 45, 51 -> cameraState.outputUri?.let { uri ->
                 runCatching { contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
-            } ?: (data?.extras?.get("data") as? Bitmap)
+            } ?: data?.extras?.let { BundleCompat.getParcelable(it, "data", Bitmap::class.java) }
             44, 46 -> data?.data?.let { uri ->
                 runCatching { contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
             }
