@@ -40,6 +40,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -52,11 +55,26 @@ import kotlin.math.roundToInt
 
 private val LocalDialogMetric = compositionLocalOf<(String) -> Unit> { {} }
 private val LocalDialogSelectedElement = compositionLocalOf<MutableState<String>?> { null }
+private val LocalDialogElementBounds = compositionLocalOf<MutableState<Map<String, DialogElementBounds>>?> { null }
 
-private fun Modifier.dialogMetricBounds(selected: Boolean): Modifier = if (!selected) {
-    this
-} else {
-    drawWithContent {
+internal data class DialogElementBounds(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+)
+
+@Composable
+private fun Modifier.dialogMetricBounds(label: String, selected: Boolean): Modifier {
+    val boundsState = LocalDialogElementBounds.current
+    val boundsModifier = onGloballyPositioned { coordinates ->
+        val rect = coordinates.boundsInRoot()
+        val measured = DialogElementBounds(rect.left, rect.top, rect.right, rect.bottom)
+        if (boundsState?.value?.get(label) != measured) {
+            boundsState?.value = boundsState.value.orEmpty() + (label to measured)
+        }
+    }
+    return boundsModifier.then(if (!selected) Modifier else Modifier.drawWithContent {
         drawContent()
         val stroke = 2.dp.toPx()
         val marker = 5.dp.toPx()
@@ -72,14 +90,14 @@ private fun Modifier.dialogMetricBounds(selected: Boolean): Modifier = if (!sele
         drawLine(red, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(0f, size.height - marker), strokeWidth = stroke)
         drawLine(red, androidx.compose.ui.geometry.Offset(size.width, size.height), androidx.compose.ui.geometry.Offset(size.width - marker, size.height), strokeWidth = stroke)
         drawLine(red, androidx.compose.ui.geometry.Offset(size.width, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height - marker), strokeWidth = stroke)
-    }
+    })
 }
 
 @Composable
 private fun Modifier.dialogMetricTarget(label: String): Modifier {
     val selected = LocalDialogSelectedElement.current?.value == label
     val onMetric = LocalDialogMetric.current
-    return dialogMetricBounds(selected)
+    return dialogMetricBounds(label, selected)
         .clickable { onMetric(label) }
 }
 
@@ -94,6 +112,7 @@ internal fun MainActivity.showComposeDialog(
     val composeView = ComposeView(this)
     var metricsDialog: Dialog? = null
     val selectedElement = mutableStateOf("尚未选择元素")
+    val elementBounds = mutableStateOf<Map<String, DialogElementBounds>>(emptyMap())
     val screenWidth = resources.displayMetrics.widthPixels
     val preferredWidth = (screenWidth * if (compact) 0.82f else 0.88f).roundToInt()
     val availableWidth = (screenWidth - dp(24)).coerceAtLeast(1)
@@ -118,6 +137,7 @@ internal fun MainActivity.showComposeDialog(
             CompositionLocalProvider(
                 LocalDialogMetric provides { selectedElement.value = it },
                 LocalDialogSelectedElement provides selectedElement,
+                LocalDialogElementBounds provides elementBounds,
             ) {
                 content { dialog.dismiss() }
             }
@@ -136,7 +156,7 @@ internal fun MainActivity.showComposeDialog(
             setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
             setGravity(Gravity.CENTER)
         }
-        if (metricsLabel != null) metricsDialog = showSimulationMetricsCompose(metricsLabel, selectedElement)
+        if (metricsLabel != null) metricsDialog = showSimulationMetricsCompose(metricsLabel, selectedElement, elementBounds)
     }
     dialog.setOnDismissListener { metricsDialog?.dismiss() }
     dialog.show()
@@ -146,7 +166,11 @@ internal fun MainActivity.showComposeDialog(
  * Beta 测试专用指标面板。它使用 Compose 独立窗口显示在实际弹窗下方，
  * 不参与正式业务，也不再通过 PopupWindow/旧 View 树注入控件。
  */
-internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedElement: MutableState<String>): Dialog {
+internal fun MainActivity.showSimulationMetricsCompose(
+    label: String,
+    selectedElement: MutableState<String>,
+    elementBounds: MutableState<Map<String, DialogElementBounds>>,
+): Dialog {
     val metricsDialog = Dialog(this)
     val composeView = ComposeView(this)
     composeView.setViewTreeLifecycleOwner(this)
@@ -154,6 +178,18 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
     composeView.setContent {
         val dark = isDark()
         val colors = barcodeThemeColors(dark)
+        val density = LocalDensity.current
+        val selectedBounds = elementBounds.value[selectedElement.value]
+        val cardBounds = elementBounds.value["弹窗卡片"]
+        fun px(value: Float): Int = with(density) { value.toDp().value.roundToInt() }
+        val outerMargins = if (selectedBounds != null && cardBounds != null) {
+            listOf(
+                px(selectedBounds.left - cardBounds.left),
+                px(cardBounds.right - selectedBounds.right),
+                px(selectedBounds.top - cardBounds.top),
+                px(cardBounds.bottom - selectedBounds.bottom),
+            )
+        } else null
         CompositionLocalProvider(LocalBarcodeThemeColors provides colors) {
             MaterialTheme {
             SelectionContainer {
@@ -168,6 +204,13 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
                 ) {
                     Text("弹窗：$label", color = colors.secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text("当前元素：${selectedElement.value}", color = colors.secondary, fontSize = 12.sp)
+                    if (selectedBounds != null) {
+                        Text("实际位置：左 ${px(selectedBounds.left)}dp，上 ${px(selectedBounds.top)}dp", color = colors.secondary, fontSize = 12.sp)
+                        Text("实际尺寸：宽 ${px(selectedBounds.right - selectedBounds.left)}dp，高 ${px(selectedBounds.bottom - selectedBounds.top)}dp", color = colors.secondary, fontSize = 12.sp)
+                        if (outerMargins != null) {
+                            Text("实时外边距：左 ${outerMargins[0]}dp，右 ${outerMargins[1]}dp，上 ${outerMargins[2]}dp，下 ${outerMargins[3]}dp", color = colors.secondary, fontSize = 12.sp)
+                        }
+                    }
                     when (selectedElement.value) {
                         "尚未选择元素" -> {
                             Text("请点击弹窗标题、副标题、按钮或空白区域查看布局边界", color = colors.secondary, fontSize = 12.sp)
@@ -274,7 +317,7 @@ internal fun ComposeGlassDialogCard(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
             .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
-            .dialogMetricBounds(cardSelected)
+            .dialogMetricBounds("弹窗卡片", cardSelected)
             .clickable { onMetric("弹窗卡片") }
             .padding(horizontal = horizontalPadding, vertical = 16.dp),
     ) { Column(content = content) }
@@ -304,7 +347,7 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
-            .dialogMetricBounds(selected)
+            .dialogMetricBounds("按钮：$text", selected)
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(1.dp, border, RoundedCornerShape(12.dp))
