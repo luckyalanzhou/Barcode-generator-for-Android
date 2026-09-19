@@ -52,13 +52,13 @@ internal fun MainActivity.installApkCompose(file: File) {
                 ComposeGlassDialogCard(dark) {
                     Text(
                         "需要允许安装未知应用",
-                        color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
+                        color = LocalBarcodeThemeColors.current.primary,
                         fontSize = 18.sp,
                     )
                     Text(
                         "为了安装应用更新，请在系统设置中允许“条码生成器”安装未知应用。开启后返回本应用，将自动继续安装。",
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                        color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+                        color = LocalBarcodeThemeColors.current.secondary,
                         fontSize = 14.sp,
                     )
                     Row(
@@ -151,11 +151,11 @@ internal fun UpdateAvailableDialogContent(
     onUpdate: () -> Unit,
 ) {
     ComposeGlassDialogCard(dark) {
-        Text("发现新版本", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
+        Text("发现新版本", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
         Text(
             "检测到版本 $latest，是否立即更新？",
             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-            color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+            color = LocalBarcodeThemeColors.current.secondary,
             fontSize = 15.sp,
         )
         Row(
@@ -194,8 +194,8 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
         animationSpec = tween(durationMillis = animation.progressDurationMillis),
         label = "downloadProgress",
     ).value
-    val fill = if (dark) Color(0xff36c8ff) else Color(0xff2678db)
-    val track = if (dark) Color(0xff152938) else Color(0xffe4eaf2)
+    val fill = LocalBarcodeThemeColors.current.progress
+    val track = LocalBarcodeThemeColors.current.progressTrack
     Canvas(
         modifier = Modifier.fillMaxWidth().height(14.dp)
             .clip(RoundedCornerShape(7.dp))
@@ -221,8 +221,8 @@ private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
 
 @Composable
 private fun ComposeIndeterminateProgress(dark: Boolean) {
-    val fill = if (dark) Color(0xff36c8ff) else Color(0xff2678db)
-    val track = if (dark) Color(0xff152938) else Color(0xffe4eaf2)
+    val fill = LocalBarcodeThemeColors.current.progress
+    val track = LocalBarcodeThemeColors.current.progressTrack
     val transition = rememberInfiniteTransition(label = "downloadIndeterminate")
     val offset by transition.animateFloat(
         initialValue = -0.35f,
@@ -258,7 +258,7 @@ private fun ComposeDownloadProgressDialog(
 ) {
     val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
     ComposeGlassDialogCard(dark) {
-        Text("下载更新", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
+        Text("下载更新", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
         if (downloadState.indeterminate) {
             ComposeIndeterminateProgress(dark)
         } else {
@@ -268,14 +268,14 @@ private fun ComposeDownloadProgressDialog(
             Text(
                 downloadState.status,
                 modifier = Modifier.weight(1f),
-                color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+                color = LocalBarcodeThemeColors.current.secondary,
                 fontSize = 14.sp,
                 maxLines = 1,
             )
             if (!downloadState.indeterminate) {
                 Text(
                     "${downloadState.progress.coerceIn(0, 100)}%",
-                    color = if (dark) Color(0xff8fdcff) else Color(0xff2678db),
+                    color = LocalBarcodeThemeColors.current.link,
                     fontSize = 14.sp,
                 )
             }
@@ -364,8 +364,8 @@ internal fun MainActivity.showDownloadFailedCompose(
     showComposeDialog(compact = true, metricsLabel = null) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("更新下载失败", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
-            Text(reason, Modifier.fillMaxWidth().padding(top = 10.dp), color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 14.sp)
+            Text("更新下载失败", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
+            Text(reason, Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalBarcodeThemeColors.current.secondary, fontSize = 14.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("重新下载", dark, {
                     dismiss()

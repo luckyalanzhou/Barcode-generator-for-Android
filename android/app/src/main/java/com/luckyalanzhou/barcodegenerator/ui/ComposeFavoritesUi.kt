@@ -86,11 +86,12 @@ internal fun ComposeFavoritesPage(
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val animation = rememberComposeAnimationConfig()
-    val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
-    val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
-    val rootFolderColor = if (dark) Color(0xff9bc8f5) else Color(0xff527ca8)
-    val childFolderColor = if (dark) Color(0xffe0b383) else Color(0xff9b7a57)
-    val fileColor = if (dark) Color(0xff9bd8c0) else Color(0xff5c8c7b)
+    val themeColors = LocalBarcodeThemeColors.current
+    val primary = themeColors.primary
+    val secondary = themeColors.secondary
+    val rootFolderColor = themeColors.folder
+    val childFolderColor = themeColors.childFolder
+    val fileColor = themeColors.file
     val normalizedQuery = query.trim().lowercase(Locale.getDefault())
     val folderPaths = (favoritesState.folders + favoritesState.groups.map { it.folder })
         .filter { it.isNotBlank() }.distinct().toSet()
@@ -208,7 +209,7 @@ private fun FavoriteFolderRow(
     val interactionSource = remember(row.path) { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
-    val background by animateColorAsState(if (pressed) folderColor.copy(alpha = if (dark) .22f else .12f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
+    val background by animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
     val indent = if (row.level == 0) 11.dp else 26.dp
 
     Box(Modifier.fillMaxWidth()) {
@@ -235,7 +236,7 @@ private fun FavoriteFolderRow(
             expanded = menuExpanded,
             onDismissRequest = onMenuDismiss,
             shape = RoundedCornerShape(16.dp),
-            containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+            containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
@@ -251,9 +252,9 @@ private fun FavoriteFolderRow(
                     contentPadding = PaddingValues(horizontal = 12.dp),
                     text = { Text(label) },
                     trailingIcon = if (deleteAction) {
-                        { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), modifier = Modifier.size(20.dp)) }
+                        { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = LocalBarcodeThemeColors.current.destructive, modifier = Modifier.size(20.dp)) }
                     } else {
-                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = Color(0xff1f1f1f), modifier = Modifier.size(20.dp)) }
+                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp)) }
                     },
                     onClick = {
                         onMenuDismiss()
@@ -294,7 +295,7 @@ private fun FavoriteGroupRow(
     val interactionSource = remember(group.id) { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-group-scale")
-    val background by animateColorAsState(if (pressed) fileColor.copy(alpha = if (dark) .22f else .12f) else Color.Transparent, animation.settleSpring(), label = "favorite-group-background")
+    val background by animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-group-background")
 
     Box(Modifier.fillMaxWidth()) {
         Row(
@@ -305,7 +306,7 @@ private fun FavoriteGroupRow(
         ) {
             Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
-            Text(group.name, color = Color(0xff1f1f1f), fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(group.name, color = LocalBarcodeThemeColors.current.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)
         }
         AnchoredDropdownMenu(
@@ -313,7 +314,7 @@ private fun FavoriteGroupRow(
             expanded = menuExpanded,
             onDismissRequest = onMenuDismiss,
             shape = RoundedCornerShape(16.dp),
-            containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+            containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
@@ -332,7 +333,7 @@ private fun FavoriteGroupRow(
                             1 -> EditIcon
                             else -> DeleteIcon
                         }
-                        Icon(icon, contentDescription = label, tint = if (index == 2) { if (dark) Color(0xffffb0b0) else Color(0xffe58b8b) } else Color(0xff1f1f1f), modifier = Modifier.size(20.dp))
+                        Icon(icon, contentDescription = label, tint = if (index == 2) LocalBarcodeThemeColors.current.destructive else LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
                     },
                     onClick = {
                         onMenuDismiss()

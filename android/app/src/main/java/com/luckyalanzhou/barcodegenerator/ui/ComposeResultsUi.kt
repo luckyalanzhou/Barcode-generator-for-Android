@@ -48,9 +48,10 @@ internal fun ComposeResultsPage(
     onShare: () -> Unit,
 ) {
     val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
-    val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
-    val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
-    val actionColor = if (dark) Color(0xffd7e3f5) else Color(0xff2453a6)
+    val themeColors = LocalBarcodeThemeColors.current
+    val primary = themeColors.primary
+    val secondary = themeColors.secondary
+    val actionColor = themeColors.link
     val items = resultState.items
     val favoriteActionIcon = if (items.isNotEmpty() && items.all { it.favorite }) FavoriteFilledIcon else FavoriteIcon
 

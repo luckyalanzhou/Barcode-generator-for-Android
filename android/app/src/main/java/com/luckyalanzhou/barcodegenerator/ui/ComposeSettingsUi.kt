@@ -279,15 +279,13 @@ private data class SettingsColors(
 )
 
 @Composable
-private fun rememberSettingsColors(dark: Boolean) = remember(dark) {
-    SettingsColors(
-        primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
-        secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280),
-        card = if (dark) Color(0xff1b222d) else Color(0xfff7f9fc),
-        button = if (dark) Color(0xff233246) else Color(0xffeef3f9),
-        accent = if (dark) Color(0xffb8ccff) else Color(0xff2864d7),
-    )
-}
+private fun rememberSettingsColors(dark: Boolean) = SettingsColors(
+    primary = LocalBarcodeThemeColors.current.primary,
+    secondary = LocalBarcodeThemeColors.current.secondary,
+    card = LocalBarcodeThemeColors.current.card,
+    button = LocalBarcodeThemeColors.current.button,
+    accent = LocalBarcodeThemeColors.current.accent,
+)
 
 @Composable
 private fun SettingsSection(label: String, color: Color, content: @Composable () -> Unit) {
@@ -355,7 +353,7 @@ private fun SettingsDropdown(
         expanded = expanded,
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(16.dp),
-        containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+        containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
         tonalElevation = 0.dp,
         shadowElevation = 1.dp,
         menuWidth = menuWidth.coerceAtLeast(132.dp),
@@ -422,18 +420,14 @@ private fun SettingsSliderRow(title: String, value: Float, range: ClosedFloating
 
 @Composable
 private fun SettingsDivider(dark: Boolean) {
-    Spacer(Modifier.fillMaxWidth().height(1.dp).background(if (dark) Color(0xff3b4658).copy(alpha = .38f) else Color(0xff667085).copy(alpha = .12f)))
+    Spacer(Modifier.fillMaxWidth().height(1.dp).background(LocalBarcodeThemeColors.current.divider))
 }
 
 @Composable
 private fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
+    val themeColors = LocalBarcodeThemeColors.current
     val trackColor by animateColorAsState(
-        targetValue = when {
-            checked && dark -> Color(0xff4f8fe8)
-            checked -> Color(0xff3478d3)
-            dark -> Color(0xff4a5565)
-            else -> Color(0xffd5dbe4)
-        },
+        targetValue = if (checked) themeColors.toggleOn else themeColors.toggleOff,
         animationSpec = spring(stiffness = 700f),
         label = "settings-toggle-track",
     )
@@ -446,7 +440,7 @@ private fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier =
         modifier = modifier.width(52.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(trackColor).clickable { onCheckedChange(!checked) }.padding(2.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Box(Modifier.offset(x = thumbOffset).size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(Color.White))
+        Box(Modifier.offset(x = thumbOffset).size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.thumb))
     }
 }
 

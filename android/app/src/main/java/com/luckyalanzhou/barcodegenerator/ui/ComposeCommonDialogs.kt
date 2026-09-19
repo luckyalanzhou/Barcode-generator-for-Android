@@ -26,8 +26,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
@@ -82,14 +80,11 @@ internal fun MainActivity.showComposeDialog(
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
         val dark = isDark()
-        val colorScheme = if (dark) {
-            darkColorScheme(background = Color(0xff000000), surface = Color(0xff1c1c1e))
-        } else {
-            lightColorScheme(background = Color(0xfff2f2f7), surface = Color(0xfffbfcff))
-        }
-        MaterialTheme(colorScheme = colorScheme) {
+        CompositionLocalProvider(LocalBarcodeThemeColors provides barcodeThemeColors(dark)) {
+            MaterialTheme {
             CompositionLocalProvider(LocalDialogMetric provides { selectedElement.value = it }) {
                 content { dialog.dismiss() }
+            }
             }
         }
     }
@@ -122,32 +117,27 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
         val dark = isDark()
-        val text = if (dark) Color(0xffc5cedb) else Color(0xff667085)
-        val card = if (dark) Color(0xff102234) else Color(0xfff4f8ff)
-        val border = if (dark) Color(0xff2d79b6) else Color(0xffb8d7f2)
-        val colorScheme = if (dark) {
-            darkColorScheme(background = Color(0xff000000), surface = Color(0xff102234))
-        } else {
-            lightColorScheme(background = Color(0xfff2f2f7), surface = Color(0xfff4f8ff))
-        }
-        MaterialTheme(colorScheme = colorScheme) {
+        val colors = barcodeThemeColors(dark)
+        CompositionLocalProvider(LocalBarcodeThemeColors provides colors) {
+            MaterialTheme {
             SelectionContainer {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
-                        .background(card)
-                        .border(1.dp, border, RoundedCornerShape(18.dp))
+                    .background(colors.input)
+                        .border(1.dp, colors.focusedInputBorder, RoundedCornerShape(18.dp))
                         .padding(horizontal = 14.dp, vertical = 11.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    Text("弹窗：$label", color = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text("当前元素：${selectedElement.value}", color = text, fontSize = 12.sp)
-                    Text("类型：Compose 元素    可见：true    可用：true", color = text, fontSize = 12.sp)
-                    Text("位置：由当前弹窗布局决定    尺寸：自适应内容", color = text, fontSize = 12.sp)
-                    Text("内边距：按当前元素规范    外观：圆角边框、轻阴影", color = text, fontSize = 12.sp)
+                    Text("弹窗：$label", color = colors.secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text("当前元素：${selectedElement.value}", color = colors.secondary, fontSize = 12.sp)
+                    Text("类型：Compose 元素    可见：true    可用：true", color = colors.secondary, fontSize = 12.sp)
+                    Text("位置：由当前弹窗布局决定    尺寸：自适应内容", color = colors.secondary, fontSize = 12.sp)
+                    Text("内边距：按当前元素规范    外观：圆角边框、轻阴影", color = colors.secondary, fontSize = 12.sp)
                 }
             }
+        }
         }
     }
     metricsDialog.setContentView(composeView)
@@ -172,7 +162,7 @@ internal fun AnchoredDropdownMenu(
     dark: Boolean,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(16.dp),
-    containerColor: Color = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+    containerColor: Color? = null,
     tonalElevation: Dp = 0.dp,
     shadowElevation: Dp = 1.dp,
     menuWidth: Dp? = null,
@@ -200,7 +190,7 @@ internal fun AnchoredDropdownMenu(
         offset = DpOffset(horizontalOffset, 0.dp),
         modifier = modifier.then(widthModifier).heightIn(max = maxHeight),
         shape = shape,
-        containerColor = containerColor,
+        containerColor = containerColor ?: LocalBarcodeThemeColors.current.surfaceOverlay,
         tonalElevation = tonalElevation,
         shadowElevation = shadowElevation,
     ) { content() }
@@ -212,8 +202,7 @@ internal fun ComposeGlassDialogCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val onMetric = LocalDialogMetric.current
-    val card = if (dark) Color(0xff1c1c1e) else Color(0xfffbfcff)
-    val border = if (dark) Color(0xff3a3a3c) else Color(0xffd8d8dc)
+    val card = LocalBarcodeThemeColors.current.surface
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
@@ -233,15 +222,16 @@ internal fun DialogAction(
     destructive: Boolean = false,
 ) {
     val onMetric = LocalDialogMetric.current
+    val colors = LocalBarcodeThemeColors.current
     val foreground = when {
         primary -> Color.White
-        destructive -> if (dark) Color(0xffffb0b0) else Color(0xffd66f6f)
-        else -> if (dark) Color(0xffb8ccff) else Color(0xff2166d1)
+        destructive -> colors.destructive
+        else -> colors.accent
     }
-    val border = if (primary) foreground.copy(alpha = 0.62f) else if (dark) Color(0xff52657f) else Color(0xffb7c7df)
+    val border = if (primary) foreground.copy(alpha = 0.62f) else colors.border
     val background = if (primary) {
-        if (dark) Color(0xff246fca) else Color(0xff2d7fda)
-    } else if (dark) Color(0xff252a33) else Color(0xfff2f4f8)
+        colors.progress
+    } else colors.button
     Box(
         modifier = modifier
             .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
@@ -266,7 +256,7 @@ internal fun DialogAction(
 internal fun ComposeDropdownDivider(dark: Boolean) {
     HorizontalDivider(
         thickness = 1.dp,
-        color = if (dark) Color.White.copy(alpha = .14f) else Color(0xff667085).copy(alpha = .14f),
+        color = LocalBarcodeThemeColors.current.divider,
     )
 }
 
@@ -278,7 +268,7 @@ internal fun MainActivity.showIos26NoticeDialogCompose(message: String, showMetr
             Text(
                 message,
                 modifier = Modifier.fillMaxWidth().clickable { onMetric("文本") },
-                color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
+                color = LocalBarcodeThemeColors.current.primary,
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,
             )
@@ -301,11 +291,11 @@ internal fun MainActivity.showSimulatedDialogCompose(
         val dark = isDark()
         val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             Text(
                 message,
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") },
-                color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+                color = LocalBarcodeThemeColors.current.secondary,
                 fontSize = 15.sp,
             )
             val actions = listOfNotNull(negative, neutral, positive)
@@ -340,8 +330,8 @@ internal fun MainActivity.showComposeConfirmDialog(
         val dark = isDark()
         val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") }, color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp)
+            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") }, color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction(

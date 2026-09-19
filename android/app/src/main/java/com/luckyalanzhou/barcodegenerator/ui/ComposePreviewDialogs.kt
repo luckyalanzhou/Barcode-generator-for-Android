@@ -32,14 +32,14 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
         ComposeGlassDialogCard(dark) {
             Text(
                 text = item.format,
-                color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
+                color = LocalBarcodeThemeColors.current.primary,
                 fontSize = 18.sp,
             )
             SelectionContainer {
                 Text(
                     text = item.text,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    color = if (dark) Color(0xffc5cedb) else Color(0xff667085),
+                    color = LocalBarcodeThemeColors.current.secondary,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                 )

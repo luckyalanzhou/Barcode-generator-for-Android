@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -76,11 +77,12 @@ internal fun ComposeLanSharePage(
     onCopyAddress: (String) -> Unit,
 ) {
     val lanState by viewModel.uiState.collectAsStateWithLifecycle()
-    val primary = if (dark) Color.White else Color(0xff182230)
-    val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
-    val panel = if (dark) Color(0xff1c1c1e) else Color.White
-    val inputPanel = if (dark) Color(0xff2c2c2e) else Color(0xfff0f2f5)
-    val accent = Color(0xff0a84ff)
+    val themeColors = LocalBarcodeThemeColors.current
+    val primary = themeColors.primary
+    val secondary = themeColors.secondary
+    val panel = themeColors.surface
+    val inputPanel = themeColors.inputPanel
+    val accent = themeColors.progress
     var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
     var attachmentMenu by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -104,7 +106,7 @@ internal fun ComposeLanSharePage(
     }
 
     val listState = rememberLazyListState()
-    val background = if (dark) Color.Black else Color(0xfff4f6fb)
+    val background = themeColors.background
     val toggleQr: () -> Unit = {
         if (!qrOpen && lanState.isHost) {
             runCatching { viewModel.restartHostSession(); qrOpen = true }
@@ -188,7 +190,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
-                tint = if (dark) Color(0xff8fc1ff) else accent,
+                tint = LocalBarcodeThemeColors.current.link,
                 modifier = Modifier.size(30.dp),
             )
         }
@@ -197,7 +199,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
 
 @Composable
 private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
-    val statusColor = if (connected) Color(0xff22c55e) else secondary
+    val statusColor = if (connected) LocalBarcodeThemeColors.current.success else secondary
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = if (connected) CircleFilledIcon else CircleIcon,
@@ -229,6 +231,7 @@ private fun BoxScope.LanShareComposer(
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
 ) {
+    val themeColors = LocalBarcodeThemeColors.current
     Surface(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
         color = panel,
@@ -238,12 +241,12 @@ private fun BoxScope.LanShareComposer(
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
                 IconButton(onClick = onOpenAttachmentMenu, modifier = Modifier.size(48.dp)) {
-                    Icon(AttachFileIcon, "选择附件", tint = if (dark) Color.White else Color(0xff344054), modifier = Modifier.size(28.dp))
+                    Icon(AttachFileIcon, "选择附件", tint = themeColors.icon, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
                     shape = RoundedCornerShape(16.dp),
-                    containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+                    containerColor = themeColors.surfaceOverlay,
                     tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 168.dp,
                 ) {
                     DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片") }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
@@ -272,10 +275,11 @@ private fun BoxScope.LanShareComposer(
 
 @Composable
 private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
+    val themeColors = LocalBarcodeThemeColors.current
     val mine = file.id in state.ownFileIds
     val previewFile = (viewModel.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
-    val bubbleColor = if (mine) (if (dark) Color(0xff0a84ff).copy(alpha = .48f) else Color(0xff0a84ff).copy(alpha = .40f)) else if (dark) Color(0xff2c2c2e).copy(alpha = .62f) else Color.White.copy(alpha = .82f)
+    val bubbleColor = if (mine) themeColors.progress.copy(alpha = .44f) else themeColors.surfaceOverlay
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Surface(modifier = Modifier.width(260.dp).clickable { onSaveFile(file) }, shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp) {
             Column(Modifier.padding(if (preview == null) 12.dp else 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -283,9 +287,9 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)
                     Image(bitmap.asImageBitmap(), file.name, contentScale = ContentScale.Crop, modifier = Modifier.width((bitmap.width * scale).coerceAtLeast(80f).roundToInt().dp).height((bitmap.height * scale).coerceAtLeast(80f).roundToInt().dp))
                     Spacer(Modifier.height(6.dp))
-                } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) Color.White else if (dark) Color(0xffd0d6e4) else Color(0xff52627a), modifier = Modifier.size(26.dp))
+                } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) Color.White else themeColors.icon, modifier = Modifier.size(26.dp))
                 Text(file.name, color = if (mine) Color.White else primary, fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
-                Text(formatLanShareSize(file.size), color = if (mine) Color(0xffdbeafe) else secondary, fontSize = 12.sp)
+                Text(formatLanShareSize(file.size), color = if (mine) themeColors.qrBackground else secondary, fontSize = 12.sp)
             }
         }
     }
@@ -303,8 +307,8 @@ private fun ComposeLanShareQrDialog(
 ) {
     val qrSize = 280.dp
     val dialogWidth = qrSize + 24.dp
-    val foreground = if (dark) 0xff111318.toInt() else AndroidColor.BLACK
-    val background = if (dark) 0xfff1f3f6.toInt() else AndroidColor.WHITE
+    val foreground = LocalBarcodeThemeColors.current.qrForeground.toArgb()
+    val background = LocalBarcodeThemeColors.current.qrBackground.toArgb()
     val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, background, qrSize.value.toInt()) }
     Dialog(
         onDismissRequest = {
@@ -323,7 +327,7 @@ private fun ComposeLanShareQrDialog(
             Surface(
                 modifier = Modifier.width(dialogWidth).clickable { },
                 shape = RoundedCornerShape(22.dp),
-                color = if (dark) Color(0xff1c1c1e) else Color.White,
+                color = LocalBarcodeThemeColors.current.surface,
                 shadowElevation = 1.dp,
             ) {
                 Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)) {
@@ -360,10 +364,11 @@ internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShare
     }
     showComposeDialog(compact = false, metricsLabel = if (simulated) "二维码弹窗" else null) { dismiss ->
         val dark = isDark()
-        val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
-        val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff667085)
-        val foreground = if (dark) AndroidColor.rgb(17, 19, 24) else AndroidColor.BLACK
-        val qrBackground = if (dark) AndroidColor.rgb(241, 243, 246) else AndroidColor.WHITE
+        val colors = LocalBarcodeThemeColors.current
+        val primary = colors.primary
+        val secondary = colors.secondary
+        val foreground = colors.qrForeground.toArgb()
+        val qrBackground = colors.qrBackground.toArgb()
         val bitmap = remember(session.baseUrl, dark) {
             createLanShareQrBitmap(session.baseUrl, foreground, qrBackground)
         }

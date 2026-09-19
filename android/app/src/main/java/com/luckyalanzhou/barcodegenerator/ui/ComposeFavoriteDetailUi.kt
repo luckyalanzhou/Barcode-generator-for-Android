@@ -45,9 +45,10 @@ internal fun ComposeFavoriteDetailPage(
     val dataState by viewModel.dataState.collectAsStateWithLifecycle()
     val currentGroup = dataState.groups.firstOrNull { it.id == group.id } ?: group
     val groupItems = currentGroup.itemIds.mapNotNull { id -> dataState.items.firstOrNull { it.id == id } }
-    val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
-    val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
-    val card = if (dark) Color(0xff1b222d) else Color(0xfff7f9fc)
+    val themeColors = LocalBarcodeThemeColors.current
+    val primary = themeColors.primary
+    val secondary = themeColors.secondary
+    val card = themeColors.card
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

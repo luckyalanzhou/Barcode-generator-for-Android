@@ -83,11 +83,12 @@ internal fun BetaTestCenterComposePage(
     val dataState by viewModel.dataState.collectAsStateWithLifecycle()
     val editorState by viewModel.generateEditorState.collectAsStateWithLifecycle()
     var scenariosExpanded by remember { mutableStateOf(false) }
-    val primary = if (dark) Color(0xffe9f1ff) else Color(0xff182230)
-    val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff667085)
-    val card = if (dark) Color(0xff1d2632) else Color(0xfff8fafc)
-    val button = if (dark) Color(0xff26384d) else Color(0xffeef4fb)
-    val accent = if (dark) Color(0xff9fc5ff) else Color(0xff2166d1)
+    val themeColors = LocalBarcodeThemeColors.current
+    val primary = themeColors.primary
+    val secondary = themeColors.secondary
+    val card = themeColors.card
+    val button = themeColors.button
+    val accent = themeColors.accent
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

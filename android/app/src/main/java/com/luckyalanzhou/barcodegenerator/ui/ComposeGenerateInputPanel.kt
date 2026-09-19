@@ -61,13 +61,14 @@ internal fun ComposeGenerateInputPanel(
     onDeleteLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val textColor = if (dark) Color(0xfff2f4f7) else Color(0xff172033)
-    val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
-    val panelColor = if (dark) Color(0xff182330).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.88f)
-    val inputColor = if (dark) Color(0xff202c3a) else Color(0xfff4f6fa)
-    val panelBorder = if (dark) Color.White.copy(alpha = 0.10f) else Color(0xffdfe5ed).copy(alpha = 0.72f)
-    val inputBorder = if (dark) Color.White.copy(alpha = 0.12f) else Color(0xffe3e8f0)
-    val focusedInputBorder = if (dark) Color(0xff8dbcf0).copy(alpha = 0.72f) else Color(0xff7da7d6).copy(alpha = 0.76f)
+    val themeColors = LocalBarcodeThemeColors.current
+    val textColor = themeColors.primary
+    val secondary = themeColors.secondary
+    val panelColor = themeColors.panel
+    val inputColor = themeColors.input
+    val panelBorder = themeColors.cardBorder
+    val inputBorder = themeColors.inputBorder
+    val focusedInputBorder = themeColors.focusedInputBorder
 
     Surface(
         modifier = modifier.heightIn(min = 72.dp, max = 296.dp),
@@ -140,7 +141,7 @@ internal fun ComposeGenerateInputPanel(
                         Spacer(Modifier.width(4.dp))
                         GenerateInputAction(ArrowUpwardIcon, "上移", index > 0, 27.dp) { onMoveUp(index) }
                         GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex, 27.dp) { onMoveDown(index) }
-                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = if (dark) Color(0xffffb0b0) else Color(0xffe58b8b), onLongClick = onDeleteLongClick) { onDelete(index) }
+                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = themeColors.destructive, onLongClick = onDeleteLongClick) { onDelete(index) }
                     }
                 }
             }
@@ -155,15 +156,14 @@ private fun GenerateInputAction(
     description: String,
     enabled: Boolean,
     iconSize: androidx.compose.ui.unit.Dp,
-    deleteTint: Color = Color(0xffe58b8b),
+    deleteTint: Color? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
+    val themeColors = LocalBarcodeThemeColors.current
     val tint = if (enabled) {
-        if (description == "删除") deleteTint else Color(0xff667085)
-    } else {
-        Color(0xffb5bdc9)
-    }
+        if (description == "删除") deleteTint ?: themeColors.destructive else themeColors.secondary
+    } else themeColors.disabled
     Surface(
         modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,

@@ -60,9 +60,10 @@ internal fun HistoryComposePage(
     onDelete: (List<CodeItem>) -> Unit,
     timeText: (Long) -> String,
 ) {
-    val primary = if (dark) Color(0xfff2f4f8) else Color(0xff182230)
-    val secondary = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280)
-    val clearColor = if (dark) Color(0xffffa0a0) else Color(0xffc85c5c)
+    val themeColors = LocalBarcodeThemeColors.current
+    val primary = themeColors.primary
+    val secondary = themeColors.secondary
+    val clearColor = themeColors.destructive
     val hapticView = LocalView.current
 
     LazyColumn(
@@ -126,7 +127,7 @@ private fun HistoryBatchCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val card = if (dark) Color(0xff1b222d) else Color(0xfff7f9fc)
+    val card = LocalBarcodeThemeColors.current.card
     val preview = batch.firstOrNull()?.text.orEmpty().let { text ->
         if (text.length > 8) text.take(8) + "..." else text
     }
@@ -157,7 +158,7 @@ private fun HistoryBatchCard(
             Text(time, color = secondary, fontSize = 12.sp, maxLines = 1)
             Spacer(Modifier.width(2.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                Icon(DeleteIcon, "删除这条历史记录", tint = Color(0xffd98787))
+                Icon(DeleteIcon, "删除这条历史记录", tint = LocalBarcodeThemeColors.current.destructive)
             }
         }
     }
@@ -183,7 +184,7 @@ internal fun HistoryBatchPickerDialogContent(
     ComposeGlassDialogCard(dark) {
         Text(
             "本次生成的 ${batch.size} 个条码",
-            color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
+            color = LocalBarcodeThemeColors.current.primary,
             fontSize = 20.sp,
         )
         Column(

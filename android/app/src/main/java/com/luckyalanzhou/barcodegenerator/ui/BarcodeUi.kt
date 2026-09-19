@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import android.view.View
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.FileProvider
+import androidx.compose.ui.graphics.toArgb
 import kotlin.math.roundToInt
 
 internal fun MainActivity.isDark() =
@@ -18,9 +19,9 @@ internal fun MainActivity.isDark() =
             (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES)
 
-internal fun MainActivity.appBackground() = if (isDark()) 0xff000000.toInt() else 0xfff2f2f7.toInt()
-internal fun MainActivity.primaryText() = if (isDark()) 0xfff2f4f7.toInt() else 0xff172033.toInt()
-internal fun MainActivity.secondaryText() = if (isDark()) 0xffc5cedb.toInt() else 0xff667085.toInt()
+internal fun MainActivity.appBackground() = barcodeThemeColors(isDark()).background.toArgb()
+internal fun MainActivity.primaryText() = barcodeThemeColors(isDark()).primary.toArgb()
+internal fun MainActivity.secondaryText() = barcodeThemeColors(isDark()).secondary.toArgb()
 internal fun MainActivity.applyAppearance() {
     val mode = when (settingsViewModel.style.colorScheme) {
         "dark" -> AppCompatDelegate.MODE_NIGHT_YES

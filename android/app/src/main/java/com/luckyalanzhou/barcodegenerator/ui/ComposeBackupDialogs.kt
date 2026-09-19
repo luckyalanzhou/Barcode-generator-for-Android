@@ -14,7 +14,7 @@ internal fun MainActivity.createFavoritesExportCompose() {
     showComposeDialog(compact = true, metricsLabel = null) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("导出收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
+            Text("导出收藏", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
             ComposeDialogChoice("分享到其他应用", dark) {
                 dismiss()
                 shareFavoritesExportForCompose()

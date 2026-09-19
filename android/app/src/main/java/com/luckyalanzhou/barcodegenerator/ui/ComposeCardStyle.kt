@@ -9,8 +9,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.Composable
 
 /** 全局卡片基座：统一圆角、边缘分离度和轻量阴影，页面保留自己的表面颜色。 */
+@Composable
 internal fun Modifier.globalCardSurface(
     dark: Boolean,
     color: Color,
@@ -22,7 +24,7 @@ internal fun Modifier.globalCardSurface(
     .background(color)
     .border(
         1.dp,
-        if (dark) Color.White.copy(alpha = 0.10f) else Color(0xffd9e1ec).copy(alpha = 0.82f),
+        LocalBarcodeThemeColors.current.cardBorder,
         shape,
     )
 

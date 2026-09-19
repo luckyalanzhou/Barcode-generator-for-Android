@@ -75,13 +75,14 @@ internal fun ComposeGeneratePage(
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
-    val textColor = if (dark) Color(0xfff2f4f7) else Color(0xff172033)
-    val secondary = if (dark) Color(0xffc5cedb) else Color(0xff667085)
-    val cardColor = if (dark) Color(0xff182330).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.88f)
-    val inputColor = if (dark) Color(0xff202c3a) else Color(0xfff4f6fa)
-    val cardBorder = if (dark) Color.White.copy(alpha = 0.10f) else Color(0xffdfe5ed).copy(alpha = 0.72f)
-    val inputBorder = if (dark) Color.White.copy(alpha = 0.12f) else Color(0xffe3e8f0)
-    val focusedInputBorder = if (dark) Color(0xff8dbcf0).copy(alpha = 0.72f) else Color(0xff7da7d6).copy(alpha = 0.76f)
+    val themeColors = LocalBarcodeThemeColors.current
+    val textColor = themeColors.primary
+    val secondary = themeColors.secondary
+    val cardColor = themeColors.panel
+    val inputColor = themeColors.input
+    val cardBorder = themeColors.cardBorder
+    val inputBorder = themeColors.inputBorder
+    val focusedInputBorder = themeColors.focusedInputBorder
     val density = LocalDensity.current
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
@@ -170,14 +171,8 @@ internal fun ComposeGeneratePage(
 
         val count = values.count { it.trim().isNotEmpty() }
         val generateEnabled = count > 0
-        val generateContainer = if (generateEnabled) {
-            if (dark) Color(0xff2d72d9) else Color(0xff2f6fda)
-        } else if (dark) {
-            Color(0xff3a414c)
-        } else {
-            Color(0xffd1d1d6)
-        }
-        val generateContent = if (generateEnabled) Color.White else if (dark) Color(0xffaeb7c5) else Color(0xff99999f)
+        val generateContainer = if (generateEnabled) themeColors.progress else themeColors.button
+        val generateContent = if (generateEnabled) themeColors.onAccent else themeColors.disabled
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ComposeGenerateActionButton(
                 icon = AddIcon,
@@ -199,7 +194,7 @@ internal fun ComposeGeneratePage(
                 label = "拍照取字",
                 // 与“添加一行”共用同一张卡片容器，避免单独的描边造成外观不一致。
                 containerColor = cardColor,
-                contentColor = if (dark) Color(0xff8fc1ff) else Color(0xff246fc4),
+                contentColor = themeColors.link,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )
@@ -217,7 +212,7 @@ internal fun ComposeGeneratePage(
                         modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (dark) Color(0xff233246) else Color(0xffeef3f9),
+                            containerColor = themeColors.button,
                             contentColor = textColor,
                         ),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
@@ -229,7 +224,7 @@ internal fun ComposeGeneratePage(
                         expanded = formatExpanded,
                         onDismissRequest = { formatExpanded = false },
                         shape = RoundedCornerShape(16.dp),
-                        containerColor = if (dark) Color(0xff252a33).copy(alpha = .98f) else Color.White.copy(alpha = .94f),
+                        containerColor = themeColors.surfaceOverlay,
                         tonalElevation = 0.dp,
                         shadowElevation = 1.dp,
                         menuWidth = (formatAnchorWidth ?: 148.dp).coerceAtLeast(148.dp),
@@ -265,11 +260,12 @@ internal fun ComposeGeneratePage(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, iconTint: Color = Color(0xff667085), iconSize: androidx.compose.ui.unit.Dp = 20.dp, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, iconTint: Color? = null, iconSize: androidx.compose.ui.unit.Dp = 20.dp, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+    val themeColors = LocalBarcodeThemeColors.current
     Box(
         Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint else Color(0xffb5bdc9), modifier = Modifier.size(iconSize))
+        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint ?: themeColors.secondary else themeColors.disabled, modifier = Modifier.size(iconSize))
     }
 }
