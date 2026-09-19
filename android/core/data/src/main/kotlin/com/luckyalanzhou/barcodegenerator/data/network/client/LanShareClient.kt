@@ -1,8 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.data.network.client
 
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareSession
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.multipartFileName
 

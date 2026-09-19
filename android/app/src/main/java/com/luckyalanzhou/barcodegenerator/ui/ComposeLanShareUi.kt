@@ -4,8 +4,8 @@ import com.luckyalanzhou.barcodegenerator.LanShareEvent
 import com.luckyalanzhou.barcodegenerator.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareFile
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareSession
+import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.CircleFilledIcon

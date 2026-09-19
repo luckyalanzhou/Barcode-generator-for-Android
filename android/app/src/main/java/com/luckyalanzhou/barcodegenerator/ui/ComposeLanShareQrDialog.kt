@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareSession
+import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.icons.ContentCopyIcon
 import android.graphics.Bitmap
 import androidx.core.graphics.createBitmap

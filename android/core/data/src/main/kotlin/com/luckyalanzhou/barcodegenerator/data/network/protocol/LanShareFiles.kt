@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data.network.protocol
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 
 import java.io.File
 
