@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.*
-import android.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
@@ -16,6 +15,7 @@ import kotlinx.coroutines.withContext
 import android.text.*
 import android.view.*
 import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
 import org.json.*
 import java.io.File
 import java.net.HttpURLConnection

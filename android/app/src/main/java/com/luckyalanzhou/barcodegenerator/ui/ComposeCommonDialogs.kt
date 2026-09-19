@@ -31,7 +31,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +41,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -305,9 +305,12 @@ internal fun AnchoredDropdownMenu(
     alignEndWithAnchor: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val configuration = LocalConfiguration.current
-    val maxHeight = (configuration.screenHeightDp * 0.62f).coerceAtLeast(180f).dp
-    val maxWidth = (configuration.screenWidthDp - 24).coerceAtLeast(1).dp
+    val containerSize = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    val maxHeight = with(density) { (containerSize.height * 0.62f).toDp() }.coerceAtLeast(180.dp)
+    val maxWidth = with(density) {
+        (containerSize.width.toFloat() - 24.dp.toPx()).coerceAtLeast(1f).toDp()
+    }
     val resolvedMenuWidth = menuWidth?.coerceAtMost(maxWidth)
     val widthModifier = if (menuWidth != null) {
         Modifier.width(resolvedMenuWidth ?: maxWidth)

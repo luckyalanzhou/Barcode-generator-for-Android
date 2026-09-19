@@ -28,13 +28,13 @@ import androidx.compose.ui.unit.sp
 /** 生成页操作按钮：单一 Surface 容器，避免 Material Button 的内部背景层。 */
 @Composable
 internal fun ComposeGenerateActionButton(
-    icon: ImageVector? = null,
     iconDescription: String,
     label: String,
     containerColor: Color,
     contentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
     borderColor: Color? = null,
     iconSize: Dp = 22.dp,
     contentSpacing: Dp = 6.dp,

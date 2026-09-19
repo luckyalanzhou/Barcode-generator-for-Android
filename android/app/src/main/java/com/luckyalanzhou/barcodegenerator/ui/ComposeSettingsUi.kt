@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
@@ -455,7 +456,7 @@ private fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier =
         modifier = modifier.width(52.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(trackColor).clickable { onCheckedChange(!checked) }.padding(2.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Box(Modifier.offset(x = thumbOffset).size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.thumb))
+        Box(Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }.size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.thumb))
     }
 }
 

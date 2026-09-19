@@ -95,7 +95,7 @@ internal fun ComposeFavoritesPage(
     val rootFolderColor = themeColors.folder
     val childFolderColor = themeColors.childFolder
     val fileColor = themeColors.file
-    val normalizedQuery = query.trim().lowercase(Locale.getDefault())
+    val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val folderPaths = remember(favoritesState.folders, favoritesState.groups) {
         (favoritesState.folders + favoritesState.groups.map { it.folder })
             .filter { it.isNotBlank() }.distinct().toSet()
@@ -340,7 +340,7 @@ private fun FavoriteGroupRow(
             Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
             Text(group.name, color = LocalBarcodeThemeColors.current.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)
+            Text(SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)
         }
         AnchoredDropdownMenu(
             dark = dark,
