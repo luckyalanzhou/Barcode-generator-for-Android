@@ -1,7 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.data.network.web
 
-import com.luckyalanzhou.barcodegenerator.*
-
 /** 浏览器传输页的交互脚本模板。 */
 internal object LanShareWebScript {
     fun render() = """<script>

@@ -1,7 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.data.network.web
 
-import com.luckyalanzhou.barcodegenerator.*
-
 /** 浏览器传输页的 CSS 模板。 */
 internal object LanShareWebStyles {
     fun render() = """<style>
