@@ -85,8 +85,8 @@ class BarcodeViewModel @Inject constructor(
         persistItems = ::persistItems,
     )
 
-    private val _favoriteTreeUiState = MutableStateFlow(FavoriteTreeUiState())
-    val favoriteTreeUiState: StateFlow<FavoriteTreeUiState> = _favoriteTreeUiState.asStateFlow()
+    private val favoriteTreeCoordinator = FavoriteTreeCoordinator()
+    val favoriteTreeUiState: StateFlow<FavoriteTreeUiState> = favoriteTreeCoordinator.state
 
     private val cameraRequestCoordinator = CameraRequestCoordinator()
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraRequestCoordinator.state
@@ -348,53 +348,19 @@ class BarcodeViewModel @Inject constructor(
 
     fun takePendingInstallPath(): String? = updateCoordinator.takePendingInstallPath()
     fun syncFavoriteTree(folders: Set<String>) {
-        val validFolders = folders.filter { it.isNotBlank() }.toSet()
-        val current = _favoriteTreeUiState.value
-        val nextCollapsed = if (!current.initialized) {
-            validFolders
-        } else {
-            current.collapsedFolders.intersect(validFolders)
-        }
-        val next = current.copy(
-            collapsedFolders = nextCollapsed,
-            initialized = true,
-        )
-        if (next != current) _favoriteTreeUiState.value = next
+        favoriteTreeCoordinator.sync(folders)
     }
 
     fun addCollapsedFavoriteFolders(paths: Set<String>) {
-        if (paths.isEmpty()) return
-        val current = _favoriteTreeUiState.value
-        _favoriteTreeUiState.value = current.copy(collapsedFolders = current.collapsedFolders + paths)
+        favoriteTreeCoordinator.addCollapsed(paths)
     }
 
     fun toggleFavoriteFolder(path: String, folders: Set<String>) {
-        val current = _favoriteTreeUiState.value
-        val nextCollapsed = current.collapsedFolders.toMutableSet()
-        if (path in nextCollapsed) {
-            nextCollapsed.remove(path)
-        } else {
-            nextCollapsed.addAll(folders.filter { it == path || it.startsWith("$path/") })
-        }
-        _favoriteTreeUiState.value = current.copy(collapsedFolders = nextCollapsed)
+        favoriteTreeCoordinator.toggle(path, folders)
     }
 
     fun updateFavoriteSearch(expandedPaths: Set<String>, searching: Boolean) {
-        val current = _favoriteTreeUiState.value
-        if (searching) {
-            val before = current.collapsedBeforeSearch ?: current.collapsedFolders
-            val nextCollapsed = current.collapsedFolders - expandedPaths
-            _favoriteTreeUiState.value = current.copy(
-                collapsedFolders = nextCollapsed,
-                collapsedBeforeSearch = before,
-            )
-        } else {
-            val restored = current.collapsedBeforeSearch ?: current.collapsedFolders
-            _favoriteTreeUiState.value = current.copy(
-                collapsedFolders = restored,
-                collapsedBeforeSearch = null,
-            )
-        }
+        favoriteTreeCoordinator.updateSearch(expandedPaths, searching)
     }
 
     fun renameFavoriteFolder(path: String, renamedPath: String) {
