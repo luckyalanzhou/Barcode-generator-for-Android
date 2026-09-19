@@ -125,6 +125,19 @@ jobs:
           files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
           token: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+      - name: Refresh beta Release metadata
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          VERSION_NAME: ${{ steps.app-version.outputs.version }}
+          VERSION_CODE: ${{ steps.app-version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          gh release edit android-test-v9.9.9 \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Barcode Generator Beta v${VERSION_NAME}" \
+            --notes "channel: beta
+          versionName: ${VERSION_NAME}
+          versionCode: ${VERSION_CODE}"
       - name: Remove temporary keystore
         if: always()
         run: rm -f release.jks
