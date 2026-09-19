@@ -27,7 +27,7 @@ internal val BarcodeLightThemeColors = BarcodeThemeColors(
     tabUnselected = Color(0xff64748b),
     tabRimTop = Color.White.copy(alpha = .98f),
     tabRimBottom = Color(0xff6d9fe8).copy(alpha = .58f),
-    disabled = Color(0xff99999f),
+    disabled = Color(0xffa9b2bf),
     progressTrack = Color(0xffe4eaf2),
     childFolder = Color(0xff9b7a57),
     panel = Color.White.copy(alpha = .88f),

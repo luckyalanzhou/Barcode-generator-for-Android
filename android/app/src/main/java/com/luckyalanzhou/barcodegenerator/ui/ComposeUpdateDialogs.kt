@@ -119,11 +119,6 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
         UpdateAvailableDialogContent(
             latest = latest,
             dark = isDark(),
-            onIgnore = {
-                viewModel.clearAvailableUpdate()
-                viewModel.setUpdateDialogShowing(false)
-                dismiss()
-            },
             onLater = {
                 viewModel.setUpdateDialogShowing(false)
                 dismiss()
@@ -146,11 +141,10 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
 internal fun UpdateAvailableDialogContent(
     latest: String,
     dark: Boolean,
-    onIgnore: () -> Unit,
     onLater: () -> Unit,
     onUpdate: () -> Unit,
 ) {
-    ComposeGlassDialogCard(dark) {
+    ComposeGlassDialogCard(dark, horizontalPadding = 14.dp) {
         Text("发现新版本", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
         Text(
             "检测到版本 $latest，是否立即更新？",
@@ -160,11 +154,10 @@ internal fun UpdateAvailableDialogContent(
         )
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            ComposeUpdateAction("忽略更新", dark, onClick = onIgnore)
-            ComposeUpdateAction("稍后更新", dark, Modifier.padding(start = 10.dp), onClick = onLater)
-            ComposeUpdateAction("立即更新", dark, Modifier.padding(start = 10.dp), primary = true, onClick = onUpdate)
+            ComposeUpdateAction("稍后更新", dark, onClick = onLater)
+            ComposeUpdateAction("立即更新", dark, primary = true, onClick = onUpdate)
         }
     }
 }

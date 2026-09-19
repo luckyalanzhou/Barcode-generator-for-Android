@@ -188,7 +188,7 @@ internal fun ComposeSettingsPage(
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = ocrMenu,
-                                menuWidth = 140.dp,
+                                menuWidth = 120.dp,
                                 anchorWidth = ocrWidth,
                                 onDismiss = { ocrMenu = false },
                             ) {
@@ -196,6 +196,7 @@ internal fun ComposeSettingsPage(
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier.height(40.dp),
+                                        contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
                                         text = { Text(label, maxLines = 1, softWrap = false) },
                                         trailingIcon = {
                                             val checked = settings.ocrMask and bit != 0
@@ -203,7 +204,7 @@ internal fun ComposeSettingsPage(
                                                 imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
                                                 contentDescription = if (checked) "已选中" else "未选中",
                                                 tint = colors.primary,
-                                                modifier = Modifier.padding(end = 14.dp).size(24.dp),
+                                                modifier = Modifier.padding(end = 12.dp).size(24.dp),
                                             )
                                         },
                                         onClick = {

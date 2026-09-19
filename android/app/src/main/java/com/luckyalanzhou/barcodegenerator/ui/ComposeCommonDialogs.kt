@@ -199,6 +199,7 @@ internal fun AnchoredDropdownMenu(
 @Composable
 internal fun ComposeGlassDialogCard(
     dark: Boolean,
+    horizontalPadding: Dp = 18.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val onMetric = LocalDialogMetric.current
@@ -208,7 +209,7 @@ internal fun ComposeGlassDialogCard(
             .widthIn(min = 280.dp, max = 400.dp)
             .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
             .clickable { onMetric("弹窗卡片") }
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .padding(horizontal = horizontalPadding, vertical = 16.dp),
     ) { Column(content = content) }
 }
 

@@ -27,7 +27,7 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     tabUnselected = Color(0xffc4cada),
     tabRimTop = Color(0xfff2f8ff).copy(alpha = .78f),
     tabRimBottom = Color(0xff73baff).copy(alpha = .62f),
-    disabled = Color(0xffaeb7c5),
+    disabled = Color(0xff657388),
     progressTrack = Color(0xff152938),
     childFolder = Color(0xffe0b383),
     panel = Color(0xff182330).copy(alpha = .90f),

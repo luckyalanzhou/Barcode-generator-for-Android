@@ -23,14 +23,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +52,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -106,18 +105,36 @@ internal fun ComposeGeneratePage(
     }
 
     if (clearDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { clearDialog = false },
-            title = {
+        ) {
+            ComposeGlassDialogCard(dark) {
                 Text(
                     "\u6e05\u7a7a\u6240\u6709\u8f93\u5165\uff1f",
+                    color = themeColors.primary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                 )
-            },
-            confirmButton = { Button(onClick = { values.clear(); values.add(""); syncDraft(); clearDialog = false }) { Text("\u6e05\u7a7a") } },
-            dismissButton = { OutlinedButton(onClick = { clearDialog = false }) { Text("\u53d6\u6d88") } }
-        )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    DialogAction("取消", dark, { clearDialog = false })
+                    DialogAction(
+                        "确定",
+                        dark,
+                        {
+                            values.clear()
+                            values.add("")
+                            syncDraft()
+                            clearDialog = false
+                        },
+                        modifier = Modifier.padding(start = 8.dp),
+                        destructive = true,
+                    )
+                }
+            }
+        }
     }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

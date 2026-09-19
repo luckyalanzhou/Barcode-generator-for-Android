@@ -162,8 +162,8 @@ private fun GenerateInputAction(
 ) {
     val themeColors = LocalBarcodeThemeColors.current
     val tint = if (enabled) {
-        if (description == "删除") deleteTint ?: themeColors.destructive else themeColors.secondary
-    } else themeColors.disabled
+        if (description == "删除") deleteTint ?: themeColors.destructive else themeColors.accent
+    } else themeColors.disabled.copy(alpha = 0.42f)
     Surface(
         modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,
