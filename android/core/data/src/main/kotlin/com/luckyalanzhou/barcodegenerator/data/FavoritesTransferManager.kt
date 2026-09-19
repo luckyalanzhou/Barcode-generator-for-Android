@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 
 import org.json.JSONArray
 import org.json.JSONObject

@@ -1,7 +1,9 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.data.*
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.data.LegacyBarcodeDataMigrator
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

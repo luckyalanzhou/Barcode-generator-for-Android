@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
+import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),

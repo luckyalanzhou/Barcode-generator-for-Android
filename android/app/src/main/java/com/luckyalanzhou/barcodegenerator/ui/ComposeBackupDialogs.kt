@@ -1,8 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
-import com.luckyalanzhou.barcodegenerator.data.*
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import androidx.compose.foundation.layout.fillMaxWidth

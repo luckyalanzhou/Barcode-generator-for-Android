@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 
 /** Data 层唯一的 Entity/Domain 转换边界。 */
 internal fun CodeItemEntity.toDomain(): CodeItem =

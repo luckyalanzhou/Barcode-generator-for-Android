@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.text.selection.SelectionContainer

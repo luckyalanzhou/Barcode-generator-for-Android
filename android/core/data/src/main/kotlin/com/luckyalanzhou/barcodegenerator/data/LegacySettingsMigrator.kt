@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 import android.content.Context
 import android.graphics.Color

@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon

@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
 
 import android.content.Context
 import androidx.room.Dao
@@ -118,4 +117,3 @@ abstract class BarcodeDatabase : RoomDatabase() {
         }
     }
 }
-

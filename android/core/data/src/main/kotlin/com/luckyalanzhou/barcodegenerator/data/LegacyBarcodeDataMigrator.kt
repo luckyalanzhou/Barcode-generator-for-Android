@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 
 import android.content.Context
 import android.content.SharedPreferences

@@ -1,9 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.OcrCorrectionMask
+import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
+import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 import android.content.Context
-import com.luckyalanzhou.barcodegenerator.domain.OcrCorrectionMask
 import android.graphics.Color
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -97,4 +98,3 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         next
     }
 }
-

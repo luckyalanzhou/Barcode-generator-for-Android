@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 import android.content.Context
 import android.graphics.Bitmap

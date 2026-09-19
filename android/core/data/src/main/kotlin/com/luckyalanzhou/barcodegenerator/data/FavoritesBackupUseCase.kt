@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
+import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 
 import java.io.ByteArrayOutputStream
 
@@ -23,5 +25,4 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
         return transfer.items.size to transfer.groups.size
     }
 }
-
 

@@ -1,6 +1,12 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 
 import androidx.room.withTransaction
 import org.json.JSONArray
