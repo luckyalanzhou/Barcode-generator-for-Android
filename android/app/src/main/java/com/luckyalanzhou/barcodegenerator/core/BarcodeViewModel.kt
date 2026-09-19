@@ -398,50 +398,50 @@ class BarcodeViewModel @Inject constructor(
 
     fun renameFavoriteFolder(path: String, renamedPath: String) {
         favoritesCoordinator.renameFolder(path, renamedPath)
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
-    fun deleteFavoriteFolder(path: String) { favoritesCoordinator.deleteFolder(path); publishDataState() }
+    fun deleteFavoriteFolder(path: String) { favoritesCoordinator.deleteFolder(path); refreshFavoritesAfterMutation() }
 
-    fun deleteFavoriteGroup(groupId: Long) { favoritesCoordinator.deleteGroup(groupId); publishDataState() }
+    fun deleteFavoriteGroup(groupId: Long) { favoritesCoordinator.deleteGroup(groupId); refreshFavoritesAfterMutation() }
 
-    fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); publishDataState() }
+    fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); refreshFavoritesAfterMutation() }
 
-    fun updateBarcodeItem(itemId: Long, text: String, format: String) { favoritesCoordinator.updateItem(itemId, text, format); publishDataState() }
+    fun updateBarcodeItem(itemId: Long, text: String, format: String) { favoritesCoordinator.updateItem(itemId, text, format); refreshFavoritesAfterMutation() }
 
     fun renameFavoriteFolderAndPersist(path: String, renamedPath: String) {
         favoritesCoordinator.renameFolderAndPersist(path, renamedPath)
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun deleteFavoriteFolderAndPersist(path: String) {
         favoritesCoordinator.deleteFolderAndPersist(path)
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun renameFavoriteGroupAndPersist(groupId: Long, name: String) {
         favoritesCoordinator.renameGroupAndPersist(groupId, name)
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun moveFavoriteGroupAndPersist(groupId: Long, folder: String) {
         favoritesCoordinator.moveGroupAndPersist(groupId, folder)
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun deleteFavoriteGroupAndPersist(groupId: Long) {
         favoritesCoordinator.deleteGroupAndPersist(groupId)
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun clearFavoritesAndPersist() {
         favoritesCoordinator.clearFavoritesAndPersist()
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun clearHistoryAndPersist() {
         favoritesCoordinator.clearHistoryAndPersist()
-        publishDataState()
+        refreshFavoritesAfterMutation()
     }
 
     fun saveResultAsFavorite(
@@ -452,7 +452,7 @@ class BarcodeViewModel @Inject constructor(
         name: String,
     ): Boolean {
         if (!favoritesCoordinator.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
-        publishDataState()
+        refreshFavoritesAfterMutation()
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
         navigateTo(AppRoute.Favorites)
         return true
@@ -461,7 +461,7 @@ class BarcodeViewModel @Inject constructor(
     fun updateFavoriteGroupAndPersist(groupId: Long, name: String, folder: String): Boolean {
         val group = favoriteGroups.firstOrNull { it.id == groupId } ?: return false
         if (!favoritesCoordinator.updateGroup(groupId, name, folder)) return false
-        publishDataState()
+        refreshFavoritesAfterMutation()
         _resultUiState.update { it.copy(selectedFavoriteGroup = group) }
         return true
     }
@@ -550,6 +550,11 @@ class BarcodeViewModel @Inject constructor(
 
     fun persistFavoriteFolders() {
         favoritesCoordinator.persistFolders()
+        publishDataState()
+    }
+
+    private fun refreshFavoritesAfterMutation() {
+        favoritesQueryCoordinator.onMutation()
         publishDataState()
     }
 }

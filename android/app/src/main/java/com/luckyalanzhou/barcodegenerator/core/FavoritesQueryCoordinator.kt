@@ -25,6 +25,12 @@ class FavoritesQueryCoordinator(
         loadingMore = false
     }
 
+    /** Keeps the next-page cursor aligned after an in-memory favorite mutation. */
+    fun onMutation() {
+        offset = groups.size
+        loadingMore = false
+    }
+
     suspend fun search(query: String) {
         if (query.isBlank()) return
         delay(250)

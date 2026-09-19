@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.data.FavoritesTransferManager
+import com.luckyalanzhou.barcodegenerator.data.CodeItemEntity
+import com.luckyalanzhou.barcodegenerator.data.FavoriteGroupEntity
+import com.luckyalanzhou.barcodegenerator.data.FavoriteGroupItemEntity
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import org.junit.Assert.assertEquals
@@ -37,5 +40,25 @@ class FavoritesTransferManagerTest {
         val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
 
         assertEquals(" A B ", entities.items.single().text)
+    }
+
+    @Test
+    fun importAppendsNewFavoritesWithoutReplacingExistingEntities() {
+        val backup = InterchangeBackup(
+            favorites = listOf(InterchangeFavorite(null, "新收藏", "新文件夹", "", "code128", 2L, listOf("456"))),
+            folders = listOf("新文件夹"),
+        )
+        val existingItems = listOf(CodeItemEntity(10L, "123", "Code 128-B", 1L, true, "旧文件夹", false))
+        val existingGroups = listOf(FavoriteGroupEntity(20L, "旧文件夹", "旧收藏", 1L))
+        val existingLinks = listOf(FavoriteGroupItemEntity(20L, 10L))
+
+        val entities = FavoritesTransferManager.appendEntities(backup, existingItems, existingGroups, existingLinks)
+
+        assertEquals(1, entities.items.size)
+        assertEquals(11L, entities.items.single().id)
+        assertEquals(1, entities.groups.size)
+        assertEquals(21L, entities.groups.single().id)
+        assertEquals(FavoriteGroupItemEntity(21L, 11L), entities.links.single())
+        assertEquals(listOf("新文件夹"), entities.folders.map { it.name })
     }
 }
