@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.*
 import com.luckyalanzhou.barcodegenerator.data.*
 import com.luckyalanzhou.barcodegenerator.domain.*
-import com.luckyalanzhou.barcodegenerator.data.network.LanShareFile
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareFile
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */

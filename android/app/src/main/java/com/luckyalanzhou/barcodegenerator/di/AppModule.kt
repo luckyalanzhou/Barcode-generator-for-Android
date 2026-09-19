@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.di
 
 import android.content.Context
-import com.luckyalanzhou.barcodegenerator.data.network.LanShareManager
+import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareManager
 import com.luckyalanzhou.barcodegenerator.data.*
 import com.luckyalanzhou.barcodegenerator.domain.*
 import com.luckyalanzhou.barcodegenerator.ui.DebugLog

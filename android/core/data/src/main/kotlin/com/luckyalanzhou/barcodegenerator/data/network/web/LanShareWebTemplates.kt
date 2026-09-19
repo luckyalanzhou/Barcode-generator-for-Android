@@ -1,4 +1,6 @@
-package com.luckyalanzhou.barcodegenerator.data.network
+package com.luckyalanzhou.barcodegenerator.data.network.web
+
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.*
 
 import com.luckyalanzhou.barcodegenerator.*
 

@@ -1,4 +1,10 @@
-package com.luckyalanzhou.barcodegenerator.data.network
+package com.luckyalanzhou.barcodegenerator.data.network.server
+
+import com.luckyalanzhou.barcodegenerator.data.network.client.LanShareClient
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareSession
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
 
 import com.luckyalanzhou.barcodegenerator.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger

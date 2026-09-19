@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator.data.network
+package com.luckyalanzhou.barcodegenerator.data.network.server
+
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.*
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 
 import com.luckyalanzhou.barcodegenerator.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger

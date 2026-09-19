@@ -2,6 +2,8 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.*
 import com.luckyalanzhou.barcodegenerator.data.network.*
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareFile
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareSession
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import android.Manifest
