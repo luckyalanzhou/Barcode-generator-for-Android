@@ -26,23 +26,18 @@ import com.luckyalanzhou.barcodegenerator.domain.*
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
-    private val barcodeRepository: BarcodeRepository,
-    private val favoritesBackupRepository: FavoritesBackupRepository,
+    private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
     private val localBarcodeFileStore: LocalBarcodeFileStore,
     private val updateDownloadService: UpdateDownloadService,
     private val updateCheckService: UpdateCheckService,
     private val ocrTextService: OcrTextService,
     private val barcodeDecodeService: BarcodeDecodeService,
-    private val legacyBarcodeDataMigrator: LegacyBarcodeDataMigrator,
     private val apkUpdateValidator: ApkUpdateValidator,
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val barcodeImageRenderer = BarcodeImageRenderer(localBarcodeFileStore)
-    private val barcodePersistence = BarcodePersistenceCoordinator(
-        barcodeRepository = barcodeRepository,
-        legacyBarcodeDataMigrator = legacyBarcodeDataMigrator,
-    )
+    private val barcodePersistence = barcodeDataCoordinator.persistence
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
@@ -58,7 +53,7 @@ class BarcodeViewModel @Inject constructor(
         scope = viewModelScope,
     )
     private val favoritesQueryCoordinator = FavoritesQueryCoordinator(
-        repository = barcodeRepository,
+        repository = barcodeDataCoordinator.repository,
         items = items,
         groups = favoriteGroups,
     )
@@ -193,12 +188,12 @@ class BarcodeViewModel @Inject constructor(
         viewModelScope.launch {
             val currentGroup = favoriteGroups.firstOrNull { it.id == group.id } ?: return@launch
             if (currentGroup.itemIds.isEmpty()) {
-                val loadedIds = withContext(Dispatchers.IO) { barcodeRepository.loadGroupItemIds(currentGroup.id) }
+                val loadedIds = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadStartupGroupItemIds(currentGroup.id) }
                 currentGroup.itemIds.addAll(loadedIds)
             }
             val missingIds = currentGroup.itemIds.filter { id -> items.none { it.id == id } }
             if (missingIds.isNotEmpty()) {
-                val loaded = withContext(Dispatchers.IO) { barcodeRepository.loadItemsByIds(missingIds) }
+                val loaded = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadItemsByIds(missingIds) }
                 items.addAll(loaded)
                 publishDataState()
             }
@@ -445,7 +440,7 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadItemsFromRepository() {
         items.clear()
-        items.addAll(barcodeRepository.loadItems().map {
+        items.addAll(barcodeDataCoordinator.loadItems().map {
             CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory)
         })
         publishDataState()
@@ -453,8 +448,8 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadFavoriteGroupsFromRepository() {
         favoriteGroups.clear()
-        val groups = barcodeRepository.loadGroups()
-        val itemIds = barcodeRepository.loadGroupItems().groupBy { it.groupId }
+        val groups = barcodeDataCoordinator.loadGroups()
+        val itemIds = barcodeDataCoordinator.loadGroupItems().groupBy { it.groupId }
         favoriteGroups.addAll(groups.map { group ->
             FavoriteGroup(
                 group.id,
@@ -471,7 +466,7 @@ class BarcodeViewModel @Inject constructor(
     suspend fun loadFavoriteFoldersFromRepository() {
         favoriteFolders.clear()
         favoriteFolders.addAll(
-            (barcodeRepository.loadFolders() + favoriteGroups.map { it.folder })
+            (barcodeDataCoordinator.loadFolders() + favoriteGroups.map { it.folder })
                 .filter { it.isNotBlank() && it != "默认" }
                 .distinct()
                 .sorted()
@@ -499,16 +494,16 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {
-        val counts = favoritesBackupRepository.import(backup)
+        val counts = barcodeDataCoordinator.importFavorites(backup)
         loadItemsFromRepository()
         loadFavoriteGroupsFromRepository()
         loadFavoriteFoldersFromRepository()
         return counts
     }
 
-    suspend fun exportFavorites(): ByteArray = favoritesBackupRepository.export()
+    suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()
 
-    fun restoreFavorites(bytes: ByteArray): InterchangeBackup = favoritesBackupRepository.restore(bytes)
+    fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
 
     fun persistFavoriteGroups() {
         favoritesCoordinator.persistGroups()
