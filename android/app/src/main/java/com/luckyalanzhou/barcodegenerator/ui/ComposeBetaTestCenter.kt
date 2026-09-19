@@ -142,7 +142,7 @@ internal fun BetaTestCenterComposePage(
                 Text("导出前会附带版本、设备和运行日志。请先复现问题，再导出并分享文件。日志不会主动上传。", color = secondary, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
                 Button(
                     onClick = onShareDebugLog,
-                    modifier = Modifier.fillMaxWidth().height(44.dp).globalButtonChrome(RoundedCornerShape(14.dp), 0.5.dp),
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = button, contentColor = primary),
                 ) { Text("导出调试日志", maxLines = 1) }
@@ -204,7 +204,7 @@ private fun InfoRow(label: String, value: String, primary: Color, secondary: Col
 private fun SmallBetaButton(text: String, container: Color, accent: Color, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = Modifier.height(36.dp).globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp),
+        modifier = Modifier.height(36.dp),
         shape = RoundedCornerShape(12.dp),
         contentPadding = PaddingValues(horizontal = 12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = accent),
@@ -215,7 +215,7 @@ private fun SmallBetaButton(text: String, container: Color, accent: Color, onCli
 private fun BetaTestActionButton(entry: BetaTestEntry, primary: Color, container: Color, modifier: Modifier = Modifier) {
     Button(
         onClick = entry.action,
-        modifier = modifier.height(44.dp).globalButtonChrome(RoundedCornerShape(14.dp), 0.5.dp),
+        modifier = modifier.height(44.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = primary),
         contentPadding = PaddingValues(horizontal = 6.dp),
