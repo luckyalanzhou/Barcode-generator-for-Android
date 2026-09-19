@@ -37,7 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,11 +53,33 @@ import kotlin.math.roundToInt
 private val LocalDialogMetric = compositionLocalOf<(String) -> Unit> { {} }
 private val LocalDialogSelectedElement = compositionLocalOf<MutableState<String>?> { null }
 
+private fun Modifier.dialogMetricBounds(selected: Boolean): Modifier = if (!selected) {
+    this
+} else {
+    drawWithContent {
+        drawContent()
+        val stroke = 2.dp.toPx()
+        val marker = 5.dp.toPx()
+        val red = Color.Red
+        // 直角布局边界：绘制在内容层之上，不受按钮圆角背景裁切影响。
+        drawRect(red, style = Stroke(width = stroke))
+        // 四角短标记模拟开发者选项中的布局边界定位线。
+        drawLine(red, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(marker, 0f), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(0f, marker), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(size.width - marker, 0f), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(size.width, marker), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(marker, size.height), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(0f, size.height - marker), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, size.height), androidx.compose.ui.geometry.Offset(size.width - marker, size.height), strokeWidth = stroke)
+        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height - marker), strokeWidth = stroke)
+    }
+}
+
 @Composable
 private fun Modifier.dialogMetricTarget(label: String): Modifier {
     val selected = LocalDialogSelectedElement.current?.value == label
     val onMetric = LocalDialogMetric.current
-    return then(if (selected) Modifier.border(2.dp, Color.Red, RectangleShape) else Modifier)
+    return dialogMetricBounds(selected)
         .clickable { onMetric(label) }
 }
 
@@ -266,7 +289,7 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
-            .then(if (selected) Modifier.border(2.dp, Color.Red, RectangleShape) else Modifier)
+            .dialogMetricBounds(selected)
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(1.dp, border, RoundedCornerShape(12.dp))
