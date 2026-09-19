@@ -28,6 +28,7 @@ import com.google.zxing.EncodeHintType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.yield
 
 data class AppUiState(
@@ -306,7 +307,9 @@ class BarcodeViewModel @Inject constructor(
         val height = style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
         val textSize = style.textSize.coerceIn(10f, 24f)
         val showFormat = style.showFormat
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.Default.limitedParallelism(1)) {
+            // 让首屏和 Tab 动画先完成，避免更新后首次启动的图片编码抢占动画资源。
+            delay(900L)
             snapshot.forEach { item ->
                 val key = localBarcodeFileStore.imageKey(item, width, height, textSize, showFormat, dark)
                 if (localBarcodeFileStore.readImage(key) == null) {
@@ -846,9 +849,34 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadPersistedData() {
         legacyBarcodeDataMigrator.migrateIfNeeded()
-        loadItemsFromRepository()
-        loadFavoriteGroupsFromRepository()
-        loadFavoriteFoldersFromRepository()
+        // 在内存中完成整套快照后一次性替换，避免 UI 先看到空收藏，
+        // 再看到条码、文件夹和收藏逐步恢复的中间状态。
+        val loadedItems = barcodeRepository.loadItems().map {
+            CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory)
+        }
+        val loadedGroups = barcodeRepository.loadGroups()
+        val loadedGroupItems = barcodeRepository.loadGroupItems().groupBy { it.groupId }
+        val loadedGroupsWithItems = loadedGroups.map { group ->
+            FavoriteGroup(
+                group.id,
+                group.folder.takeUnless { it == "默认" } ?: "",
+                group.name,
+                group.savedAt,
+                loadedGroupItems[group.id].orEmpty().map { it.itemId }.toMutableList(),
+            )
+        }
+        val loadedFolders = (barcodeRepository.loadFolders() + loadedGroupsWithItems.map { it.folder })
+            .filter { it.isNotBlank() && it != "默认" }
+            .distinct()
+            .sorted()
+
+        items.clear()
+        items.addAll(loadedItems)
+        favoriteGroups.clear()
+        favoriteGroups.addAll(loadedGroupsWithItems)
+        favoriteFolders.clear()
+        favoriteFolders.addAll(loadedFolders)
+        publishDataState()
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {

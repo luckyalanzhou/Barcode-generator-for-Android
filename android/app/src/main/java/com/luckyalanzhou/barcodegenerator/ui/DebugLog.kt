@@ -26,7 +26,12 @@ object DebugLog {
     fun record(tag: String, message: String, error: Throwable? = null) {
         if (!BuildConfig.DEBUG_LOG_EXPORT) return
         try {
-            invokeBeta("debugLogRecordImpl", String::class.java, String::class.java, Throwable::class.java, tag, message, error)
+            invokeBeta(
+                "debugLogRecordImpl",
+                String::class.java, tag,
+                String::class.java, message,
+                Throwable::class.java, error,
+            )
         } catch (backendError: Throwable) {
             Log.e(TAG, "Beta log backend record failed: [$tag] $message", backendError)
             writeFallback(tag, message, error ?: backendError)
