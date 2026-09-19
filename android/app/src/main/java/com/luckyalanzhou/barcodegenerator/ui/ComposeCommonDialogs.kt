@@ -169,20 +169,33 @@ internal fun MainActivity.showSimulationMetricsCompose(label: String, selectedEl
                     Text("弹窗：$label", color = colors.secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text("当前元素：${selectedElement.value}", color = colors.secondary, fontSize = 12.sp)
                     when (selectedElement.value) {
+                        "尚未选择元素" -> {
+                            Text("请点击弹窗标题、副标题、按钮或空白区域查看布局边界", color = colors.secondary, fontSize = 12.sp)
+                        }
+                        "弹窗卡片" -> {
+                            Text("元素：整个弹窗卡片", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离外边框：左 0dp，右 0dp，上 0dp，下 0dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离内边框：左 16dp，右 16dp，上 14dp，下 14dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("尺寸：宽度自适应，圆角 20dp，轻阴影", color = colors.secondary, fontSize = 12.sp)
+                        }
                         "标题" -> {
                             Text("文字：当前弹窗标题", color = colors.secondary, fontSize = 12.sp)
-                            Text("外边距：上 0dp，左右 0dp    字号：18sp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离外边框：左 18dp，右 18dp，上 16dp，下 10dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离内边框：左 0dp，右 0dp，上 0dp，下 0dp", color = colors.secondary, fontSize = 12.sp)
                             Text("样式：Medium，主文字色，单行文本", color = colors.secondary, fontSize = 12.sp)
                         }
                         "副标题" -> {
                             Text("文字：当前弹窗副标题/说明文字", color = colors.secondary, fontSize = 12.sp)
-                            Text("外边距：上 10dp，左右 0dp    字号：15sp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离外边框：左 18dp，右 18dp，上 10dp，下 16dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离内边框：左 0dp，右 0dp，上 0dp，下 0dp", color = colors.secondary, fontSize = 12.sp)
                             Text("样式：常规字重，次要文字色，可多行显示", color = colors.secondary, fontSize = 12.sp)
                         }
                         else -> {
                             val action = selectedElement.value.removePrefix("按钮：")
                             Text("按钮文字：$action", color = colors.secondary, fontSize = 12.sp)
-                            Text("外边距：上 16dp，按钮间距 8dp    内边距：左右 10dp、上下 7dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离外边框：左 18dp，右 18dp，上 16dp，下 16dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("距离内边框：左 10dp，右 10dp，上 7dp，下 7dp", color = colors.secondary, fontSize = 12.sp)
+                            Text("按钮间距：相邻按钮之间 8dp", color = colors.secondary, fontSize = 12.sp)
                             Text("尺寸：内容自适应，高度约 40dp    边框：1dp，圆角 12dp", color = colors.secondary, fontSize = 12.sp)
                             Text("样式：按钮色背景，点击反馈，选中为红色直角框", color = colors.secondary, fontSize = 12.sp)
                         }
