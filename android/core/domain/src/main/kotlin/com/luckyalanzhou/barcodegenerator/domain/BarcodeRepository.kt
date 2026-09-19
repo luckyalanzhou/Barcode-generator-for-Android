@@ -14,6 +14,15 @@ data class BarcodeSnapshot(
     val folders: List<String>,
 )
 
+/** 启动快照：只保留收藏条码和最近历史，避免旧历史无限增长拖慢冷启动。 */
+data class StartupBarcodeSnapshot(
+    val items: List<CodeItem>,
+    val groups: List<FavoriteGroup>,
+    val links: List<FavoriteGroupItem>,
+    val folders: List<String>,
+    val hasMoreGroups: Boolean,
+)
+
 /** 从旧版 SharedPreferences 提取出的纯 Kotlin 迁移输入。 */
 data class LegacyBarcodeData(
     val itemsJson: String?,
@@ -25,14 +34,31 @@ data class LegacyBarcodeData(
 interface BarcodeRepository {
     suspend fun saveAll(snapshot: BarcodeSnapshot)
     suspend fun saveItems(items: List<CodeItem>)
+    suspend fun upsertItems(items: List<CodeItem>)
+    suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem>
+    suspend fun searchFavoriteItems(query: String): List<CodeItem>
+    suspend fun clearFavoriteFlags(ids: List<Long>)
+    suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
+    suspend fun clearAllFavoriteFlags()
     suspend fun saveFavoriteGroups(groups: List<FavoriteGroup>, links: List<FavoriteGroupItem>)
+    suspend fun saveFavoriteGroupMetadata(groups: List<FavoriteGroup>)
+    suspend fun saveFavoriteGroupLinks(groups: List<FavoriteGroup>)
+    suspend fun deleteFavoriteGroups(ids: List<Long>)
+    suspend fun clearAllFavoriteGroups()
+    suspend fun renameFavoriteFolder(path: String, renamedPath: String)
+    suspend fun deleteFavoriteFolder(path: String)
     suspend fun saveFavoriteFolders(folders: List<String>)
 
     suspend fun loadItems(): List<CodeItem>
     suspend fun loadGroups(): List<FavoriteGroup>
     suspend fun loadGroupItems(): List<FavoriteGroupItem>
+    suspend fun loadGroupItemIds(groupId: Long): List<Long>
+    suspend fun loadFavoriteGroupPage(limit: Int, offset: Int): List<FavoriteGroup>
+    suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup>
+    suspend fun searchFavoriteGroupIds(query: String): List<Long>
     suspend fun loadFolders(): List<String>
     suspend fun loadSnapshot(): BarcodeSnapshot
+    suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot
     suspend fun appendSnapshot(snapshot: BarcodeSnapshot)
 
     suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData)

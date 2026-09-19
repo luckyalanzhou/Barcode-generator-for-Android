@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -66,6 +68,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
 private data class ComposeFavoriteRow(
@@ -101,6 +104,7 @@ internal fun ComposeFavoritesPage(
     val rootFolderColor = themeColors.folder
     val childFolderColor = themeColors.childFolder
     val fileColor = themeColors.file
+    val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val folderPaths = remember(favoritesState.folders, favoritesState.groups) {
         (favoritesState.folders + favoritesState.groups.map { it.folder })
@@ -113,6 +117,7 @@ internal fun ComposeFavoritesPage(
     }
 
     LaunchedEffect(folderPaths, favoritesState.groups) { viewModel.syncFavoriteTree(folderPaths) }
+    LaunchedEffect(normalizedQuery) { viewModel.searchFavoriteContent(normalizedQuery) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
@@ -122,7 +127,18 @@ internal fun ComposeFavoritesPage(
         }
     }
 
+    LaunchedEffect(listState, rows, normalizedQuery) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .distinctUntilChanged()
+            .collect { lastVisible ->
+                if (normalizedQuery.isEmpty() && rows != null && lastVisible >= rows!!.size - 5) {
+                    viewModel.loadMoreFavoriteGroups()
+                }
+            }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

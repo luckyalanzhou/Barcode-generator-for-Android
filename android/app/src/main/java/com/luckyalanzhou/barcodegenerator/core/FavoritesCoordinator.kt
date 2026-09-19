@@ -31,6 +31,14 @@ class FavoritesCoordinator(
     }
 
     fun deleteFolder(path: String) {
+        val removed = groups.filter { it.folder == path || it.folder.startsWith("$path/") }
+        val remaining = groups.filterNot { it.folder == path || it.folder.startsWith("$path/") }
+        val orphanedItemIds = removed.flatMap { it.itemIds }.distinct().filter { itemId ->
+            remaining.none { itemId in it.itemIds }
+        }
+        persistence.clearFavoriteFlags(scope, orphanedItemIds)
+        persistence.clearFavoriteFlagsForGroups(scope, removed.map { it.id })
+        persistence.deleteFavoriteGroups(scope, removed.map { it.id })
         groups.removeAll { it.folder == path || it.folder.startsWith("$path/") }
         folders.removeAll { it == path || it.startsWith("$path/") }
         publish()
@@ -39,9 +47,11 @@ class FavoritesCoordinator(
     fun deleteGroup(groupId: Long) {
         val group = groups.firstOrNull { it.id == groupId } ?: return
         groups.removeAll { it.id == groupId }
-        items.filter { it.id in group.itemIds }
-            .filter { item -> groups.none { remaining -> item.id in remaining.itemIds } }
-            .forEach { it.favorite = false }
+        val orphanedItemIds = group.itemIds.filter { itemId -> groups.none { remaining -> itemId in remaining.itemIds } }
+        items.filter { it.id in orphanedItemIds }.forEach { it.favorite = false }
+        persistence.clearFavoriteFlags(scope, orphanedItemIds)
+        persistence.clearFavoriteFlagsForGroups(scope, listOf(groupId))
+        persistence.deleteFavoriteGroups(scope, listOf(groupId))
         if (group.folder !in folders) folders.add(group.folder)
         publish()
     }
@@ -106,12 +116,14 @@ class FavoritesCoordinator(
 
     fun renameFolderAndPersist(path: String, renamedPath: String) {
         renameFolder(path, renamedPath)
-        persistAllFavorites()
+        persistence.renameFavoriteFolder(scope, path, renamedPath)
+        persistFolders()
     }
 
     fun deleteFolderAndPersist(path: String) {
         deleteFolder(path)
-        persistAllFavorites()
+        persistence.deleteFavoriteFolder(scope, path)
+        persistFolders()
     }
 
     fun renameGroupAndPersist(groupId: Long, name: String) {
@@ -134,6 +146,8 @@ class FavoritesCoordinator(
     fun clearFavoritesAndPersist() {
         groups.clear()
         items.forEach { it.favorite = false; it.folder = "默认" }
+        persistence.clearAllFavoriteFlags(scope)
+        persistence.clearAllFavoriteGroups(scope)
         persistAllFavorites()
     }
 

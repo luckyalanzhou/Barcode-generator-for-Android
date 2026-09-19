@@ -27,9 +27,12 @@ import com.google.zxing.EncodeHintType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import com.luckyalanzhou.barcodegenerator.data.*
 import com.luckyalanzhou.barcodegenerator.domain.*
+
+private const val FAVORITE_GROUP_PAGE_SIZE = 100
 
 data class AppUiState(
     val page: AppRoute = AppRoute.Generate,
@@ -134,7 +137,6 @@ class BarcodeViewModel @Inject constructor(
 ) : ViewModel() {
     private val barcodePersistence = BarcodePersistenceCoordinator(
         barcodeRepository = barcodeRepository,
-        localBarcodeFileStore = localBarcodeFileStore,
         legacyBarcodeDataMigrator = legacyBarcodeDataMigrator,
     )
     private val _uiState = MutableStateFlow(AppUiState())
@@ -144,6 +146,9 @@ class BarcodeViewModel @Inject constructor(
     private val items = mutableListOf<CodeItem>()
     private val favoriteGroups = mutableListOf<FavoriteGroup>()
     private val favoriteFolders = mutableListOf<String>()
+    private var favoriteGroupsOffset = 0
+    private var hasMoreFavoriteGroups = false
+    private var loadingMoreFavoriteGroups = false
     private val favoritesCoordinator = FavoritesCoordinator(
         items = items,
         groups = favoriteGroups,
@@ -180,6 +185,7 @@ class BarcodeViewModel @Inject constructor(
     // 平台 ActivityResult 回调的关联码是一次性桥接状态，不参与 Compose UI 渲染。
     private var pendingExternalActivityRequest: Int? = null
     private var pendingPermissionRequest: Int? = null
+    private var favoriteSearchJob: Job? = null
 
     private val _fireworksVisible = MutableStateFlow(false)
     val fireworksVisible: StateFlow<Boolean> = _fireworksVisible.asStateFlow()
@@ -276,19 +282,51 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun openFavoriteGroup(group: FavoriteGroup) {
-        val groupItems = group.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
-        _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
-        updateInputDraft(groupItems.map { it.text })
-        _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
-        navigateTo(AppRoute.Results)
+        openFavoriteGroupWhenLoaded(group, AppRoute.Results)
     }
 
     fun openFavoriteForEditing(group: FavoriteGroup) {
-        val groupItems = group.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
-        _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
-        updateInputDraft(groupItems.map { it.text })
-        _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
-        navigateTo(AppRoute.Generate)
+        openFavoriteGroupWhenLoaded(group, AppRoute.Generate)
+    }
+
+    private fun openFavoriteGroupWhenLoaded(group: FavoriteGroup, destination: AppRoute) {
+        viewModelScope.launch {
+            val currentGroup = favoriteGroups.firstOrNull { it.id == group.id } ?: return@launch
+            if (currentGroup.itemIds.isEmpty()) {
+                val loadedIds = withContext(Dispatchers.IO) { barcodeRepository.loadGroupItemIds(currentGroup.id) }
+                currentGroup.itemIds.addAll(loadedIds)
+            }
+            val missingIds = currentGroup.itemIds.filter { id -> items.none { it.id == id } }
+            if (missingIds.isNotEmpty()) {
+                val loaded = withContext(Dispatchers.IO) { barcodeRepository.loadItemsByIds(missingIds) }
+                items.addAll(loaded)
+                publishDataState()
+            }
+            val groupItems = currentGroup.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
+            _resultUiState.update { it.copy(selectedFavoriteGroup = currentGroup, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
+            updateInputDraft(groupItems.map { it.text })
+            _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
+            navigateTo(destination)
+        }
+    }
+
+    fun searchFavoriteContent(query: String) {
+        favoriteSearchJob?.cancel()
+        if (query.isBlank()) return
+        favoriteSearchJob = viewModelScope.launch {
+            val matchingGroupIds = withContext(Dispatchers.IO) { barcodeRepository.searchFavoriteGroupIds(query) }
+            val knownGroupIds = favoriteGroups.mapTo(HashSet()) { it.id }
+            if (matchingGroupIds.isNotEmpty()) {
+                val missingGroups = withContext(Dispatchers.IO) {
+                    barcodeRepository.loadFavoriteGroupsByIds(matchingGroupIds.filterNot { it in knownGroupIds })
+                }
+                favoriteGroups.addAll(missingGroups)
+            }
+            val matches = withContext(Dispatchers.IO) { barcodeRepository.searchFavoriteItems(query) }
+            val knownIds = items.mapTo(HashSet()) { it.id }
+            items.addAll(matches.filterNot { it.id in knownIds })
+            publishDataState()
+        }
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {
@@ -622,6 +660,8 @@ class BarcodeViewModel @Inject constructor(
                 itemIds[group.id].orEmpty().map { it.itemId }.toMutableList(),
             )
         })
+        favoriteGroupsOffset = favoriteGroups.size
+        hasMoreFavoriteGroups = false
         publishDataState()
     }
 
@@ -643,9 +683,30 @@ class BarcodeViewModel @Inject constructor(
         items.addAll(loaded.items)
         favoriteGroups.clear()
         favoriteGroups.addAll(loaded.groups)
+        favoriteGroupsOffset = favoriteGroups.size
+        hasMoreFavoriteGroups = loaded.hasMoreGroups
         favoriteFolders.clear()
         favoriteFolders.addAll(loaded.folders)
         publishDataState(isReady = true)
+    }
+
+    fun loadMoreFavoriteGroups() {
+        if (!hasMoreFavoriteGroups || loadingMoreFavoriteGroups) return
+        loadingMoreFavoriteGroups = true
+        viewModelScope.launch {
+            try {
+                val page = withContext(Dispatchers.IO) {
+                    barcodeRepository.loadFavoriteGroupPage(FAVORITE_GROUP_PAGE_SIZE, favoriteGroupsOffset)
+                }
+                val knownIds = favoriteGroups.mapTo(HashSet()) { it.id }
+                favoriteGroups.addAll(page.filterNot { it.id in knownIds })
+                favoriteGroupsOffset += page.size
+                hasMoreFavoriteGroups = page.size == FAVORITE_GROUP_PAGE_SIZE
+                publishDataState()
+            } finally {
+                loadingMoreFavoriteGroups = false
+            }
+        }
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {

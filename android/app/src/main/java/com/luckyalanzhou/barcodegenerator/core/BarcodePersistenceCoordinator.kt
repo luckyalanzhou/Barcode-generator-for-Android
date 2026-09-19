@@ -11,13 +11,13 @@ import kotlinx.coroutines.launch
 /** 条码、历史与收藏的持久化协调器，隔离 ViewModel 与具体数据源。 */
 class BarcodePersistenceCoordinator(
     private val barcodeRepository: BarcodeRepository,
-    private val localBarcodeFileStore: LocalBarcodeFileStore,
     private val legacyBarcodeDataMigrator: LegacyBarcodeDataMigrator,
 ) {
     data class LoadedData(
         val items: List<CodeItem>,
         val groups: List<FavoriteGroup>,
         val folders: List<String>,
+        val hasMoreGroups: Boolean,
     )
 
     private val persistenceLock = Any()
@@ -30,19 +30,20 @@ class BarcodePersistenceCoordinator(
         folders: List<String>,
         publish: () -> Unit,
     ) {
-        val favoriteFileGroups = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val favoriteFileItems = items.map { it.copy() }
-        localBarcodeFileStore.rebuildFavorites(favoriteFileGroups, favoriteFileItems)
-        val itemSnapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
+        val itemSnapshot = items.map { it.copy() }
         val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val groupItemSnapshot = groups.flatMap { group -> group.itemIds.map { FavoriteGroupItem(group.id, it) } }
         val folderSnapshot = folders.filter { it.isNotBlank() }.distinct()
+        val groupsWithLoadedLinks = groupSnapshot.filter { it.itemIds.isNotEmpty() }
         publish()
-        enqueue(scope) { barcodeRepository.saveAll(BarcodeSnapshot(itemSnapshot, groupSnapshot, groupItemSnapshot, folderSnapshot)) }
+        enqueue(scope) {
+            barcodeRepository.upsertItems(itemSnapshot)
+            barcodeRepository.saveFavoriteGroupMetadata(groupSnapshot)
+            barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
+            barcodeRepository.saveFavoriteFolders(folderSnapshot)
+        }
     }
 
     fun persistItems(scope: CoroutineScope, items: List<CodeItem>, publish: () -> Unit) {
-        localBarcodeFileStore.rebuildHistory(items.map { it.copy() }.filter { it.inHistory })
         val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
         publish()
         enqueue(scope) { barcodeRepository.saveItems(snapshot) }
@@ -54,9 +55,12 @@ class BarcodePersistenceCoordinator(
         publish: () -> Unit,
     ) {
         val snapshots = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val links = groups.flatMap { group -> group.itemIds.map { FavoriteGroupItem(group.id, it) } }
+        val groupsWithLoadedLinks = snapshots.filter { it.itemIds.isNotEmpty() }
         publish()
-        enqueue(scope) { barcodeRepository.saveFavoriteGroups(snapshots, links) }
+        enqueue(scope) {
+            barcodeRepository.saveFavoriteGroupMetadata(snapshots)
+            barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
+        }
     }
 
     fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>, publish: () -> Unit) {
@@ -65,9 +69,37 @@ class BarcodePersistenceCoordinator(
         enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot) }
     }
 
+    fun clearFavoriteFlags(scope: CoroutineScope, itemIds: List<Long>) {
+        enqueue(scope) { barcodeRepository.clearFavoriteFlags(itemIds) }
+    }
+
+    fun clearAllFavoriteFlags(scope: CoroutineScope) {
+        enqueue(scope) { barcodeRepository.clearAllFavoriteFlags() }
+    }
+
+    fun clearFavoriteFlagsForGroups(scope: CoroutineScope, groupIds: List<Long>) {
+        enqueue(scope) { barcodeRepository.clearFavoriteFlagsForGroups(groupIds) }
+    }
+
+    fun deleteFavoriteGroups(scope: CoroutineScope, groupIds: List<Long>) {
+        enqueue(scope) { barcodeRepository.deleteFavoriteGroups(groupIds) }
+    }
+
+    fun clearAllFavoriteGroups(scope: CoroutineScope) {
+        enqueue(scope) { barcodeRepository.clearAllFavoriteGroups() }
+    }
+
+    fun renameFavoriteFolder(scope: CoroutineScope, path: String, renamedPath: String) {
+        enqueue(scope) { barcodeRepository.renameFavoriteFolder(path, renamedPath) }
+    }
+
+    fun deleteFavoriteFolder(scope: CoroutineScope, path: String) {
+        enqueue(scope) { barcodeRepository.deleteFavoriteFolder(path) }
+    }
+
     suspend fun load(scope: CoroutineScope? = null): LoadedData {
         legacyBarcodeDataMigrator.migrateIfNeeded()
-        val snapshot = barcodeRepository.loadSnapshot()
+        val snapshot = barcodeRepository.loadStartupSnapshot()
         val loadedGroups = snapshot.groups.map { group ->
             FavoriteGroup(
                 group.id,
@@ -82,7 +114,7 @@ class BarcodePersistenceCoordinator(
             .distinct()
             .sorted()
         val loadedItems = snapshot.items.map { it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "") }
-        return LoadedData(loadedItems, loadedGroups, loadedFolders)
+        return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups)
     }
 
     private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit) {

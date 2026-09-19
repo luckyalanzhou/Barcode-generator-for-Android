@@ -116,18 +116,13 @@ class MainActivity : AppCompatActivity() {
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)
         lifecycleScope.launch {
-            var startupError: Throwable? = null
+            var settingsError: Throwable? = null
             try {
-                withContext(Dispatchers.IO) {
-                    settingsViewModel.loadPersistedState()
-                    viewModel.loadPersistedData()
-                }
+                withContext(Dispatchers.IO) { settingsViewModel.loadPersistedState() }
             } catch (error: Exception) {
-                // 数据层损坏或升级失败不能让 Activity 直接因未处理协程异常闪退；
-                // 保留默认内存状态，先让用户进入应用并看到可恢复的提示。
-                startupError = error
-                Log.e("BarcodeGenerator", "Startup data initialization failed", error)
-                DebugLog.record("startup", "data initialization failed", error)
+                settingsError = error
+                Log.e("BarcodeGenerator", "Startup settings initialization failed", error)
+                DebugLog.record("startup", "settings initialization failed", error)
             }
             try {
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
@@ -143,7 +138,6 @@ class MainActivity : AppCompatActivity() {
                     lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
             } catch (error: Exception) {
-                startupError = startupError ?: error
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
                 DebugLog.record("startup", "UI initialization failed", error)
             }
@@ -155,8 +149,21 @@ class MainActivity : AppCompatActivity() {
                 })
                 return@launch
             }
-            startupError?.let {
+            settingsError?.let {
                 window.decorView.post { showIos26NoticeDialog("数据加载失败，已使用默认页面启动") }
+            }
+            // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching { viewModel.loadPersistedData() }
+                    .onFailure { error ->
+                        Log.e("BarcodeGenerator", "Background data initialization failed", error)
+                        DebugLog.record("startup", "background data initialization failed", error)
+                        withContext(Dispatchers.Main) {
+                            if (!isFinishing && !isDestroyed) {
+                                showIos26NoticeDialog("数据加载失败，已使用默认页面启动")
+                            }
+                        }
+                    }
             }
             window.decorView.post {
                 if (!viewModel.updateUiState.value.startupCheckStarted) {
