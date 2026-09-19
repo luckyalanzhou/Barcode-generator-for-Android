@@ -28,8 +28,6 @@ import com.google.zxing.EncodeHintType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.yield
 
 data class AppUiState(
     val page: String = "generate",
@@ -46,6 +44,7 @@ data class BarcodeDataState(
     val items: List<CodeItem> = emptyList(),
     val groups: List<FavoriteGroup> = emptyList(),
     val folders: List<String> = emptyList(),
+    val isReady: Boolean = false,
 )
 
 data class GenerateEditorState(
@@ -172,11 +171,12 @@ class BarcodeViewModel @Inject constructor(
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
 
     /** 发布只读快照，页面不会直接观察可变集合。 */
-    fun publishDataState() {
+    fun publishDataState(isReady: Boolean = _dataState.value.isReady) {
         _dataState.value = BarcodeDataState(
             items = items.map { it.copy() },
             groups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) },
             folders = favoriteFolders.toList(),
+            isReady = isReady,
         )
     }
 
@@ -292,38 +292,6 @@ class BarcodeViewModel @Inject constructor(
         val ids = batch.map { it.id }.toSet()
         items.filter { it.id in ids }.forEach { it.inHistory = false }
         persistItems()
-    }
-
-    fun prewarmBarcodeImages(
-        style: StyleSettings,
-        formats: List<Pair<String, BarcodeFormat>>,
-        dark: Boolean,
-        density: Float,
-    ) {
-        val snapshot = (items.filter { it.inHistory || it.favorite } + favoriteGroups.flatMap { group ->
-            group.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
-        }).distinctBy { it.id }.map { it.copy() }
-        val width = style.barWidth.toInt().coerceIn(120, 360)
-        val height = style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
-        val textSize = style.textSize.coerceIn(10f, 24f)
-        val showFormat = style.showFormat
-        viewModelScope.launch(Dispatchers.Default.limitedParallelism(1)) {
-            // 让首屏和 Tab 动画先完成，避免更新后首次启动的图片编码抢占动画资源。
-            delay(900L)
-            snapshot.forEach { item ->
-                val key = localBarcodeFileStore.imageKey(item, width, height, textSize, showFormat, dark)
-                if (localBarcodeFileStore.readImage(key) == null) {
-                    val encoded = encodeCachedBarcode(item.text, formats.firstOrNull { it.first == item.format }?.second ?: BarcodeFormat.CODE_128, style, dark, density)
-                    if (encoded != null) {
-                        val image = if (item.format == "Code 128-B") {
-                            addBarcodeQuietZoneCached(trimBarcodeCached(encoded), if (dark) Color.WHITE else Color.TRANSPARENT)
-                        } else encoded
-                        localBarcodeFileStore.writeImage(key, image)
-                    }
-                }
-                yield()
-            }
-        }
     }
 
     /** 结果页图片缓存的唯一入口；Compose 不直接访问文件缓存或执行条码生成。 */
@@ -849,34 +817,31 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadPersistedData() {
         legacyBarcodeDataMigrator.migrateIfNeeded()
-        // 在内存中完成整套快照后一次性替换，避免 UI 先看到空收藏，
-        // 再看到条码、文件夹和收藏逐步恢复的中间状态。
-        val loadedItems = barcodeRepository.loadItems().map {
-            CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory)
-        }
-        val loadedGroups = barcodeRepository.loadGroups()
-        val loadedGroupItems = barcodeRepository.loadGroupItems().groupBy { it.groupId }
-        val loadedGroupsWithItems = loadedGroups.map { group ->
+        _dataState.value = _dataState.value.copy(isReady = false)
+        val snapshot = barcodeRepository.loadSnapshot()
+        val loadedGroups = snapshot.groups.map { group ->
             FavoriteGroup(
                 group.id,
                 group.folder.takeUnless { it == "默认" } ?: "",
                 group.name,
                 group.savedAt,
-                loadedGroupItems[group.id].orEmpty().map { it.itemId }.toMutableList(),
+                snapshot.links.filter { it.groupId == group.id }.map { it.itemId }.toMutableList(),
             )
         }
-        val loadedFolders = (barcodeRepository.loadFolders() + loadedGroupsWithItems.map { it.folder })
+        val loadedFolders = (snapshot.folders + loadedGroups.map { it.folder })
             .filter { it.isNotBlank() && it != "默认" }
             .distinct()
             .sorted()
 
         items.clear()
-        items.addAll(loadedItems)
+        items.addAll(snapshot.items.map {
+            it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "")
+        })
         favoriteGroups.clear()
-        favoriteGroups.addAll(loadedGroupsWithItems)
+        favoriteGroups.addAll(loadedGroups)
         favoriteFolders.clear()
         favoriteFolders.addAll(loadedFolders)
-        publishDataState()
+        publishDataState(isReady = true)
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {

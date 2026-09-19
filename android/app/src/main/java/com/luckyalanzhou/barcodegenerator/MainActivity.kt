@@ -139,7 +139,6 @@ class MainActivity : AppCompatActivity() {
                 if (viewModel.uiState.value.page == "lanShare" && lanShareViewModel.uiState.value.session != null) {
                     lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
-                prewarmBarcodeImages()
             } catch (error: Exception) {
                 startupError = startupError ?: error
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)

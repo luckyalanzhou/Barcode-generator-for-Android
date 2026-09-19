@@ -54,12 +54,14 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun loadFolders(): List<String> = dao.loadFolders().map { it.name }
 
-    override suspend fun loadSnapshot(): BarcodeSnapshot = BarcodeSnapshot(
-        items = loadItems(),
-        groups = loadGroups(),
-        links = loadGroupItems(),
-        folders = loadFolders(),
-    )
+    override suspend fun loadSnapshot(): BarcodeSnapshot = database.withTransaction {
+        BarcodeSnapshot(
+            items = dao.loadItems().map(CodeItemEntity::toDomain),
+            groups = dao.loadGroups().map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) },
+            links = dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId) },
+            folders = dao.loadFolders().map { it.name },
+        )
+    }
 
     override suspend fun appendSnapshot(snapshot: BarcodeSnapshot) {
         database.withTransaction {

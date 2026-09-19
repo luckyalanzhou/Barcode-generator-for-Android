@@ -121,7 +121,17 @@ internal fun ComposeFavoritesPage(
             )
         }
 
-        if (rows.isEmpty()) {
+        if (!favoritesState.isReady) {
+            item(key = "favorite-loading") {
+                Text(
+                    "正在加载收藏…",
+                    color = secondary,
+                    fontSize = 17.sp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else if (rows.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(
                     if (favoritesState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏",
