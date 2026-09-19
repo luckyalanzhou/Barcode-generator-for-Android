@@ -47,7 +47,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
             Text(
                 if (initial.isBlank()) "新建文件夹" else "重命名文件夹",
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
-                fontSize = 20.sp,
+                fontSize = 18.sp,
             )
             OutlinedTextField(
                 value = value,
@@ -80,7 +80,7 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
         val dark = isDark()
         var value by remember { mutableStateOf("") }
         ComposeGlassDialogCard(dark) {
-            Text("新建文件夹", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("新建文件夹", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -157,7 +157,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
         val dark = isDark()
         var value by remember { mutableStateOf(group.name) }
         ComposeGlassDialogCard(dark) {
-            Text("重命名收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("重命名收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -199,7 +199,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
         val dark = isDark()
         var selected by remember { mutableStateOf(group.folder.takeIf { it in folders } ?: folders.first()) }
         ComposeGlassDialogCard(dark) {
-            Text("移动收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("移动收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             ComposeChoiceField(selected, folders, dark, onSelected = { selected = it })
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
@@ -219,7 +219,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
         var name by remember { mutableStateOf(group.name) }
         var folder by remember { mutableStateOf(group.folder) }
         ComposeGlassDialogCard(dark) {
-            Text("编辑收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("编辑收藏", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color(0xff1f1f1f), unfocusedTextColor = Color(0xff1f1f1f), focusedLabelColor = Color(0xff1f1f1f), unfocusedLabelColor = Color(0xff1f1f1f), cursorColor = Color(0xff1f1f1f)), label = { Text("收藏文件名", color = Color(0xff1f1f1f)) })
             OutlinedTextField(folder, { folder = it }, Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("文件夹") })
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
@@ -253,7 +253,7 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
         var value by remember { mutableStateOf(item.text) }
         var selectedIndex by remember { mutableIntStateOf(barcodeFormats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
         ComposeGlassDialogCard(dark) {
-            Text("编辑条目", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("编辑条目", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, label = { Text("条码内容") })
             ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark) { choice ->
                 selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
@@ -284,7 +284,7 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
         val dark = isDark()
         var value by remember { mutableStateOf(item.folder) }
         ComposeGlassDialogCard(dark) {
-            Text("移动到文件夹", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("移动到文件夹", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -323,7 +323,7 @@ private fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) {
             Text(
                 "一键清空历史记录",
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
-                fontSize = 20.sp,
+                fontSize = 18.sp,
             )
             Row(
                 Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -386,7 +386,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
             Text(
                 if (editingGroup == null) "保存到收藏" else "编辑收藏",
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
-                fontSize = 20.sp,
+                fontSize = 18.sp,
             )
             Text("选择收藏保存位置", color = if (dark) Color(0xffaeb9c9) else Color(0xff6b7280), fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             if (roots.isEmpty()) {

@@ -33,7 +33,7 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
             Text(
                 text = item.format,
                 color = if (dark) Color(0xfff2f4f8) else Color(0xff182230),
-                fontSize = 20.sp,
+                fontSize = 18.sp,
             )
             SelectionContainer {
                 Text(

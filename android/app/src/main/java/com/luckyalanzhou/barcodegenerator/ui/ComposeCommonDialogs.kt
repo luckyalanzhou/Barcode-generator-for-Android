@@ -301,7 +301,7 @@ internal fun MainActivity.showSimulatedDialogCompose(
         val dark = isDark()
         val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp, fontWeight = FontWeight.Medium)
             Text(
                 message,
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") },
@@ -340,7 +340,7 @@ internal fun MainActivity.showComposeConfirmDialog(
         val dark = isDark()
         val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp, fontWeight = FontWeight.Medium)
+            Text(title, modifier = Modifier.clickable { onMetric("标题") }, color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp, fontWeight = FontWeight.Medium)
             Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { onMetric("正文") }, color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

@@ -151,7 +151,7 @@ internal fun UpdateAvailableDialogContent(
     onUpdate: () -> Unit,
 ) {
     ComposeGlassDialogCard(dark) {
-        Text("发现新版本", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+        Text("发现新版本", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
         Text(
             "检测到版本 $latest，是否立即更新？",
             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -258,7 +258,7 @@ private fun ComposeDownloadProgressDialog(
 ) {
     val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
     ComposeGlassDialogCard(dark) {
-        Text("下载更新", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+        Text("下载更新", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
         if (downloadState.indeterminate) {
             ComposeIndeterminateProgress(dark)
         } else {
@@ -364,7 +364,7 @@ internal fun MainActivity.showDownloadFailedCompose(
     showComposeDialog(compact = true, metricsLabel = null) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("更新下载失败", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 20.sp)
+            Text("更新下载失败", color = if (dark) Color(0xfff2f4f8) else Color(0xff182230), fontSize = 18.sp)
             Text(reason, Modifier.fillMaxWidth().padding(top = 10.dp), color = if (dark) Color(0xffc5cedb) else Color(0xff667085), fontSize = 14.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("重新下载", dark, {
