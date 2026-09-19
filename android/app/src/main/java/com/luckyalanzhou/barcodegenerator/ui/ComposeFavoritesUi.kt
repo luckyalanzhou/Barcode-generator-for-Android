@@ -93,15 +93,21 @@ internal fun ComposeFavoritesPage(
     val childFolderColor = themeColors.childFolder
     val fileColor = themeColors.file
     val normalizedQuery = query.trim().lowercase(Locale.getDefault())
-    val folderPaths = (favoritesState.folders + favoritesState.groups.map { it.folder })
-        .filter { it.isNotBlank() }.distinct().toSet()
-    val expandedSearchPaths = favoriteSearchExpandedPaths(favoritesState, normalizedQuery)
+    val folderPaths = remember(favoritesState.folders, favoritesState.groups) {
+        (favoritesState.folders + favoritesState.groups.map { it.folder })
+            .filter { it.isNotBlank() }.distinct().toSet()
+    }
+    val expandedSearchPaths = remember(favoritesState, normalizedQuery) {
+        favoriteSearchExpandedPaths(favoritesState, normalizedQuery)
+    }
 
     LaunchedEffect(folderPaths, favoritesState.groups) { viewModel.syncFavoriteTree(folderPaths) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
-    val rows = composeFavoriteRows(favoritesState, normalizedQuery, visibleCollapsedFolders)
+    val rows = remember(favoritesState, normalizedQuery, visibleCollapsedFolders) {
+        composeFavoriteRows(favoritesState, normalizedQuery, visibleCollapsedFolders)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

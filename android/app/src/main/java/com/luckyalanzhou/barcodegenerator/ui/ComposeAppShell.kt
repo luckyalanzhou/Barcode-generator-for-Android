@@ -256,12 +256,15 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             AppRoute.History -> {
                 val dataState by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
-                val historyEntries = dataState.items
-                    .filter { it.inHistory }
-                    .map { it.copy() }
-                    .groupBy { it.createdAt }
-                    .toList()
-                    .sortedByDescending { it.first }
+                val historyEntries = remember(dataState.items) {
+                    dataState.items
+                        .asSequence()
+                        .filter { it.inHistory }
+                        .map { it.copy() }
+                        .groupBy { it.createdAt }
+                        .toList()
+                        .sortedByDescending { it.first }
+                }
                 HistoryComposePage(
                     entries = historyEntries,
                     dark = dark,
