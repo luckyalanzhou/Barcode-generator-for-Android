@@ -54,7 +54,17 @@ class UpdateCheckService {
             val expectedSize = apkAsset.optLong("size", 0L).takeIf { it > 0L }
             val expectedSha256 = apkAsset.optString("digest").removePrefix("sha256:").trim().lowercase(Locale.US)
                 .takeIf { it.matches(Regex("[0-9a-f]{64}")) }
-            if (UpdateSecurity.compareVersions(latest, BuildConfig.VERSION_NAME) > 0) {
+            val releaseVersionCode = release.optString("body")
+                .lineSequence()
+                .map(String::trim)
+                .firstOrNull { it.startsWith("versionCode:") }
+                ?.substringAfter(':')
+                ?.trim()
+                ?.toLongOrNull()
+            val versionNameChanged = UpdateSecurity.compareVersions(latest, BuildConfig.VERSION_NAME) > 0
+            val betaBuildChanged = BuildConfig.UPDATE_TAG_PREFIX != "android-v" &&
+                releaseVersionCode != null && releaseVersionCode > BuildConfig.VERSION_CODE.toLong()
+            if (versionNameChanged || betaBuildChanged) {
                 UpdateCheckResult.Available(latest, downloadUrl, expectedSize, expectedSha256)
             } else UpdateCheckResult.UpToDate
         } catch (error: Exception) {

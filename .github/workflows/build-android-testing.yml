@@ -117,6 +117,10 @@ jobs:
           tag_name: android-test-v9.9.9
           name: Barcode Generator Beta v${{ steps.app-version.outputs.version }}
           generate_release_notes: false
+          body: |
+            channel: beta
+            versionName: ${{ steps.app-version.outputs.version }}
+            versionCode: ${{ steps.app-version.outputs.version_code }}
           overwrite_files: true
           files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
