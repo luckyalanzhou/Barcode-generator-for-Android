@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import android.text.*
 import android.view.*
 import androidx.core.content.FileProvider
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import org.json.*
 import java.io.File
@@ -100,7 +101,7 @@ internal fun MainActivity.prepareTextBitmap(bitmap: Bitmap, sourceFile: File?): 
     val longest = maxOf(prepared.width, prepared.height)
     if (longest > 2400) {
         val scale = 2400f / longest.toFloat()
-        prepared = Bitmap.createScaledBitmap(prepared, (prepared.width * scale).roundToInt(), (prepared.height * scale).roundToInt(), true)
+        prepared = prepared.scale((prepared.width * scale).roundToInt(), (prepared.height * scale).roundToInt(), true)
     }
     return prepared
 }

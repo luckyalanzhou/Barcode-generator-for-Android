@@ -182,7 +182,6 @@ internal fun ComposeLanSharePage(
         )
     }
 }
-
 @Composable
 private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: Color, onQrClick: () -> Unit) {
     Row(
@@ -203,7 +202,6 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
         }
     }
 }
-
 @Composable
 private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
     val statusColor = if (connected) LocalBarcodeThemeColors.current.success else secondary
@@ -218,7 +216,6 @@ private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
         Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = statusColor, fontSize = 15.sp)
     }
 }
-
 @Composable
 private fun BoxScope.LanShareComposer(
     dark: Boolean,
@@ -279,7 +276,6 @@ private fun BoxScope.LanShareComposer(
         }
     }
 }
-
 @Composable
 private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
     val themeColors = LocalBarcodeThemeColors.current
@@ -297,109 +293,6 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                 } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) themeColors.sentContent else themeColors.icon, modifier = Modifier.size(26.dp))
                 Text(file.name, color = if (mine) themeColors.sentContent else primary, fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 Text(formatLanShareSize(file.size), color = if (mine) themeColors.qrBackground else secondary, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ComposeLanShareQrDialog(
-    session: LanShareSession,
-    dark: Boolean,
-    primary: Color,
-    secondary: Color,
-    onDismiss: () -> Unit,
-    onHideQr: () -> Unit,
-    onCopyAddress: (String) -> Unit,
-) {
-    val qrSize = 280.dp
-    val dialogWidth = qrSize + 24.dp
-    val foreground = LocalBarcodeThemeColors.current.qrForeground.toArgb()
-    val background = LocalBarcodeThemeColors.current.qrBackground.toArgb()
-    val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, background, qrSize.value.toInt()) }
-    Dialog(
-        onDismissRequest = {
-            onHideQr()
-            onDismiss()
-        },
-        properties = DialogProperties(dismissOnClickOutside = false, usePlatformDefaultWidth = false),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().clickable {
-                onHideQr()
-                onDismiss()
-            },
-            contentAlignment = Alignment.Center,
-        ) {
-            Surface(
-                modifier = Modifier.width(dialogWidth).clickable { },
-                shape = RoundedCornerShape(22.dp),
-                color = LocalBarcodeThemeColors.current.surface,
-                shadowElevation = 1.dp,
-            ) {
-                Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(qrSize).background(Color(background)), contentScale = ContentScale.FillBounds)
-                    Row(Modifier.width(qrSize).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(session.baseUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                        IconButton(onClick = {
-                            onCopyAddress(session.baseUrl)
-                        }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
-                    }
-                }
-            }
-            }
-        }
-    }
-}
-
-private fun createLanShareQrBitmap(value: String, foreground: Int, background: Int, size: Int = 280): Bitmap {
-    val matrix = com.google.zxing.MultiFormatWriter().encode(value, com.google.zxing.BarcodeFormat.QR_CODE, size, size, mapOf(com.google.zxing.EncodeHintType.MARGIN to 1))
-    return Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image ->
-        for (x in 0 until matrix.width) for (y in 0 until matrix.height) image.setPixel(x, y, if (matrix[x, y]) foreground else background)
-    }
-}
-
-/** Beta 测试中心的二维码模拟也复用实际二维码弹窗的 Compose 结构。 */
-internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShareSession? = null) {
-    val simulated = simulatedSession != null
-    val lanState = lanShareViewModel.uiState.value
-    val session = simulatedSession ?: lanState.session
-    if ((!lanState.isHost && !simulated) || session == null) {
-        toast("请先创建分享房间")
-        return
-    }
-    showComposeDialog(compact = false, metricsLabel = if (simulated) "二维码弹窗" else null) { dismiss ->
-        val dark = isDark()
-        val colors = LocalBarcodeThemeColors.current
-        val primary = colors.primary
-        val secondary = colors.secondary
-        val foreground = colors.qrForeground.toArgb()
-        val qrBackground = colors.qrBackground.toArgb()
-        val bitmap = remember(session.baseUrl, dark) {
-            createLanShareQrBitmap(session.baseUrl, foreground, qrBackground)
-        }
-        ComposeGlassDialogCard(dark) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "局域网分享二维码",
-                modifier = Modifier.fillMaxWidth().background(Color(qrBackground)),
-                contentScale = ContentScale.FillWidth,
-            )
-            SelectionContainer {
-                Text(
-                    session.baseUrl,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    color = secondary,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("关闭", dark, {
-                    if (!simulated) lanShareViewModel.setQrVisible(false)
-                    dismiss()
-                })
             }
         }
     }

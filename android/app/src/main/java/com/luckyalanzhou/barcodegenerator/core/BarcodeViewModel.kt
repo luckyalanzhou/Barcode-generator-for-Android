@@ -65,6 +65,12 @@ class BarcodeViewModel @Inject constructor(
 
     private val _dataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
+    private val dataStateCoordinator = BarcodeDataStateCoordinator(
+        items = items,
+        groups = favoriteGroups,
+        folders = favoriteFolders,
+        state = _dataState,
+    )
 
     private val _generateEditorState = MutableStateFlow(GenerateEditorState())
     val generateEditorState: StateFlow<GenerateEditorState> = _generateEditorState.asStateFlow()
@@ -99,12 +105,7 @@ class BarcodeViewModel @Inject constructor(
 
     /** 发布只读快照，页面不会直接观察可变集合。 */
     fun publishDataState(isReady: Boolean = _dataState.value.isReady) {
-        _dataState.value = BarcodeDataState(
-            items = items.map { it.copy() },
-            groups = favoriteGroups.map { it.copy(itemIds = it.itemIds.toMutableList()) },
-            folders = favoriteFolders.toList(),
-            isReady = isReady,
-        )
+        dataStateCoordinator.publish(isReady)
     }
 
     fun navigateTo(route: AppRoute) {

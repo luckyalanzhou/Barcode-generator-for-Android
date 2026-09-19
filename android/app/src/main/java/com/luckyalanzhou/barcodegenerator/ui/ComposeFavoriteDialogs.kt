@@ -114,49 +114,6 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
     }
 }
 
-@Composable
-private fun ComposeChoiceField(
-    value: String,
-    options: List<String>,
-    dark: Boolean,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    onSelected: (String) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var buttonWidth by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
-    Box(modifier) {
-        OutlinedButton(
-            onClick = { if (enabled) expanded = true },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth().onGloballyPositioned { buttonWidth = it.size.width },
-            shape = RoundedCornerShape(8.dp),
-        ) {
-            Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        AnchoredDropdownMenu(
-            dark = dark,
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
-            tonalElevation = 0.dp,
-            shadowElevation = 1.dp,
-            menuWidth = buttonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
-        ) {
-            options.forEachIndexed { index, option ->
-                if (index > 0) ComposeDropdownDivider(dark)
-                DropdownMenuItem(
-                    modifier = Modifier.height(40.dp),
-                    text = { Text(option) },
-                    onClick = { onSelected(option); expanded = false },
-                )
-            }
-        }
-    }
-}
-
 internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) {
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()

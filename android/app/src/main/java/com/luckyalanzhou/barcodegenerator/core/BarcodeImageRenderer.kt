@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.get
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
@@ -68,7 +70,7 @@ class BarcodeImageRenderer(
         else if (format == BarcodeFormat.QR_CODE) 500 else 200
         val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, mapOf(EncodeHintType.MARGIN to 0))
         val paint = Paint().apply { color = if (dark) Color.BLACK else style.barColor }
-        Bitmap.createBitmap(width, barcodeHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
+        createBitmap(width, barcodeHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
             val canvas = Canvas(bitmap)
             canvas.drawColor(if (withBackground) (if (dark) Color.WHITE else style.bgColor) else Color.TRANSPARENT)
             for (x in 0 until matrix.width) for (y in 0 until matrix.height) {
@@ -83,7 +85,7 @@ class BarcodeImageRenderer(
         for (x in 0 until source.width) {
             var hasBar = false
             for (y in 0 until source.height) {
-                val pixel = source.getPixel(x, y)
+                val pixel = source[x, y]
                 val luminance = (Color.red(pixel) * 299 + Color.green(pixel) * 587 + Color.blue(pixel) * 114) / 1000
                 if (Color.alpha(pixel) > 0 && luminance < 200) { hasBar = true; break }
             }
@@ -94,7 +96,7 @@ class BarcodeImageRenderer(
 
     private fun addQuietZone(source: Bitmap, backgroundColor: Int): Bitmap {
         val quiet = maxOf(8, source.height / 4)
-        return Bitmap.createBitmap(source.width + quiet * 2, source.height, Bitmap.Config.ARGB_8888).also {
+        return createBitmap(source.width + quiet * 2, source.height, Bitmap.Config.ARGB_8888).also {
             Canvas(it).apply { drawColor(backgroundColor); drawBitmap(source, quiet.toFloat(), 0f, Paint()) }
         }
     }

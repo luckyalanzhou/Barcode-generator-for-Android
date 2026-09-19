@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import android.net.Uri
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -92,7 +93,7 @@ class LanShareViewModel @Inject constructor(
             _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
             return false
         }
-        val uri = Uri.parse(address)
+        val uri = address.toUri()
         if (uri.host.isNullOrBlank() || uri.port !in 1..65535 ||
             uri.query != null || uri.fragment != null || uri.userInfo != null ||
             !lanShareManager.isRouterLanHost(uri.host)

@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.*
 import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig
 
 import android.net.Uri
+import androidx.core.net.toUri
 import java.io.File
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -82,7 +83,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                                 startActivity(
                                     android.content.Intent(
                                         android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                        android.net.Uri.parse("package:$packageName"),
+                                        "package:$packageName".toUri(),
                                     ),
                                 )
                             },
@@ -182,107 +183,6 @@ private fun ComposeUpdateAction(
         modifier = modifier,
         primary = primary,
     )
-}
-
-@Composable
-private fun ComposeSegmentedProgress(progress: Int, dark: Boolean) {
-    val animation = rememberComposeAnimationConfig()
-    val animated = animateFloatAsState(
-        targetValue = progress.coerceIn(0, 100) / 100f,
-        animationSpec = tween(durationMillis = animation.progressDurationMillis),
-        label = "downloadProgress",
-    ).value
-    val fill = LocalBarcodeThemeColors.current.progress
-    val track = LocalBarcodeThemeColors.current.progressTrack
-    val highlight = LocalBarcodeThemeColors.current.progressHighlight
-    Canvas(
-        modifier = Modifier.fillMaxWidth().height(14.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(track)
-            .border(1.dp, fill.copy(alpha = 0.45f), RoundedCornerShape(7.dp)),
-    ) {
-        val filledWidth = size.width * animated
-        if (filledWidth > 0f) {
-            val glowWidth = 32.dp.toPx()
-            drawRoundRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(fill.copy(alpha = .70f), fill, highlight, fill),
-                    startX = (filledWidth - glowWidth).coerceAtLeast(0f),
-                    endX = (filledWidth + glowWidth).coerceAtMost(size.width),
-                ),
-                topLeft = Offset(1.dp.toPx(), 1.dp.toPx()),
-                size = Size((filledWidth - 2.dp.toPx()).coerceAtLeast(0f), size.height - 2.dp.toPx()),
-                cornerRadius = CornerRadius(6.dp.toPx()),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ComposeIndeterminateProgress(dark: Boolean) {
-    val fill = LocalBarcodeThemeColors.current.progress
-    val track = LocalBarcodeThemeColors.current.progressTrack
-    val transition = rememberInfiniteTransition(label = "downloadIndeterminate")
-    val offset by transition.animateFloat(
-        initialValue = -0.35f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing)),
-        label = "downloadShimmer",
-    )
-    Canvas(
-        Modifier.fillMaxWidth().height(14.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(track)
-            .border(1.dp, fill.copy(alpha = .45f), RoundedCornerShape(7.dp)),
-    ) {
-        val center = size.width * offset
-        drawRoundRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(fill.copy(alpha = .08f), fill, fill.copy(alpha = .08f)),
-                startX = center - 64.dp.toPx(),
-                endX = center + 64.dp.toPx(),
-            ),
-            topLeft = Offset(1.dp.toPx(), 1.dp.toPx()),
-            size = Size(size.width - 2.dp.toPx(), size.height - 2.dp.toPx()),
-            cornerRadius = CornerRadius(6.dp.toPx()),
-        )
-    }
-}
-
-@Composable
-private fun ComposeDownloadProgressDialog(
-    viewModel: BarcodeViewModel,
-    dark: Boolean,
-    onCancel: () -> Unit,
-) {
-    val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
-    ComposeGlassDialogCard(dark) {
-        Text("下载更新", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
-        if (downloadState.indeterminate) {
-            ComposeIndeterminateProgress(dark)
-        } else {
-            ComposeSegmentedProgress(downloadState.progress, dark)
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text(
-                downloadState.status,
-                modifier = Modifier.weight(1f),
-                color = LocalBarcodeThemeColors.current.secondary,
-                fontSize = 14.sp,
-                maxLines = 1,
-            )
-            if (!downloadState.indeterminate) {
-                Text(
-                    "${downloadState.progress.coerceIn(0, 100)}%",
-                    color = LocalBarcodeThemeColors.current.link,
-                    fontSize = 14.sp,
-                )
-            }
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-            DialogAction("取消下载", dark, onCancel)
-        }
-    }
 }
 
 internal fun MainActivity.cancelUpdateDownload() {

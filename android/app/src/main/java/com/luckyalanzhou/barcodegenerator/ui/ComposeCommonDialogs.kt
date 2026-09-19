@@ -3,8 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.*
 
 import android.app.Dialog
-import android.graphics.Color as AndroidColor
-import android.graphics.drawable.ColorDrawable
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.foundation.background
@@ -39,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.drawable.toDrawable
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
@@ -55,70 +54,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlin.math.roundToInt
-
-private val LocalDialogMetric = compositionLocalOf<(String) -> Unit> { {} }
-private val LocalDialogSelectedElement = compositionLocalOf<MutableState<String>?> { null }
-private val LocalDialogElementBounds = compositionLocalOf<MutableState<Map<String, DialogElementBounds>>?> { null }
-private val LocalDialogElementVisuals = compositionLocalOf<MutableState<Map<String, DialogElementVisual>>?> { null }
-private val LocalDialogInspectOnly = compositionLocalOf { false }
-
-internal data class DialogElementBounds(
-    val left: Float,
-    val top: Float,
-    val right: Float,
-    val bottom: Float,
-)
-
-internal data class DialogElementVisual(
-    val textColor: String,
-    val fontSize: String,
-    val fontWeight: String,
-    val backgroundColor: String? = null,
-    val borderColor: String? = null,
-)
-
-private fun Color.hexValue(): String = "#%08X".format(toArgb())
-
-@Composable
-private fun Modifier.dialogMetricBounds(label: String, selected: Boolean, visual: DialogElementVisual? = null): Modifier {
-    val boundsState = LocalDialogElementBounds.current
-    val visualsState = LocalDialogElementVisuals.current
-    val boundsModifier = onGloballyPositioned { coordinates ->
-        val rect = coordinates.boundsInRoot()
-        val measured = DialogElementBounds(rect.left, rect.top, rect.right, rect.bottom)
-        if (boundsState?.value?.get(label) != measured) {
-            boundsState?.value = boundsState.value.orEmpty() + (label to measured)
-        }
-        if (visual != null && visualsState?.value?.get(label) != visual) {
-            visualsState?.value = visualsState.value.orEmpty() + (label to visual)
-        }
-    }
-    return boundsModifier.then(if (!selected) Modifier else Modifier.drawWithContent {
-        drawContent()
-        val stroke = 2.dp.toPx()
-        val marker = 5.dp.toPx()
-        val red = Color.Red
-        // 直角布局边界：绘制在内容层之上，不受按钮圆角背景裁切影响。
-        drawRect(red, style = Stroke(width = stroke))
-        // 四角短标记模拟开发者选项中的布局边界定位线。
-        drawLine(red, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(marker, 0f), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(0f, marker), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(size.width - marker, 0f), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(size.width, marker), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(marker, size.height), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(0f, size.height - marker), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, size.height), androidx.compose.ui.geometry.Offset(size.width - marker, size.height), strokeWidth = stroke)
-        drawLine(red, androidx.compose.ui.geometry.Offset(size.width, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height - marker), strokeWidth = stroke)
-    })
-}
-
-@Composable
-private fun Modifier.dialogMetricTarget(label: String, visual: DialogElementVisual): Modifier {
-    val selected = LocalDialogSelectedElement.current?.value == label
-    val onMetric = LocalDialogMetric.current
-    return dialogMetricBounds(label, selected, visual)
-        .clickable { onMetric(label) }
-}
 
 /** 公共 Compose 玻璃弹窗容器；弹窗宽度与旧版保持同一适度范围。 */
 internal fun MainActivity.showComposeDialog(
@@ -143,7 +78,7 @@ internal fun MainActivity.showComposeDialog(
     dialog.window?.apply {
         setWindowAnimations(0)
         setGravity(Gravity.CENTER)
-        setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+        setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())
         setLayout(dialogWidth, WindowManager.LayoutParams.WRAP_CONTENT)
     }
     // Dialog 的 decorView 不会自动继承 Activity 的生命周期所有者；显式绑定后，
@@ -175,7 +110,7 @@ internal fun MainActivity.showComposeDialog(
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             // 取消系统默认的长动画，弹窗显示由 Compose 内容立即接管，避免双重过渡造成卡顿。
             setWindowAnimations(0)
-            setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+            setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())
             setGravity(Gravity.CENTER)
         }
         if (metricsLabel != null) metricsDialog = showSimulationMetricsCompose(metricsLabel, selectedElement, elementBounds, elementVisuals)
@@ -281,7 +216,7 @@ internal fun MainActivity.showSimulationMetricsCompose(
     metricsDialog.setCanceledOnTouchOutside(false)
     metricsDialog.window?.apply {
         setWindowAnimations(0)
-        setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+        setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())
         setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         attributes = attributes.apply { dimAmount = 0f; y = (resources.displayMetrics.heightPixels * 0.64f).roundToInt() }

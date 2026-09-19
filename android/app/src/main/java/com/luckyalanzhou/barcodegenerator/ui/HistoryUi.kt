@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.*
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.core.graphics.createBitmap
 /** 将当前结果批次合成为一张图片交给系统分享面板。 */
 internal fun MainActivity.shareResultPage() {
     val resultItems = viewModel.resultUiState.value.items
@@ -25,7 +26,7 @@ internal fun MainActivity.shareResultPage() {
         (settingsViewModel.style.margin * resources.displayMetrics.density).toInt().coerceAtLeast(0)
     } else 0
     val height = images.sumOf { it.height } + spacing * (images.size - 1)
-    val pageImage = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val pageImage = createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(pageImage)
     canvas.drawColor(settingsViewModel.style.bgColor)
     var top = 0
