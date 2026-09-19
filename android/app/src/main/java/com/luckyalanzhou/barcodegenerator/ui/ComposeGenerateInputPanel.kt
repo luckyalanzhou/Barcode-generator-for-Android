@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -164,7 +165,7 @@ private fun GenerateInputAction(
         Color(0xffb5bdc9)
     }
     Surface(
-        modifier = Modifier.size(34.dp).combinedClickable(
+        modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,
             onClick = onClick,
             onLongClick = onLongClick,
