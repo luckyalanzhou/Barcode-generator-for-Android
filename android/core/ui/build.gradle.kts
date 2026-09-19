@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.luckyalanzhou.barcodegenerator.ui"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
