@@ -186,7 +186,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
         Spacer(Modifier.width(60.dp))
         Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // 二维码入口只保留在右侧图标的点击区域，标题卡片本身不承担点击行为。
-        IconButton(onClick = onQrClick, modifier = Modifier.size(48.dp)) {
+        IconButton(onClick = onQrClick, modifier = Modifier.width(58.dp).height(48.dp)) {
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
@@ -247,7 +247,7 @@ private fun BoxScope.LanShareComposer(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
                     shape = RoundedCornerShape(16.dp),
                     containerColor = themeColors.surfaceOverlay,
-                    tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 168.dp,
+                    tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 120.dp,
                 ) {
                     DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片") }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
                     ComposeDropdownDivider(dark)

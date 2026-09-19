@@ -67,7 +67,7 @@ internal object MaterialActionIcons {
         horizontalLineToRelative(2f); verticalLineToRelative(9.75f); close()
     }.build() }
 
-    val circle: ImageVector by lazy { ImageVector.Builder("circle", 24.dp, 24.dp, 24f, 24f).path {
+    val circle: ImageVector by lazy { ImageVector.Builder("circle", 24.dp, 24.dp, 24f, 24f).evenOddPath {
         moveTo(12f, 2f); quadTo(6.48f, 2f, 2f, 12f); quadTo(6.48f, 22f, 12f, 22f)
         quadTo(17.52f, 22f, 22f, 12f); quadTo(17.52f, 2f, 12f, 2f); close()
         moveTo(12f, 4f); quadTo(7.58f, 4f, 4f, 12f); quadTo(7.58f, 20f, 12f, 20f)
@@ -77,6 +77,23 @@ internal object MaterialActionIcons {
     val circleFilled: ImageVector by lazy { ImageVector.Builder("circle_filled", 24.dp, 24.dp, 24f, 24f).path {
         moveTo(12f, 2f); quadTo(6.48f, 2f, 2f, 12f); quadTo(6.48f, 22f, 12f, 22f)
         quadTo(17.52f, 22f, 22f, 12f); quadTo(17.52f, 2f, 12f, 2f); close()
+    }.build() }
+
+    val checkBoxOutlineBlank: ImageVector by lazy { ImageVector.Builder("check_box_outline_blank", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(19f, 5f); verticalLineTo(19f); horizontalLineTo(5f); verticalLineTo(5f); horizontalLineTo(19f); close()
+        moveTo(19f, 3f); horizontalLineTo(5f); quadTo(3.9f, 3f, 3f, 3.9f); quadTo(2f, 4.8f, 2f, 6f)
+        verticalLineTo(18f); quadTo(2f, 19.2f, 3f, 20.1f); quadTo(3.9f, 21f, 5f, 21f)
+        horizontalLineTo(19f); quadTo(20.2f, 21f, 21.1f, 20.1f); quadTo(22f, 19.2f, 22f, 18f)
+        verticalLineTo(6f); quadTo(22f, 4.8f, 21.1f, 3.9f); quadTo(20.2f, 3f, 19f, 3f); close()
+    }.build() }
+
+    val checkBox: ImageVector by lazy { ImageVector.Builder("check_box", 24.dp, 24.dp, 24f, 24f).path {
+        moveTo(19f, 3f); horizontalLineTo(5f); quadTo(3.9f, 3f, 3f, 3.9f); quadTo(2f, 4.8f, 2f, 6f)
+        verticalLineTo(18f); quadTo(2f, 19.2f, 3f, 20.1f); quadTo(3.9f, 21f, 5f, 21f)
+        horizontalLineTo(19f); quadTo(20.2f, 21f, 21.1f, 20.1f); quadTo(22f, 19.2f, 22f, 18f)
+        verticalLineTo(6f); quadTo(22f, 4.8f, 21.1f, 3.9f); quadTo(20.2f, 3f, 19f, 3f); close()
+        moveTo(10f, 17f); lineTo(5f, 12f); lineTo(6.4f, 10.6f); lineTo(10f, 14.2f); lineTo(17.6f, 6.6f)
+        lineTo(19f, 8f); lineTo(10f, 17f); close()
     }.build() }
 
     val iosShare: ImageVector by lazy { ImageVector.Builder("ios_share", 24.dp, 24.dp, 24f, 24f).path {
@@ -180,5 +197,11 @@ internal object MaterialActionIcons {
         fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 1f,
         strokeLineCap = StrokeCap.Butt, strokeLineJoin = StrokeJoin.Bevel, strokeLineMiter = 1f,
         pathFillType = PathFillType.NonZero, pathBuilder = block,
+    )
+
+    private fun ImageVector.Builder.evenOddPath(block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) = path(
+        fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 1f,
+        strokeLineCap = StrokeCap.Butt, strokeLineJoin = StrokeJoin.Bevel, strokeLineMiter = 1f,
+        pathFillType = PathFillType.EvenOdd, pathBuilder = block,
     )
 }

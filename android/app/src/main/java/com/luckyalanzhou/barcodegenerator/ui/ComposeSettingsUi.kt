@@ -26,8 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
+import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
 
 @Composable
 internal fun ComposeSettingsPage(
@@ -123,7 +125,7 @@ internal fun ComposeSettingsPage(
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = schemeMenu,
-                                menuWidth = 132.dp,
+                                menuWidth = 110.dp,
                                 anchorWidth = schemeWidth,
                                 onDismiss = { schemeMenu = false },
                             ) {
@@ -186,7 +188,7 @@ internal fun ComposeSettingsPage(
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = ocrMenu,
-                                menuWidth = 164.dp,
+                                menuWidth = 140.dp,
                                 anchorWidth = ocrWidth,
                                 onDismiss = { ocrMenu = false },
                             ) {
@@ -194,12 +196,15 @@ internal fun ComposeSettingsPage(
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier.height(40.dp),
-                                        text = {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Checkbox(checked = settings.ocrMask and bit != 0, onCheckedChange = null)
-                                                Spacer(Modifier.width(6.dp))
-                                                Text(label, maxLines = 1, softWrap = false)
-                                            }
+                                        text = { Text(label, maxLines = 1, softWrap = false) },
+                                        trailingIcon = {
+                                            val checked = settings.ocrMask and bit != 0
+                                            Icon(
+                                                imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
+                                                contentDescription = if (checked) "已选中" else "未选中",
+                                                tint = colors.primary,
+                                                modifier = Modifier.padding(end = 14.dp).size(24.dp),
+                                            )
                                         },
                                         onClick = {
                                             val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
@@ -251,17 +256,12 @@ internal fun ComposeSettingsPage(
                         Text("作者：Alan", color = colors.secondary, fontSize = 13.sp)
                         Text("版本：${BuildConfig.VERSION_NAME}", color = colors.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                     }
-                    ComposeGenerateActionButton(
-                        icon = null,
-                        iconDescription = "检查更新",
-                        label = "检查更新",
-                        containerColor = colors.button,
+                    SettingsButton(
+                        text = "检查更新",
+                        color = colors.button,
                         contentColor = colors.primary,
-                        borderColor = colors.primary.copy(alpha = LocalBarcodeThemeColors.current.primaryBorderAlpha),
-                        modifier = Modifier.width(132.dp),
-                        iconSize = 20.dp,
-                        contentSpacing = 5.dp,
                         onClick = onCheckForUpdates,
+                        modifier = Modifier.width(132.dp),
                     )
                 }
                 Spacer(Modifier.height(6.dp))
@@ -356,7 +356,7 @@ private fun SettingsDropdown(
         containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
         tonalElevation = 0.dp,
         shadowElevation = 1.dp,
-        menuWidth = menuWidth.coerceAtLeast(132.dp),
+        menuWidth = menuWidth.coerceAtLeast(110.dp),
         anchorWidth = anchorWidth,
         alignEndWithAnchor = true,
         content = content,
