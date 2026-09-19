@@ -10,30 +10,28 @@ class GenerateCoordinator(
     private val useCase: GenerateBarcodesUseCase,
     private val items: MutableList<CodeItem>,
     private val readDraft: () -> List<String>,
-    private val readResult: () -> ResultUiState,
-    private val updateResult: (ResultUiState) -> Unit,
     private val persistItems: () -> Unit,
-    private val navigate: (AppRoute) -> Unit,
 ) {
-    fun generate(formatName: String): GenerateBarcodesUseCase.Output {
-        val result = useCase.execute(readDraft(), formatName, items)
-        if (!result.isValid) return result
+    data class Result(
+        val output: GenerateBarcodesUseCase.Output,
+        val uiState: ResultUiState?,
+    )
 
-        val currentResult = readResult()
+    fun generate(formatName: String, currentResult: ResultUiState): Result {
+        val result = useCase.execute(readDraft(), formatName, items)
+        if (!result.isValid) return Result(result, null)
+
         val editingFavorite = currentResult.selectedFavoriteGroup
             ?.takeIf { currentResult.returnPage == AppRoute.Favorites }
         val generated = result.items
         items.addAll(0, generated)
         persistItems()
-        updateResult(
-            currentResult.copy(
-                items = generated,
-                selectedFavoriteGroup = editingFavorite,
-                showingHistoryResult = false,
-                returnPage = if (editingFavorite != null) AppRoute.Favorites else AppRoute.Generate,
-            ),
+        val nextResult = currentResult.copy(
+            items = generated,
+            selectedFavoriteGroup = editingFavorite,
+            showingHistoryResult = false,
+            returnPage = if (editingFavorite != null) AppRoute.Favorites else AppRoute.Generate,
         )
-        navigate(AppRoute.Results)
-        return result
+        return Result(result, nextResult)
     }
 }

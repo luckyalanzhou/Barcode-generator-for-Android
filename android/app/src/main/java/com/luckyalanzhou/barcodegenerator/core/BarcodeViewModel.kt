@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import com.luckyalanzhou.barcodegenerator.data.*
 import com.luckyalanzhou.barcodegenerator.domain.*
@@ -55,14 +56,11 @@ class BarcodeViewModel @Inject constructor(
         folders = favoriteFolders,
         persistence = barcodePersistence,
         scope = viewModelScope,
-        publish = ::publishDataState,
     )
     private val favoritesQueryCoordinator = FavoritesQueryCoordinator(
         repository = barcodeRepository,
-        scope = viewModelScope,
         items = items,
         groups = favoriteGroups,
-        publish = ::publishDataState,
     )
 
     private val _dataState = MutableStateFlow(BarcodeDataState())
@@ -78,10 +76,7 @@ class BarcodeViewModel @Inject constructor(
         useCase = generateBarcodesUseCase,
         items = items,
         readDraft = { _generateEditorState.value.inputDraft },
-        readResult = { _resultUiState.value },
-        updateResult = { _resultUiState.value = it },
         persistItems = ::persistItems,
-        navigate = ::navigateTo,
     )
 
     private val _favoriteTreeUiState = MutableStateFlow(FavoriteTreeUiState())
@@ -89,6 +84,7 @@ class BarcodeViewModel @Inject constructor(
 
     private val cameraRequestCoordinator = CameraRequestCoordinator()
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraRequestCoordinator.state
+    private var favoriteSearchJob: Job? = null
 
     private val _fireworksVisible = MutableStateFlow(false)
     val fireworksVisible: StateFlow<Boolean> = _fireworksVisible.asStateFlow()
@@ -214,7 +210,12 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun searchFavoriteContent(query: String) {
-        favoritesQueryCoordinator.search(query)
+        favoriteSearchJob?.cancel()
+        if (query.isBlank()) return
+        favoriteSearchJob = viewModelScope.launch {
+            favoritesQueryCoordinator.search(query)
+            publishDataState()
+        }
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {
@@ -306,7 +307,12 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun generateBarcodes(formatName: String): GenerateBarcodesUseCase.Output {
-        return generationCoordinator.generate(formatName)
+        val result = generationCoordinator.generate(formatName, _resultUiState.value)
+        result.uiState?.let {
+            _resultUiState.value = it
+            navigateTo(AppRoute.Results)
+        }
+        return result.output
     }
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
@@ -392,42 +398,50 @@ class BarcodeViewModel @Inject constructor(
 
     fun renameFavoriteFolder(path: String, renamedPath: String) {
         favoritesCoordinator.renameFolder(path, renamedPath)
+        publishDataState()
     }
 
-    fun deleteFavoriteFolder(path: String) = favoritesCoordinator.deleteFolder(path)
+    fun deleteFavoriteFolder(path: String) { favoritesCoordinator.deleteFolder(path); publishDataState() }
 
-    fun deleteFavoriteGroup(groupId: Long) = favoritesCoordinator.deleteGroup(groupId)
+    fun deleteFavoriteGroup(groupId: Long) { favoritesCoordinator.deleteGroup(groupId); publishDataState() }
 
-    fun deleteBarcodeItem(itemId: Long) = favoritesCoordinator.deleteItem(itemId)
+    fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); publishDataState() }
 
-    fun updateBarcodeItem(itemId: Long, text: String, format: String) = favoritesCoordinator.updateItem(itemId, text, format)
+    fun updateBarcodeItem(itemId: Long, text: String, format: String) { favoritesCoordinator.updateItem(itemId, text, format); publishDataState() }
 
     fun renameFavoriteFolderAndPersist(path: String, renamedPath: String) {
         favoritesCoordinator.renameFolderAndPersist(path, renamedPath)
+        publishDataState()
     }
 
     fun deleteFavoriteFolderAndPersist(path: String) {
         favoritesCoordinator.deleteFolderAndPersist(path)
+        publishDataState()
     }
 
     fun renameFavoriteGroupAndPersist(groupId: Long, name: String) {
         favoritesCoordinator.renameGroupAndPersist(groupId, name)
+        publishDataState()
     }
 
     fun moveFavoriteGroupAndPersist(groupId: Long, folder: String) {
         favoritesCoordinator.moveGroupAndPersist(groupId, folder)
+        publishDataState()
     }
 
     fun deleteFavoriteGroupAndPersist(groupId: Long) {
         favoritesCoordinator.deleteGroupAndPersist(groupId)
+        publishDataState()
     }
 
     fun clearFavoritesAndPersist() {
         favoritesCoordinator.clearFavoritesAndPersist()
+        publishDataState()
     }
 
     fun clearHistoryAndPersist() {
         favoritesCoordinator.clearHistoryAndPersist()
+        publishDataState()
     }
 
     fun saveResultAsFavorite(
@@ -438,6 +452,7 @@ class BarcodeViewModel @Inject constructor(
         name: String,
     ): Boolean {
         if (!favoritesCoordinator.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
+        publishDataState()
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
         navigateTo(AppRoute.Favorites)
         return true
@@ -446,16 +461,19 @@ class BarcodeViewModel @Inject constructor(
     fun updateFavoriteGroupAndPersist(groupId: Long, name: String, folder: String): Boolean {
         val group = favoriteGroups.firstOrNull { it.id == groupId } ?: return false
         if (!favoritesCoordinator.updateGroup(groupId, name, folder)) return false
+        publishDataState()
         _resultUiState.update { it.copy(selectedFavoriteGroup = group) }
         return true
     }
 
     fun persistAllFavorites() {
         favoritesCoordinator.persistAllFavorites()
+        publishDataState()
     }
 
     fun persistItems() {
         favoritesCoordinator.persistItems()
+        publishDataState()
     }
 
     suspend fun loadItemsFromRepository() {
@@ -508,7 +526,9 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun loadMoreFavoriteGroups() {
-        favoritesQueryCoordinator.loadMore()
+        viewModelScope.launch {
+            if (favoritesQueryCoordinator.loadMore()) publishDataState()
+        }
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {
@@ -525,9 +545,11 @@ class BarcodeViewModel @Inject constructor(
 
     fun persistFavoriteGroups() {
         favoritesCoordinator.persistGroups()
+        publishDataState()
     }
 
     fun persistFavoriteFolders() {
         favoritesCoordinator.persistFolders()
+        publishDataState()
     }
 }

@@ -28,13 +28,11 @@ class BarcodePersistenceCoordinator(
         items: List<CodeItem>,
         groups: List<FavoriteGroup>,
         folders: List<String>,
-        publish: () -> Unit,
     ) {
         val itemSnapshot = items.map { it.copy() }
         val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val folderSnapshot = folders.filter { it.isNotBlank() }.distinct()
         val groupsWithLoadedLinks = groupSnapshot.filter { it.itemIds.isNotEmpty() }
-        publish()
         enqueue(scope) {
             barcodeRepository.upsertItems(itemSnapshot)
             barcodeRepository.saveFavoriteGroupMetadata(groupSnapshot)
@@ -43,29 +41,25 @@ class BarcodePersistenceCoordinator(
         }
     }
 
-    fun persistItems(scope: CoroutineScope, items: List<CodeItem>, publish: () -> Unit) {
+    fun persistItems(scope: CoroutineScope, items: List<CodeItem>) {
         val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
-        publish()
         enqueue(scope) { barcodeRepository.saveItems(snapshot) }
     }
 
     fun persistFavoriteGroups(
         scope: CoroutineScope,
         groups: List<FavoriteGroup>,
-        publish: () -> Unit,
     ) {
         val snapshots = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val groupsWithLoadedLinks = snapshots.filter { it.itemIds.isNotEmpty() }
-        publish()
         enqueue(scope) {
             barcodeRepository.saveFavoriteGroupMetadata(snapshots)
             barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
         }
     }
 
-    fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>, publish: () -> Unit) {
+    fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>) {
         val snapshot = folders.filter { it.isNotBlank() }.distinct()
-        publish()
         enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot) }
     }
 

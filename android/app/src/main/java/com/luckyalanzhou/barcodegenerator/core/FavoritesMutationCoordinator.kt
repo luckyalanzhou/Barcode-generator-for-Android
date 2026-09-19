@@ -11,7 +11,6 @@ class FavoritesMutationCoordinator(
     private val folders: MutableList<String>,
     private val persistence: BarcodePersistenceCoordinator,
     private val scope: CoroutineScope,
-    private val publish: () -> Unit,
 ) {
     fun renameFolder(path: String, renamedPath: String) {
         groups.filter { it.folder == path || it.folder.startsWith("$path/") }.forEach { group ->
@@ -21,7 +20,6 @@ class FavoritesMutationCoordinator(
             folders.remove(old)
             folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
         }
-        publish()
     }
 
     fun deleteFolder(path: String) {
@@ -33,7 +31,6 @@ class FavoritesMutationCoordinator(
         persistence.deleteFavoriteGroups(scope, removed.map { it.id })
         groups.removeAll { it.folder == path || it.folder.startsWith("$path/") }
         folders.removeAll { it == path || it.startsWith("$path/") }
-        publish()
     }
 
     fun deleteGroup(groupId: Long) {
@@ -45,7 +42,6 @@ class FavoritesMutationCoordinator(
         persistence.clearFavoriteFlagsForGroups(scope, listOf(groupId))
         persistence.deleteFavoriteGroups(scope, listOf(groupId))
         if (group.folder !in folders) folders.add(group.folder)
-        publish()
     }
 
     fun deleteItem(itemId: Long) {
@@ -92,8 +88,8 @@ class FavoritesMutationCoordinator(
     fun deleteGroupAndPersist(groupId: Long) { deleteGroup(groupId); persistAllFavorites() }
     fun clearFavoritesAndPersist() { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" }; persistence.clearAllFavoriteFlags(scope); persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
     fun clearHistoryAndPersist() { items.forEach { it.inHistory = false }; persistItems() }
-    fun persistAllFavorites() = persistence.persistAllFavorites(scope, items, groups, folders, publish)
-    fun persistItems() = persistence.persistItems(scope, items, publish)
-    fun persistGroups() = persistence.persistFavoriteGroups(scope, groups, publish)
-    fun persistFolders() = persistence.persistFavoriteFolders(scope, folders, publish)
+    fun persistAllFavorites() = persistence.persistAllFavorites(scope, items, groups, folders)
+    fun persistItems() = persistence.persistItems(scope, items)
+    fun persistGroups() = persistence.persistFavoriteGroups(scope, groups)
+    fun persistFolders() = persistence.persistFavoriteFolders(scope, folders)
 }
