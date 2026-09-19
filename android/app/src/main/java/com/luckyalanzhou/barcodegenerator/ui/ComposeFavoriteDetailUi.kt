@@ -1,5 +1,8 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.*
+
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,7 +63,7 @@ internal fun ComposeFavoriteDetailPage(
                 group = currentGroup,
                 primary = primary,
                 secondary = secondary,
-                onBack = { viewModel.navigateTo("favorites") },
+                onBack = { viewModel.navigateTo(AppRoute.Favorites) },
             )
         }
         if (groupItems.isEmpty()) {

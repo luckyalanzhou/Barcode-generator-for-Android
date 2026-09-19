@@ -3,9 +3,10 @@ package com.luckyalanzhou.barcodegenerator
 import android.content.ClipData
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.luckyalanzhou.barcodegenerator.ui.DebugLog
 
 /** Beta 专用调试日志导出。 */
-internal fun MainActivity.shareBetaDebugLog() {
+internal fun MainActivity.shareDebugLogImpl() {
     DebugLog.record("diagnostics", "user requested debug log export")
     val logFile = DebugLog.snapshot(this)
     val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", logFile)

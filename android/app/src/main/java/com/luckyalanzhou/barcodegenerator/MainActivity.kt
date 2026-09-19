@@ -10,6 +10,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.net.Uri
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+import com.luckyalanzhou.barcodegenerator.ui.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import android.util.Log
 import android.view.MotionEvent
 import androidx.activity.viewModels
@@ -193,9 +196,9 @@ class MainActivity : AppCompatActivity() {
         }
         when (viewModel.uiState.value.page) {
             "settings" -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate")
-            "betaTestCenter" -> viewModel.navigateTo("settings")
-            "lanShare" -> { closeLanShare(); viewModel.navigateTo("settings") }
-            "favoriteDetail" -> viewModel.navigateTo("favorites")
+            "betaTestCenter" -> viewModel.navigateTo(AppRoute.Settings)
+            "lanShare" -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }
+            "favoriteDetail" -> viewModel.navigateTo(AppRoute.Favorites)
             "results" -> viewModel.navigateTo(viewModel.resultUiState.value.returnPage.takeIf { it in setOf("generate", "history", "favorites", "settings") } ?: "generate")
             else -> finish()
         }

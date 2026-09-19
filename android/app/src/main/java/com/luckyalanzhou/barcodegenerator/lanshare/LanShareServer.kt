@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+
 import android.net.Uri
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
+import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.ensureActive

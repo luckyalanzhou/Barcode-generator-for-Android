@@ -1,5 +1,8 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.*
+
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
@@ -26,15 +29,15 @@ internal fun MainActivity.enterLanShare() {
         showLanShareNetworkErrorDialog()
         return
     }
-    viewModel.updateSettingsReturnPage("settings")
-    viewModel.navigateTo("lanShare")
+    viewModel.updateSettingsReturnPage(AppRoute.Settings)
+    viewModel.navigateTo(AppRoute.LanShare)
     runCatching {
         lanShareViewModel.startHostSession()
         lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
     }.onFailure {
         lanShareViewModel.stopAutoRefresh()
         lanShareViewModel.closeSession()
-        viewModel.navigateTo("settings")
+        viewModel.navigateTo(AppRoute.Settings)
         if (it.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
         else toast(it.message ?: "无法创建房间")
     }

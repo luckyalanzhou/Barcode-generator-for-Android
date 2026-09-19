@@ -1,4 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
+
+import com.luckyalanzhou.barcodegenerator.*
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 

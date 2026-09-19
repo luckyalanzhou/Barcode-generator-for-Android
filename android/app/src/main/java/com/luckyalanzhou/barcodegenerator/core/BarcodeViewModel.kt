@@ -28,6 +28,8 @@ import com.google.zxing.EncodeHintType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+import com.luckyalanzhou.barcodegenerator.ui.DebugLog
 
 data class AppUiState(
     val page: String = "generate",
@@ -180,12 +182,8 @@ class BarcodeViewModel @Inject constructor(
         )
     }
 
-    fun navigateTo(page: String) {
-        val normalizedPage = when (page) {
-            "generate", "history", "favorites", "settings", "favoriteDetail",
-            "results", "lanShare", "betaTestCenter" -> page
-            else -> "generate"
-        }
+    fun navigateTo(route: AppRoute) {
+        val normalizedPage = route.pageName
         _uiState.update {
             it.copy(
                 page = normalizedPage,
@@ -200,14 +198,19 @@ class BarcodeViewModel @Inject constructor(
         }
     }
 
+    /** 仅用于恢复旧版本保存的 Activity 状态；业务代码应使用 AppRoute。 */
+    fun navigateTo(pageName: String) = navigateTo(AppRoute.fromPage(pageName))
+
     fun prepareMainGenerateTab() {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null, returnPage = "generate", showingHistoryResult = false) }
-        navigateTo("generate")
+        navigateTo(AppRoute.Generate)
     }
 
-    fun updateSettingsReturnPage(page: String) {
-        _uiState.update { it.copy(settingsReturnPage = page) }
+    fun updateSettingsReturnPage(route: AppRoute) {
+        _uiState.update { it.copy(settingsReturnPage = route.pageName) }
     }
+
+    fun updateSettingsReturnPage(pageName: String) = updateSettingsReturnPage(AppRoute.fromPage(pageName))
 
     fun clearSelectedFavoriteGroup() {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
@@ -227,11 +230,11 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun selectMainTab(index: Int) {
-        val tabPages = listOf("generate", "history", "favorites", "settings")
+        val tabPages = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
         if (index !in tabPages.indices) return
         if (index == 3) {
             openSettings()
-        } else if (_uiState.value.page != tabPages[index]) {
+        } else if (_uiState.value.page != tabPages[index].pageName) {
             if (index == 0) prepareMainGenerateTab() else navigateTo(tabPages[index])
         } else {
             updateSelectedTab(index)
@@ -239,12 +242,12 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun openSettings() {
-        if (_uiState.value.page == "settings") {
+        if (_uiState.value.page == AppRoute.Settings.pageName) {
             updateSelectedTab(3)
             return
         }
         updateSettingsReturnPage(mainTabPageForCurrentPage())
-        navigateTo("settings")
+        navigateTo(AppRoute.Settings)
     }
 
     private fun mainTabPageForCurrentPage(): String = when (_uiState.value.page) {
@@ -266,7 +269,7 @@ class BarcodeViewModel @Inject constructor(
         _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = "favorites") }
         updateInputDraft(groupItems.map { it.text })
         _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
-        navigateTo("results")
+        navigateTo(AppRoute.Results)
     }
 
     fun openFavoriteForEditing(group: FavoriteGroup) {
@@ -274,18 +277,18 @@ class BarcodeViewModel @Inject constructor(
         _resultUiState.update { it.copy(selectedFavoriteGroup = group, items = groupItems, showingHistoryResult = false, returnPage = "favorites") }
         updateInputDraft(groupItems.map { it.text })
         _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
-        navigateTo("generate")
+        navigateTo(AppRoute.Generate)
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {
         _resultUiState.update { it.copy(items = batch.sortedBy { item -> item.id }, showingHistoryResult = true, returnPage = "history") }
-        navigateTo("results")
+        navigateTo(AppRoute.Results)
     }
 
     fun editCurrentResult() {
         updateInputDraft(_resultUiState.value.items.map { it.text })
         _generateEditorState.update { it.copy(pendingFormat = _resultUiState.value.items.firstOrNull()?.format) }
-        navigateTo("generate")
+        navigateTo(AppRoute.Generate)
     }
 
     fun deleteHistoryBatch(batch: List<CodeItem>) {
@@ -451,7 +454,7 @@ class BarcodeViewModel @Inject constructor(
                 returnPage = if (editingFavorite != null) "favorites" else "generate",
             )
         }
-        navigateTo("results")
+        navigateTo(AppRoute.Results)
         return result
     }
 
@@ -742,7 +745,7 @@ class BarcodeViewModel @Inject constructor(
             .forEach { it.favorite = false }
         persistAllFavorites()
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
-        navigateTo("favorites")
+        navigateTo(AppRoute.Favorites)
         return true
     }
 

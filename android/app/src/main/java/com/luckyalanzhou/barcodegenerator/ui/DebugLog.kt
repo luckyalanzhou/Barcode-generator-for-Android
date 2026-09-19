@@ -1,4 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
+
+import com.luckyalanzhou.barcodegenerator.*
 
 import android.util.Log
 import android.content.Context
@@ -7,7 +9,7 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/** 正式版占位接口；Beta 额外启用持久化诊断日志。 */
+/** 按构建变体选择日志实现；Beta 使用持久化日志，正式版使用空实现。 */
 object DebugLog {
     private const val TAG = "BarcodeGenerator.DebugLog"
     private const val FALLBACK_FILE_NAME = "debug.log"
@@ -16,7 +18,7 @@ object DebugLog {
         if (!BuildConfig.DEBUG_LOG_EXPORT) return
         fallbackTarget = File(context.applicationContext.filesDir, FALLBACK_FILE_NAME)
         try {
-            invokeBeta("debugLogInitializeImpl", Context::class.java, context)
+            debugLogInitializeImpl(context)
         } catch (error: Throwable) {
             Log.e(TAG, "Beta log backend initialization failed", error)
             writeFallback("diagnostics", "日志后端初始化失败", error)
@@ -26,12 +28,7 @@ object DebugLog {
     fun record(tag: String, message: String, error: Throwable? = null) {
         if (!BuildConfig.DEBUG_LOG_EXPORT) return
         try {
-            invokeBeta(
-                "debugLogRecordImpl",
-                String::class.java, tag,
-                String::class.java, message,
-                Throwable::class.java, error,
-            )
+            debugLogRecordImpl(tag, message, error)
         } catch (backendError: Throwable) {
             Log.e(TAG, "Beta log backend record failed: [$tag] $message", backendError)
             writeFallback(tag, message, error ?: backendError)
@@ -41,8 +38,8 @@ object DebugLog {
     fun snapshot(context: Context): File {
         if (!BuildConfig.DEBUG_LOG_EXPORT) return File(context.cacheDir, "debug.log")
         try {
-            val exported = invokeBetaResult("debugLogSnapshotImpl", Context::class.java, context) as? File
-            if (exported != null && exported.isFile && exported.length() > 0L) return exported
+            val exported = debugLogSnapshotImpl(context)
+            if (exported.isFile && exported.length() > 0L) return exported
             throw IllegalStateException("日志后端返回了空文件")
         } catch (error: Throwable) {
             Log.e(TAG, "Beta log backend snapshot failed", error)
@@ -59,17 +56,6 @@ object DebugLog {
 
 private val fallbackLock = Any()
 @Volatile private var fallbackTarget: File? = null
-
-private fun betaClass() = Class.forName("com.luckyalanzhou.barcodegenerator.BetaDebugLogBackendKt")
-private fun invokeBeta(name: String, vararg typesAndValues: Any?) {
-    invokeBetaResult(name, *typesAndValues)
-}
-
-private fun invokeBetaResult(name: String, vararg typesAndValues: Any?): Any? {
-    val types = typesAndValues.filterIndexed { index, _ -> index % 2 == 0 }.map { it as Class<*> }.toTypedArray()
-    val values = typesAndValues.filterIndexed { index, _ -> index % 2 == 1 }.toTypedArray()
-    return betaClass().getDeclaredMethod(name, *types).apply { isAccessible = true }.invoke(null, *values)
-}
 
 private fun writeFallback(tag: String, message: String, error: Throwable? = null, targetOverride: File? = null) {
     val target = targetOverride ?: fallbackTarget ?: return

@@ -1,4 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
+
+import com.luckyalanzhou.barcodegenerator.*
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 
@@ -314,7 +316,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val group = resultState.selectedFavoriteGroup
                 if (group == null) {
                     LaunchedEffect(Unit) {
-                        dependencies.viewModel.navigateTo(AppRoute.Favorites.pageName)
+                        dependencies.viewModel.navigateTo(AppRoute.Favorites)
                     }
                 } else {
                     val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()

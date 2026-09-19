@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui.dialogs
+
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.ui.*
 
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch

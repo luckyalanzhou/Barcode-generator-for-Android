@@ -1,5 +1,8 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.*
+
+import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -181,7 +184,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                     else {
                         viewModel.renameFavoriteGroupAndPersist(group.id, name)
                         dismiss()
-                        viewModel.navigateTo("favorites")
+                        viewModel.navigateTo(AppRoute.Favorites)
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -206,7 +209,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
                 DialogAction("移动", dark, {
                     viewModel.moveFavoriteGroupAndPersist(group.id, selected)
                     dismiss()
-                    viewModel.navigateTo("favorites")
+                    viewModel.navigateTo(AppRoute.Favorites)
                 }, modifier = Modifier.padding(start = 8.dp))
             }
         }
@@ -229,7 +232,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                     showComposeConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
                         viewModel.deleteFavoriteGroupAndPersist(group.id)
                         viewModel.clearSelectedFavoriteGroup()
-                        viewModel.navigateTo("favorites")
+                        viewModel.navigateTo(AppRoute.Favorites)
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
                 DialogAction("保存", dark, {
