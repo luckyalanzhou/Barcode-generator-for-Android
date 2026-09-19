@@ -67,18 +67,6 @@ internal object MaterialActionIcons {
         horizontalLineToRelative(2f); verticalLineToRelative(9.75f); close()
     }.build() }
 
-    val circle: ImageVector by lazy { ImageVector.Builder("circle", 24.dp, 24.dp, 24f, 24f).evenOddPath {
-        moveTo(12f, 2f); quadTo(6.48f, 2f, 2f, 12f); quadTo(6.48f, 22f, 12f, 22f)
-        quadTo(17.52f, 22f, 22f, 12f); quadTo(17.52f, 2f, 12f, 2f); close()
-        moveTo(12f, 4f); quadTo(7.58f, 4f, 4f, 12f); quadTo(7.58f, 20f, 12f, 20f)
-        quadTo(16.42f, 20f, 20f, 12f); quadTo(16.42f, 4f, 12f, 4f); close()
-    }.build() }
-
-    val circleFilled: ImageVector by lazy { ImageVector.Builder("circle_filled", 24.dp, 24.dp, 24f, 24f).path {
-        moveTo(12f, 2f); quadTo(6.48f, 2f, 2f, 12f); quadTo(6.48f, 22f, 12f, 22f)
-        quadTo(17.52f, 22f, 22f, 12f); quadTo(17.52f, 2f, 12f, 2f); close()
-    }.build() }
-
     val checkBoxOutlineBlank: ImageVector by lazy { ImageVector.Builder("check_box_outline_blank", 24.dp, 24.dp, 24f, 24f).path {
         moveTo(19f, 5f); verticalLineTo(19f); horizontalLineTo(5f); verticalLineTo(5f); horizontalLineTo(19f); close()
         moveTo(19f, 3f); horizontalLineTo(5f); quadTo(3.9f, 3f, 3f, 3.9f); quadTo(2f, 4.8f, 2f, 6f)
