@@ -60,35 +60,15 @@ jobs:
           base_code="$(sed -nE 's/^versionCode=([0-9]+)$/\1/p' "$version_file")"
           test -n "$base_version" || { echo "::error::versionName not found"; exit 1; }
           test -n "$base_code" || { echo "::error::versionCode not found"; exit 1; }
-          IFS=. read -r base_major base_minor base_patch <<< "$base_version"
-          for part in "$base_major" "$base_minor" "$base_patch" "$base_code"; do
-            [[ "$part" =~ ^[0-9]+$ ]] || { echo "::error::版本号格式无效"; exit 1; }
-          done
+          [[ "$base_version" == "1.0.0" ]] || { echo "::error::Beta versionName must remain 1.0.0"; exit 1; }
+          [[ "$base_code" =~ ^[0-9]+$ ]] || { echo "::error::versionCode format is invalid"; exit 1; }
 
-          # 读取最新成功发布的 Beta 版本，严格递增 patch；构建失败不会消耗版本号。
-          latest_version="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            --jq '.[] | select(.tag_name | startswith("android-test-v")) | .tag_name' \
-            | sed -nE 's/^android-test-v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' \
-            | sort -V | tail -n 1 || true)"
+          # Beta 固定使用 1.0.0；versionCode 使用 workflow run number 递增。
+          # 运行编号允许因失败构建产生空洞，但始终保证后续成功 APK 可升级覆盖旧版本。
+          version_name="$base_version"
+          version_code=$((base_code + GITHUB_RUN_NUMBER - 1))
 
-          if [[ -n "$latest_version" ]]; then
-            IFS=. read -r latest_major latest_minor latest_patch <<< "$latest_version"
-            [[ "$latest_major" =~ ^[0-9]+$ && "$latest_minor" =~ ^[0-9]+$ && "$latest_patch" =~ ^[0-9]+$ ]] || {
-              echo "::error::最新 Beta Release 版本格式无效: $latest_version"
-              exit 1
-            }
-            # 手动提高 beta-version.properties 时，以手动版本为准；否则沿用远端最新版本。
-            current_version="$(printf '%s\n%s\n' "$base_version" "$latest_version" | sort -V | tail -n 1)"
-            IFS=. read -r major minor patch <<< "$current_version"
-            next_patch=$((patch + 1))
-            version_name="$major.$minor.$next_patch"
-            version_code=$((base_code + next_patch - base_patch))
-          else
-            version_name="$base_major.$base_minor.$((base_patch + 1))"
-            version_code=$((base_code + 1))
-          fi
-
-          echo "latest=$latest_version; base=$base_version; version=$version_name; versionCode=$version_code"
+          echo "base=$base_version; version=$version_name; versionCode=$version_code; run=$GITHUB_RUN_NUMBER"
           echo "version=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
@@ -134,9 +114,10 @@ jobs:
       - name: Publish beta GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-test-v${{ steps.app-version.outputs.version }}
+          tag_name: android-test-v1.0.0
           name: Barcode Generator Beta v${{ steps.app-version.outputs.version }}
           generate_release_notes: false
+          overwrite_files: true
           files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
           token: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
