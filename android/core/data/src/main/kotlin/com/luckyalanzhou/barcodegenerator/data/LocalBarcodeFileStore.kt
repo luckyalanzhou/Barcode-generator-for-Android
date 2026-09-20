@@ -38,7 +38,7 @@ class LocalBarcodeFileStore(context: Context) {
     }
 
     fun imageKey(item: CodeItem, width: Int, height: Int, textSize: Float, showFormat: Boolean, dark: Boolean): String {
-        val raw = listOf(item.text, item.format, width, height, textSize, showFormat, dark).joinToString("|")
+        val raw = listOf("barcode-bg-v2", item.text, item.format, width, height, textSize, showFormat, dark).joinToString("|")
         return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 
