@@ -21,25 +21,33 @@ internal fun composeFavoriteRows(
     collapsedFolders: Set<String>,
 ): List<ComposeFavoriteRow> {
     val folders = (state.folders + state.groups.map { it.folder }).filter { it.isNotBlank() }.distinct()
-    val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
+    val foldersByParent = folders.groupBy { it.substringBeforeLast('/', missingDelimiterValue = "") }
+    val roots = foldersByParent[""].orEmpty().sorted()
     val itemsById = state.items.associateBy { it.id }
     fun matches(group: FavoriteGroup): Boolean = query.isEmpty() ||
         group.folder.lowercase(Locale.getDefault()).contains(query) ||
         group.name.lowercase(Locale.getDefault()).contains(query) ||
         group.itemIds.any { id -> itemsById[id]?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
+    val groupsByFolder = state.groups.groupBy { it.folder }
+    val matchingGroupsByFolder = groupsByFolder.mapValues { (_, groups) -> groups.filter(::matches) }
+    val matchingFolders = if (query.isEmpty()) emptySet() else matchingGroupsByFolder
+        .filterValues { it.isNotEmpty() }
+        .keys
+        .flatMap { path ->
+            val parts = path.split('/')
+            parts.indices.map { parts.take(it + 1).joinToString("/") }
+        }
+        .toSet()
     val result = mutableListOf<ComposeFavoriteRow>()
     fun renderFolder(path: String, level: Int) {
-        val prefix = "$path/"
-        val children = folders.filter { it.startsWith(prefix) && !it.removePrefix(prefix).contains('/') }
-            .map { it.removePrefix(prefix) }.distinct().sorted()
-        val groups = state.groups.filter { it.folder == path && matches(it) }
-        val descendants = state.groups.filter { it.folder.startsWith(prefix) && matches(it) }
-        if (query.isNotEmpty() && groups.isEmpty() && descendants.isEmpty()) return
+        val children = foldersByParent[path].orEmpty().sorted()
+        val groups = matchingGroupsByFolder[path].orEmpty()
+        if (query.isNotEmpty() && path !in matchingFolders) return
         val collapsed = path in collapsedFolders
         result += ComposeFavoriteRow(path, path.substringAfterLast('/'), level, if (level == 0) children.size else groups.size, collapsed, true)
         if (!collapsed) {
             groups.forEach { group -> result += ComposeFavoriteRow(group.folder, group.name, level + 1, 0, false, false, group) }
-            children.forEach { child -> renderFolder("$path/$child", level + 1) }
+            children.forEach { child -> renderFolder(child, level + 1) }
         }
     }
     roots.forEach { renderFolder(it, 0) }

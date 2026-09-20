@@ -48,7 +48,8 @@ internal fun ComposeFavoriteDetailPage(
     val anchor = LocalView.current
     val dataState by viewModel.dataState.collectAsStateWithLifecycle()
     val currentGroup = dataState.groups.firstOrNull { it.id == group.id } ?: group
-    val groupItems = currentGroup.itemIds.mapNotNull { id -> dataState.items.firstOrNull { it.id == id } }
+    val itemsById = dataState.items.associateBy { it.id }
+    val groupItems = currentGroup.itemIds.mapNotNull(itemsById::get)
     val themeColors = LocalBarcodeThemeColors.current
     val primary = themeColors.primary
     val secondary = themeColors.secondary
