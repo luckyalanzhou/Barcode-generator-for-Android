@@ -105,10 +105,10 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
     }
 }
 
-internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup) {
+internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, overwriteConflicts: Boolean = false) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            val counts = viewModel.importFavorites(backup)
+            val counts = viewModel.importFavorites(backup, overwriteConflicts)
             viewModel.addCollapsedFavoriteFolders(
                 (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.toSet(),
             )

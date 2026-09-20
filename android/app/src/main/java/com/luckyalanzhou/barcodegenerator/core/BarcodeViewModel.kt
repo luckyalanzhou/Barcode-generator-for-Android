@@ -28,6 +28,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
+import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
@@ -514,8 +515,11 @@ class BarcodeViewModel @Inject constructor(
         viewModelScope.launch { favoritesLoadCoordinator.loadMoreFavoriteGroups() }
     }
 
-    suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {
-        val counts = barcodeDataCoordinator.importFavorites(backup)
+    suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary =
+        barcodeDataCoordinator.inspectFavoriteImport(backup)
+
+    suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int> {
+        val counts = barcodeDataCoordinator.importFavorites(backup, overwriteConflicts)
         // Reuse the startup snapshot path so import does not load every group
         // into memory or disable cursor paging after the refresh.
         loadPersistedData()

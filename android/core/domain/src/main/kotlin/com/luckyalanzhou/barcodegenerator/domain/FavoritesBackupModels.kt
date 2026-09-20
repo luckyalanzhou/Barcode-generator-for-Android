@@ -13,3 +13,10 @@ data class InterchangeFavorite(
 }
 
 data class InterchangeBackup(val favorites: List<InterchangeFavorite>, val folders: List<String>)
+
+data class FavoritesImportConflictSummary(
+    val folderPaths: List<String>,
+    val fileKeys: List<String>,
+) {
+    val hasConflicts: Boolean get() = folderPaths.isNotEmpty() || fileKeys.isNotEmpty()
+}

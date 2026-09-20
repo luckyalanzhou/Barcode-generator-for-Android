@@ -8,5 +8,7 @@ interface FavoritesBackupRepository {
 
     fun restore(bytes: ByteArray): InterchangeBackup
 
-    suspend fun import(backup: InterchangeBackup): Pair<Int, Int>
+    suspend fun inspectImport(backup: InterchangeBackup): FavoritesImportConflictSummary
+
+    suspend fun import(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int>
 }
