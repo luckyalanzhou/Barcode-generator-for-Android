@@ -9,4 +9,11 @@ data class LanShareFile(
     val sender: String = "peer",
 )
 
-data class LanShareSession(val baseUrl: String)
+data class LanShareSession(
+    val baseUrl: String,
+    val token: String = "",
+) {
+    /** Address intended for QR/manual browser entry; the token is never logged in baseUrl. */
+    val shareUrl: String
+        get() = if (token.isBlank()) baseUrl else "$baseUrl/?token=$token"
+}

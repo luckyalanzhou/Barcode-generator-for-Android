@@ -55,6 +55,7 @@ internal class LanShareClient(
             requestMethod = "POST"
             doOutput = true
             setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            setRequestProperty("X-Lan-Share-Token", session.token)
             // NanoHTTPD 对 chunked 大请求会尝试构造整段字符串；固定长度可让其直接落到临时文件。
             setFixedLengthStreamingMode(header.size.toLong() + size + footer.size)
         }
@@ -88,6 +89,7 @@ internal class LanShareClient(
             requestMethod = "POST"
             doOutput = true
             setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            setRequestProperty("X-Lan-Share-Token", session.token)
             setFixedLengthStreamingMode(header.size.toLong() + body.size + footer.size)
         }
         try {
@@ -146,6 +148,7 @@ internal class LanShareClient(
             requestMethod = if (output) "POST" else "GET"
             doOutput = output
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
+            setRequestProperty("X-Lan-Share-Token", session.token)
         }
         return try {
             val responseCode = connection.responseCode

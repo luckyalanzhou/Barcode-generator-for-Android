@@ -14,6 +14,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import java.io.File
 import java.net.Inet4Address
+import java.security.SecureRandom
 
 /** 局域网分享会话管理器：负责网络地址、端口和服务生命周期。 */
 class LanShareManager(
@@ -84,11 +85,16 @@ class LanShareManager(
             ?.hostAddress ?: error("未连接到局域网")
         val ports = (18080..28080).filter { it != lastPort }.shuffled() + listOfNotNull(lastPort)
         val running = ports.firstNotNullOfOrNull { port ->
-            runCatching { LanShareServer(port, folder, logger).also { it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false) } }.getOrNull()
+            runCatching {
+                val token = newSessionToken()
+                LanShareServer(port, folder, logger, token).also {
+                    it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+                } to token
+            }.getOrNull()
         } ?: error("无法启动局域网分享服务")
-        server = running
-        lastPort = running.listeningPort
-        val session = LanShareSession("http://$address:${running.listeningPort}")
+        server = running.first
+        lastPort = running.first.listeningPort
+        val session = LanShareSession("http://$address:${running.first.listeningPort}", running.second)
         logger.record("lan", "server started address=${session.baseUrl}", null)
         return session
     }
@@ -106,6 +112,9 @@ class LanShareManager(
     fun localFiles() = listFiles(folder, "app")
     fun localFile(id: String): File? = sharedFile(folder, id)
     private fun clearFiles() { folder.listFiles().orEmpty().forEach { it.delete() } }
+
+    private fun newSessionToken(): String = ByteArray(24).also { SecureRandom().nextBytes(it) }
+        .joinToString("") { "%02x".format(it) }
 
     fun list(session: LanShareSession) = client.list(session)
     fun upload(session: LanShareSession, uri: android.net.Uri): String = client.upload(session, uri)

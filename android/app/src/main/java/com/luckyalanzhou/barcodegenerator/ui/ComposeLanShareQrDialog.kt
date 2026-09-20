@@ -9,13 +9,23 @@ import androidx.core.graphics.set
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,7 +54,7 @@ internal fun ComposeLanShareQrDialog(
     val dialogWidth = qrSize + 24.dp
     val foreground = LocalBarcodeThemeColors.current.qrForeground.toArgb()
     val background = LocalBarcodeThemeColors.current.qrBackground.toArgb()
-    val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, background, qrSize.value.toInt()) }
+    val bitmap = remember(session.shareUrl, dark) { createLanShareQrBitmap(session.shareUrl, foreground, background, qrSize.value.toInt()) }
     Dialog(
         onDismissRequest = {
             onHideQr()
@@ -69,8 +79,8 @@ internal fun ComposeLanShareQrDialog(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(qrSize).background(Color(background)), contentScale = ContentScale.FillBounds)
                         Row(Modifier.width(qrSize).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(session.baseUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                            IconButton(onClick = { onCopyAddress(session.baseUrl) }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
+                            Text(session.shareUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                            IconButton(onClick = { onCopyAddress(session.shareUrl) }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
                         }
                     }
                 }
@@ -102,11 +112,11 @@ internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShare
         val secondary = colors.secondary
         val foreground = colors.qrForeground.toArgb()
         val qrBackground = colors.qrBackground.toArgb()
-        val bitmap = remember(session.baseUrl, dark) { createLanShareQrBitmap(session.baseUrl, foreground, qrBackground) }
+        val bitmap = remember(session.shareUrl, dark) { createLanShareQrBitmap(session.shareUrl, foreground, qrBackground) }
         ComposeGlassDialogCard(dark) {
             Image(bitmap = bitmap.asImageBitmap(), contentDescription = "局域网分享二维码", modifier = Modifier.fillMaxWidth().background(Color(qrBackground)), contentScale = ContentScale.FillWidth)
             SelectionContainer {
-                Text(session.baseUrl, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = secondary, fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text(session.shareUrl, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = secondary, fontSize = 13.sp, textAlign = TextAlign.Center)
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("关闭", dark, {
