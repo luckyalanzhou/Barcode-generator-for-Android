@@ -23,6 +23,39 @@ class FavoritesTransferManagerTest {
     }
 
     @Test
+    fun importKeepsSameContentFavoritesWithDifferentIds() {
+        val backup = InterchangeBackup(
+            favorites = listOf(
+                InterchangeFavorite("101", "重复名称", "一级", "", "code128", 11L, listOf("ABC")),
+                InterchangeFavorite("102", "重复名称", "一级", "", "code128", 12L, listOf("ABC")),
+            ),
+            folders = listOf("一级"),
+        )
+
+        val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+
+        assertEquals(2, entities.groups.size)
+        assertEquals(2, entities.items.size)
+        assertEquals(2, entities.links.size)
+    }
+
+    @Test
+    fun importDoesNotCollapseSameContentWhenBarcodeTypeDiffers() {
+        val backup = InterchangeBackup(
+            favorites = listOf(
+                InterchangeFavorite("201", "同名", "", "", "code128", 11L, listOf("123")),
+                InterchangeFavorite("202", "同名", "", "", "qr", 12L, listOf("123")),
+            ),
+            folders = emptyList(),
+        )
+
+        val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+
+        assertEquals(2, entities.groups.size)
+        assertEquals(listOf("Code 128-B", "QR Code"), entities.items.map { it.format })
+    }
+
+    @Test
     fun restoreRejectsNonZipInput() {
         try {
             FavoritesTransferManager.restore("not-a-zip".toByteArray())

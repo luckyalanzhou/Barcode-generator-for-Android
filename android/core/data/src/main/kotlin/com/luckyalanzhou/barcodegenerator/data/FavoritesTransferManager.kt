@@ -121,12 +121,30 @@ object FavoritesTransferManager {
     fun appendEntities(backup: InterchangeBackup, existingItems: List<CodeItemEntity>, existingGroups: List<FavoriteGroupEntity>, existingLinks: List<FavoriteGroupItemEntity>): TransferEntities {
         var nextItemId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L
         var nextGroupId = (existingGroups.maxOfOrNull { it.id } ?: 0L) + 1L
-        val existingGroupItems = existingGroups.associate { group -> group.id to existingLinks.filter { it.groupId == group.id }.mapNotNull { link -> existingItems.firstOrNull { it.id == link.itemId }?.text } }
-        val existingKeys = existingGroups.map { group -> Triple(group.folder, group.name, existingGroupItems[group.id].orEmpty()) }.toMutableSet()
+        val itemsById = existingItems.associateBy { it.id }
+        val existingLinksByGroup = existingLinks.groupBy { it.groupId }
+        // 同名文件可能使用不同条码格式，不能只按文件夹、名称和正文去重。
+        // 这是导入旧备份时部分收藏“消失”的直接原因之一。
+        val existingKeys = existingGroups.map { group ->
+            FavoriteImportKey(
+                folder = group.folder,
+                name = group.name,
+                type = existingLinksByGroup[group.id].orEmpty()
+                    .mapNotNull { itemsById[it.itemId] }
+                    .map { toTransferType(it.format) }
+                    .distinct()
+                    .joinToString(","),
+                texts = existingLinksByGroup[group.id].orEmpty()
+                    .mapNotNull { itemsById[it.itemId] }
+                    .map { it.text },
+            )
+        }.toSet()
         val items = mutableListOf<CodeItemEntity>(); val groups = mutableListOf<FavoriteGroupEntity>(); val links = mutableListOf<FavoriteGroupItemEntity>()
         backup.favorites.forEach { favorite ->
-            val key = Triple(favorite.folder, favorite.name, favorite.texts)
-            if (!existingKeys.add(key)) return@forEach
+            val key = FavoriteImportKey(favorite.folder, favorite.name, favorite.type, favorite.texts)
+            // 只与导入前已经存在的数据去重；备份内部即使存在同内容但不同 ID 的收藏，也必须全部保留。
+            // 这样不会因为文件名/正文相同而静默丢失合法收藏。
+            if (existingKeys.contains(key)) return@forEach
             val group = FavoriteGroupEntity(nextGroupId++, favorite.folder, favorite.name, favorite.time)
             val groupItems = favorite.texts.map { text -> CodeItemEntity(nextItemId++, text, toAndroidFormat(favorite.type), favorite.time, true, favorite.folder, false) }
             groups += group; items += groupItems; links += groupItems.map { FavoriteGroupItemEntity(group.id, it.id) }
@@ -134,6 +152,13 @@ object FavoritesTransferManager {
         val folderNames = (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.distinct()
         return TransferEntities(items, groups, links, folderNames.map(::FavoriteFolderEntity))
     }
+
+    private data class FavoriteImportKey(
+        val folder: String,
+        val name: String,
+        val type: String,
+        val texts: List<String>,
+    )
 
     private fun splitFolder(folder: String): Pair<String, String> {
         val parts = folder.split('/').filter { it.isNotBlank() }
