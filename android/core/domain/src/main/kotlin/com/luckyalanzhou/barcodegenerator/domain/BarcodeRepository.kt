@@ -12,6 +12,8 @@ data class BarcodeSnapshot(
     val groups: List<FavoriteGroup>,
     val links: List<FavoriteGroupItem>,
     val folders: List<String>,
+    /** Only these groups have authoritative in-memory link contents during a partial load. */
+    val replaceGroupLinkIds: Set<Long> = emptySet(),
 )
 
 /** Stable cursor for favorite-group paging; avoids OFFSET drift after mutations. */

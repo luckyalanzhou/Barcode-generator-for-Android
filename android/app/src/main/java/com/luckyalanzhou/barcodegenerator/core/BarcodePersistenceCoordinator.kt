@@ -34,6 +34,7 @@ class BarcodePersistenceCoordinator(
         items: List<CodeItem>,
         groups: List<FavoriteGroup>,
         folders: List<String>,
+        replaceGroupLinkIds: Set<Long> = emptySet(),
     ): Deferred<Result<Unit>> {
         val itemSnapshot = items.map { it.copy() }
         val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
@@ -42,7 +43,7 @@ class BarcodePersistenceCoordinator(
             barcodeRepository.applyFavoritesMutation(
                 BarcodeSnapshot(itemSnapshot, groupSnapshot, groupSnapshot.flatMap { group ->
                     group.itemIds.map { itemId -> com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId) }
-                }, folderSnapshot),
+                }, folderSnapshot, replaceGroupLinkIds),
             )
         }
     }

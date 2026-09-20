@@ -48,8 +48,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             if (snapshot.groups.isNotEmpty()) {
                 val groupIds = snapshot.groups.map { it.id }
                 dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-                dao.clearGroupItemsForGroups(groupIds)
-                dao.saveGroupItems(snapshot.groups.flatMap { group ->
+                val linkGroups = snapshot.replaceGroupLinkIds.intersect(groupIds.toSet())
+                dao.clearGroupItemsForGroups(linkGroups.toList())
+                dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap { group ->
                     group.itemIds.map { FavoriteGroupItemEntity(group.id, it) }
                 })
             }

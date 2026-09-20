@@ -228,6 +228,7 @@ class BarcodeViewModel @Inject constructor(
                 favoritesStateStore.edit {
                     groups.firstOrNull { it.id == groupId }?.itemIds?.addAll(loadedIds)
                 }
+                favoritesStateStore.markGroupLinksLoaded(groupId)
                 currentGroup = currentGroup.copy(itemIds = loadedIds.toMutableList())
             }
             val knownItems = favoritesStateStore.itemsSnapshot()

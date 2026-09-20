@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -9,6 +10,18 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FavoritesStateStoreTest {
+    @Test
+    fun unloadedGroupsAreNotMarkedAsAuthoritativeLinkSnapshots() {
+        val store = FavoritesStateStore()
+        val group = FavoriteGroup(7L, "一级", "文件", 7L, mutableListOf())
+
+        store.replace(emptyList(), listOf(group), listOf("一级"))
+        assertEquals(emptySet<Long>(), store.loadedGroupLinkIdsSnapshot())
+
+        store.markGroupLinksLoaded(group.id)
+        assertEquals(setOf(group.id), store.loadedGroupLinkIdsSnapshot())
+    }
+
     @Test
     fun concurrentSnapshotsAndEditsRemainConsistent() = runBlocking {
         val store = FavoritesStateStore()

@@ -14,6 +14,7 @@ internal class FavoritesStateStore {
     private val items = mutableListOf<CodeItem>()
     private val groups = mutableListOf<FavoriteGroup>()
     private val folders = mutableListOf<String>()
+    private val loadedGroupLinkIds = mutableSetOf<Long>()
 
     internal class Editor internal constructor(
         val items: MutableList<CodeItem>,
@@ -35,6 +36,14 @@ internal class FavoritesStateStore {
 
     fun foldersSnapshot(): List<String> = synchronized(lock) { folders.toList() }
 
+    fun markGroupLinksLoaded(groupId: Long) = synchronized(lock) {
+        if (groups.any { it.id == groupId }) loadedGroupLinkIds += groupId
+    }
+
+    fun markGroupLinksChanged(groupId: Long) = markGroupLinksLoaded(groupId)
+
+    fun loadedGroupLinkIdsSnapshot(): Set<Long> = synchronized(lock) { loadedGroupLinkIds.toSet() }
+
     fun replace(
         newItems: List<CodeItem>,
         newGroups: List<FavoriteGroup>,
@@ -45,6 +54,8 @@ internal class FavoritesStateStore {
             items.addAll(newItems)
             groups.clear()
             groups.addAll(newGroups)
+            loadedGroupLinkIds.clear()
+            loadedGroupLinkIds.addAll(newGroups.filter { it.itemIds.isNotEmpty() }.map { it.id })
             folders.clear()
             folders.addAll(newFolders)
         }

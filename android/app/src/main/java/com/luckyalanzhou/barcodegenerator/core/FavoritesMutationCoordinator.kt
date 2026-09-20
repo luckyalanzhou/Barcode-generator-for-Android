@@ -63,9 +63,9 @@ internal class FavoritesMutationCoordinator(
     }
 
     fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
-        val saved = store.edit {
+        val savedGroupId = store.edit {
             val selectedItems = items.filter { it.id in resultItemIds }
-            if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return@edit false
+            if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return@edit null
             if (editingGroupId != null && editingGroupId != targetGroupId) groups.removeAll { it.id == editingGroupId }
             selectedItems.forEach { it.favorite = true; it.folder = folder }
             if (folder !in folders) folders.add(folder)
@@ -74,10 +74,11 @@ internal class FavoritesMutationCoordinator(
             val targetIndex = groups.indexOfFirst { it.id == groupId }
             if (targetIndex >= 0) groups[targetIndex] = updatedGroup else groups.add(0, updatedGroup)
             items.filter { it.favorite && groups.none { group -> it.id in group.itemIds } }.forEach { it.favorite = false }
-            true
+            groupId
         }
+        savedGroupId?.let(store::markGroupLinksChanged)
         persistAllFavorites()
-        return saved
+        return savedGroupId != null
     }
 
     fun updateGroup(groupId: Long, name: String, folder: String): Boolean {
@@ -101,7 +102,13 @@ internal class FavoritesMutationCoordinator(
         if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
     }
     fun clearFavoritesAndPersist() { store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }; persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
-    fun persistAllFavorites() = persistence.persistAllFavorites(scope, store.itemsSnapshot(), store.groupsSnapshot(), store.foldersSnapshot())
+    fun persistAllFavorites() = persistence.persistAllFavorites(
+        scope,
+        store.itemsSnapshot(),
+        store.groupsSnapshot(),
+        store.foldersSnapshot(),
+        store.loadedGroupLinkIdsSnapshot(),
+    )
     fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())
     fun persistFolders() = persistence.persistFavoriteFolders(scope, store.foldersSnapshot())
 }
