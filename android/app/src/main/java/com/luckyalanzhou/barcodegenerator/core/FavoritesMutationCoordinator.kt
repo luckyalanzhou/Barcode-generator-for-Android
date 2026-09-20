@@ -101,7 +101,6 @@ internal class FavoritesMutationCoordinator(
         if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
     }
     fun clearFavoritesAndPersist() { store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }; persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
-    fun clearHistoryAndPersist() { store.edit { items.forEach { it.inHistory = false } }; persistItems() }
     fun persistAllFavorites() = persistence.persistAllFavorites(scope, store.itemsSnapshot(), store.groupsSnapshot(), store.foldersSnapshot())
     fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())
     fun persistGroups() = persistence.persistFavoriteGroups(scope, store.groupsSnapshot())

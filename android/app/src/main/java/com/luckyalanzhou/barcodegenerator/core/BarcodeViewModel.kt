@@ -59,6 +59,10 @@ class BarcodeViewModel @Inject constructor(
         repository = barcodeDataCoordinator.repository,
         store = favoritesStateStore,
     )
+    private val historyCoordinator = HistoryCoordinator(
+        store = favoritesStateStore,
+        persistItems = { items -> barcodePersistence.persistItems(viewModelScope, items) },
+    )
 
     private val _dataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
@@ -223,9 +227,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun deleteHistoryBatch(batch: List<CodeItem>) {
-        val ids = batch.map { it.id }.toSet()
-        favoritesStateStore.edit { items.filter { it.id in ids }.forEach { it.inHistory = false } }
-        persistItems()
+        historyCoordinator.deleteBatch(batch)
     }
 
     /** 结果页图片缓存的唯一入口；Compose 不直接访问文件缓存或执行条码生成。 */
@@ -403,7 +405,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun clearHistoryAndPersist() {
-        favoritesCoordinator.clearHistoryAndPersist()
+        historyCoordinator.clearHistory()
         refreshFavoritesAfterMutation()
     }
 
