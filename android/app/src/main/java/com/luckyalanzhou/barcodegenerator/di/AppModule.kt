@@ -8,6 +8,7 @@ import com.luckyalanzhou.barcodegenerator.data.FavoritesBackupUseCase
 import com.luckyalanzhou.barcodegenerator.data.LegacyBarcodeDataMigrator
 import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
+import com.luckyalanzhou.barcodegenerator.data.ExternalFavoritesStore
 import com.luckyalanzhou.barcodegenerator.data.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.data.SettingsStore
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
@@ -71,6 +72,13 @@ object AppModule {
     @Singleton
     internal fun provideLocalBarcodeFileStore(@ApplicationContext context: Context): LocalBarcodeFileStore =
         LocalBarcodeFileStore(context)
+
+    @Provides
+    @Singleton
+    internal fun provideExternalFavoritesStore(
+        @ApplicationContext context: Context,
+        settingsStore: SettingsStore,
+    ): ExternalFavoritesStore = ExternalFavoritesStore(context, settingsStore)
 
     @Provides
     @Singleton

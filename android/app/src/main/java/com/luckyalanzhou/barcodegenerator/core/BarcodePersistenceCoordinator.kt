@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
+import com.luckyalanzhou.barcodegenerator.data.ExternalFavoritesStore
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 class BarcodePersistenceCoordinator(
     private val barcodeRepository: BarcodeRepository,
     private val legacyBarcodeDataMigrator: BarcodeDataMigration,
+    private val externalFavoritesStore: ExternalFavoritesStore,
 ) {
     data class LoadedData(
         val items: List<CodeItem>,
@@ -45,50 +47,54 @@ class BarcodePersistenceCoordinator(
                     group.itemIds.map { itemId -> com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId) }
                 }, folderSnapshot, replaceGroupLinkIds),
             )
+            syncExternalFavorites()
         }
     }
 
     fun persistItems(scope: CoroutineScope, items: List<CodeItem>): Deferred<Result<Unit>> {
         val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
-        return enqueue(scope) { barcodeRepository.saveItems(snapshot) }
+        return enqueue(scope) { barcodeRepository.saveItems(snapshot); syncExternalFavorites() }
     }
 
     fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>): Deferred<Result<Unit>> {
         val snapshot = folders.filter { it.isNotBlank() }.distinct()
-        return enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot) }
+        return enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot); syncExternalFavorites() }
     }
 
     fun clearFavoriteFlags(scope: CoroutineScope, itemIds: List<Long>): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.clearFavoriteFlags(itemIds) }
+        return enqueue(scope) { barcodeRepository.clearFavoriteFlags(itemIds); syncExternalFavorites() }
     }
 
     fun clearAllFavoriteFlags(scope: CoroutineScope): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.clearAllFavoriteFlags() }
+        return enqueue(scope) { barcodeRepository.clearAllFavoriteFlags(); syncExternalFavorites() }
     }
 
     fun clearFavoriteFlagsForGroups(scope: CoroutineScope, groupIds: List<Long>): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.clearFavoriteFlagsForGroups(groupIds) }
+        return enqueue(scope) { barcodeRepository.clearFavoriteFlagsForGroups(groupIds); syncExternalFavorites() }
     }
 
     fun deleteFavoriteGroups(scope: CoroutineScope, groupIds: List<Long>): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.deleteFavoriteGroups(groupIds) }
+        return enqueue(scope) { barcodeRepository.deleteFavoriteGroups(groupIds); syncExternalFavorites() }
     }
 
     fun clearAllFavoriteGroups(scope: CoroutineScope): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.clearAllFavoriteGroups() }
+        return enqueue(scope) { barcodeRepository.clearAllFavoriteGroups(); syncExternalFavorites() }
     }
 
     fun renameFavoriteFolder(scope: CoroutineScope, path: String, renamedPath: String): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.renameFavoriteFolder(path, renamedPath) }
+        return enqueue(scope) { barcodeRepository.renameFavoriteFolder(path, renamedPath); syncExternalFavorites() }
     }
 
     fun deleteFavoriteFolder(scope: CoroutineScope, path: String): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.deleteFavoriteFolder(path) }
+        return enqueue(scope) { barcodeRepository.deleteFavoriteFolder(path); syncExternalFavorites() }
     }
 
     suspend fun load(): LoadedData {
         writeQueue.awaitIdle()
         legacyBarcodeDataMigrator.migrateIfNeeded()
+        if (barcodeRepository.loadGroups().isEmpty()) {
+            externalFavoritesStore.readSnapshot()?.let { snapshot -> barcodeRepository.saveAll(snapshot) }
+        }
         val snapshot = barcodeRepository.loadStartupSnapshot()
         val loadedGroups = snapshot.groups.map { group ->
             FavoriteGroup(
@@ -108,6 +114,10 @@ class BarcodePersistenceCoordinator(
     }
 
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
+
+    internal suspend fun syncExternalFavorites() {
+        externalFavoritesStore.mirror(barcodeRepository.loadSnapshot())
+    }
 
     private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> {
         val deferred = writeQueue.enqueue(scope, write)

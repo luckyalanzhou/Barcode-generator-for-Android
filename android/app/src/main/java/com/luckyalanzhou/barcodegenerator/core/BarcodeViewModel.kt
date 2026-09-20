@@ -143,6 +143,10 @@ class BarcodeViewModel @Inject constructor(
         navigationStateCoordinator.navigateTo(route)
     }
 
+    fun syncExternalFavorites() {
+        viewModelScope.launch(Dispatchers.IO) { barcodeDataCoordinator.syncExternalFavorites() }
+    }
+
     fun prepareMainGenerateTab() {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null, returnPage = AppRoute.Generate, showingHistoryResult = false) }
         navigateTo(AppRoute.Generate)

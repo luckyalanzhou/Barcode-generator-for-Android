@@ -10,6 +10,7 @@ junit = "4.13.2"
 zxing = "3.5.4"
 mlkitText = "16.0.1"
 coreKtx = "1.19.0"
+documentfile = "1.1.0"
 exifinterface = "1.4.2"
 lifecycle = "2.11.0"
 room = "2.8.5"
@@ -33,6 +34,7 @@ zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitText" }
 mlkit-text-recognition-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkitText" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

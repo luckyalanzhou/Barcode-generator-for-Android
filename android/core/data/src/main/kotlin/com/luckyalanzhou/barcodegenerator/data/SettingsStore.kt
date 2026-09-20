@@ -35,6 +35,7 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
+        val FAVORITES_ROOT_URI = stringPreferencesKey("favorites_root_uri")
     }
 
     // 所有设置写入串行执行，避免滑块连续拖动时旧快照晚到并覆盖最新值。
@@ -43,10 +44,12 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     private var writeTail: Job = Job().apply { complete() }
     @Volatile private var cachedValues: Preferences = emptyPreferences()
     @Volatile private var ocrConfusionReplacementMask = 0
+    @Volatile private var cachedFavoritesRootUri: String? = null
 
     override suspend fun load() {
         cachedValues = context.settingsDataStore.data.first()
         ocrConfusionReplacementMask = cachedValues[OCR_CONFUSION_REPLACEMENT_MASK] ?: 0
+        cachedFavoritesRootUri = cachedValues[FAVORITES_ROOT_URI]
     }
 
     fun <T> get(key: Preferences.Key<T>, default: T): T = cachedValues[key] ?: default
@@ -85,6 +88,13 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     }
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }
+
+    override fun getFavoritesRootUri(): String? = cachedFavoritesRootUri
+
+    override fun setFavoritesRootUri(uri: String): Job {
+        cachedFavoritesRootUri = uri.takeUnless { it.isBlank() }
+        return write { if (uri.isBlank()) it.remove(FAVORITES_ROOT_URI) else it[FAVORITES_ROOT_URI] = uri }
+    }
 
     private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Job = synchronized(writeLock) {
         val previous = writeTail

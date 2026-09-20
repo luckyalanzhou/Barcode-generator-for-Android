@@ -21,6 +21,7 @@ data class SettingsUiState(
     val barHeight: Float = 55f,
     val barWidth: Float = 220f,
     val margin: Float = 4f,
+    val favoritesRootUri: String? = null,
 )
 
 /** 设置页状态与设置持久化之间的边界。 */
@@ -68,7 +69,13 @@ class SettingsViewModel @Inject constructor(
             barHeight = style.barHeight.toFloat(),
             barWidth = style.barWidth,
             margin = style.margin.toFloat(),
+            favoritesRootUri = settingsRepository.getFavoritesRootUri(),
         )
+    }
+
+    fun setFavoritesRootUri(uri: String): Job {
+        _uiState.update { it.copy(favoritesRootUri = uri) }
+        return settingsRepository.setFavoritesRootUri(uri)
     }
 
     /** 用完整快照更新设置，避免 UI 逐字段修改可变 StyleSettings。 */

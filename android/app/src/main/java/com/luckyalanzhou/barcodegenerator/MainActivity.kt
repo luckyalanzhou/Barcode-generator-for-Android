@@ -100,10 +100,29 @@ class MainActivity : AppCompatActivity() {
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
+
+    internal fun chooseFavoritesFolder() {
+        favoritesFolderLauncher.launch(null)
+    }
+
     private val externalActivityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         handleExternalActivityResult(viewModel.consumeExternalActivityRequest(), result.resultCode, result.data)
+    }
+    private val favoritesFolderLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri ?: return@registerForActivityResult
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        settingsViewModel.setFavoritesRootUri(uri.toString())
+        viewModel.syncExternalFavorites()
+        toast("收藏文件夹已设置，已保持现有收藏层级")
     }
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),

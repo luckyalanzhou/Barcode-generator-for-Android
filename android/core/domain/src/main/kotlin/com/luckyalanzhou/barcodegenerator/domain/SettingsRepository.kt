@@ -10,4 +10,6 @@ interface SettingsRepository {
     fun getOcrConfusionReplacementMask(): Int
     fun setOcrConfusionReplacementMask(mask: Int): Job
     fun setUpdateError(error: String): Job
+    fun getFavoritesRootUri(): String?
+    fun setFavoritesRootUri(uri: String): Job
 }
