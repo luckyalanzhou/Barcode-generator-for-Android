@@ -50,9 +50,6 @@ class BarcodeViewModel @Inject constructor(
 
     /** 条码与收藏的内部工作集合；对外只发布不可变状态快照。 */
     private val favoritesStateStore = FavoritesStateStore()
-    private val items get() = favoritesStateStore.items
-    private val favoriteGroups get() = favoritesStateStore.groups
-    private val favoriteFolders get() = favoritesStateStore.folders
     private val favoritesCoordinator = FavoritesMutationCoordinator(
         store = favoritesStateStore,
         persistence = barcodePersistence,
@@ -78,7 +75,7 @@ class BarcodeViewModel @Inject constructor(
 
     private val generationCoordinator = GenerateCoordinator(
         useCase = generateBarcodesUseCase,
-        items = items,
+        store = favoritesStateStore,
         readDraft = { _generateEditorState.value.inputDraft },
         persistItems = ::persistItems,
     )
@@ -180,18 +177,24 @@ class BarcodeViewModel @Inject constructor(
 
     private fun openFavoriteGroupWhenLoaded(group: FavoriteGroup, destination: AppRoute) {
         viewModelScope.launch {
-            val currentGroup = favoriteGroups.firstOrNull { it.id == group.id } ?: return@launch
+            var currentGroup = favoritesStateStore.groupsSnapshot().firstOrNull { it.id == group.id } ?: return@launch
             if (currentGroup.itemIds.isEmpty()) {
                 val loadedIds = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadStartupGroupItemIds(currentGroup.id) }
-                currentGroup.itemIds.addAll(loadedIds)
+                favoritesStateStore.edit {
+                    groups.firstOrNull { it.id == currentGroup.id }?.itemIds?.addAll(loadedIds)
+                }
+                currentGroup = currentGroup.copy(itemIds = loadedIds.toMutableList())
             }
-            val missingIds = currentGroup.itemIds.filter { id -> items.none { it.id == id } }
+            val knownItems = favoritesStateStore.itemsSnapshot()
+            val missingIds = currentGroup.itemIds.filter { id -> knownItems.none { it.id == id } }
             if (missingIds.isNotEmpty()) {
                 val loaded = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadItemsByIds(missingIds) }
-                items.addAll(loaded)
+                favoritesStateStore.edit { items.addAll(loaded) }
                 publishDataState()
             }
-            val groupItems = currentGroup.itemIds.mapNotNull { id -> items.firstOrNull { it.id == id } }
+            val groupItems = currentGroup.itemIds.mapNotNull { id ->
+                favoritesStateStore.itemsSnapshot().firstOrNull { it.id == id }
+            }
             _resultUiState.update { it.copy(selectedFavoriteGroup = currentGroup, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
             updateInputDraft(groupItems.map { it.text })
             _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
@@ -221,7 +224,7 @@ class BarcodeViewModel @Inject constructor(
 
     fun deleteHistoryBatch(batch: List<CodeItem>) {
         val ids = batch.map { it.id }.toSet()
-        items.filter { it.id in ids }.forEach { it.inHistory = false }
+        favoritesStateStore.edit { items.filter { it.id in ids }.forEach { it.inHistory = false } }
         persistItems()
     }
 
@@ -247,8 +250,12 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun createFavoriteFolder(path: String): Boolean {
-        if (path.isBlank() || path in favoriteFolders) return false
-        favoriteFolders.add(path)
+        val added = favoritesStateStore.edit {
+            if (path.isBlank() || path in folders) return@edit false
+            folders.add(path)
+            true
+        }
+        if (!added) return false
         persistFavoriteFolders()
         return true
     }
@@ -415,10 +422,12 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun updateFavoriteGroupAndPersist(groupId: Long, name: String, folder: String): Boolean {
-        val group = favoriteGroups.firstOrNull { it.id == groupId } ?: return false
+        if (favoritesStateStore.groupsSnapshot().none { it.id == groupId }) return false
         if (!favoritesCoordinator.updateGroup(groupId, name, folder)) return false
         refreshFavoritesAfterMutation()
-        _resultUiState.update { it.copy(selectedFavoriteGroup = group) }
+        _resultUiState.update {
+            it.copy(selectedFavoriteGroup = favoritesStateStore.groupsSnapshot().firstOrNull { group -> group.id == groupId })
+        }
         return true
     }
 
@@ -433,18 +442,20 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun loadItemsFromRepository() {
-        items.clear()
-        items.addAll(barcodeDataCoordinator.loadItems().map {
+        val loadedItems = barcodeDataCoordinator.loadItems().map {
             CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory)
-        })
+        }
+        favoritesStateStore.edit {
+            items.clear()
+            items.addAll(loadedItems)
+        }
         publishDataState()
     }
 
     suspend fun loadFavoriteGroupsFromRepository() {
-        favoriteGroups.clear()
         val groups = barcodeDataCoordinator.loadGroups()
         val itemIds = barcodeDataCoordinator.loadGroupItems().groupBy { it.groupId }
-        favoriteGroups.addAll(groups.map { group ->
+        val loadedGroups = groups.map { group ->
             FavoriteGroup(
                 group.id,
                 group.folder.takeUnless { it == "默认" } ?: "",
@@ -452,38 +463,38 @@ class BarcodeViewModel @Inject constructor(
                 group.savedAt,
                 itemIds[group.id].orEmpty().map { it.itemId }.toMutableList(),
             )
-        })
+        }
+        favoritesStateStore.edit {
+            this.groups.clear()
+            this.groups.addAll(loadedGroups)
+        }
         favoritesQueryCoordinator.resetPaging(
-            favoriteGroups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
+            loadedGroups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
             false,
         )
         publishDataState()
     }
 
     suspend fun loadFavoriteFoldersFromRepository() {
-        favoriteFolders.clear()
-        favoriteFolders.addAll(
-            (barcodeDataCoordinator.loadFolders() + favoriteGroups.map { it.folder })
+        val folders = (barcodeDataCoordinator.loadFolders() + favoritesStateStore.groupsSnapshot().map { it.folder })
                 .filter { it.isNotBlank() && it != "默认" }
                 .distinct()
                 .sorted()
-        )
+        favoritesStateStore.edit {
+            this.folders.clear()
+            this.folders.addAll(folders)
+        }
         publishDataState()
     }
 
     suspend fun loadPersistedData() {
         _dataState.value = _dataState.value.copy(isReady = false)
         val loaded = barcodePersistence.load()
-        items.clear()
-        items.addAll(loaded.items)
-        favoriteGroups.clear()
-        favoriteGroups.addAll(loaded.groups)
+        favoritesStateStore.replace(loaded.items, loaded.groups, loaded.folders)
         favoritesQueryCoordinator.resetPaging(
-            favoriteGroups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
+            loaded.groups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
             loaded.hasMoreGroups,
         )
-        favoriteFolders.clear()
-        favoriteFolders.addAll(loaded.folders)
         publishDataState(isReady = true)
     }
 

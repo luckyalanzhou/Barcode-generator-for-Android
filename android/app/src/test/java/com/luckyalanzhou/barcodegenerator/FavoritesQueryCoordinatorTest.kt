@@ -23,24 +23,26 @@ class FavoritesQueryCoordinatorTest {
             secondPage = secondPage,
         )
         val store = FavoritesStateStore()
-        store.groups.addAll(firstPage)
+        store.edit { groups.addAll(firstPage) }
         val coordinator = FavoritesQueryCoordinator(repository, store)
         coordinator.resetPaging(FavoriteGroupPageCursor(firstPage.last().savedAt, firstPage.last().id), true)
 
-        store.groups.removeAt(0)
+        store.edit { groups.removeAt(0) }
         coordinator.onMutation()
         assertTrue(coordinator.loadMore())
 
-        assertEquals(100, store.groups.size)
-        assertEquals(101L, store.groups.last().id)
+        assertEquals(100, store.groupsSnapshot().size)
+        assertEquals(101L, store.groupsSnapshot().last().id)
         assertEquals(FavoriteGroupPageCursor(100L, 100L), repository.requestedCursors.single())
     }
 
     @Test
     fun searchAddsOnlyMissingGroupsAndItems() = runBlocking {
         val store = FavoritesStateStore()
-        store.groups.add(group(1L, "命中"))
-        store.items.add(CodeItem(1L, "旧内容", "Code 128-B"))
+        store.edit {
+            groups.add(group(1L, "命中"))
+            items.add(CodeItem(1L, "旧内容", "Code 128-B"))
+        }
         val repository = FakeFavoriteRepository(
             groups = listOf(group(2L, "搜索结果")),
             items = listOf(CodeItem(2L, "搜索内容", "Code 128-B")),
@@ -49,8 +51,8 @@ class FavoritesQueryCoordinatorTest {
 
         coordinator.search("搜索")
 
-        assertEquals(listOf(1L, 2L), store.groups.map { it.id })
-        assertEquals(listOf(1L, 2L), store.items.map { it.id })
+        assertEquals(listOf(1L, 2L), store.groupsSnapshot().map { it.id })
+        assertEquals(listOf(1L, 2L), store.itemsSnapshot().map { it.id })
     }
 
     private fun group(id: Long, name: String = "收藏$id") =

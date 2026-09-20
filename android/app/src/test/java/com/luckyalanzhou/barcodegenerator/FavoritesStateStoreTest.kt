@@ -15,13 +15,15 @@ class FavoritesStateStoreTest {
         store.replace(listOf(item), listOf(group), listOf("一级"))
 
         val snapshot = store.snapshot(isReady = true)
-        store.items[0].text = "B"
-        store.groups[0].itemIds.add(2L)
-        store.folders.add("二级")
+        store.edit {
+            items[0].text = "B"
+            groups[0].itemIds.add(2L)
+            folders.add("二级")
+        }
 
         assertEquals("A", snapshot.items.single().text)
         assertEquals(listOf(1L), snapshot.groups.single().itemIds)
         assertEquals(listOf("一级"), snapshot.folders)
-        assertNotSame(store.items, snapshot.items)
+        assertNotSame(store.itemsSnapshot(), snapshot.items)
     }
 }

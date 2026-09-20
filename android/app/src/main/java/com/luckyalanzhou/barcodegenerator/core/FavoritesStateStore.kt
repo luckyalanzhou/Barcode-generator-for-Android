@@ -10,26 +10,44 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
  * 后续接入 Room Flow 时只需要替换这里的装载入口，不改变页面接口。
  */
 internal class FavoritesStateStore {
-    val items = mutableListOf<CodeItem>()
-    val groups = mutableListOf<FavoriteGroup>()
-    val folders = mutableListOf<String>()
+    private val items = mutableListOf<CodeItem>()
+    private val groups = mutableListOf<FavoriteGroup>()
+    private val folders = mutableListOf<String>()
+
+    internal class Editor internal constructor(
+        val items: MutableList<CodeItem>,
+        val groups: MutableList<FavoriteGroup>,
+        val folders: MutableList<String>,
+    )
+
+    fun <T> edit(block: Editor.() -> T): T =
+        Editor(items, groups, folders).block()
+
+    fun itemsSnapshot(): List<CodeItem> = items.map { it.copy() }
+
+    fun groupsSnapshot(): List<FavoriteGroup> =
+        groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
+
+    fun foldersSnapshot(): List<String> = folders.toList()
 
     fun replace(
         newItems: List<CodeItem>,
         newGroups: List<FavoriteGroup>,
         newFolders: List<String>,
     ) {
-        items.clear()
-        items.addAll(newItems)
-        groups.clear()
-        groups.addAll(newGroups)
-        folders.clear()
-        folders.addAll(newFolders)
+        edit {
+            items.clear()
+            items.addAll(newItems)
+            groups.clear()
+            groups.addAll(newGroups)
+            folders.clear()
+            folders.addAll(newFolders)
+        }
     }
 
     fun snapshot(isReady: Boolean): BarcodeDataState = BarcodeDataState(
-        items = items.map { it.copy() },
-        groups = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) },
+        items = itemsSnapshot(),
+        groups = groupsSnapshot(),
         folders = folders.toList(),
         isReady = isReady,
     )
