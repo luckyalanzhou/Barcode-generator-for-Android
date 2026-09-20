@@ -83,7 +83,8 @@ object FavoritesTransferManager {
                 zip.closeEntry()
             }
             if (hasFavoritesRoot) {
-                require(favorites.map { Triple(it.folder, it.name, it.texts) }.distinct().size == favorites.size) { "跨平台备份中包含重复收藏" }
+                // 每个 ZIP JSON 文件都代表一个独立收藏。相同文件夹、名称和正文
+                // 仍可能对应不同的收藏记录，不能在解析阶段按内容丢弃或拒绝。
                 return InterchangeBackup(favorites, folders.toList())
             }
         }
