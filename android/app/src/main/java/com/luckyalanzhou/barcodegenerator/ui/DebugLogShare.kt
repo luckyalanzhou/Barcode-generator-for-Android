@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.BuildConfig
+import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.shareDebugLogImpl
 
 /** 调试日志导出门面；实现由 Beta/Official 源集在编译期选择。 */
 internal fun MainActivity.shareDebugLog() {

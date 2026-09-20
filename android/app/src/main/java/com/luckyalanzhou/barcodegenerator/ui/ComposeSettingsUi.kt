@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.SettingsViewModel
+import com.luckyalanzhou.barcodegenerator.SettingsUiState
+import com.luckyalanzhou.barcodegenerator.BuildConfig
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState

@@ -1,6 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.BuildConfig
+import com.luckyalanzhou.barcodegenerator.debugLogInitializeImpl
+import com.luckyalanzhou.barcodegenerator.debugLogRecordImpl
+import com.luckyalanzhou.barcodegenerator.debugLogSnapshotImpl
 
 import android.util.Log
 import android.content.Context

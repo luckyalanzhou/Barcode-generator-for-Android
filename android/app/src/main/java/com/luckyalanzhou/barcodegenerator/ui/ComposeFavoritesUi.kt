@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
+import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.ui.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig

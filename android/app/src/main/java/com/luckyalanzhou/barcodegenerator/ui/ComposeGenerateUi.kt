@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
+import com.luckyalanzhou.barcodegenerator.BarcodeEvent
+import com.luckyalanzhou.barcodegenerator.barcodeFormats
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
