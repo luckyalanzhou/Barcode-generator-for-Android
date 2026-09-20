@@ -10,5 +10,21 @@ internal object LanShareWebStyles {
 @media (min-width:600px) and (max-width:1199px){main{max-width:820px;padding-bottom:96px}.bar{padding:22px 28px 14px;font-size:22px}.connection-status{font-size:14px}ul{gap:12px;padding:0 24px}li{max-width:72%;padding:12px 15px;border-radius:20px}.image-item{max-width:min(56vw,460px)}.media-preview{max-height:380px}.bottom{padding:14px 24px max(14px,env(safe-area-inset-bottom))}.bottom form{max-width:760px}.file-picker,.send-button{width:48px;height:48px;flex-basis:48px}.message-input{height:48px}}
 /* PC: wide centered workspace with larger previews and comfortable controls. */
 @media (min-width:1200px){body{font-size:16px}main{max-width:1180px;padding-bottom:110px}.bar{padding:28px 42px 18px;font-size:26px}.connection-status{font-size:15px}ul{gap:14px;padding:0 42px}li{max-width:58%;padding:14px 18px;border-radius:22px;gap:5px 12px}.image-item{max-width:520px;padding:10px 10px 12px}.media-preview{max-height:520px}.bottom{padding:18px 42px max(18px,env(safe-area-inset-bottom))}.bottom form{max-width:1080px;gap:12px}.file-picker,.send-button{width:52px;height:52px;flex-basis:52px}.message-input{height:52px;font-size:16px}.download{padding:9px 15px}}
+</style>
+<style>
+/* Screenshot-aligned shell: full-width header and bottom composer. */
+:root{--web-header-height:74px}
+body{background:var(--bg)}
+.bar{width:100%;height:var(--web-header-height);padding:0 24px;background:var(--panel);border-bottom:1px solid var(--line);font-size:24px;line-height:1}
+.bar>span:first-child{font-weight:700;color:var(--text)}
+main{width:100%;max-width:none;min-height:calc(100vh - var(--web-header-height));background:var(--bg);padding-bottom:110px}
+.bottom{padding:14px 24px max(14px,env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--line)}
+.bottom form{max-width:none}
+.file-picker{width:44px;height:56px;flex-basis:44px;border:0;border-radius:0;background:transparent;color:var(--accent);font-size:34px;font-weight:500;line-height:1;padding:0}
+.message-input{height:56px;border-radius:28px;border-color:var(--line);background:transparent;font-size:18px;padding:0 22px}
+.send-button{width:88px;height:56px;flex-basis:88px;border:0;border-radius:28px;background:var(--accent);font-size:18px;font-weight:700}
+@media (max-width:599px){.bar{height:62px;padding:0 16px;font-size:20px}.connection-status{font-size:12px}main{min-height:calc(100vh - 62px);padding-bottom:88px}.bottom{padding:10px 12px max(10px,env(safe-area-inset-bottom))}.message-input{height:48px;border-radius:24px;font-size:16px;padding:0 16px}.file-picker{height:48px;width:36px;flex-basis:36px;font-size:30px}.send-button{height:48px;width:68px;flex-basis:68px;border-radius:24px;font-size:16px}}
+@media (min-width:600px) and (max-width:1199px){.bar{height:70px;padding:0 28px;font-size:22px}main{min-height:calc(100vh - 70px)}.bottom{padding:14px 28px max(14px,env(safe-area-inset-bottom))}.send-button{width:80px;flex-basis:80px}}
+@media (min-width:1200px){.bar{height:74px;padding:0 24px;font-size:24px}main{min-height:calc(100vh - 74px)}.bottom{padding:14px 32px max(14px,env(safe-area-inset-bottom))}}
 </style></head>"""
 }
