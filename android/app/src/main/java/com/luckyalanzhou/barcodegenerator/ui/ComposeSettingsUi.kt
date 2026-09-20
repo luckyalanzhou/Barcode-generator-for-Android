@@ -194,7 +194,7 @@ internal fun ComposeSettingsPage(
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = ocrMenu,
-                                menuWidth = 120.dp,
+                                menuWidth = 140.dp,
                                 anchorWidth = ocrWidth,
                                 onDismiss = { ocrMenu = false },
                             ) {
@@ -209,7 +209,7 @@ internal fun ComposeSettingsPage(
                                             Icon(
                                                 imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
                                                 contentDescription = if (checked) "已选中" else "未选中",
-                                                tint = colors.primary,
+                                                tint = if (checked) colors.accent else colors.secondary,
                                                 modifier = Modifier.padding(end = 12.dp).size(24.dp),
                                             )
                                         },
