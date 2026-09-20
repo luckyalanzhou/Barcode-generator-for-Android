@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -14,19 +15,19 @@ internal class FavoritesQueryCoordinator(
 ) {
     private val items get() = store.items
     private val groups get() = store.groups
-    private var offset = 0
+    private var cursor: FavoriteGroupPageCursor? = null
     private var hasMore = false
     private var loadingMore = false
 
-    fun resetPaging(initialOffset: Int, initialHasMore: Boolean) {
-        offset = initialOffset
+    fun resetPaging(initialCursor: FavoriteGroupPageCursor?, initialHasMore: Boolean) {
+        cursor = initialCursor
         hasMore = initialHasMore
         loadingMore = false
     }
 
     /** Keeps the next-page cursor aligned after an in-memory favorite mutation. */
     fun onMutation() {
-        offset = groups.size
+        cursor = groups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) }
         loadingMore = false
     }
 
@@ -51,11 +52,11 @@ internal class FavoritesQueryCoordinator(
         loadingMore = true
         return try {
             val page = withContext(Dispatchers.IO) {
-                repository.loadFavoriteGroupPage(FAVORITE_GROUP_PAGE_SIZE, offset)
+                repository.loadFavoriteGroupPage(FAVORITE_GROUP_PAGE_SIZE, cursor)
             }
             val knownIds = groups.mapTo(HashSet()) { it.id }
             groups.addAll(page.filterNot { it.id in knownIds })
-            offset += page.size
+            page.lastOrNull()?.let { cursor = FavoriteGroupPageCursor(it.savedAt, it.id) }
             hasMore = page.size == FAVORITE_GROUP_PAGE_SIZE
             true
         } finally {

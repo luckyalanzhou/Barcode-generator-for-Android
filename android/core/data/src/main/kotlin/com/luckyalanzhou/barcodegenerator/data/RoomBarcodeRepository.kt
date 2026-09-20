@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 
 import androidx.room.withTransaction
 import org.json.JSONArray
@@ -149,8 +150,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun loadGroupItemIds(groupId: Long): List<Long> = dao.loadGroupItemIds(groupId)
 
-    override suspend fun loadFavoriteGroupPage(limit: Int, offset: Int): List<FavoriteGroup> =
-        dao.loadGroupsPage(limit, offset).map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
+    override suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup> =
+        dao.loadGroupsPage(limit, cursor?.savedAt, cursor?.id)
+            .map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
 
     override suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup> =
         if (ids.isEmpty()) emptyList() else dao.loadGroupsByIds(ids).map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
@@ -173,12 +175,13 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     }
 
     override suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot = database.withTransaction {
+        val startupGroups = dao.loadGroupsPage(101, null, null)
         StartupBarcodeSnapshot(
             items = dao.loadStartupItems().map(CodeItemEntity::toDomain),
-            groups = dao.loadGroupsPage(100, 0).map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) },
+            groups = startupGroups.take(100).map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) },
             links = emptyList(),
             folders = dao.loadFolders().map { it.name },
-            hasMoreGroups = dao.loadGroupsPage(100, 100).isNotEmpty(),
+            hasMoreGroups = startupGroups.size > 100,
         )
     }
 

@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import kotlinx.coroutines.runBlocking
@@ -14,7 +15,7 @@ import org.junit.Test
 
 class FavoritesQueryCoordinatorTest {
     @Test
-    fun paginationLoadsNextPageAfterLoadedGroupIsDeleted() = runBlocking {
+    fun paginationUsesStableCursorAfterLoadedGroupIsDeleted() = runBlocking {
         val firstPage = (1L..100L).map { group(it) }
         val secondPage = (101L..101L).map { group(it) }
         val repository = FakeFavoriteRepository(
@@ -24,7 +25,7 @@ class FavoritesQueryCoordinatorTest {
         val store = FavoritesStateStore()
         store.groups.addAll(firstPage)
         val coordinator = FavoritesQueryCoordinator(repository, store)
-        coordinator.resetPaging(store.groups.size, true)
+        coordinator.resetPaging(FavoriteGroupPageCursor(firstPage.last().savedAt, firstPage.last().id), true)
 
         store.groups.removeAt(0)
         coordinator.onMutation()
@@ -32,7 +33,7 @@ class FavoritesQueryCoordinatorTest {
 
         assertEquals(100, store.groups.size)
         assertEquals(101L, store.groups.last().id)
-        assertEquals(99, repository.requestedOffsets.single())
+        assertEquals(FavoriteGroupPageCursor(100L, 100L), repository.requestedCursors.single())
     }
 
     @Test
@@ -62,12 +63,12 @@ private class FakeFavoriteRepository(
     private val firstPage: List<FavoriteGroup> = groups,
     private val secondPage: List<FavoriteGroup> = emptyList(),
 ) : BarcodeRepository {
-    val requestedOffsets = mutableListOf<Int>()
+    val requestedCursors = mutableListOf<FavoriteGroupPageCursor?>()
 
-    override suspend fun loadFavoriteGroupPage(limit: Int, offset: Int): List<FavoriteGroup> {
-        requestedOffsets += offset
-        return when (offset) {
-            99 -> secondPage
+    override suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup> {
+        requestedCursors += cursor
+        return when (cursor) {
+            FavoriteGroupPageCursor(100L, 100L) -> secondPage
             else -> firstPage.take(limit)
         }
     }

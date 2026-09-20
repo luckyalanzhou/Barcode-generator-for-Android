@@ -64,7 +64,8 @@ interface BarcodeDao {
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (SELECT itemId FROM favorite_group_items WHERE groupId IN (:groupIds)) AND NOT EXISTS (SELECT 1 FROM favorite_group_items remaining WHERE remaining.itemId = code_items.id AND remaining.groupId NOT IN (:groupIds))") suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
 
     @Query("SELECT * FROM favorite_groups ORDER BY savedAt DESC, id DESC") suspend fun loadGroups(): List<FavoriteGroupEntity>
-    @Query("SELECT * FROM favorite_groups ORDER BY savedAt DESC, id DESC LIMIT :limit OFFSET :offset") suspend fun loadGroupsPage(limit: Int, offset: Int): List<FavoriteGroupEntity>
+    @Query("SELECT * FROM favorite_groups WHERE :cursorSavedAt IS NULL OR savedAt < :cursorSavedAt OR (savedAt = :cursorSavedAt AND id < :cursorId) ORDER BY savedAt DESC, id DESC LIMIT :limit")
+    suspend fun loadGroupsPage(limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Query("SELECT * FROM favorite_groups WHERE id IN (:ids) ORDER BY savedAt DESC, id DESC") suspend fun loadGroupsByIds(ids: List<Long>): List<FavoriteGroupEntity>
     @Query("SELECT id FROM favorite_groups WHERE lower(name) LIKE '%' || lower(:query) || '%' OR lower(folder) LIKE '%' || lower(:query) || '%'") suspend fun searchFavoriteGroupIdsByMetadata(query: String): List<Long>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveGroups(groups: List<FavoriteGroupEntity>)

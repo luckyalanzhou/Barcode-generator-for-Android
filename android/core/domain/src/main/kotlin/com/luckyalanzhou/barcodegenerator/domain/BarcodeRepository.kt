@@ -14,6 +14,12 @@ data class BarcodeSnapshot(
     val folders: List<String>,
 )
 
+/** Stable cursor for favorite-group paging; avoids OFFSET drift after mutations. */
+data class FavoriteGroupPageCursor(
+    val savedAt: Long,
+    val id: Long,
+)
+
 /** 启动快照：只保留收藏条码和最近历史，避免旧历史无限增长拖慢冷启动。 */
 data class StartupBarcodeSnapshot(
     val items: List<CodeItem>,
@@ -53,7 +59,7 @@ interface BarcodeRepository {
     suspend fun loadGroups(): List<FavoriteGroup>
     suspend fun loadGroupItems(): List<FavoriteGroupItem>
     suspend fun loadGroupItemIds(groupId: Long): List<Long>
-    suspend fun loadFavoriteGroupPage(limit: Int, offset: Int): List<FavoriteGroup>
+    suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup>
     suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup>
     suspend fun searchFavoriteGroupIds(query: String): List<Long>
     suspend fun loadFolders(): List<String>

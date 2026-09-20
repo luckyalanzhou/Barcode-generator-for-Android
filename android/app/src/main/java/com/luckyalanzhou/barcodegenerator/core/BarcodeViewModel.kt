@@ -25,6 +25,7 @@ import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
@@ -452,7 +453,10 @@ class BarcodeViewModel @Inject constructor(
                 itemIds[group.id].orEmpty().map { it.itemId }.toMutableList(),
             )
         })
-        favoritesQueryCoordinator.resetPaging(favoriteGroups.size, false)
+        favoritesQueryCoordinator.resetPaging(
+            favoriteGroups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
+            false,
+        )
         publishDataState()
     }
 
@@ -474,7 +478,10 @@ class BarcodeViewModel @Inject constructor(
         items.addAll(loaded.items)
         favoriteGroups.clear()
         favoriteGroups.addAll(loaded.groups)
-        favoritesQueryCoordinator.resetPaging(favoriteGroups.size, loaded.hasMoreGroups)
+        favoritesQueryCoordinator.resetPaging(
+            favoriteGroups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
+            loaded.hasMoreGroups,
+        )
         favoriteFolders.clear()
         favoriteFolders.addAll(loaded.folders)
         publishDataState(isReady = true)
