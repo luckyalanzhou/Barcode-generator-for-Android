@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.luckyalanzhou.barcodegenerator.ui.DebugLog
 import kotlinx.coroutines.Job
 import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
@@ -211,9 +212,18 @@ class BarcodeViewModel @Inject constructor(
 
     private fun openFavoriteGroupWhenLoaded(group: FavoriteGroup, destination: AppRoute) {
         viewModelScope.launch {
-            var currentGroup = favoritesStateStore.groupsSnapshot().firstOrNull { it.id == group.id } ?: return@launch
+            var currentGroup = favoritesStateStore.groupsSnapshot().firstOrNull { it.id == group.id }
+            if (currentGroup == null) {
+                DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
+                return@launch
+            }
+            DebugLog.record(
+                "favorites",
+                "open start groupId=${currentGroup.id} name=${currentGroup.name} cachedItemIds=${currentGroup.itemIds.size} destination=$destination",
+            )
             if (currentGroup.itemIds.isEmpty()) {
                 val loadedIds = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadStartupGroupItemIds(currentGroup.id) }
+                DebugLog.record("favorites", "group links loaded groupId=${currentGroup.id} itemIds=${loadedIds.size}")
                 favoritesStateStore.edit {
                     groups.firstOrNull { it.id == currentGroup.id }?.itemIds?.addAll(loadedIds)
                 }
@@ -231,6 +241,10 @@ class BarcodeViewModel @Inject constructor(
             val groupItems = currentGroup.itemIds.mapNotNull { id ->
                 itemsById[id]
             }
+            DebugLog.record(
+                "favorites",
+                "open complete groupId=${currentGroup.id} linkIds=${currentGroup.itemIds.size} knownItems=${knownItems.size} missingLoaded=${missingIds.size} resultItems=${groupItems.size}",
+            )
             _resultUiState.update { it.copy(selectedFavoriteGroup = currentGroup, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
             if (destination == AppRoute.Generate) {
                 updateInputDraft(groupItems.map { it.text })
