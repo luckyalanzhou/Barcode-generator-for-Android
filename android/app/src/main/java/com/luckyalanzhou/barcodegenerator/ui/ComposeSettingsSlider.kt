@@ -33,6 +33,7 @@ internal fun SettingsSliderRow(
     onChange: (Float) -> Unit,
 ) {
     val sliderAccent = accent.copy(alpha = 0.72f)
+    val secondary = LocalBarcodeThemeColors.current.secondary
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
         Slider(
@@ -70,9 +71,18 @@ internal fun SettingsSliderRow(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val valueStyle = TextStyle(color = sliderAccent, fontSize = 15.sp, fontWeight = FontWeight.Normal)
-            Text(valueParts.firstOrNull().orEmpty(), style = valueStyle, textAlign = TextAlign.End, modifier = Modifier.width(38.dp))
-            Text(valueParts.getOrNull(1).orEmpty(), style = valueStyle, textAlign = TextAlign.End, modifier = Modifier.width(20.dp))
+            Text(
+                valueParts.firstOrNull().orEmpty(),
+                style = TextStyle(color = sliderAccent, fontSize = 15.sp, fontWeight = FontWeight.Normal),
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(38.dp),
+            )
+            Text(
+                valueParts.getOrNull(1).orEmpty(),
+                style = TextStyle(color = secondary, fontSize = 13.sp, fontWeight = FontWeight.Normal),
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(20.dp),
+            )
         }
     }
 }
