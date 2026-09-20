@@ -8,6 +8,10 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /** 条码、历史与收藏的持久化协调器，隔离 ViewModel 与具体数据源。 */
 class BarcodePersistenceCoordinator(
@@ -22,6 +26,8 @@ class BarcodePersistenceCoordinator(
     )
 
     private val writeQueue = PersistenceWriteQueue()
+    private val _writeFailures = MutableSharedFlow<Throwable>(extraBufferCapacity = 8)
+    val writeFailures: SharedFlow<Throwable> = _writeFailures.asSharedFlow()
 
     fun persistAllFavorites(
         scope: CoroutineScope,
@@ -102,6 +108,14 @@ class BarcodePersistenceCoordinator(
 
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
 
-    private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> =
-        writeQueue.enqueue(scope, write)
+    private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> {
+        val deferred = writeQueue.enqueue(scope, write)
+        scope.launch {
+            runCatching { deferred.await() }
+                .getOrNull()
+                ?.exceptionOrNull()
+                ?.let { _writeFailures.emit(it) }
+        }
+        return deferred
+    }
 }

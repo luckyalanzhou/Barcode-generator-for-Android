@@ -120,8 +120,8 @@ internal fun ComposeFavoritesPage(
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
             .distinctUntilChanged()
             .collect { lastVisible ->
-                if (normalizedQuery.isEmpty() && rows != null && lastVisible >= rows!!.size - 5) {
-                    viewModel.loadMoreFavoriteGroups()
+                if (rows != null && lastVisible >= rows!!.size - 5) {
+                    viewModel.loadMoreFavoriteGroups(normalizedQuery)
                 }
             }
     }

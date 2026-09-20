@@ -69,6 +69,27 @@ class FavoritesQueryCoordinatorTest {
         assertEquals(listOf(2L), store.groupsSnapshot().single().itemIds)
     }
 
+    @Test
+    fun searchLoadsTheNextPageWithAnOffset() = runBlocking {
+        val repository = FakeFavoriteRepository(
+            groups = (1L..101L).map { group(it, "搜索结果$it") },
+        )
+        val store = FavoritesStateStore()
+        val coordinator = FavoritesQueryCoordinator(repository, store)
+
+        coordinator.search("搜索")
+
+        assertEquals(50, store.groupsSnapshot().size)
+        assertEquals(1L, store.groupsSnapshot().first().id)
+        assertEquals(50L, store.groupsSnapshot().last().id)
+
+        assertTrue(coordinator.loadMore("搜索"))
+
+        assertEquals(100, store.groupsSnapshot().size)
+        assertEquals(51L, store.groupsSnapshot()[50].id)
+        assertEquals(100L, store.groupsSnapshot().last().id)
+    }
+
     private fun group(id: Long, name: String = "收藏$id") =
         FavoriteGroup(id, "一级", name, id, mutableListOf())
 }
@@ -89,9 +110,9 @@ private class FakeFavoriteRepository(
         }
     }
 
-    override suspend fun searchFavoriteGroupIds(query: String) = groups.map { it.id }
+    override suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int) = groups.drop(offset).take(limit)
     override suspend fun loadFavoriteGroupsByIds(ids: List<Long>) = groups.filter { it.id in ids }
-    override suspend fun searchFavoriteItems(query: String) = items
+    override suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int) = items.drop(offset).take(limit)
 
     override suspend fun saveAll(snapshot: BarcodeSnapshot) = Unit
     override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) = Unit

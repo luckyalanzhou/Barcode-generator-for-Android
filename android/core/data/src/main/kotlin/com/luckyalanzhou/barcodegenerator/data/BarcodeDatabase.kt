@@ -68,7 +68,7 @@ interface BarcodeDao {
     @Query("SELECT * FROM code_items ORDER BY createdAt DESC, id DESC") suspend fun loadItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500") suspend fun loadStartupItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE id IN (:ids)") suspend fun loadItemsByIds(ids: List<Long>): List<CodeItemEntity>
-    @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' ORDER BY ci.createdAt DESC, ci.id DESC") suspend fun searchFavoriteItems(query: String): List<CodeItemEntity>
+    @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' ORDER BY ci.createdAt DESC, ci.id DESC LIMIT :limit OFFSET :offset") suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int): List<CodeItemEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveItems(items: List<CodeItemEntity>)
     @Query("DELETE FROM code_items") suspend fun clearItems()
     @Query("DELETE FROM code_items WHERE favorite = 0") suspend fun clearNonFavoriteItems()
@@ -82,7 +82,7 @@ interface BarcodeDao {
     @Query("SELECT * FROM favorite_groups WHERE :cursorSavedAt IS NULL OR savedAt < :cursorSavedAt OR (savedAt = :cursorSavedAt AND id < :cursorId) ORDER BY savedAt DESC, id DESC LIMIT :limit")
     suspend fun loadGroupsPage(limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Query("SELECT * FROM favorite_groups WHERE id IN (:ids) ORDER BY savedAt DESC, id DESC") suspend fun loadGroupsByIds(ids: List<Long>): List<FavoriteGroupEntity>
-    @Query("SELECT id FROM favorite_groups WHERE lower(name) LIKE '%' || lower(:query) || '%' OR lower(folder) LIKE '%' || lower(:query) || '%'") suspend fun searchFavoriteGroupIdsByMetadata(query: String): List<Long>
+    @Query("SELECT DISTINCT fg.* FROM favorite_groups AS fg LEFT JOIN favorite_group_items AS links ON links.groupId = fg.id LEFT JOIN code_items AS items ON items.id = links.itemId WHERE lower(fg.name) LIKE '%' || lower(:query) || '%' OR lower(fg.folder) LIKE '%' || lower(:query) || '%' OR lower(items.text) LIKE '%' || lower(:query) || '%' ORDER BY fg.savedAt DESC, fg.id DESC LIMIT :limit OFFSET :offset") suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int): List<FavoriteGroupEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveGroups(groups: List<FavoriteGroupEntity>)
     @Query("DELETE FROM favorite_groups") suspend fun clearGroups()
     @Query("DELETE FROM favorite_groups WHERE id NOT IN (:retainedIds)") suspend fun deleteGroupsExcept(retainedIds: List<Long>)
@@ -98,7 +98,6 @@ interface BarcodeDao {
     @Query("DELETE FROM favorite_group_items WHERE groupId NOT IN (:retainedGroupIds)") suspend fun deleteGroupItemsExcept(retainedGroupIds: List<Long>)
     @Query("DELETE FROM favorite_group_items WHERE groupId IN (:groupIds)") suspend fun clearGroupItemsForGroups(groupIds: List<Long>)
     @Query("DELETE FROM favorite_group_items WHERE groupId IN (:groupIds)") suspend fun deleteGroupItems(groupIds: List<Long>)
-    @Query("SELECT DISTINCT groupId FROM favorite_group_items links INNER JOIN code_items items ON items.id = links.itemId WHERE lower(items.text) LIKE '%' || lower(:query) || '%'") suspend fun searchFavoriteGroupIdsByContent(query: String): List<Long>
 
     @Query("SELECT * FROM favorite_folders ORDER BY name") suspend fun loadFolders(): List<FavoriteFolderEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveFolders(folders: List<FavoriteFolderEntity>)

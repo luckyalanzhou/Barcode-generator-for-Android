@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.LocalConfiguration
+import kotlinx.coroutines.flow.collect
 
 /** Compose 根层所需的状态和事件边界；Activity 只在入口处组装这些依赖。 */
 internal data class ComposeAppShellDependencies(
@@ -107,6 +108,12 @@ internal fun ComposeAppShell(
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
         if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
             dependencies.actions.ensureLanShare()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        dependencies.viewModel.persistenceFailures.collect {
+            dependencies.actions.notice("数据保存失败，请稍后重试")
         }
     }
 

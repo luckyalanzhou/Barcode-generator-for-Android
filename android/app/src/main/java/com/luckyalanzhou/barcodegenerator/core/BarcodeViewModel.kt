@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import com.google.zxing.BarcodeFormat
 import kotlinx.coroutines.Dispatchers
@@ -106,6 +107,17 @@ class BarcodeViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
+    private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    val persistenceFailures: SharedFlow<Unit> = _persistenceFailures.asSharedFlow()
+
+    init {
+        viewModelScope.launch {
+            barcodePersistence.writeFailures.collect { error ->
+                appLogger.record("persistence", "write failed", error)
+                _persistenceFailures.emit(Unit)
+            }
+        }
+    }
 
     /** 发布只读快照，页面不会直接观察可变集合。 */
     fun publishDataState(isReady: Boolean = _dataState.value.isReady) {
@@ -452,7 +464,11 @@ class BarcodeViewModel @Inject constructor(
         favoritesLoadCoordinator.loadPersistedData()
     }
 
-    fun loadMoreFavoriteGroups() {
+    fun loadMoreFavoriteGroups(search: String = "") {
+        if (search.isNotBlank()) {
+            viewModelScope.launch { favoritesLoadCoordinator.loadMoreFavoriteGroups(search) }
+            return
+        }
         viewModelScope.launch { favoritesLoadCoordinator.loadMoreFavoriteGroups() }
     }
 

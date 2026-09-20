@@ -1,29 +1,29 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotSame
 import org.junit.Test
 
 class FavoritesStateStoreTest {
     @Test
-    fun snapshotIsImmutableFromStoreMutations() {
+    fun concurrentSnapshotsAndEditsRemainConsistent() = runBlocking {
         val store = FavoritesStateStore()
-        val item = CodeItem(1L, "A", "Code 128-B")
-        val group = FavoriteGroup(1L, "一级", "收藏", 1L, mutableListOf(1L))
-        store.replace(listOf(item), listOf(group), listOf("一级"))
-
-        val snapshot = store.snapshot(isReady = true)
-        store.edit {
-            items[0].text = "B"
-            groups[0].itemIds.add(2L)
-            folders.add("二级")
+        val writers = (1L..8L).map { writer ->
+            async(Dispatchers.Default) {
+                repeat(100) { index ->
+                    store.edit { items += CodeItem(writer * 1_000 + index, "内容", "Code 128-B") }
+                    store.snapshot(isReady = true)
+                }
+            }
         }
 
-        assertEquals("A", snapshot.items.single().text)
-        assertEquals(listOf(1L), snapshot.groups.single().itemIds)
-        assertEquals(listOf("一级"), snapshot.folders)
-        assertNotSame(store.itemsSnapshot(), snapshot.items)
+        writers.awaitAll()
+
+        assertEquals(800, store.itemsSnapshot().size)
+        assertEquals(800, store.snapshot(true).items.size)
     }
 }

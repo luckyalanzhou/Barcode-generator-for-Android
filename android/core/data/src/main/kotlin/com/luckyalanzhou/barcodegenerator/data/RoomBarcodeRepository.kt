@@ -72,8 +72,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem> =
         if (ids.isEmpty()) emptyList() else dao.loadItemsByIds(ids).map(CodeItemEntity::toDomain)
 
-    override suspend fun searchFavoriteItems(query: String): List<CodeItem> =
-        if (query.isBlank()) emptyList() else dao.searchFavoriteItems(query).map(CodeItemEntity::toDomain)
+    override suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int): List<CodeItem> =
+        if (query.isBlank() || limit <= 0) emptyList()
+        else dao.searchFavoriteItems(query, limit, offset).map(CodeItemEntity::toDomain)
 
     override suspend fun clearFavoriteFlags(ids: List<Long>) {
         if (ids.isNotEmpty()) dao.clearFavoriteFlags(ids)
@@ -175,11 +176,21 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             }
         }
 
-    override suspend fun searchFavoriteGroupIds(query: String): List<Long> {
-        if (query.isBlank()) return emptyList()
-        val metadataIds = dao.searchFavoriteGroupIdsByMetadata(query)
-        return (metadataIds + dao.searchFavoriteGroupIdsByContent(query)).distinct()
-    }
+    override suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int): List<FavoriteGroup> =
+        if (query.isBlank() || limit <= 0) emptyList()
+        else {
+            val groups = dao.searchFavoriteGroups(query, limit, offset)
+            val itemIdsByGroup = dao.loadGroupItemsByGroupIds(groups.map { it.id }).groupBy { it.groupId }
+            groups.map { group ->
+                FavoriteGroup(
+                    group.id,
+                    group.folder,
+                    group.name,
+                    group.savedAt,
+                    itemIdsByGroup[group.id].orEmpty().map { it.itemId }.toMutableList(),
+                )
+            }
+        }
 
     override suspend fun loadFolders(): List<String> = dao.loadFolders().map { it.name }
 

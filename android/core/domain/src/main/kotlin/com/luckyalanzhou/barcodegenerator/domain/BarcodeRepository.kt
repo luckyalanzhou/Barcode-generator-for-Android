@@ -44,7 +44,7 @@ interface BarcodeRepository {
     suspend fun saveItems(items: List<CodeItem>)
     suspend fun upsertItems(items: List<CodeItem>)
     suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem>
-    suspend fun searchFavoriteItems(query: String): List<CodeItem>
+    suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int): List<CodeItem>
     suspend fun clearFavoriteFlags(ids: List<Long>)
     suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
     suspend fun clearAllFavoriteFlags()
@@ -61,7 +61,7 @@ interface BarcodeRepository {
     suspend fun loadGroupItemIds(groupId: Long): List<Long>
     suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup>
     suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup>
-    suspend fun searchFavoriteGroupIds(query: String): List<Long>
+    suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int): List<FavoriteGroup>
     suspend fun loadFolders(): List<String>
     suspend fun loadSnapshot(): BarcodeSnapshot
     suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot
