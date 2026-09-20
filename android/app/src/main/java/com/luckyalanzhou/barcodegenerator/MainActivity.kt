@@ -223,7 +223,6 @@ class MainActivity : AppCompatActivity() {
         }
         when (viewModel.uiState.value.page) {
             AppRoute.Settings -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage)
-            AppRoute.BetaTestCenter -> viewModel.navigateTo(AppRoute.Settings)
             AppRoute.LanShare -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }
             AppRoute.Results -> viewModel.navigateTo(viewModel.resultUiState.value.returnPage)
             else -> finish()

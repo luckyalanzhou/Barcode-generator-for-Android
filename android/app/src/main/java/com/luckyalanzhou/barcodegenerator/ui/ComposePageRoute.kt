@@ -86,7 +86,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onRestoreFavorites = dependencies.actions::restoreFavorites,
                     onExportFavorites = dependencies.actions::exportFavorites,
-                    onFeatureSelfTest = dependencies.actions::featureSelfTest,
+                    onShareDebugLog = dependencies.actions::shareDebugLog,
                     onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onNotice = dependencies.actions::notice,
                 )
@@ -101,15 +101,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onSaveFile = dependencies.actions::saveLanShareFile,
                     onNotice = dependencies.actions::notice,
                     onCopyAddress = dependencies.actions::copyLanShareAddress,
-                )
-            }
-            AppRoute.BetaTestCenter -> {
-                BetaTestCenterComposePage(
-                    dark = dark,
-                    entries = dependencies.betaTestEntries,
-                    viewModel = dependencies.viewModel,
-                    onNavigate = { pageName -> dependencies.actions.navigateTo(AppRoute.fromPage(pageName)) },
-                    onShareDebugLog = dependencies.actions::shareDebugLog,
                 )
             }
         }

@@ -96,7 +96,7 @@ private fun createLanShareQrBitmap(value: String, foreground: Int, background: I
     }
 }
 
-/** Beta 测试中心的二维码模拟也复用实际二维码弹窗的 Compose 结构。 */
+/** 二维码弹窗统一复用实际的 Compose 结构。 */
 internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShareSession? = null) {
     val simulated = simulatedSession != null
     val lanState = lanShareViewModel.uiState.value

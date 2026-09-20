@@ -13,7 +13,6 @@ enum class NavigationRoute(
     Settings("settings", "设置", true, 3),
     Results("results", "", false, null),
     LanShare("lanShare", "局域网分享", false, null),
-    BetaTestCenter("betaTestCenter", "Beta 测试中心", false, null),
     ;
 
     companion object {

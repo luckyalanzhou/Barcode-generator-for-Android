@@ -192,7 +192,7 @@ class BarcodeViewModel @Inject constructor(
     private fun mainTabPageForCurrentPage(): AppRoute = when (_uiState.value.page) {
         AppRoute.History -> AppRoute.History
         AppRoute.Favorites -> AppRoute.Favorites
-        AppRoute.Settings, AppRoute.BetaTestCenter -> AppRoute.Settings
+        AppRoute.Settings -> AppRoute.Settings
         AppRoute.Results -> when (_resultUiState.value.returnPage) {
             AppRoute.History -> AppRoute.History
             AppRoute.Favorites -> AppRoute.Favorites

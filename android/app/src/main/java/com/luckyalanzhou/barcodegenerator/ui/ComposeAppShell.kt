@@ -57,7 +57,6 @@ internal data class ComposeAppShellDependencies(
     val settingsViewModel: SettingsViewModel,
     val lanShareViewModel: LanShareViewModel,
     val actions: ComposeAppShellActions,
-    val betaTestEntries: List<BetaTestEntry>,
 )
 
 /** 创建唯一的 Compose 根节点；业务状态仍由 MainActivity/ViewModel 保存。 */
@@ -74,7 +73,6 @@ internal fun MainActivity.buildComposeShell() {
                         settingsViewModel = activity.settingsViewModel,
                         lanShareViewModel = activity.lanShareViewModel,
                         actions = activity.composeAppShellActions(),
-                        betaTestEntries = activity.betaTestEntries(),
                     ),
                 )
             }

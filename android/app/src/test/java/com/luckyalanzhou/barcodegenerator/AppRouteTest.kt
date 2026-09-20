@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,9 +14,8 @@ class AppRouteTest {
         assertEquals(1, AppRoute.History.mainTabIndex)
         assertTrue(AppRoute.History.chromeVisible)
 
-        assertEquals(AppRoute.BetaTestCenter, AppRoute.fromPage("betaTestCenter"))
-        assertFalse(AppRoute.BetaTestCenter.chromeVisible)
-        assertEquals("Beta 测试中心", AppRoute.BetaTestCenter.title)
+        assertEquals(AppRoute.Settings, AppRoute.fromPage("settings"))
+        assertEquals("设置", AppRoute.Settings.title)
     }
 
     @Test

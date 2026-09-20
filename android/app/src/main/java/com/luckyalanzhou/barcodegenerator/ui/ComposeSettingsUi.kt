@@ -73,7 +73,7 @@ internal fun ComposeSettingsPage(
     onEnterLanShare: () -> Unit,
     onRestoreFavorites: () -> Unit,
     onExportFavorites: () -> Unit,
-    onFeatureSelfTest: () -> Unit,
+    onShareDebugLog: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
@@ -252,7 +252,7 @@ internal fun ComposeSettingsPage(
                     }
                     if (BuildConfig.DEBUG_LOG_EXPORT) {
                         SettingsDivider(dark)
-                        SettingsActionRow("功能自检", "打开", colors.primary, colors.button, onFeatureSelfTest)
+                        SettingsActionRow("导出调试日志", "分享", colors.primary, colors.button, onShareDebugLog)
                     }
                 }
             }
