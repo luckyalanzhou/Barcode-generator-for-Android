@@ -19,9 +19,10 @@ private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
 
 object FavoritesTransferManager {
     fun export(output: OutputStream, groups: List<FavoriteGroupEntity>, links: List<FavoriteGroupItemEntity>, items: List<CodeItemEntity>, folders: List<FavoriteFolderEntity>) {
-        val itemById = items.associateBy { it.id }
-        val linksByGroup = links.groupBy { it.groupId }
-        PortableZipWriter(output).use { zip ->
+        val bytes = ByteArrayOutputStream().use { buffer ->
+            val itemById = items.associateBy { it.id }
+            val linksByGroup = links.groupBy { it.groupId }
+            PortableZipWriter(buffer).use { zip ->
                 // ZIP 只保留目录和每个收藏文件；不再写入包含全部收藏的聚合 JSON。
                 val writtenDirectories = mutableSetOf<String>()
                 val writtenFavoritePaths = mutableSetOf<String>()
@@ -33,6 +34,8 @@ object FavoritesTransferManager {
                 }
                 groups.forEach { group ->
                     val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
+                        .filter { it.text.isNotBlank() }
+                    require(groupItems.isNotEmpty()) { "收藏“${group.name}”没有有效内容，无法导出" }
                     val types = groupItems.map { toTransferType(it.format) }.distinct()
                     val parts = splitFolder(group.folder)
                     val favorite = InterchangeFavorite(
@@ -44,7 +47,12 @@ object FavoritesTransferManager {
                     ensureZipDirectories(zip, directory, writtenDirectories)
                     writeZipEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
                 }
+            }
+            buffer.toByteArray()
         }
+        // 导出完成后使用同一套标准 ZIP/JSON 解析器回读，确保其他端可以解压和导入。
+        restore(bytes)
+        output.write(bytes)
     }
 
     fun restore(bytes: ByteArray): InterchangeBackup {
@@ -116,6 +124,7 @@ object FavoritesTransferManager {
         // 收藏条码正文保留原始空格；仅过滤完全空白的无效条目。
         val texts = value.optJSONArray("texts").toStrings().filter { it.isNotBlank() }
         require(name.isNotBlank()) { "收藏文件缺少文件名" }
+        require(texts.isNotEmpty()) { "收藏文件“$name”没有有效内容，无法导入" }
         require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
         require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }
         return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts)
@@ -136,6 +145,9 @@ object FavoritesTransferManager {
     }
 
     fun appendEntities(backup: InterchangeBackup, existingItems: List<CodeItemEntity>, existingGroups: List<FavoriteGroupEntity>, existingLinks: List<FavoriteGroupItemEntity>): TransferEntities {
+        require(backup.favorites.all { favorite -> favorite.texts.any { it.isNotBlank() } }) {
+            "收藏文件存在空内容，无法导入"
+        }
         var nextItemId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L
         var nextGroupId = (existingGroups.maxOfOrNull { it.id } ?: 0L) + 1L
         val itemsById = existingItems.associateBy { it.id }

@@ -19,16 +19,17 @@ class FavoritesTransferManagerTest {
     }
 
     @Test
-    fun emptyFavoriteGroupIsPreservedDuringImport() {
+    fun emptyFavoriteGroupIsRejectedDuringImport() {
         val backup = InterchangeBackup(
             favorites = listOf(InterchangeFavorite(null, "95.7G203GC0E", "一级", "二级", "code128", 1L, emptyList())),
             folders = listOf("一级", "一级/二级")
         )
-        val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
-
-        assertEquals(1, entities.groups.size)
-        assertEquals("95.7G203GC0E", entities.groups.single().name)
-        assertTrue(entities.items.isEmpty())
+        try {
+            FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+            error("expected empty favorite content to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message.orEmpty().contains("空内容"))
+        }
     }
 
     @Test
