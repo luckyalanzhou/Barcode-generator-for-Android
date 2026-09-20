@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) {
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
@@ -59,13 +61,17 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
 }
 
 internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
-    val folders = viewModel.dataState.value.folders.filter { it.isNotBlank() }
-    if (folders.isEmpty()) {
-        showIos26NoticeDialogCompose("请先创建文件夹")
-        return
-    }
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
+        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
+        val folders = dataState.folders.filter { it.isNotBlank() }
+        if (folders.isEmpty()) {
+            LaunchedEffect(Unit) {
+                dismiss()
+                showIos26NoticeDialogCompose("请先创建文件夹")
+            }
+            return@showComposeDialog
+        }
         var selected by remember { mutableStateOf(group.folder.takeIf { it in folders } ?: folders.first()) }
         ComposeGlassDialogCard(dark) {
             Text("移动收藏", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)

@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,15 +33,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 internal fun MainActivity.saveResultAsFavoriteCompose() {
-    val resultState = viewModel.resultUiState.value
-    if (resultState.items.isEmpty()) return
-    val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == AppRoute.Favorites }
-    val dataState = viewModel.dataState.value
-    val folders = (dataState.folders + dataState.groups.map { it.folder }).filter { it.isNotBlank() }.distinct().toMutableList()
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
+        val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
+        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
+        if (resultState.items.isEmpty()) {
+            LaunchedEffect(Unit) { dismiss() }
+            return@showComposeDialog
+        }
+        val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == AppRoute.Favorites }
+        val folders = (dataState.folders + dataState.groups.map { it.folder })
+            .filter { it.isNotBlank() }.distinct().toMutableList()
         val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
         var selectedRoot by remember { mutableStateOf(editingGroup?.folder?.substringBefore('/').takeIf { it in roots }.orEmpty()) }
         var selectedChild by remember { mutableStateOf(editingGroup?.folder.orEmpty().substringAfter('/', "").takeIf { it.isNotBlank() }.orEmpty()) }
@@ -191,7 +197,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                         cleanName.isEmpty() -> toast("请输入收藏文件名")
                         selectedFolder.isBlank() -> toast("请选择文件夹")
                         else -> {
-                            val conflict = viewModel.dataState.value.groups.firstOrNull {
+                            val conflict = dataState.groups.firstOrNull {
                                 it.id != editingGroup?.id && it.folder == selectedFolder && it.name == cleanName
                             }
                             if (conflict == null) {

@@ -18,11 +18,9 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
     key(routePage) {
         when (routePage) {
             AppRoute.Generate -> {
-                val initialFormat = remember(routePage) {
-                    dependencies.viewModel.generateEditorState.value.pendingFormat
-                        ?: dependencies.viewModel.generateEditorState.value.formatName
-                }
-                LaunchedEffect(routePage) {
+                val editorState by dependencies.viewModel.generateEditorState.collectAsStateWithLifecycle()
+                val initialFormat = editorState.pendingFormat ?: editorState.formatName
+                LaunchedEffect(routePage, initialFormat) {
                     dependencies.viewModel.clearPendingGenerateFormat()
                     dependencies.viewModel.updateGenerateFormat(initialFormat)
                 }

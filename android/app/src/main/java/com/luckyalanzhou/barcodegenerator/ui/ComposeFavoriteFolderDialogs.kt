@@ -9,17 +9,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
 internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetrics: Boolean = false, onSaved: (String) -> Unit) {
     showComposeDialog(compact = false, metricsLabel = if (showMetrics) "文件夹编辑弹窗" else null) { dismiss ->
         val dark = isDark()
+        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf(initial) }
         ComposeGlassDialogCard(dark) {
             Text(
@@ -43,7 +46,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
                     when {
                         name.isBlank() -> toast("请输入文件夹名称")
                         !isValidFavoriteFolderPath(targetPath) -> toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
-                        viewModel.dataState.value.folders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
+                        dataState.folders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
                         else -> { onSaved(name); dismiss() }
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
@@ -56,6 +59,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
 internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: ((String) -> Unit)? = null) {
     showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
         val dark = isDark()
+        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf("") }
         ComposeGlassDialogCard(dark) {
             Text("新建文件夹", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
@@ -74,7 +78,7 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
                     when {
                         child.isBlank() -> toast("请输入文件夹名称")
                         child.contains('/') -> toast("名称不能包含斜杠")
-                        path in viewModel.dataState.value.folders -> toast("已存在同名文件夹")
+                        path in dataState.folders -> toast("已存在同名文件夹")
                         else -> {
                             viewModel.createFavoriteFolder(path)
                             onCreated?.invoke(child)
