@@ -40,6 +40,39 @@ class FavoritesTransferManagerTest {
     }
 
     @Test
+    fun importKeepsSameBarcodeDataWhenFavoriteNamesDiffer() {
+        val backup = InterchangeBackup(
+            favorites = listOf(
+                InterchangeFavorite("301", "文件A", "一级", "", "code128", 11L, listOf("SAME-CODE")),
+                InterchangeFavorite("302", "文件B", "一级", "", "code128", 12L, listOf("SAME-CODE")),
+            ),
+            folders = listOf("一级"),
+        )
+
+        val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+
+        assertEquals(listOf("文件A", "文件B"), entities.groups.map { it.name })
+        assertEquals(2, entities.items.size)
+        assertEquals(listOf("SAME-CODE", "SAME-CODE"), entities.items.map { it.text })
+    }
+
+    @Test
+    fun importIdentityDoesNotDependOnBarcodeContent() {
+        val existingGroups = listOf(FavoriteGroupEntity(10L, "一级", "文件", 1L))
+        val existingItems = listOf(CodeItemEntity(20L, "OLD", "Code 128-B", 1L, true, "一级", false))
+        val existingLinks = listOf(FavoriteGroupItemEntity(10L, 20L))
+        val backup = InterchangeBackup(
+            favorites = listOf(InterchangeFavorite("30", "文件", "一级", "", "code128", 2L, listOf("NEW"))),
+            folders = listOf("一级"),
+        )
+
+        val entities = FavoritesTransferManager.appendEntities(backup, existingItems, existingGroups, existingLinks)
+
+        assertTrue(entities.groups.isEmpty())
+        assertTrue(entities.items.isEmpty())
+    }
+
+    @Test
     fun importDoesNotCollapseSameContentWhenBarcodeTypeDiffers() {
         val backup = InterchangeBackup(
             favorites = listOf(

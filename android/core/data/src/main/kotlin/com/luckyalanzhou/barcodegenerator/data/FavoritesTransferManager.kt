@@ -152,25 +152,12 @@ object FavoritesTransferManager {
         var nextGroupId = (existingGroups.maxOfOrNull { it.id } ?: 0L) + 1L
         val itemsById = existingItems.associateBy { it.id }
         val existingLinksByGroup = existingLinks.groupBy { it.groupId }
-        // 同名文件可能使用不同条码格式，不能只按文件夹、名称和正文去重。
-        // 这是导入旧备份时部分收藏“消失”的直接原因之一。
-        val existingKeys = existingGroups.map { group ->
-            FavoriteImportKey(
-                folder = group.folder,
-                name = group.name,
-                type = existingLinksByGroup[group.id].orEmpty()
-                    .mapNotNull { itemsById[it.itemId] }
-                    .map { toTransferType(it.format) }
-                    .distinct()
-                    .joinToString(","),
-                texts = existingLinksByGroup[group.id].orEmpty()
-                    .mapNotNull { itemsById[it.itemId] }
-                    .map { it.text },
-            )
-        }.toSet()
+        // 收藏文件的身份只由文件夹路径和文件名决定；条码正文、格式和正文数量
+        // 只用于确认文件有内容，绝不能参与判重。
+        val existingKeys = existingGroups.map { FavoriteImportKey(it.folder, it.name) }.toSet()
         val items = mutableListOf<CodeItemEntity>(); val groups = mutableListOf<FavoriteGroupEntity>(); val links = mutableListOf<FavoriteGroupItemEntity>()
         backup.favorites.forEach { favorite ->
-            val key = FavoriteImportKey(favorite.folder, favorite.name, favorite.type, favorite.texts)
+            val key = FavoriteImportKey(favorite.folder, favorite.name)
             // 只与导入前已经存在的数据去重；备份内部即使存在同内容但不同 ID 的收藏，也必须全部保留。
             // 这样不会因为文件名/正文相同而静默丢失合法收藏。
             if (existingKeys.contains(key)) return@forEach
@@ -185,8 +172,6 @@ object FavoritesTransferManager {
     private data class FavoriteImportKey(
         val folder: String,
         val name: String,
-        val type: String,
-        val texts: List<String>,
     )
 
     private fun splitFolder(folder: String): Pair<String, String> {
