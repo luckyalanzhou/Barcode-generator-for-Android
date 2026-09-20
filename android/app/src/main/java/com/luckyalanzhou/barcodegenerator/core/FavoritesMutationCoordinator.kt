@@ -22,32 +22,26 @@ internal class FavoritesMutationCoordinator(
     }
 
     fun deleteFolder(path: String) {
-        val (removedIds, orphanedItemIds) = store.edit {
+        store.edit {
             val removed = groups.filter { it.folder == path || it.folder.startsWith("$path/") }
             val remaining = groups.filterNot { it.folder == path || it.folder.startsWith("$path/") }
             val orphaned = removed.flatMap { it.itemIds }.distinct().filter { itemId -> remaining.none { itemId in it.itemIds } }
+            items.filter { it.id in orphaned }.forEach { it.favorite = false; it.folder = "默认" }
             groups.removeAll { it.folder == path || it.folder.startsWith("$path/") }
             folders.removeAll { it == path || it.startsWith("$path/") }
-            removed.map { it.id } to orphaned
         }
-        persistence.clearFavoriteFlags(scope, orphanedItemIds)
-        persistence.clearFavoriteFlagsForGroups(scope, removedIds)
-        persistence.deleteFavoriteGroups(scope, removedIds)
     }
 
-    fun deleteGroup(groupId: Long) {
-        val orphanedItemIds = store.edit {
-            val group = groups.firstOrNull { it.id == groupId } ?: return@edit emptyList<Long>()
+    fun deleteGroup(groupId: Long): Boolean {
+        val removed = store.edit {
+            val group = groups.firstOrNull { it.id == groupId } ?: return@edit false
             groups.removeAll { it.id == groupId }
             val orphaned = group.itemIds.filter { itemId -> groups.none { remaining -> itemId in remaining.itemIds } }
             items.filter { it.id in orphaned }.forEach { it.favorite = false }
             if (group.folder !in folders) folders.add(group.folder)
-            orphaned
+            true
         }
-        if (orphanedItemIds.isEmpty() && store.groupsSnapshot().none { it.id == groupId }) return
-        persistence.clearFavoriteFlags(scope, orphanedItemIds)
-        persistence.clearFavoriteFlagsForGroups(scope, listOf(groupId))
-        persistence.deleteFavoriteGroups(scope, listOf(groupId))
+        return removed
     }
 
     fun deleteItem(itemId: Long) {
@@ -99,12 +93,14 @@ internal class FavoritesMutationCoordinator(
         return true
     }
 
-    fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(scope, path, renamedPath); persistFolders() }
-    fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(scope, path); persistFolders() }
+    fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(scope, path, renamedPath) }
+    fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(scope, path) }
     fun renameGroupAndPersist(groupId: Long, name: String) { store.edit { groups.firstOrNull { it.id == groupId }?.name = name }; persistAllFavorites() }
     fun moveGroupAndPersist(groupId: Long, folder: String) { store.edit { groups.firstOrNull { it.id == groupId }?.let { it.folder = folder; if (folder.isNotBlank() && folder !in folders) folders.add(folder) } }; persistAllFavorites() }
-    fun deleteGroupAndPersist(groupId: Long) { deleteGroup(groupId); persistAllFavorites() }
-    fun clearFavoritesAndPersist() { store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }; persistence.clearAllFavoriteFlags(scope); persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
+    fun deleteGroupAndPersist(groupId: Long) {
+        if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
+    }
+    fun clearFavoritesAndPersist() { store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }; persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
     fun clearHistoryAndPersist() { store.edit { items.forEach { it.inHistory = false } }; persistItems() }
     fun persistAllFavorites() = persistence.persistAllFavorites(scope, store.itemsSnapshot(), store.groupsSnapshot(), store.foldersSnapshot())
     fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())

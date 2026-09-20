@@ -364,9 +364,9 @@ class BarcodeViewModel @Inject constructor(
         refreshFavoritesAfterMutation()
     }
 
-    fun deleteFavoriteFolder(path: String) { favoritesCoordinator.deleteFolder(path); refreshFavoritesAfterMutation() }
+    fun deleteFavoriteFolder(path: String) { favoritesCoordinator.deleteFolderAndPersist(path); refreshFavoritesAfterMutation() }
 
-    fun deleteFavoriteGroup(groupId: Long) { favoritesCoordinator.deleteGroup(groupId); refreshFavoritesAfterMutation() }
+    fun deleteFavoriteGroup(groupId: Long) { favoritesCoordinator.deleteGroupAndPersist(groupId); refreshFavoritesAfterMutation() }
 
     fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); refreshFavoritesAfterMutation() }
 

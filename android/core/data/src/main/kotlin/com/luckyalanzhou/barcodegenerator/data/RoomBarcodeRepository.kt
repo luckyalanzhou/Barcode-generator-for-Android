@@ -38,6 +38,24 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         }
     }
 
+    override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) {
+        database.withTransaction {
+            // The in-memory store may contain only the loaded favorite pages. Upsert the
+            // supplied rows and replace links only for those groups; never delete unloaded data.
+            dao.saveItems(snapshot.items.map(CodeItem::toEntity))
+            if (snapshot.groups.isNotEmpty()) {
+                val groupIds = snapshot.groups.map { it.id }
+                dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+                dao.clearGroupItemsForGroups(groupIds)
+                dao.saveGroupItems(snapshot.groups.flatMap { group ->
+                    group.itemIds.map { FavoriteGroupItemEntity(group.id, it) }
+                })
+            }
+            dao.clearFolders()
+            dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+        }
+    }
+
     override suspend fun saveItems(items: List<CodeItem>) {
         database.withTransaction {
             val retainedHistoryIds = items.filter { !it.favorite }.map { it.id }
@@ -99,6 +117,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun deleteFavoriteGroups(ids: List<Long>) {
         if (ids.isEmpty()) return
         database.withTransaction {
+            dao.clearFavoriteFlagsForGroups(ids)
             dao.deleteGroupItems(ids)
             dao.deleteGroups(ids)
         }
@@ -106,6 +125,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun clearAllFavoriteGroups() {
         database.withTransaction {
+            dao.clearAllFavoriteFlags()
             dao.clearGroupItems()
             dao.clearGroups()
         }

@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.data.LegacyBarcodeDataMigrator
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -31,12 +32,12 @@ class BarcodePersistenceCoordinator(
         val itemSnapshot = items.map { it.copy() }
         val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val folderSnapshot = folders.filter { it.isNotBlank() }.distinct()
-        val groupsWithLoadedLinks = groupSnapshot.filter { it.itemIds.isNotEmpty() }
         return enqueue(scope) {
-            barcodeRepository.upsertItems(itemSnapshot)
-            barcodeRepository.saveFavoriteGroupMetadata(groupSnapshot)
-            barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
-            barcodeRepository.saveFavoriteFolders(folderSnapshot)
+            barcodeRepository.applyFavoritesMutation(
+                BarcodeSnapshot(itemSnapshot, groupSnapshot, groupSnapshot.flatMap { group ->
+                    group.itemIds.map { itemId -> com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId) }
+                }, folderSnapshot),
+            )
         }
     }
 

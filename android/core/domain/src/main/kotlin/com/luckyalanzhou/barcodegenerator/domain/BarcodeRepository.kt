@@ -39,6 +39,8 @@ data class LegacyBarcodeData(
 /** Domain 定义的持久化端口；具体存储实现由 Data 层提供。 */
 interface BarcodeRepository {
     suspend fun saveAll(snapshot: BarcodeSnapshot)
+    /** Applies the currently loaded favorite state atomically without deleting unloaded pages. */
+    suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot)
     suspend fun saveItems(items: List<CodeItem>)
     suspend fun upsertItems(items: List<CodeItem>)
     suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem>

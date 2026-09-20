@@ -80,6 +80,7 @@ private class FakeFavoriteRepository(
     override suspend fun searchFavoriteItems(query: String) = items
 
     override suspend fun saveAll(snapshot: BarcodeSnapshot) = Unit
+    override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) = Unit
     override suspend fun saveItems(items: List<CodeItem>) = Unit
     override suspend fun upsertItems(items: List<CodeItem>) = Unit
     override suspend fun loadItemsByIds(ids: List<Long>) = emptyList<CodeItem>()
