@@ -6,13 +6,11 @@ ksp = "2.3.12"
 hilt = "2.60.1"
 composeBom = "2026.09.00"
 activity = "1.13.0"
-navigation = "2.10.1"
 junit = "4.13.2"
 zxing = "3.5.4"
 mlkitText = "16.0.1"
 coreKtx = "1.19.0"
 exifinterface = "1.4.2"
-dynamicanimation = "1.1.0"
 lifecycle = "2.11.0"
 room = "2.8.5"
 datastore = "1.2.1"
@@ -24,7 +22,6 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
@@ -37,7 +34,6 @@ mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version
 mlkit-text-recognition-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkitText" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
-androidx-dynamicanimation = { module = "androidx.dynamicanimation:dynamicanimation", version.ref = "dynamicanimation" }
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
