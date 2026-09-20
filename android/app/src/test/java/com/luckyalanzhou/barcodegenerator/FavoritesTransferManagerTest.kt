@@ -15,7 +15,7 @@ class FavoritesTransferManagerTest {
     fun favoriteFileUsesPrimaryAndSecondaryFolderPath() {
         val favorite = InterchangeFavorite("7", "收藏", "一级", "二级", "code128", 1L, listOf("123"))
 
-        assertEquals("favorites/一级/二级/7.json", FavoritesTransferManager.favoriteZipPath(favorite))
+        assertEquals("favorites/一级/二级/收藏.json", FavoritesTransferManager.favoriteZipPath(favorite))
     }
 
     @Test

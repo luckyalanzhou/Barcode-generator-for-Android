@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -286,16 +287,99 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
     val bubbleColor = if (mine) themeColors.progress.copy(alpha = .44f) else themeColors.surfaceOverlay
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-        Surface(modifier = Modifier.width(260.dp).clickable { onSaveFile(file) }, shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp) {
-            Column(Modifier.padding(if (preview == null) 12.dp else 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                preview?.let { bitmap ->
+        if (preview != null) {
+            Surface(
+                modifier = Modifier.widthIn(min = 120.dp, max = 280.dp).clickable { onSaveFile(file) },
+                shape = RoundedCornerShape(18.dp),
+                color = bubbleColor,
+                shadowElevation = 0.dp,
+            ) {
+                Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val bitmap = preview
                     val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)
-                    Image(bitmap.asImageBitmap(), file.name, contentScale = ContentScale.Crop, modifier = Modifier.width((bitmap.width * scale).coerceAtLeast(80f).roundToInt().dp).height((bitmap.height * scale).coerceAtLeast(80f).roundToInt().dp))
+                    Image(
+                        bitmap.asImageBitmap(),
+                        file.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .width((bitmap.width * scale).coerceAtLeast(80f).roundToInt().dp)
+                            .height((bitmap.height * scale).coerceAtLeast(80f).roundToInt().dp),
+                    )
                     Spacer(Modifier.height(6.dp))
-                } ?: Icon(AttachFileIcon, "文件附件", tint = if (mine) themeColors.sentContent else themeColors.icon, modifier = Modifier.size(26.dp))
-                Text(file.name, color = if (mine) themeColors.sentContent else primary, fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
-                Text(formatLanShareSize(file.size), color = if (mine) themeColors.qrBackground else secondary, fontSize = 12.sp)
+                    Text(
+                        middleEllipsize(file.name),
+                        color = if (mine) themeColors.sentContent else primary,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        } else {
+            Surface(
+                modifier = Modifier.widthIn(min = 220.dp, max = 340.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = bubbleColor,
+                shadowElevation = 0.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        AttachFileIcon,
+                        "文件附件",
+                        tint = if (mine) themeColors.sentContent else themeColors.icon,
+                        modifier = Modifier.size(26.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            middleEllipsize(file.name),
+                            color = if (mine) themeColors.sentContent else primary,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            formatLanShareSize(file.size),
+                            color = if (mine) themeColors.qrBackground else secondary,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSaveFile(file) },
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (mine) themeColors.sentContent.copy(alpha = .18f) else themeColors.button,
+                            contentColor = if (mine) themeColors.sentContent else themeColors.link,
+                        ),
+                    ) {
+                        Text("下载", fontSize = 12.sp, maxLines = 1)
+                    }
+                }
             }
         }
     }
+}
+
+private fun middleEllipsize(value: String, maxChars: Int = 28): String {
+    if (value.length <= maxChars) return value
+    val visibleChars = (maxChars - 1).coerceAtLeast(2)
+    val leading = (visibleChars + 1) / 2
+    val trailing = visibleChars - leading
+    return value.take(leading) + "…" + value.takeLast(trailing)
 }
