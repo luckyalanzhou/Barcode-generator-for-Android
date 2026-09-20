@@ -74,7 +74,7 @@ internal fun SettingsSliderRow(
             Text(
                 valueParts.firstOrNull().orEmpty(),
                 style = TextStyle(color = sliderAccent, fontSize = 15.sp, fontWeight = FontWeight.Normal),
-                textAlign = TextAlign.End,
+                textAlign = TextAlign.Start,
                 modifier = Modifier.width(38.dp),
             )
             Text(
