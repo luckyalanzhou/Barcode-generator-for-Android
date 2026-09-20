@@ -2,6 +2,8 @@ package com.luckyalanzhou.barcodegenerator.data.network.server
 
 import com.luckyalanzhou.barcodegenerator.data.network.client.LanShareClient
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
+import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
+import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
@@ -20,7 +22,7 @@ import java.security.SecureRandom
 class LanShareManager(
     private val context: Context,
     private val logger: AppLogger,
-) {
+) : LanShareGateway {
     companion object {
         // 保留原有公开入口，避免其他模块直接读取容量上限时产生兼容性变化。
         const val MAX_FILE_BYTES = LanShareLimits.MAX_FILE_BYTES
@@ -38,42 +40,37 @@ class LanShareManager(
     private val folder = File(context.filesDir, "lan-share").apply { mkdirs() }
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
-    private val client by lazy { LanShareClient(context, this::isRouterLanHost, logger) }
+    private val client by lazy { LanShareClient(this::isRouterLanHost, logger) }
 
     /** 分享服务只使用 Wi-Fi 默认网关所在子网的 IPv4 地址。 */
-    fun isOnLocalNetwork(): Boolean = routerIpv4Addresses().isNotEmpty()
+    override fun isOnLocalNetwork(): Boolean = routerIpv4Addresses().isNotEmpty()
 
     /** 扫码地址必须和当前路由器网关的 IPv4 子网一致，不能硬编码某个地址段。 */
-    fun isRouterLanHost(host: String?): Boolean = runCatching {
+    override fun isRouterLanHost(host: String?): Boolean = runCatching {
         val remote = java.net.InetAddress.getByName(host) as? Inet4Address ?: return@runCatching false
         routerIpv4Addresses().any { local -> areOnSameRouterSubnet(local.address as Inet4Address, remote, local.prefixLength) }
     }.getOrDefault(false)
 
     private fun routerIpv4Addresses(): List<android.net.LinkAddress> = run {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        // 仅枚举系统标记为 Wi-Fi 的网络，并且必须同时找到该 Wi-Fi 的 IPv4 默认网关。
-        // activeNetwork 仅用于给真实 Wi-Fi 排序；VPN/容器网络不会通过下面的 Wi-Fi 过滤。
-        val activeNetwork = connectivity.activeNetwork
-        connectivity.allNetworks.asSequence()
-            .sortedByDescending { it == activeNetwork }
-            .filter { network ->
-                connectivity.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-            }
-            .flatMap { network ->
-                val properties = connectivity.getLinkProperties(network) ?: return@flatMap emptySequence()
-                val gateway = properties.routes.firstOrNull { route ->
-                    route.isDefaultRoute && route.gateway is Inet4Address
-                }?.gateway as? Inet4Address ?: return@flatMap emptySequence()
-                properties.linkAddresses.asSequence().filter { address ->
-                    val local = address.address as? Inet4Address ?: return@filter false
-                    !local.isLoopbackAddress && !local.isAnyLocalAddress && !local.isMulticastAddress &&
-                        areOnSameRouterSubnet(local, gateway, address.prefixLength)
-                }
-            }
-            .toList()
+        // 只使用当前活动的 Wi-Fi 网络，并且必须同时找到该网络的 IPv4 默认网关。
+        // 这样不会误用 VPN、容器或其他并行网络，也避免依赖已弃用的全量网络枚举。
+        val activeNetwork = connectivity.activeNetwork ?: return@run emptyList()
+        if (connectivity.getNetworkCapabilities(activeNetwork)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true
+        ) return@run emptyList()
+        val properties = connectivity.getLinkProperties(activeNetwork) ?: return@run emptyList()
+        val gateway = properties.routes.firstOrNull { route ->
+            route.isDefaultRoute && route.gateway is Inet4Address
+        }?.gateway as? Inet4Address ?: return@run emptyList()
+        properties.linkAddresses.filter { address ->
+            val local = address.address as? Inet4Address ?: return@filter false
+            !local.isLoopbackAddress && !local.isAnyLocalAddress && !local.isMulticastAddress &&
+                areOnSameRouterSubnet(local, gateway, address.prefixLength)
+        }
     }
 
-    fun start(): LanShareSession = start(clearSharedFiles = true)
+    override fun start(): LanShareSession = start(clearSharedFiles = true)
 
     private fun start(clearSharedFiles: Boolean): LanShareSession {
         check(isOnLocalNetwork()) { "Error 当前不处于局域网" }
@@ -99,26 +96,26 @@ class LanShareManager(
         return session
     }
 
-    fun restart(): LanShareSession = start(clearSharedFiles = false)
+    override fun restart(): LanShareSession = start(clearSharedFiles = false)
 
-    fun browserConnected() = server?.browserConnected() == true
+    override fun browserConnected() = server?.browserConnected() == true
 
-    fun stop(clearSharedFiles: Boolean = false) {
+    override fun stop(clearSharedFiles: Boolean) {
         server?.stop()
         server = null
         if (clearSharedFiles) clearFiles()
     }
 
-    fun localFiles() = listFiles(folder, "app")
-    fun localFile(id: String): File? = sharedFile(folder, id)
+    override fun localFiles() = listFiles(folder, "app")
+    override fun localFile(id: String): File? = sharedFile(folder, id)
     private fun clearFiles() { folder.listFiles().orEmpty().forEach { it.delete() } }
 
     private fun newSessionToken(): String = ByteArray(24).also { SecureRandom().nextBytes(it) }
         .joinToString("") { "%02x".format(it) }
 
-    fun list(session: LanShareSession) = client.list(session)
-    fun upload(session: LanShareSession, uri: android.net.Uri): String = client.upload(session, uri)
-    fun uploadText(session: LanShareSession, text: String): String = client.uploadText(session, text)
-    fun download(session: LanShareSession, id: String, destination: android.net.Uri) = client.download(session, id, destination)
-    fun downloadPreview(session: LanShareSession, id: String, destination: File) = client.downloadPreview(session, id, destination)
+    override fun list(session: LanShareSession) = client.list(session)
+    override fun upload(session: LanShareSession, source: LanShareUploadSource): String = client.upload(session, source)
+    override fun uploadText(session: LanShareSession, text: String): String = client.uploadText(session, text)
+    override fun downloadToFile(session: LanShareSession, id: String, destination: File) = client.downloadToFile(session, id, destination)
+    override fun downloadPreview(session: LanShareSession, id: String, destination: File) = client.downloadPreview(session, id, destination)
 }

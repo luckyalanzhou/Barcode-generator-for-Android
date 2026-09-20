@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,8 +38,9 @@ internal fun ComposeChoiceField(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { buttonWidth = it.size.width },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.primary),
         ) {
-            Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, color = LocalBarcodeThemeColors.current.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         AnchoredDropdownMenu(
             dark = dark,
@@ -54,7 +56,7 @@ internal fun ComposeChoiceField(
                 if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
                     modifier = Modifier.height(40.dp),
-                    text = { Text(option) },
+                    text = { Text(option, color = LocalBarcodeThemeColors.current.primary) },
                     onClick = { onSelected(option); expanded = false },
                 )
             }

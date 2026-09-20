@@ -252,7 +252,7 @@ internal fun ComposeGeneratePage(
                     ) {
                         barcodeFormats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, maxLines = 1, softWrap = false) }, onClick = { formatName = name; viewModel.updateGenerateFormat(name); formatExpanded = false })
+                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, color = themeColors.primary, maxLines = 1, softWrap = false) }, onClick = { formatName = name; viewModel.updateGenerateFormat(name); formatExpanded = false })
                         }
                     }
                 }

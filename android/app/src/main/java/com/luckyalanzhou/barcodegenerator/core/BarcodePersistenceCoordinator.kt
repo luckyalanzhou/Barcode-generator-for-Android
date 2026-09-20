@@ -1,10 +1,10 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.data.LegacyBarcodeDataMigrator
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 /** 条码、历史与收藏的持久化协调器，隔离 ViewModel 与具体数据源。 */
 class BarcodePersistenceCoordinator(
     private val barcodeRepository: BarcodeRepository,
-    private val legacyBarcodeDataMigrator: LegacyBarcodeDataMigrator,
+    private val legacyBarcodeDataMigrator: BarcodeDataMigration,
 ) {
     data class LoadedData(
         val items: List<CodeItem>,

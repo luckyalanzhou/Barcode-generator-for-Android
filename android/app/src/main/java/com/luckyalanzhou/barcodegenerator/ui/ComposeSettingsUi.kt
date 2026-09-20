@@ -139,7 +139,7 @@ internal fun ComposeSettingsPage(
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier.height(40.dp),
-                                        text = { Text(label) },
+                                        text = { Text(label, color = colors.primary) },
                                         onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) },
                                     )
                                 }
@@ -203,7 +203,7 @@ internal fun ComposeSettingsPage(
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier.height(40.dp),
                                         contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
-                                        text = { Text(label, maxLines = 1, softWrap = false) },
+                                        text = { Text(label, color = colors.primary, maxLines = 1, softWrap = false) },
                                         trailingIcon = {
                                             val checked = settings.ocrMask and bit != 0
                                             Icon(

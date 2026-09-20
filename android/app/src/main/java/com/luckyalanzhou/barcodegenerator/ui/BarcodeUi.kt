@@ -37,8 +37,9 @@ internal fun MainActivity.syncSystemBars() {
         isAppearanceLightStatusBars = !isDark()
         isAppearanceLightNavigationBars = !isDark()
     }
-    window.statusBarColor = background
-    window.navigationBarColor = background
+    // MainActivity uses edge-to-edge; the decor background is the fallback behind
+    // the Compose root for both system-bar regions on older Android versions.
+    window.decorView.setBackgroundColor(background)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
 }
 
@@ -124,8 +125,7 @@ internal fun MainActivity.showSimulatedDialog(
 /** 与业务完全分离的 Compose Canvas 烟花彩蛋；不写入设置或条码数据。 */
 internal fun MainActivity.showFireworksEasterEgg() {
     viewModel.showFireworks()
-    window.statusBarColor = Color.BLACK
-    window.navigationBarColor = Color.BLACK
+    window.decorView.setBackgroundColor(Color.BLACK)
     WindowInsetsControllerCompat(window, window.decorView).apply {
         isAppearanceLightStatusBars = false
         isAppearanceLightNavigationBars = false

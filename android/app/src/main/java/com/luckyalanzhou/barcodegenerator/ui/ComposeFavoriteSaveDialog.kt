@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -152,9 +153,10 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.primary),
                 ) {
-                    Icon(CreateNewFolderIcon, "新建一级文件夹", modifier = Modifier.size(20.dp))
-                    Text("新建一级文件夹", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                    Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
+                    Text("新建一级文件夹", color = LocalBarcodeThemeColors.current.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
                 }
                 OutlinedButton(
                     onClick = {
@@ -168,9 +170,10 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.primary),
                 ) {
-                    Icon(CreateNewFolderIcon, "新建二级文件夹", modifier = Modifier.size(20.dp))
-                    Text("新建二级文件夹", fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                    Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
+                    Text("新建二级文件夹", color = LocalBarcodeThemeColors.current.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
                 }
             }
             Text("收藏文件名", color = LocalBarcodeThemeColors.current.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))

@@ -89,7 +89,7 @@ internal fun FavoriteGroupRow(
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalBarcodeThemeColors.current.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)

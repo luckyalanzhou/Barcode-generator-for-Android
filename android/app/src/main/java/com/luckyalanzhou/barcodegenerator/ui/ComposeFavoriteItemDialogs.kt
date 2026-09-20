@@ -96,7 +96,20 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
         ComposeGlassDialogCard(dark) {
             Text("编辑收藏", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = LocalBarcodeThemeColors.current.primary, unfocusedTextColor = LocalBarcodeThemeColors.current.primary, focusedLabelColor = LocalBarcodeThemeColors.current.primary, unfocusedLabelColor = LocalBarcodeThemeColors.current.primary, cursorColor = LocalBarcodeThemeColors.current.primary), label = { Text("收藏文件名", color = LocalBarcodeThemeColors.current.primary) })
-            OutlinedTextField(folder, { folder = it }, Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("文件夹") })
+            OutlinedTextField(
+                folder,
+                { folder = it },
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    focusedLabelColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedLabelColor = LocalBarcodeThemeColors.current.secondary,
+                    cursorColor = LocalBarcodeThemeColors.current.primary,
+                ),
+                label = { Text("文件夹", color = LocalBarcodeThemeColors.current.secondary) },
+            )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("删除", dark, {
@@ -129,7 +142,22 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
         var selectedIndex by remember { mutableIntStateOf(barcodeFormats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
         ComposeGlassDialogCard(dark) {
             Text("编辑条目", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
-            OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, label = { Text("条码内容") })
+            OutlinedTextField(
+                value,
+                { value = it },
+                Modifier.fillMaxWidth().padding(top = 12.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    focusedLabelColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedLabelColor = LocalBarcodeThemeColors.current.secondary,
+                    focusedPlaceholderColor = LocalBarcodeThemeColors.current.secondary,
+                    unfocusedPlaceholderColor = LocalBarcodeThemeColors.current.secondary,
+                    cursorColor = LocalBarcodeThemeColors.current.primary,
+                ),
+                label = { Text("条码内容", color = LocalBarcodeThemeColors.current.secondary) },
+            )
             ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark) { choice ->
                 selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
             }
@@ -165,8 +193,17 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
                 onValueChange = { value = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
-                label = { Text("文件夹") },
-                placeholder = { Text("例如：工作、商品、旅行") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    focusedLabelColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedLabelColor = LocalBarcodeThemeColors.current.secondary,
+                    focusedPlaceholderColor = LocalBarcodeThemeColors.current.secondary,
+                    unfocusedPlaceholderColor = LocalBarcodeThemeColors.current.secondary,
+                    cursorColor = LocalBarcodeThemeColors.current.primary,
+                ),
+                label = { Text("文件夹", color = LocalBarcodeThemeColors.current.secondary) },
+                placeholder = { Text("例如：工作、商品、旅行", color = LocalBarcodeThemeColors.current.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

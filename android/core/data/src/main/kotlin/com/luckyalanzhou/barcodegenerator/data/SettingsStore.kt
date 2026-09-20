@@ -5,7 +5,6 @@ import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 import android.content.Context
-import android.graphics.Color
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -25,8 +24,6 @@ private val Context.settingsDataStore by preferencesDataStore(name = "barcode_se
 
 class SettingsStore(private val context: Context) : SettingsRepository {
     companion object {
-        val BAR_COLOR = intPreferencesKey("style_bar_color")
-        val BG_COLOR = intPreferencesKey("style_bg_color")
         val SHOW_TEXT = booleanPreferencesKey("style_show_text")
         val TEXT_POSITION = stringPreferencesKey("style_text_position")
         val TEXT_SIZE = floatPreferencesKey("style_text_size")
@@ -58,8 +55,6 @@ class SettingsStore(private val context: Context) : SettingsRepository {
      * 读取完整条码样式快照。样式字段必须与 [saveStyle] 对称，避免应用重启后只恢复尺寸类设置。
      */
     override fun loadStyle(): StyleSettings = StyleSettings(
-        barColor = get(BAR_COLOR, Color.BLACK),
-        bgColor = get(BG_COLOR, Color.WHITE),
         showText = get(SHOW_TEXT, true),
         textPosition = get(TEXT_POSITION, "bottom"),
         textSize = get(TEXT_SIZE, 14f).coerceIn(10f, 24f),
@@ -80,7 +75,10 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     }
 
     override fun saveStyle(style: StyleSettings): Job = write {
-        it[BAR_COLOR] = style.barColor; it[BG_COLOR] = style.bgColor; it[SHOW_TEXT] = style.showText
+        // 清理早期版本遗留的用户条码颜色；新版本颜色完全由外观模式决定。
+        it.remove(intPreferencesKey("style_bar_color"))
+        it.remove(intPreferencesKey("style_bg_color"))
+        it[SHOW_TEXT] = style.showText
         it[TEXT_POSITION] = style.textPosition; it[TEXT_SIZE] = style.textSize; it[BAR_HEIGHT] = style.barHeight
         it[BAR_WIDTH] = style.barWidth; it[MARGIN] = style.margin; it[SHOW_FORMAT] = style.showFormat
         it[COLOR_SCHEME] = style.colorScheme

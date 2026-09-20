@@ -16,7 +16,11 @@ import androidx.room.RoomDatabase
 
 @Entity(
     tableName = "code_items",
-    indices = [Index(value = ["inHistory", "createdAt"]), Index(value = ["favorite"])],
+    indices = [
+        Index(value = ["inHistory", "createdAt"]),
+        Index(value = ["favorite"]),
+        Index(value = ["favorite", "createdAt", "id"]),
+    ],
 )
 data class CodeItemEntity(
     @PrimaryKey val id: Long,
@@ -30,7 +34,11 @@ data class CodeItemEntity(
 
 @Entity(
     tableName = "favorite_groups",
-    indices = [Index(value = ["folder", "savedAt"]), Index(value = ["name"])],
+    indices = [
+        Index(value = ["folder", "savedAt"]),
+        Index(value = ["name"]),
+        Index(value = ["savedAt", "id"]),
+    ],
 )
 data class FavoriteGroupEntity(
     @PrimaryKey val id: Long,
@@ -68,7 +76,7 @@ interface BarcodeDao {
     @Query("SELECT * FROM code_items ORDER BY createdAt DESC, id DESC") suspend fun loadItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500") suspend fun loadStartupItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE id IN (:ids)") suspend fun loadItemsByIds(ids: List<Long>): List<CodeItemEntity>
-    @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' ORDER BY ci.createdAt DESC, ci.id DESC LIMIT :limit OFFSET :offset") suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int): List<CodeItemEntity>
+    @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' AND (:cursorCreatedAt IS NULL OR ci.createdAt < :cursorCreatedAt OR (ci.createdAt = :cursorCreatedAt AND ci.id < :cursorId)) ORDER BY ci.createdAt DESC, ci.id DESC LIMIT :limit") suspend fun searchFavoriteItems(query: String, limit: Int, cursorCreatedAt: Long?, cursorId: Long?): List<CodeItemEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveItems(items: List<CodeItemEntity>)
     @Query("DELETE FROM code_items") suspend fun clearItems()
     @Query("DELETE FROM code_items WHERE favorite = 0") suspend fun clearNonFavoriteItems()
@@ -82,7 +90,7 @@ interface BarcodeDao {
     @Query("SELECT * FROM favorite_groups WHERE :cursorSavedAt IS NULL OR savedAt < :cursorSavedAt OR (savedAt = :cursorSavedAt AND id < :cursorId) ORDER BY savedAt DESC, id DESC LIMIT :limit")
     suspend fun loadGroupsPage(limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Query("SELECT * FROM favorite_groups WHERE id IN (:ids) ORDER BY savedAt DESC, id DESC") suspend fun loadGroupsByIds(ids: List<Long>): List<FavoriteGroupEntity>
-    @Query("SELECT DISTINCT fg.* FROM favorite_groups AS fg LEFT JOIN favorite_group_items AS links ON links.groupId = fg.id LEFT JOIN code_items AS items ON items.id = links.itemId WHERE lower(fg.name) LIKE '%' || lower(:query) || '%' OR lower(fg.folder) LIKE '%' || lower(:query) || '%' OR lower(items.text) LIKE '%' || lower(:query) || '%' ORDER BY fg.savedAt DESC, fg.id DESC LIMIT :limit OFFSET :offset") suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int): List<FavoriteGroupEntity>
+    @Query("SELECT DISTINCT fg.* FROM favorite_groups AS fg LEFT JOIN favorite_group_items AS links ON links.groupId = fg.id LEFT JOIN code_items AS items ON items.id = links.itemId WHERE (lower(fg.name) LIKE '%' || lower(:query) || '%' OR lower(fg.folder) LIKE '%' || lower(:query) || '%' OR lower(items.text) LIKE '%' || lower(:query) || '%') AND (:cursorSavedAt IS NULL OR fg.savedAt < :cursorSavedAt OR (fg.savedAt = :cursorSavedAt AND fg.id < :cursorId)) ORDER BY fg.savedAt DESC, fg.id DESC LIMIT :limit") suspend fun searchFavoriteGroups(query: String, limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveGroups(groups: List<FavoriteGroupEntity>)
     @Query("DELETE FROM favorite_groups") suspend fun clearGroups()
     @Query("DELETE FROM favorite_groups WHERE id NOT IN (:retainedIds)") suspend fun deleteGroupsExcept(retainedIds: List<Long>)
@@ -108,7 +116,7 @@ interface BarcodeDao {
 
 @Database(
     entities = [CodeItemEntity::class, FavoriteGroupEntity::class, FavoriteGroupItemEntity::class, FavoriteFolderEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class BarcodeDatabase : RoomDatabase() {
@@ -119,7 +127,7 @@ abstract class BarcodeDatabase : RoomDatabase() {
             context.applicationContext,
             BarcodeDatabase::class.java,
             "barcode_generator.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
 
         internal val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -154,6 +162,13 @@ abstract class BarcodeDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE favorite_group_items_new RENAME TO favorite_group_items")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_groupId ON favorite_group_items(groupId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_itemId ON favorite_group_items(itemId)")
+            }
+        }
+
+        internal val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_code_items_favorite_createdAt_id ON code_items(favorite, createdAt, id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_groups_savedAt_id ON favorite_groups(savedAt, id)")
             }
         }
     }

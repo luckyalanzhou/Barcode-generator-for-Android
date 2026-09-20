@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -11,11 +12,11 @@ import android.util.Log
 class LegacyBarcodeDataMigrator(
     context: Context,
     private val barcodeRepository: BarcodeRepository,
-) {
+) : BarcodeDataMigration {
     private val legacyPrefs: SharedPreferences =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    suspend fun migrateIfNeeded() {
+    override suspend fun migrateIfNeeded() {
         if (runCatching { legacyPrefs.getBoolean(MIGRATION_KEY, false) }.getOrDefault(false)) return
 
         // 旧版本同一个 SharedPreferences 文件中混用了多种类型；单个坏键不能阻断启动。

@@ -8,6 +8,8 @@ import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
 
 import androidx.room.withTransaction
 import org.json.JSONArray
@@ -72,9 +74,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem> =
         if (ids.isEmpty()) emptyList() else dao.loadItemsByIds(ids).map(CodeItemEntity::toDomain)
 
-    override suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int): List<CodeItem> =
+    override suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem> =
         if (query.isBlank() || limit <= 0) emptyList()
-        else dao.searchFavoriteItems(query, limit, offset).map(CodeItemEntity::toDomain)
+        else dao.searchFavoriteItems(query, limit, cursor?.createdAt, cursor?.id).map(CodeItemEntity::toDomain)
 
     override suspend fun clearFavoriteFlags(ids: List<Long>) {
         if (ids.isNotEmpty()) dao.clearFavoriteFlags(ids)
@@ -176,10 +178,10 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             }
         }
 
-    override suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int): List<FavoriteGroup> =
+    override suspend fun searchFavoriteGroups(query: String, limit: Int, cursor: FavoriteSearchGroupCursor?): List<FavoriteGroup> =
         if (query.isBlank() || limit <= 0) emptyList()
         else {
-            val groups = dao.searchFavoriteGroups(query, limit, offset)
+            val groups = dao.searchFavoriteGroups(query, limit, cursor?.savedAt, cursor?.id)
             val itemIdsByGroup = dao.loadGroupItemsByGroupIds(groups.map { it.id }).groupBy { it.groupId }
             groups.map { group ->
                 FavoriteGroup(

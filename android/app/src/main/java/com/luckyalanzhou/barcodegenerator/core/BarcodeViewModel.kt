@@ -50,6 +50,8 @@ class BarcodeViewModel @Inject constructor(
 
     /** 条码与收藏的内部工作集合；对外只发布不可变状态快照。 */
     private val favoritesStateStore = FavoritesStateStore()
+    /** 搜索结果与普通分页列表隔离，避免多次搜索持续膨胀普通收藏状态。 */
+    private val favoriteSearchStateStore = FavoritesStateStore()
     private val favoritesCoordinator = FavoritesMutationCoordinator(
         store = favoritesStateStore,
         persistence = barcodePersistence,
@@ -58,6 +60,7 @@ class BarcodeViewModel @Inject constructor(
     private val favoritesQueryCoordinator = FavoritesQueryCoordinator(
         repository = barcodeDataCoordinator.repository,
         store = favoritesStateStore,
+        searchStore = favoriteSearchStateStore,
     )
     private val historyCoordinator = HistoryCoordinator(
         store = favoritesStateStore,
@@ -66,6 +69,8 @@ class BarcodeViewModel @Inject constructor(
 
     private val _dataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
+    private val _favoriteSearchState = MutableStateFlow(BarcodeDataState())
+    val favoriteSearchState: StateFlow<BarcodeDataState> = _favoriteSearchState.asStateFlow()
     private val dataStateCoordinator = BarcodeDataStateCoordinator(
         store = favoritesStateStore,
         state = _dataState,
@@ -75,6 +80,7 @@ class BarcodeViewModel @Inject constructor(
         store = favoritesStateStore,
         query = favoritesQueryCoordinator,
         publish = { isReady -> dataStateCoordinator.publish(isReady) },
+        publishSearch = { publishFavoriteSearchState() },
     )
 
     private val _generateEditorState = MutableStateFlow(GenerateEditorState())
@@ -96,6 +102,7 @@ class BarcodeViewModel @Inject constructor(
     private val cameraRequestCoordinator = CameraRequestCoordinator()
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraRequestCoordinator.state
     private var favoriteSearchJob: Job? = null
+    private var currentFavoriteSearchQuery = ""
 
     private val _fireworksVisible = MutableStateFlow(false)
     val fireworksVisible: StateFlow<Boolean> = _fireworksVisible.asStateFlow()
@@ -115,6 +122,12 @@ class BarcodeViewModel @Inject constructor(
             barcodePersistence.writeFailures.collect { error ->
                 appLogger.record("persistence", "write failed", error)
                 _persistenceFailures.emit(Unit)
+                // Mutations are optimistic in memory. If the queued Room write fails,
+                // restore the last durable snapshot instead of leaving stale UI state.
+                runCatching { favoritesLoadCoordinator.loadPersistedData() }
+                    .onFailure { reloadError ->
+                        appLogger.record("persistence", "reload after write failure failed", reloadError)
+                    }
             }
         }
     }
@@ -207,14 +220,16 @@ class BarcodeViewModel @Inject constructor(
                 currentGroup = currentGroup.copy(itemIds = loadedIds.toMutableList())
             }
             val knownItems = favoritesStateStore.itemsSnapshot()
-            val missingIds = currentGroup.itemIds.filter { id -> knownItems.none { it.id == id } }
+            val knownItemIds = knownItems.asSequence().mapTo(HashSet()) { it.id }
+            val missingIds = currentGroup.itemIds.filterNot { it in knownItemIds }
             if (missingIds.isNotEmpty()) {
                 val loaded = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadItemsByIds(missingIds) }
                 favoritesStateStore.edit { items.addAll(loaded) }
                 publishDataState()
             }
+            val itemsById = favoritesStateStore.itemsSnapshot().associateBy { it.id }
             val groupItems = currentGroup.itemIds.mapNotNull { id ->
-                favoritesStateStore.itemsSnapshot().firstOrNull { it.id == id }
+                itemsById[id]
             }
             _resultUiState.update { it.copy(selectedFavoriteGroup = currentGroup, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
             if (destination == AppRoute.Generate) {
@@ -227,11 +242,17 @@ class BarcodeViewModel @Inject constructor(
 
     fun searchFavoriteContent(query: String) {
         favoriteSearchJob?.cancel()
-        if (query.isBlank()) return
+        currentFavoriteSearchQuery = query.trim()
         favoriteSearchJob = viewModelScope.launch {
-            favoritesQueryCoordinator.search(query)
-            publishDataState()
+            favoritesQueryCoordinator.search(currentFavoriteSearchQuery)
+            publishFavoriteSearchState()
         }
+    }
+
+    private fun publishFavoriteSearchState() {
+        _favoriteSearchState.value = favoritesQueryCoordinator.searchSnapshot(_dataState.value.isReady).copy(
+            folders = _dataState.value.folders,
+        )
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {
@@ -464,6 +485,9 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadPersistedData() {
         favoritesLoadCoordinator.loadPersistedData()
+        if (currentFavoriteSearchQuery.isNotBlank()) {
+            searchFavoriteContent(currentFavoriteSearchQuery)
+        }
     }
 
     fun loadMoreFavoriteGroups(search: String = "") {
@@ -494,5 +518,11 @@ class BarcodeViewModel @Inject constructor(
     private fun refreshFavoritesAfterMutation() {
         favoritesQueryCoordinator.onMutation()
         publishDataState()
+        if (currentFavoriteSearchQuery.isNotBlank()) {
+            searchFavoriteContent(currentFavoriteSearchQuery)
+        } else {
+            favoritesQueryCoordinator.clearSearch()
+            publishFavoriteSearchState()
+        }
     }
 }

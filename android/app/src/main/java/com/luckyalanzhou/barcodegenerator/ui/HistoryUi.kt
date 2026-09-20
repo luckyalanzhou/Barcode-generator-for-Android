@@ -28,7 +28,7 @@ internal fun MainActivity.shareResultPage() {
     val height = images.sumOf { it.height } + spacing * (images.size - 1)
     val pageImage = createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(pageImage)
-    canvas.drawColor(settingsViewModel.style.bgColor)
+    canvas.drawColor(BarcodeImageColors.background(isDark()))
     var top = 0
     images.forEach { image ->
         canvas.drawBitmap(image, (width - image.width) / 2f, top.toFloat(), null)

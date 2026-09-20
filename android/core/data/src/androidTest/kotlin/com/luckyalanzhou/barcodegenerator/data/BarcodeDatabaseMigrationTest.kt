@@ -31,6 +31,7 @@ class BarcodeDatabaseMigrationTest {
 
             BarcodeDatabase.MIGRATION_1_2.migrate(database)
             BarcodeDatabase.MIGRATION_2_3.migrate(database)
+            BarcodeDatabase.MIGRATION_3_4.migrate(database)
 
             database.query("SELECT COUNT(*) FROM favorite_group_items").use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -41,6 +42,13 @@ class BarcodeDatabaseMigrationTest {
             database.query("SELECT COUNT(*) FROM favorite_group_items").use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals(0, cursor.getInt(0))
+            }
+            database.query("PRAGMA index_list('favorite_groups')").use { cursor ->
+                val indexes = buildList {
+                    val nameColumn = cursor.getColumnIndex("name")
+                    while (cursor.moveToNext()) add(cursor.getString(nameColumn))
+                }
+                assertTrue(indexes.contains("index_favorite_groups_savedAt_id"))
             }
         } finally {
             database.close()

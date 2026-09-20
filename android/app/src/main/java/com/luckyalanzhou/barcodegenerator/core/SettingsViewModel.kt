@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
@@ -27,7 +27,7 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    private val legacySettingsMigrator: LegacySettingsMigrator,
+    private val legacySettingsMigrator: SettingsMigration,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()

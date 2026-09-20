@@ -2,8 +2,9 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
-import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareManager
-import com.luckyalanzhou.barcodegenerator.ui.isLanShareImageName
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
+import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
+import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -50,7 +51,7 @@ sealed interface LanShareEvent {
 /** 局域网分享展示状态；网络服务生命周期仍由 Activity 桥接层管理。 */
 @HiltViewModel
 class LanShareViewModel @Inject constructor(
-    private val lanShareManager: LanShareManager,
+    private val lanShareGateway: LanShareGateway,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LanShareUiState())
@@ -60,21 +61,21 @@ class LanShareViewModel @Inject constructor(
     private var refreshJob: Job? = null
     private var autoRefreshJob: Job? = null
 
-    fun isOnLocalNetwork(): Boolean = lanShareManager.isOnLocalNetwork()
+    fun isOnLocalNetwork(): Boolean = lanShareGateway.isOnLocalNetwork()
 
-    fun isRouterLanHost(host: String?): Boolean = lanShareManager.isRouterLanHost(host)
+    fun isRouterLanHost(host: String?): Boolean = lanShareGateway.isRouterLanHost(host)
 
-    fun localFile(id: String): java.io.File? = lanShareManager.localFile(id)
+    fun localFile(id: String): java.io.File? = lanShareGateway.localFile(id)
 
     fun startHostSession(): LanShareSession {
-        val session = lanShareManager.start()
+        val session = lanShareGateway.start()
         _uiState.update {
             it.copy(
                 session = session,
                 isHost = true,
                 qrVisible = true,
                 browserConnected = false,
-                files = lanShareManager.localFiles(),
+                files = lanShareGateway.localFiles(),
                 ownFileIds = emptySet(),
             )
         }
@@ -83,7 +84,7 @@ class LanShareViewModel @Inject constructor(
 
     fun joinSession(session: LanShareSession) {
         stopAutoRefresh()
-        lanShareManager.stop()
+        lanShareGateway.stop()
         _uiState.update { it.copy(session = session, isHost = false, qrVisible = false, browserConnected = false) }
     }
 
@@ -98,7 +99,7 @@ class LanShareViewModel @Inject constructor(
         if (uri.host.isNullOrBlank() || uri.port !in 1..65535 ||
             token.isNullOrBlank() || uri.queryParameterNames != setOf("token") ||
             uri.fragment != null || uri.userInfo != null ||
-            !lanShareManager.isRouterLanHost(uri.host)
+            !lanShareGateway.isRouterLanHost(uri.host)
         ) {
             _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
             return false
@@ -112,14 +113,14 @@ class LanShareViewModel @Inject constructor(
 
     fun restartHostSession(): LanShareSession {
         stopAutoRefresh()
-        val session = lanShareManager.restart()
+        val session = lanShareGateway.restart()
         _uiState.update {
             it.copy(
                 session = session,
                 isHost = true,
                 qrVisible = true,
                 browserConnected = false,
-                files = lanShareManager.localFiles(),
+                files = lanShareGateway.localFiles(),
             )
         }
         startAutoRefresh(session)
@@ -128,7 +129,7 @@ class LanShareViewModel @Inject constructor(
 
     fun closeSession() {
         stopAutoRefresh()
-        lanShareManager.stop(clearSharedFiles = true)
+        lanShareGateway.stop(clearSharedFiles = true)
         _uiState.update {
             it.copy(
                 session = null,
@@ -169,8 +170,8 @@ class LanShareViewModel @Inject constructor(
     fun refreshFiles(session: LanShareSession, showError: Boolean = true) {
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch(Dispatchers.IO) {
-            val result = runCatching { lanShareManager.list(session) }
-            _uiState.update { it.copy(browserConnected = lanShareManager.browserConnected()) }
+            val result = runCatching { lanShareGateway.list(session) }
+            _uiState.update { it.copy(browserConnected = lanShareGateway.browserConnected()) }
             result.onSuccess { files ->
                 val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
                 _uiState.update {
@@ -208,7 +209,7 @@ class LanShareViewModel @Inject constructor(
     fun uploadFile(session: LanShareSession, uri: android.net.Uri, temporaryFile: java.io.File? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val id = lanShareManager.upload(session, uri)
+                val id = lanShareGateway.upload(session, createUploadSource(uri))
                 addOwnFileId(id)
                 refreshFiles(session, showError = false)
                 _events.send(LanShareEvent.Notice("上传成功"))
@@ -223,7 +224,7 @@ class LanShareViewModel @Inject constructor(
     fun uploadText(session: LanShareSession, text: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val id = lanShareManager.uploadText(session, text)
+                val id = lanShareGateway.uploadText(session, text)
                 addOwnFileId(id)
                 refreshFiles(session, showError = false)
                 _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
@@ -236,7 +237,15 @@ class LanShareViewModel @Inject constructor(
     fun downloadFile(session: LanShareSession, id: String, destination: android.net.Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                lanShareManager.download(session, id, destination)
+                val temporary = java.io.File.createTempFile("lan-download-", ".part", appContext.cacheDir)
+                try {
+                    lanShareGateway.downloadToFile(session, id, temporary)
+                    appContext.contentResolver.openOutputStream(destination)?.use { output ->
+                        temporary.inputStream().use { it.copyTo(output) }
+                    } ?: error("无法写入文件")
+                } finally {
+                    temporary.delete()
+                }
                 _events.send(LanShareEvent.Notice("下载完成"))
             } catch (_: Exception) {
                 _events.send(LanShareEvent.Error("下载失败"))
@@ -250,17 +259,29 @@ class LanShareViewModel @Inject constructor(
         previewFolder.listFiles().orEmpty().filter { it.name !in imageIds }.forEach { it.delete() }
         var cachedBytes = previewFolder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
         return buildMap {
-            files.filter { isLanShareImageName(it.name) && lanShareManager.localFile(it.id) == null }.forEach { file ->
+            files.filter { isLanShareImageName(it.name) && lanShareGateway.localFile(it.id) == null }.forEach { file ->
                 currentCoroutineContext().ensureActive()
                 val preview = java.io.File(previewFolder, file.id)
                 if (!preview.isFile && file.size <= 16L * 1024L * 1024L &&
                     cachedBytes + file.size <= 64L * 1024L * 1024L
                 ) {
-                    runCatching { lanShareManager.downloadPreview(session, file.id, preview) }
+                    runCatching { lanShareGateway.downloadPreview(session, file.id, preview) }
                     cachedBytes += preview.length()
                 }
                 if (preview.isFile) put(file.id, preview)
             }
+        }
+    }
+
+    private fun createUploadSource(uri: Uri): LanShareUploadSource {
+        val name = appContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getString(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME))
+            } else null
+        } ?: "附件"
+        val size = appContext.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+        return LanShareUploadSource(name = name, size = size) {
+            appContext.contentResolver.openInputStream(uri)
         }
     }
 

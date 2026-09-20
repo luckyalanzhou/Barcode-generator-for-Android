@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +36,14 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
                 onValueChange = { value = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
-                label = { Text("文件夹名称") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    focusedLabelColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedLabelColor = LocalBarcodeThemeColors.current.secondary,
+                    cursorColor = LocalBarcodeThemeColors.current.primary,
+                ),
+                label = { Text("文件夹名称", color = LocalBarcodeThemeColors.current.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
@@ -68,7 +76,14 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
                 onValueChange = { value = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
-                label = { Text("文件夹名称") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedTextColor = LocalBarcodeThemeColors.current.primary,
+                    focusedLabelColor = LocalBarcodeThemeColors.current.primary,
+                    unfocusedLabelColor = LocalBarcodeThemeColors.current.secondary,
+                    cursorColor = LocalBarcodeThemeColors.current.primary,
+                ),
+                label = { Text("文件夹名称", color = LocalBarcodeThemeColors.current.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

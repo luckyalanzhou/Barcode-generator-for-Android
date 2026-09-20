@@ -1,23 +1,21 @@
 package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 
 import android.content.Context
-import android.graphics.Color
 import android.util.Log
 
 /** 旧版 SharedPreferences 到 DataStore 的一次性迁移器，属于 Data 层兼容职责。 */
 class LegacySettingsMigrator(
     context: Context,
     private val settingsStore: SettingsStore,
-) {
+) : SettingsMigration {
     private val legacyPrefs by lazy { context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE) }
 
-    suspend fun migrateIfNeeded(): StyleSettings? {
+    override suspend fun migrateIfNeeded(): StyleSettings? {
         if (settingsStore.get(SettingsStore.SETTINGS_MIGRATED, false)) return null
         val style = StyleSettings(
-            barColor = readInt("style_bar_color", Color.BLACK),
-            bgColor = readInt("style_bg_color", Color.WHITE),
             showText = readBoolean("style_show_text", true),
             textPosition = readString("style_text_position", "bottom"),
             textSize = readFloat("style_text_size", 14f),

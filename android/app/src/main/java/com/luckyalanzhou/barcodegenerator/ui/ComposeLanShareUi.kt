@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
+
 import com.luckyalanzhou.barcodegenerator.LanShareEvent
 import com.luckyalanzhou.barcodegenerator.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.LanShareViewModel
@@ -253,11 +255,11 @@ private fun BoxScope.LanShareComposer(
                     containerColor = themeColors.surfaceOverlay,
                     tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 120.dp,
                 ) {
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片") }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片", color = themeColors.primary) }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("照片图库") }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("照片图库", color = themeColors.primary) }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件") }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件", color = themeColors.primary) }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
                 }
             }
             BasicTextField(

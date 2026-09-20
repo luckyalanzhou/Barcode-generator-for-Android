@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data.network.client
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
+import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.multipartFileName
@@ -9,7 +10,6 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.multipartFileNam
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
 
-import android.content.Context
 import android.net.Uri
 import org.json.JSONArray
 import java.io.File
@@ -18,7 +18,6 @@ import java.net.URL
 
 /** App 端访问浏览器分享服务的 HTTP 客户端；不包含服务端生命周期逻辑。 */
 internal class LanShareClient(
-    private val context: Context,
     private val isRouterLanHost: (String?) -> Boolean,
     private val logger: AppLogger,
 ) {
@@ -38,12 +37,9 @@ internal class LanShareClient(
         }
     }
 
-    fun upload(session: LanShareSession, uri: Uri): String {
-        val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            cursor.moveToFirst()
-            cursor.getString(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME))
-        } ?: "附件"
-        val size = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+    fun upload(session: LanShareSession, source: LanShareUploadSource): String {
+        val name = source.name.ifBlank { "附件" }
+        val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
         require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
         val boundary = "----BarcodeShare${System.currentTimeMillis()}"
@@ -63,7 +59,7 @@ internal class LanShareClient(
             var copiedBytes = 0L
             connection.outputStream.buffered().use { output ->
                 output.write(header)
-                context.contentResolver.openInputStream(uri)?.use { copiedBytes = it.copyTo(output, 16 * 1024) }
+                source.openStream()?.use { copiedBytes = it.copyTo(output, 16 * 1024) }
                     ?: error("无法读取附件")
                 output.write(footer)
             }
@@ -107,19 +103,15 @@ internal class LanShareClient(
         }
     }
 
-    fun download(session: LanShareSession, id: String, destination: Uri) =
+    fun downloadToFile(session: LanShareSession, id: String, destination: File) =
         request(session, "/api/download/${Uri.encode(id)}") { connection ->
-            val temporary = File.createTempFile("lan-download-", ".part", context.cacheDir)
+            destination.parentFile?.mkdirs()
+            val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
             try {
-                temporary.outputStream().use { output ->
-                    connection.inputStream.use { input ->
-                        input.copyTo(output)
-                    }
-                }
-                context.contentResolver.openOutputStream(destination)?.use { output ->
-                    temporary.inputStream().use { it.copyTo(output) }
-                } ?: error("无法写入文件")
-                logger.record("lan", "file downloaded id=$id bytes=${temporary.length()}", null)
+                temporary.outputStream().use { output -> connection.inputStream.use { it.copyTo(output) } }
+                if (destination.exists()) destination.delete()
+                require(temporary.renameTo(destination)) { "无法保存下载文件" }
+                logger.record("lan", "file downloaded id=$id bytes=${destination.length()}", null)
             } finally {
                 temporary.delete()
             }

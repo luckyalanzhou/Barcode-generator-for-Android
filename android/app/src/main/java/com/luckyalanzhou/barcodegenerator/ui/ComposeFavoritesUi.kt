@@ -81,6 +81,7 @@ internal fun ComposeFavoritesPage(
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
     val favoritesState by viewModel.dataState.collectAsStateWithLifecycle()
+    val searchState by viewModel.favoriteSearchState.collectAsStateWithLifecycle()
     val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     val hapticView = LocalView.current
     var query by remember { mutableStateOf("") }
@@ -95,24 +96,25 @@ internal fun ComposeFavoritesPage(
     val fileColor = themeColors.file
     val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
-    val folderPaths = remember(favoritesState.folders, favoritesState.groups) {
-        (favoritesState.folders + favoritesState.groups.map { it.folder })
+    val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
+    val folderPaths = remember(displayState.folders, displayState.groups) {
+        (displayState.folders + displayState.groups.map { it.folder })
             .filter { it.isNotBlank() }.distinct().toSet()
     }
-    val expandedSearchPaths by produceState<Set<String>>(emptySet(), favoritesState, normalizedQuery) {
+    val expandedSearchPaths by produceState<Set<String>>(emptySet(), displayState, normalizedQuery) {
         value = withContext(Dispatchers.Default) {
-            favoriteSearchExpandedPaths(favoritesState, normalizedQuery)
+            favoriteSearchExpandedPaths(displayState, normalizedQuery)
         }
     }
 
-    LaunchedEffect(folderPaths, favoritesState.groups) { viewModel.syncFavoriteTree(folderPaths) }
+    LaunchedEffect(folderPaths, displayState.groups) { viewModel.syncFavoriteTree(folderPaths) }
     LaunchedEffect(normalizedQuery) { viewModel.searchFavoriteContent(normalizedQuery) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
-    val rows by produceState<List<ComposeFavoriteRow>?>(null, favoritesState, normalizedQuery, visibleCollapsedFolders) {
+    val rows by produceState<List<ComposeFavoriteRow>?>(null, displayState, normalizedQuery, visibleCollapsedFolders) {
         value = withContext(Dispatchers.Default) {
-            composeFavoriteRows(favoritesState, normalizedQuery, visibleCollapsedFolders)
+            composeFavoriteRows(displayState, normalizedQuery, visibleCollapsedFolders)
         }
     }
 
@@ -168,7 +170,7 @@ internal fun ComposeFavoritesPage(
         } else if (rows!!.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(
-                    if (favoritesState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏",
+                    if (displayState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏",
                     color = secondary,
                     fontSize = 17.sp,
                     modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
@@ -192,7 +194,7 @@ internal fun ComposeFavoritesPage(
                         onMenuDismiss = { folderMenu = null },
                         onClick = { viewModel.toggleFavoriteFolder(row.path, folderPaths) },
                         onLongClick = {
-                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS, android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
+                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                             folderMenu = row.path to row.level
                         },
                         onShowSubfolderEditor = onShowSubfolderEditor,
@@ -214,7 +216,7 @@ internal fun ComposeFavoritesPage(
                             onMenuDismiss = { fileMenu = null },
                             onClick = { viewModel.openFavoriteGroup(group) },
                             onLongClick = {
-                                hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS, android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
+                                hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                                 fileMenu = group
                             },
                             onShowMoveDialog = onShowMoveDialog,

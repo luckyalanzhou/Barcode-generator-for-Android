@@ -14,6 +14,9 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
+import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
+import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.ui.DebugLog
 import com.luckyalanzhou.barcodegenerator.UpdateDownloadService
@@ -95,18 +98,18 @@ object AppModule {
     internal fun provideLegacySettingsMigrator(
         @ApplicationContext context: Context,
         settingsStore: SettingsStore,
-    ): LegacySettingsMigrator = LegacySettingsMigrator(context, settingsStore)
+    ): SettingsMigration = LegacySettingsMigrator(context, settingsStore)
 
     @Provides
     @Singleton
     internal fun provideLegacyBarcodeDataMigrator(
         @ApplicationContext context: Context,
         repository: BarcodeRepository,
-    ): LegacyBarcodeDataMigrator = LegacyBarcodeDataMigrator(context, repository)
+    ): BarcodeDataMigration = LegacyBarcodeDataMigrator(context, repository)
 
     @Provides
     @Singleton
-    internal fun provideLanShareManager(@ApplicationContext context: Context): LanShareManager =
+    internal fun provideLanShareManager(@ApplicationContext context: Context): LanShareGateway =
         LanShareManager(context, provideAppLogger())
 
     @Provides

@@ -59,8 +59,10 @@ internal fun MainActivity.showComposeDialog(
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
         val dark = isDark()
-        CompositionLocalProvider(LocalBarcodeThemeColors provides barcodeThemeColors(dark)) {
-            MaterialTheme {
+        val colors = barcodeThemeColors(dark)
+        val colorScheme = if (dark) barcodeDarkColorScheme(colors.background) else barcodeLightColorScheme(colors.background)
+        CompositionLocalProvider(LocalBarcodeThemeColors provides colors) {
+            MaterialTheme(colorScheme = colorScheme) {
                 CompositionLocalProvider(
                     LocalDialogMetric provides { selectedElement.value = it },
                     LocalDialogSelectedElement provides selectedElement,
@@ -118,7 +120,8 @@ internal fun MainActivity.showSimulationMetricsCompose(
             )
         } else null
         CompositionLocalProvider(LocalBarcodeThemeColors provides colors) {
-            MaterialTheme {
+            val colorScheme = if (dark) barcodeDarkColorScheme(colors.background) else barcodeLightColorScheme(colors.background)
+            MaterialTheme(colorScheme = colorScheme) {
                 SelectionContainer {
                     Column(
                         modifier = Modifier

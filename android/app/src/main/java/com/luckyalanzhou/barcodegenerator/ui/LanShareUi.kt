@@ -181,9 +181,6 @@ internal fun MainActivity.saveLanShareFile(file: LanShareFile) {
     )
 }
 
-internal fun isLanShareImageName(name: String) =
-    name.substringAfterLast('.', "").lowercase() in setOf("jpg", "jpeg", "png", "gif", "webp", "heic", "heif")
-
 /** 相机照片常把方向保存在 EXIF；BitmapFactory 不会自动应用，预览前校正方向。 */
 internal fun decodeLanSharePreview(file: File): Bitmap? {
     val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null

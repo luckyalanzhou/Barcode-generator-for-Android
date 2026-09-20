@@ -107,7 +107,6 @@ internal fun HistoryComposePage(
                     onEdit = {
                         hapticView.performHapticFeedback(
                             android.view.HapticFeedbackConstants.LONG_PRESS,
-                            android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
                         )
                         onEdit(batch)
                     },

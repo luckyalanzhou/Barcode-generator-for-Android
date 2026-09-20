@@ -8,6 +8,7 @@ internal class FavoritesLoadCoordinator(
     private val store: FavoritesStateStore,
     private val query: FavoritesQueryCoordinator,
     private val publish: (Boolean) -> Unit,
+    private val publishSearch: () -> Unit,
 ) {
     suspend fun loadPersistedData() {
         publish(false)
@@ -18,6 +19,7 @@ internal class FavoritesLoadCoordinator(
             loaded.hasMoreGroups,
         )
         publish(true)
+        publishSearch()
     }
 
     suspend fun loadMoreFavoriteGroups() {
@@ -25,6 +27,9 @@ internal class FavoritesLoadCoordinator(
     }
 
     suspend fun loadMoreFavoriteGroups(search: String) {
-        if (query.loadMore(search)) publish(true)
+        if (query.loadMore(search)) {
+            publishSearch()
+            publish(true)
+        }
     }
 }

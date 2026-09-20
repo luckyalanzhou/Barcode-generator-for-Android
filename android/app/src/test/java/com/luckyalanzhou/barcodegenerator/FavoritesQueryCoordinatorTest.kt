@@ -6,6 +6,8 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import kotlinx.coroutines.runBlocking
@@ -90,6 +92,27 @@ class FavoritesQueryCoordinatorTest {
         assertEquals(100L, store.groupsSnapshot().last().id)
     }
 
+    @Test
+    fun searchResultsDoNotPolluteRegularFavoriteStore() = runBlocking {
+        val regularStore = FavoritesStateStore()
+        regularStore.edit { groups += group(99L, "普通收藏") }
+        val searchStore = FavoritesStateStore()
+        val repository = FakeFavoriteRepository(
+            groups = listOf(group(1L, "搜索结果")),
+        )
+        val coordinator = FavoritesQueryCoordinator(repository, regularStore, searchStore)
+
+        coordinator.search("搜索")
+
+        assertEquals(listOf(99L), regularStore.groupsSnapshot().map { it.id })
+        assertEquals(listOf(1L), searchStore.groupsSnapshot().map { it.id })
+
+        coordinator.search("")
+
+        assertEquals(listOf(99L), regularStore.groupsSnapshot().map { it.id })
+        assertTrue(searchStore.groupsSnapshot().isEmpty())
+    }
+
     private fun group(id: Long, name: String = "收藏$id") =
         FavoriteGroup(id, "一级", name, id, mutableListOf())
 }
@@ -110,9 +133,11 @@ private class FakeFavoriteRepository(
         }
     }
 
-    override suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int) = groups.drop(offset).take(limit)
+    override suspend fun searchFavoriteGroups(query: String, limit: Int, cursor: FavoriteSearchGroupCursor?) =
+        groups.drop(cursor?.let { value -> groups.indexOfFirst { it.savedAt == value.savedAt && it.id == value.id } + 1 } ?: 0).take(limit)
     override suspend fun loadFavoriteGroupsByIds(ids: List<Long>) = groups.filter { it.id in ids }
-    override suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int) = items.drop(offset).take(limit)
+    override suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?) =
+        items.drop(cursor?.let { value -> items.indexOfFirst { it.createdAt == value.createdAt && it.id == value.id } + 1 } ?: 0).take(limit)
 
     override suspend fun saveAll(snapshot: BarcodeSnapshot) = Unit
     override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) = Unit

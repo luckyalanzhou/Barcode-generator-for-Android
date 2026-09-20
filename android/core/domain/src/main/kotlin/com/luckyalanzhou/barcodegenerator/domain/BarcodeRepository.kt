@@ -20,6 +20,16 @@ data class FavoriteGroupPageCursor(
     val id: Long,
 )
 
+data class FavoriteSearchGroupCursor(
+    val savedAt: Long,
+    val id: Long,
+)
+
+data class FavoriteSearchItemCursor(
+    val createdAt: Long,
+    val id: Long,
+)
+
 /** 启动快照：只保留收藏条码和最近历史，避免旧历史无限增长拖慢冷启动。 */
 data class StartupBarcodeSnapshot(
     val items: List<CodeItem>,
@@ -44,7 +54,7 @@ interface BarcodeRepository {
     suspend fun saveItems(items: List<CodeItem>)
     suspend fun upsertItems(items: List<CodeItem>)
     suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem>
-    suspend fun searchFavoriteItems(query: String, limit: Int, offset: Int): List<CodeItem>
+    suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem>
     suspend fun clearFavoriteFlags(ids: List<Long>)
     suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
     suspend fun clearAllFavoriteFlags()
@@ -61,7 +71,7 @@ interface BarcodeRepository {
     suspend fun loadGroupItemIds(groupId: Long): List<Long>
     suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup>
     suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup>
-    suspend fun searchFavoriteGroups(query: String, limit: Int, offset: Int): List<FavoriteGroup>
+    suspend fun searchFavoriteGroups(query: String, limit: Int, cursor: FavoriteSearchGroupCursor?): List<FavoriteGroup>
     suspend fun loadFolders(): List<String>
     suspend fun loadSnapshot(): BarcodeSnapshot
     suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot
