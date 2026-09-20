@@ -24,6 +24,7 @@ object FavoritesTransferManager {
         PortableZipWriter(output).use { zip ->
                 // ZIP 只保留目录和每个收藏文件；不再写入包含全部收藏的聚合 JSON。
                 val writtenDirectories = mutableSetOf<String>()
+                val writtenFavoritePaths = mutableSetOf<String>()
                 ensureZipDirectories(zip, FAVORITES_DIRECTORY, writtenDirectories)
                 folders.map { it.name }.filter { it.isNotBlank() }.forEach { folder ->
                     val parts = splitFolder(folder)
@@ -38,7 +39,7 @@ object FavoritesTransferManager {
                         id = group.id.toString(), name = group.name, rootFolder = parts.first, subFolder = parts.second,
                         type = types.firstOrNull() ?: "code128", time = group.savedAt, texts = groupItems.map { it.text }
                     )
-                    val path = favoriteZipPath(favorite)
+                    val path = favoriteZipPath(favorite, writtenFavoritePaths)
                     val directory = path.substringBeforeLast('/')
                     ensureZipDirectories(zip, directory, writtenDirectories)
                     writeZipEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
@@ -186,12 +187,34 @@ object FavoritesTransferManager {
         put("id", favorite.id); put("name", favorite.name); put("rootFolder", favorite.rootFolder); put("subFolder", favorite.subFolder)
         put("folder", favorite.folder); put("type", favorite.type); put("barcodeType", favorite.type); put("time", favorite.time); put("texts", JSONArray(favorite.texts))
     }
-    fun favoriteZipPath(favorite: InterchangeFavorite): String {
-        val id = favorite.id?.takeIf { it.isNotBlank() } ?: error("收藏缺少文件标识")
-        return listOf(FAVORITES_DIRECTORY, favorite.rootFolder, favorite.subFolder, "$id.json")
+    fun favoriteZipPath(favorite: InterchangeFavorite): String = favoriteZipPath(favorite, mutableSetOf())
+
+    private fun favoriteZipPath(favorite: InterchangeFavorite, usedPaths: MutableSet<String>): String {
+        val baseName = safeFileName(favorite.name)
+        val directory = listOf(FAVORITES_DIRECTORY, favorite.rootFolder, favorite.subFolder)
             .filter { it.isNotBlank() }
             .joinToString("/")
+        var fileName = "$baseName.json"
+        var candidate = listOf(directory, fileName).filter { it.isNotBlank() }.joinToString("/")
+        if (!usedPaths.add(candidate)) {
+            val id = favorite.id?.takeIf { it.isNotBlank() } ?: "duplicate"
+            fileName = "$baseName-$id.json"
+            candidate = listOf(directory, fileName).filter { it.isNotBlank() }.joinToString("/")
+            var suffix = 2
+            while (!usedPaths.add(candidate)) {
+                fileName = "$baseName-$id-$suffix.json"
+                candidate = listOf(directory, fileName).filter { it.isNotBlank() }.joinToString("/")
+                suffix++
+            }
+        }
+        return candidate
     }
+
+    private fun safeFileName(value: String): String = value
+        .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        .trim()
+        .trimEnd('.')
+        .ifBlank { "未命名收藏" }
     private fun ensureZipDirectories(zip: PortableZipWriter, directory: String, written: MutableSet<String>) {
         var path = ""
         directory.split('/').filter { it.isNotBlank() }.forEach { part ->
