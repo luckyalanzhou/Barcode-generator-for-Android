@@ -77,7 +77,7 @@ private fun MainActivity.showFavoriteImportConflictDialog(
         ComposeGlassDialogCard(dark) {
             Text("发现同名内容", color = colors.primary, fontSize = 18.sp)
             Text(
-                "同名文件夹 ${conflicts.folderPaths.size} 个，同名文件 ${conflicts.fileKeys.size} 个。请选择如何处理同路径同名收藏。",
+                "发现 ${conflicts.fileKeys.size} 个同路径同名收藏文件。请选择如何处理这些文件；同名文件夹下的其他文件仍会直接导入。",
                 color = colors.secondary,
                 fontSize = 15.sp,
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),

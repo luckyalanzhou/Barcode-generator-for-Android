@@ -21,10 +21,8 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
 
     override suspend fun inspectImport(backup: InterchangeBackup): FavoritesImportConflictSummary {
         val existing = repository.loadSnapshot()
-        val existingFolders = (existing.folders + existing.groups.map { it.folder }).filter { it.isNotBlank() }.toSet()
         val existingFiles = existing.groups.map { "${it.folder}\u0000${it.name}" }.toSet()
         return FavoritesImportConflictSummary(
-            folderPaths = backup.folders.filter { it.isNotBlank() && it in existingFolders }.distinct(),
             fileKeys = backup.favorites.map { "${it.folder}\u0000${it.name}" }
                 .filter { it in existingFiles }.distinct(),
         )
