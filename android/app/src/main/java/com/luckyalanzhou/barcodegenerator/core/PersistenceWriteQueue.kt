@@ -38,10 +38,16 @@ internal class PersistenceWriteQueue(
         return next
     }
 
+    /**
+     * Waits until all writes that were queued at the time of the call finish.
+     * A failed write is observable through the Deferred returned by enqueue,
+     * but is not thrown here:
+     * a stale write must not make the next startup discard readable Room data.
+     */
     suspend fun awaitIdle() {
         while (true) {
             val current = synchronized(lock) { tail } ?: return
-            current.await().getOrThrow()
+            current.await()
             if (synchronized(lock) { tail } === current) return
         }
     }

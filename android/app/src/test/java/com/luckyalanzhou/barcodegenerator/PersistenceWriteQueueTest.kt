@@ -49,4 +49,21 @@ class PersistenceWriteQueueTest {
             scope.coroutineContext[Job]?.cancel()
         }
     }
+
+    @Test
+    fun awaitIdleReturnsFailureWithoutBlockingLaterStartupReads() {
+        runBlocking {
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            val queue = PersistenceWriteQueue()
+            val order = mutableListOf<Int>()
+
+            queue.enqueue(scope) { error("expected failure") }
+            queue.enqueue(scope) { order += 2 }
+
+            queue.awaitIdle()
+
+            assertEquals(listOf(2), order)
+            scope.coroutineContext[Job]?.cancel()
+        }
+    }
 }
