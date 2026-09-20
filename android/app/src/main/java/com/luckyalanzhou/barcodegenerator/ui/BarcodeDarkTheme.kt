@@ -14,6 +14,7 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     primary = Color(0xfff2f4f8),
     secondary = Color(0xffaeb9c9),
     accent = Color(0xffb8ccff),
+    favoriteActive = Color(0xffffbb33),
     button = Color(0xff233246),
     border = Color.White.copy(alpha = 0.10f),
     icon = Color(0xfff2f4f8),

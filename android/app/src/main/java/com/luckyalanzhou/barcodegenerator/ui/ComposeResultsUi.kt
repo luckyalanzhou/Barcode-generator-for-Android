@@ -56,7 +56,8 @@ internal fun ComposeResultsPage(
     val secondary = themeColors.secondary
     val actionColor = themeColors.link
     val items = resultState.items
-    val favoriteActionIcon = if (items.isNotEmpty() && items.all { it.favorite }) FavoriteFilledIcon else FavoriteIcon
+    val isFavorite = items.isNotEmpty() && items.all { it.favorite }
+    val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
 
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -81,7 +82,12 @@ internal fun ComposeResultsPage(
                     ResultAction(EditIcon, "编辑", actionColor) {
                         viewModel.editCurrentResult()
                     }
-                    ResultAction(favoriteActionIcon, "收藏", actionColor, onSaveFavorite)
+                    ResultAction(
+                        favoriteActionIcon,
+                        "收藏",
+                        if (isFavorite) themeColors.favoriteActive else actionColor,
+                        onSaveFavorite,
+                    )
                     ResultAction(IosShareIcon, "分享", actionColor, onShare)
                 }
             }

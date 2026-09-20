@@ -16,6 +16,7 @@ internal data class BarcodeThemeColors(
     val primary: Color,
     val secondary: Color,
     val accent: Color,
+    val favoriteActive: Color,
     val button: Color,
     val border: Color,
     val icon: Color,
