@@ -74,7 +74,6 @@ internal fun ComposeSettingsPage(
     onRestoreFavorites: () -> Unit,
     onExportFavorites: () -> Unit,
     onShareDebugLog: () -> Unit,
-    onChooseFavoritesFolder: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
@@ -252,13 +251,6 @@ internal fun ComposeSettingsPage(
                         }
                     }
                     SettingsDivider(dark)
-                    SettingsActionRow(
-                        "收藏文件夹",
-                        if (settings.favoritesRootUri.isNullOrBlank()) "选择" else "已设置",
-                        colors.primary,
-                        colors.button,
-                        onChooseFavoritesFolder,
-                    )
                     if (BuildConfig.DEBUG_LOG_EXPORT) {
                         SettingsDivider(dark)
                         SettingsActionRow("导出调试日志", "分享", colors.primary, colors.button, onShareDebugLog)

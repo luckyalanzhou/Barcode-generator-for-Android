@@ -39,7 +39,6 @@ internal interface ComposeAppShellActions {
     fun saveLanShareFile(file: LanShareFile)
     fun copyLanShareAddress(address: String)
     fun shareDebugLog()
-    fun chooseFavoritesFolder()
 }
 
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
@@ -102,5 +101,4 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     }
 
     override fun shareDebugLog() = this@composeAppShellActions.shareDebugLog()
-    override fun chooseFavoritesFolder() = this@composeAppShellActions.chooseFavoritesFolder()
 }

@@ -1,6 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.data
 
 import android.content.Context
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
@@ -13,8 +17,9 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 
 /**
- * User-owned favorite files stored below an ACTION_OPEN_DOCUMENT_TREE directory.
- * Room remains the runtime index; these files are the uninstall-safe mirror.
+ * Room remains the runtime index; this is the uninstall-safe mirror in shared storage.
+ * New data is stored automatically under Documents/Barcode Generator/Favorites.
+ * The old SAF URI is retained only as a read fallback for existing installations.
  */
 class ExternalFavoritesStore(
     private val context: Context,
@@ -25,11 +30,79 @@ class ExternalFavoritesStore(
         private const val VERSION = 1
         private const val EXTENSION = ".bcode"
         private const val MARKER = ".barcode-generator-root"
+        private const val SHARED_ROOT = "Documents/Barcode Generator/Favorites/"
     }
 
     fun configuredRootUri(): Uri? = settingsStore.getFavoritesRootUri()?.let(Uri::parse)
 
     fun mirror(snapshot: BarcodeSnapshot) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mirrorShared(snapshot)
+            return
+        }
+        mirrorLegacy(snapshot)
+    }
+
+    private fun mirrorShared(snapshot: BarcodeSnapshot) {
+        runCatching {
+            val resolver = context.contentResolver
+            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            resolver.query(
+                collection,
+                arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+                arrayOf("$SHARED_ROOT%"),
+                null,
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(nameIndex)
+                    if (name == MARKER || name.endsWith(EXTENSION)) {
+                        resolver.delete(Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()), null, null)
+                    }
+                }
+            }
+            val folders = (snapshot.folders + snapshot.groups.map { it.folder })
+                .filter { it.isNotBlank() }
+                .distinct()
+            insertSharedMarker(resolver, collection, SHARED_ROOT)
+            folders.forEach { folder ->
+                val relativePath = SHARED_ROOT + folder.split('/').filter { it.isNotBlank() }
+                    .joinToString("/") { safeSegment(it) } + "/"
+                insertSharedMarker(resolver, collection, relativePath)
+            }
+            val itemsById = snapshot.items.associateBy { it.id }
+            snapshot.groups.forEach { group ->
+                val folder = group.folder.split('/').filter { it.isNotBlank() }.joinToString("/") { safeSegment(it) }
+                val relativePath = SHARED_ROOT + folder.takeIf { it.isNotBlank() }?.plus('/') .orEmpty()
+                val fileName = safeFileName(group.name) + EXTENSION
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+                }
+                val target = resolver.insert(collection, values) ?: return@forEach
+                resolver.openOutputStream(target)?.use { output ->
+                    DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
+                }
+            }
+        }
+    }
+
+    private fun insertSharedMarker(
+        resolver: android.content.ContentResolver,
+        collection: Uri,
+        relativePath: String,
+    ) {
+        resolver.insert(collection, ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, MARKER)
+            put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+        })
+    }
+
+    private fun mirrorLegacy(snapshot: BarcodeSnapshot) {
         val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return
         if (!root.isDirectory || !root.canWrite()) return
         runCatching {
@@ -50,6 +123,66 @@ class ExternalFavoritesStore(
     }
 
     fun readSnapshot(): BarcodeSnapshot? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            readSharedSnapshot()?.let { return it }
+        }
+        return readLegacySnapshot()
+    }
+
+    fun ensureSharedMirror(snapshot: BarcodeSnapshot) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && snapshot.groups.isNotEmpty() && !hasSharedManagedFiles()) {
+            mirrorShared(snapshot)
+        }
+    }
+
+    private fun hasSharedManagedFiles(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        return context.contentResolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?",
+            arrayOf("$SHARED_ROOT%", "%$EXTENSION"),
+            null,
+        )?.use { it.moveToFirst() } == true
+    }
+
+    private fun readSharedSnapshot(): BarcodeSnapshot? {
+        val resolver = context.contentResolver
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val groups = mutableListOf<FavoriteGroup>()
+        val items = mutableListOf<CodeItem>()
+        val links = mutableListOf<FavoriteGroupItem>()
+        val folders = mutableSetOf<String>()
+        resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?",
+            arrayOf("$SHARED_ROOT%", "%$EXTENSION"),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} ASC",
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            val pathIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
+            while (cursor.moveToNext()) {
+                val file = MediaStoreFile(
+                    Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()),
+                    cursor.getString(nameIndex),
+                    cursor.getString(pathIndex),
+                )
+                val folder = file.relativePath.removePrefix(SHARED_ROOT).trimEnd('/')
+                runCatching { readGroup(file, folder) }.onSuccess { (group, groupItems) ->
+                    groups += group
+                    items += groupItems
+                    links += groupItems.map { FavoriteGroupItem(group.id, it.id) }
+                    if (folder.isNotBlank()) folders += folder
+                }
+            }
+        }
+        return if (groups.isEmpty()) null else BarcodeSnapshot(items, groups, links, folders.toList())
+    }
+
+    private fun readLegacySnapshot(): BarcodeSnapshot? {
         val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return null
         if (!root.isDirectory) return null
         val groups = mutableListOf<FavoriteGroup>()
@@ -101,6 +234,26 @@ class ExternalFavoritesStore(
         }
     }
 
+    private fun readGroup(file: MediaStoreFile, folderPath: String): Pair<FavoriteGroup, List<CodeItem>> {
+        val items = mutableListOf<CodeItem>()
+        val group: FavoriteGroup
+        context.contentResolver.openInputStream(file.uri)?.use { input ->
+            DataInputStream(BufferedInputStream(input)).use { source ->
+                check(source.readUTF() == MAGIC) { "Unsupported favorite file" }
+                check(source.readInt() == VERSION) { "Unsupported favorite version" }
+                val id = source.readLong()
+                val name = source.readUTF().ifBlank { file.name.removeSuffix(EXTENSION) }
+                val storedFolder = source.readUTF().ifBlank { folderPath }
+                val savedAt = source.readLong()
+                repeat(source.readInt().coerceIn(0, 1000)) {
+                    items += CodeItem(source.readLong(), source.readUTF(), source.readUTF(), source.readLong(), true, storedFolder, false)
+                }
+                group = FavoriteGroup(id, storedFolder, name, savedAt, items.map { it.id }.toMutableList())
+            }
+        } ?: error("Cannot read favorite file")
+        return group to items
+    }
+
     private fun readGroup(file: DocumentFile, folderPath: String): Pair<FavoriteGroup, List<CodeItem>> {
         val items = mutableListOf<CodeItem>()
         val group: FavoriteGroup
@@ -145,4 +298,6 @@ class ExternalFavoritesStore(
         .trim()
         .trimEnd('.')
         .ifBlank { "未命名" }
+
+    private data class MediaStoreFile(val uri: Uri, val name: String, val relativePath: String)
 }

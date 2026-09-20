@@ -110,6 +110,9 @@ class BarcodePersistenceCoordinator(
             .distinct()
             .sorted()
         val loadedItems = snapshot.items.map { it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "") }
+        externalFavoritesStore.ensureSharedMirror(
+            BarcodeSnapshot(snapshot.items, snapshot.groups, snapshot.links, snapshot.folders),
+        )
         return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups)
     }
 
