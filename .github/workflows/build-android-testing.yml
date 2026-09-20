@@ -106,15 +106,15 @@ jobs:
         run: |
           set -euo pipefail
           source_apk="app/build/outputs/apk/beta/release/app-beta-release.apk"
-          target_apk="app/build/outputs/apk/beta/release/BarcodeGeneratorTest${VERSION_NAME}.apk"
+          target_apk="app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${VERSION_NAME}.apk"
           test -f "$source_apk" || { echo "::error::Testing APK not found"; exit 1; }
           mv "$source_apk" "$target_apk"
           ls -lh "$target_apk"
       - name: Upload beta APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BarcodeGeneratorTest${{ steps.app-version.outputs.version }}-beta-build${{ github.run_number }}
-          path: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
+          name: BarcodeGeneratorBeta${{ steps.app-version.outputs.version }}-beta-build${{ github.run_number }}
+          path: android/app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${{ steps.app-version.outputs.version }}.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -129,7 +129,7 @@ jobs:
             versionName: ${{ steps.app-version.outputs.version }}
             versionCode: ${{ steps.app-version.outputs.version_code }}
           overwrite_files: true
-          files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorTest${{ steps.app-version.outputs.version }}.apk
+          files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
           token: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
       - name: Refresh beta Release metadata

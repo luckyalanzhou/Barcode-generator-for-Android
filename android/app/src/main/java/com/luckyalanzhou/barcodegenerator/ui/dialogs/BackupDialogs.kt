@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.ui.composeAppShellActions
 import com.luckyalanzhou.barcodegenerator.ui.confirmImportFavoritesCompose
@@ -26,7 +27,7 @@ import java.io.File
  */
 /** 生成 ZIP 后交给系统分享面板，可发送至聊天、邮件、网盘或文件管理器。 */
 internal fun MainActivity.shareFavoritesExportForCompose() {
-    val name = "barcode-generator-backup-android.zip"
+    val name = BuildConfig.BACKUP_FILE_NAME
     lifecycleScope.launch(Dispatchers.IO) {
         val exportFile = File(cacheDir, name)
         val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
@@ -52,7 +53,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
 
 /** 保留 SAF 文件保存入口，供用户指定 ZIP 保存位置。 */
 internal fun MainActivity.createFavoritesDocumentExportForCompose() {
-    val name = "barcode-generator-backup-android.zip"
+    val name = BuildConfig.BACKUP_FILE_NAME
     launchExternalActivity(
         Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             type = "application/zip"

@@ -35,7 +35,8 @@ android {
             applicationId = "com.luckyalanzhou.barcodegenerator"
             manifestPlaceholders["appLabel"] = "@string/app_name_release"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-v\"")
-            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGenerator\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorOfficial\"")
+            buildConfigField("String", "BACKUP_FILE_NAME", "\"barcode-generator-backup-official.zip\"")
             buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "false")
         }
         create("beta") {
@@ -46,7 +47,8 @@ android {
             applicationId = "com.luckyalanzhou.barcodegenerator.test"
             manifestPlaceholders["appLabel"] = "@string/app_name_beta"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-test-v\"")
-            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorTest\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorBeta\"")
+            buildConfigField("String", "BACKUP_FILE_NAME", "\"barcode-generator-backup-beta.zip\"")
             buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "true")
         }
     }
