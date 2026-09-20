@@ -222,10 +222,11 @@ class BarcodeViewModel @Inject constructor(
                 "open start groupId=${currentGroup.id} name=${currentGroup.name} cachedItemIds=${currentGroup.itemIds.size} destination=$destination",
             )
             if (currentGroup.itemIds.isEmpty()) {
-                val loadedIds = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadStartupGroupItemIds(currentGroup.id) }
-                DebugLog.record("favorites", "group links loaded groupId=${currentGroup.id} itemIds=${loadedIds.size}")
+                val groupId = currentGroup.id
+                val loadedIds = withContext(Dispatchers.IO) { barcodeDataCoordinator.loadStartupGroupItemIds(groupId) }
+                DebugLog.record("favorites", "group links loaded groupId=$groupId itemIds=${loadedIds.size}")
                 favoritesStateStore.edit {
-                    groups.firstOrNull { it.id == currentGroup.id }?.itemIds?.addAll(loadedIds)
+                    groups.firstOrNull { it.id == groupId }?.itemIds?.addAll(loadedIds)
                 }
                 currentGroup = currentGroup.copy(itemIds = loadedIds.toMutableList())
             }
