@@ -217,8 +217,10 @@ class BarcodeViewModel @Inject constructor(
                 favoritesStateStore.itemsSnapshot().firstOrNull { it.id == id }
             }
             _resultUiState.update { it.copy(selectedFavoriteGroup = currentGroup, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
-            updateInputDraft(groupItems.map { it.text })
-            _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
+            if (destination == AppRoute.Generate) {
+                updateInputDraft(groupItems.map { it.text })
+                _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }
+            }
             navigateTo(destination)
         }
     }
