@@ -46,7 +46,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
                     clipData = ClipData.newRawUri("收藏备份", exportUri)
                 }
                 startActivity(Intent.createChooser(share, "导出收藏到"))
-            }.onFailure { toast("收藏导出失败：${it.message ?: "无法生成备份"}") }
+            }.onFailure { toast(formatFavoritesExportError(it)) }
         }
     }
 }
@@ -85,8 +85,19 @@ internal fun MainActivity.exportFavorites(uri: Uri) {
         withContext(Dispatchers.Main) {
             result
                 .onSuccess { toast("收藏备份已导出") }
-                .onFailure { toast("收藏导出失败：${it.message ?: "无法写入文件"}") }
+                .onFailure { toast(formatFavoritesExportError(it)) }
         }
+    }
+}
+
+private fun formatFavoritesExportError(error: Throwable): String {
+    val message = error.message.orEmpty()
+    return when {
+        message.contains("没有有效内容") || message.contains("空内容") ->
+            "收藏导出失败：存在没有条码内容的收藏文件，请补充内容后重试"
+        message.contains("ZIP") || message.contains("备份") || message.contains("JSON") ->
+            "收藏导出失败：导出的 ZIP 结构或内容校验不通过，请重试"
+        else -> "收藏导出失败：${message.ifBlank { "无法生成有效备份" }}"
     }
 }
 
