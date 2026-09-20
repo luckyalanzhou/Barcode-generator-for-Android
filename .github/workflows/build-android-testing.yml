@@ -46,6 +46,13 @@ jobs:
           cache-cleanup: on-success
           cache-read-only: false
           add-job-summary: on-failure
+      - name: Restore Gradle configuration cache
+        uses: actions/cache@v4
+        with:
+          path: android/.gradle/configuration-cache
+          key: ${{ runner.os }}-gradle-configuration-${{ hashFiles('android/**/*.gradle', 'android/**/*.gradle.kts', 'android/gradle.properties', 'android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-configuration-
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Calculate beta version
