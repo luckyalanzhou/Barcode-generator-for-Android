@@ -51,32 +51,42 @@ class LanShareManager(
         routerIpv4Addresses().any { local -> areOnSameRouterSubnet(local.address as Inet4Address, remote, local.prefixLength) }
     }.getOrDefault(false)
 
+    @Suppress("DEPRECATION")
     private fun routerIpv4Addresses(): List<android.net.LinkAddress> = run {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        // 只使用当前活动的 Wi-Fi 网络，并且必须同时找到该网络的 IPv4 默认网关。
-        // 这样不会误用 VPN、容器或其他并行网络，也避免依赖已弃用的全量网络枚举。
-        val activeNetwork = connectivity.activeNetwork ?: return@run emptyList()
-        if (connectivity.getNetworkCapabilities(activeNetwork)
-                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true
-        ) return@run emptyList()
-        val properties = connectivity.getLinkProperties(activeNetwork) ?: return@run emptyList()
-        val gateway = properties.routes.firstOrNull { route ->
-            route.isDefaultRoute && route.gateway is Inet4Address
-        }?.gateway as? Inet4Address ?: return@run emptyList()
-        properties.linkAddresses.filter { address ->
-            val local = address.address as? Inet4Address ?: return@filter false
-            !local.isLoopbackAddress && !local.isAnyLocalAddress && !local.isMulticastAddress &&
-                areOnSameRouterSubnet(local, gateway, address.prefixLength)
+        // 只接受 Wi-Fi 传输，并且必须找到该 Wi-Fi 网络的 IPv4 默认网关。
+        // activeNetwork 可能暂时指向 VPN 或其他网络，因此优先检查它，再检查系统当前的 Wi-Fi 网络集合；
+        // 仍然不会接受移动数据、以太网、VPN 或没有 Wi-Fi 网关的地址。
+        val candidates = buildList {
+            connectivity.activeNetwork?.let(::add)
+            connectivity.allNetworks.forEach { if (!contains(it)) add(it) }
         }
+        candidates.asSequence().mapNotNull { network ->
+            val capabilities = connectivity.getNetworkCapabilities(network) ?: return@mapNotNull null
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI).not() ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+            ) return@mapNotNull null
+            val properties = connectivity.getLinkProperties(network) ?: return@mapNotNull null
+            val gateway = properties.routes.firstOrNull { route ->
+                route.isDefaultRoute && route.gateway is Inet4Address
+            }?.gateway as? Inet4Address ?: return@mapNotNull null
+            val addresses = properties.linkAddresses.filter { address ->
+                val local = address.address as? Inet4Address ?: return@filter false
+                !local.isLoopbackAddress && !local.isAnyLocalAddress && !local.isMulticastAddress &&
+                    areOnSameRouterSubnet(local, gateway, address.prefixLength)
+            }
+            addresses.takeIf { it.isNotEmpty() }
+        }.firstOrNull().orEmpty()
     }
 
     override fun start(): LanShareSession = start(clearSharedFiles = true)
 
     private fun start(clearSharedFiles: Boolean): LanShareSession {
-        check(isOnLocalNetwork()) { "Error 当前不处于局域网" }
+        val addresses = routerIpv4Addresses()
+        check(addresses.isNotEmpty()) { "Error 当前不处于局域网" }
         stop()
         if (clearSharedFiles) clearFiles()
-        val address = routerIpv4Addresses()
+        val address = addresses
             .mapNotNull { it.address as? Inet4Address }
             .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
