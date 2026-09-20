@@ -103,6 +103,5 @@ internal class FavoritesMutationCoordinator(
     fun clearFavoritesAndPersist() { store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }; persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
     fun persistAllFavorites() = persistence.persistAllFavorites(scope, store.itemsSnapshot(), store.groupsSnapshot(), store.foldersSnapshot())
     fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())
-    fun persistGroups() = persistence.persistFavoriteGroups(scope, store.groupsSnapshot())
     fun persistFolders() = persistence.persistFavoriteFolders(scope, store.foldersSnapshot())
 }

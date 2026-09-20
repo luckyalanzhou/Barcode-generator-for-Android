@@ -518,11 +518,6 @@ class BarcodeViewModel @Inject constructor(
 
     fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
 
-    fun persistFavoriteGroups() {
-        favoritesCoordinator.persistGroups()
-        publishDataState()
-    }
-
     fun persistFavoriteFolders() {
         favoritesCoordinator.persistFolders()
         publishDataState()

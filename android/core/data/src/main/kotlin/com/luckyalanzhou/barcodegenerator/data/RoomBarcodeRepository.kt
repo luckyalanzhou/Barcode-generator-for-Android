@@ -101,19 +101,6 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         }
     }
 
-    override suspend fun saveFavoriteGroupMetadata(groups: List<FavoriteGroup>) {
-        if (groups.isNotEmpty()) dao.saveGroups(groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-    }
-
-    override suspend fun saveFavoriteGroupLinks(groups: List<FavoriteGroup>) {
-        if (groups.isEmpty()) return
-        database.withTransaction {
-            val ids = groups.map { it.id }
-            dao.clearGroupItemsForGroups(ids)
-            dao.saveGroupItems(groups.flatMap { group -> group.itemIds.map { FavoriteGroupItemEntity(group.id, it) } })
-        }
-    }
-
     override suspend fun deleteFavoriteGroups(ids: List<Long>) {
         if (ids.isEmpty()) return
         database.withTransaction {

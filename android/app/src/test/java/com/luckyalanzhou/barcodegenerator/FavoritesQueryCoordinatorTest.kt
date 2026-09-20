@@ -102,8 +102,6 @@ private class FakeFavoriteRepository(
     override suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>) = Unit
     override suspend fun clearAllFavoriteFlags() = Unit
     override suspend fun saveFavoriteGroups(groups: List<FavoriteGroup>, links: List<FavoriteGroupItem>) = Unit
-    override suspend fun saveFavoriteGroupMetadata(groups: List<FavoriteGroup>) = Unit
-    override suspend fun saveFavoriteGroupLinks(groups: List<FavoriteGroup>) = Unit
     override suspend fun deleteFavoriteGroups(ids: List<Long>) = Unit
     override suspend fun clearAllFavoriteGroups() = Unit
     override suspend fun renameFavoriteFolder(path: String, renamedPath: String) = Unit

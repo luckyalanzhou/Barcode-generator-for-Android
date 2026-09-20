@@ -46,18 +46,6 @@ class BarcodePersistenceCoordinator(
         return enqueue(scope) { barcodeRepository.saveItems(snapshot) }
     }
 
-    fun persistFavoriteGroups(
-        scope: CoroutineScope,
-        groups: List<FavoriteGroup>,
-    ): Deferred<Result<Unit>> {
-        val snapshots = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
-        val groupsWithLoadedLinks = snapshots.filter { it.itemIds.isNotEmpty() }
-        return enqueue(scope) {
-            barcodeRepository.saveFavoriteGroupMetadata(snapshots)
-            barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
-        }
-    }
-
     fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>): Deferred<Result<Unit>> {
         val snapshot = folders.filter { it.isNotBlank() }.distinct()
         return enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot) }

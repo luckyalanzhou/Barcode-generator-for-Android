@@ -49,8 +49,6 @@ interface BarcodeRepository {
     suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
     suspend fun clearAllFavoriteFlags()
     suspend fun saveFavoriteGroups(groups: List<FavoriteGroup>, links: List<FavoriteGroupItem>)
-    suspend fun saveFavoriteGroupMetadata(groups: List<FavoriteGroup>)
-    suspend fun saveFavoriteGroupLinks(groups: List<FavoriteGroup>)
     suspend fun deleteFavoriteGroups(ids: List<Long>)
     suspend fun clearAllFavoriteGroups()
     suspend fun renameFavoriteFolder(path: String, renamedPath: String)
