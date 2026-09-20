@@ -6,9 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.Deferred
 
 /** 条码、历史与收藏的持久化协调器，隔离 ViewModel 与具体数据源。 */
 class BarcodePersistenceCoordinator(
@@ -22,20 +20,19 @@ class BarcodePersistenceCoordinator(
         val hasMoreGroups: Boolean,
     )
 
-    private val persistenceLock = Any()
-    private var persistenceWriteTail: Job? = null
+    private val writeQueue = PersistenceWriteQueue()
 
     fun persistAllFavorites(
         scope: CoroutineScope,
         items: List<CodeItem>,
         groups: List<FavoriteGroup>,
         folders: List<String>,
-    ) {
+    ): Deferred<Result<Unit>> {
         val itemSnapshot = items.map { it.copy() }
         val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val folderSnapshot = folders.filter { it.isNotBlank() }.distinct()
         val groupsWithLoadedLinks = groupSnapshot.filter { it.itemIds.isNotEmpty() }
-        enqueue(scope) {
+        return enqueue(scope) {
             barcodeRepository.upsertItems(itemSnapshot)
             barcodeRepository.saveFavoriteGroupMetadata(groupSnapshot)
             barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
@@ -43,57 +40,58 @@ class BarcodePersistenceCoordinator(
         }
     }
 
-    fun persistItems(scope: CoroutineScope, items: List<CodeItem>) {
+    fun persistItems(scope: CoroutineScope, items: List<CodeItem>): Deferred<Result<Unit>> {
         val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
-        enqueue(scope) { barcodeRepository.saveItems(snapshot) }
+        return enqueue(scope) { barcodeRepository.saveItems(snapshot) }
     }
 
     fun persistFavoriteGroups(
         scope: CoroutineScope,
         groups: List<FavoriteGroup>,
-    ) {
+    ): Deferred<Result<Unit>> {
         val snapshots = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
         val groupsWithLoadedLinks = snapshots.filter { it.itemIds.isNotEmpty() }
-        enqueue(scope) {
+        return enqueue(scope) {
             barcodeRepository.saveFavoriteGroupMetadata(snapshots)
             barcodeRepository.saveFavoriteGroupLinks(groupsWithLoadedLinks)
         }
     }
 
-    fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>) {
+    fun persistFavoriteFolders(scope: CoroutineScope, folders: List<String>): Deferred<Result<Unit>> {
         val snapshot = folders.filter { it.isNotBlank() }.distinct()
-        enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot) }
+        return enqueue(scope) { barcodeRepository.saveFavoriteFolders(snapshot) }
     }
 
-    fun clearFavoriteFlags(scope: CoroutineScope, itemIds: List<Long>) {
-        enqueue(scope) { barcodeRepository.clearFavoriteFlags(itemIds) }
+    fun clearFavoriteFlags(scope: CoroutineScope, itemIds: List<Long>): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.clearFavoriteFlags(itemIds) }
     }
 
-    fun clearAllFavoriteFlags(scope: CoroutineScope) {
-        enqueue(scope) { barcodeRepository.clearAllFavoriteFlags() }
+    fun clearAllFavoriteFlags(scope: CoroutineScope): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.clearAllFavoriteFlags() }
     }
 
-    fun clearFavoriteFlagsForGroups(scope: CoroutineScope, groupIds: List<Long>) {
-        enqueue(scope) { barcodeRepository.clearFavoriteFlagsForGroups(groupIds) }
+    fun clearFavoriteFlagsForGroups(scope: CoroutineScope, groupIds: List<Long>): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.clearFavoriteFlagsForGroups(groupIds) }
     }
 
-    fun deleteFavoriteGroups(scope: CoroutineScope, groupIds: List<Long>) {
-        enqueue(scope) { barcodeRepository.deleteFavoriteGroups(groupIds) }
+    fun deleteFavoriteGroups(scope: CoroutineScope, groupIds: List<Long>): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.deleteFavoriteGroups(groupIds) }
     }
 
-    fun clearAllFavoriteGroups(scope: CoroutineScope) {
-        enqueue(scope) { barcodeRepository.clearAllFavoriteGroups() }
+    fun clearAllFavoriteGroups(scope: CoroutineScope): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.clearAllFavoriteGroups() }
     }
 
-    fun renameFavoriteFolder(scope: CoroutineScope, path: String, renamedPath: String) {
-        enqueue(scope) { barcodeRepository.renameFavoriteFolder(path, renamedPath) }
+    fun renameFavoriteFolder(scope: CoroutineScope, path: String, renamedPath: String): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.renameFavoriteFolder(path, renamedPath) }
     }
 
-    fun deleteFavoriteFolder(scope: CoroutineScope, path: String) {
-        enqueue(scope) { barcodeRepository.deleteFavoriteFolder(path) }
+    fun deleteFavoriteFolder(scope: CoroutineScope, path: String): Deferred<Result<Unit>> {
+        return enqueue(scope) { barcodeRepository.deleteFavoriteFolder(path) }
     }
 
-    suspend fun load(scope: CoroutineScope? = null): LoadedData {
+    suspend fun load(): LoadedData {
+        writeQueue.awaitIdle()
         legacyBarcodeDataMigrator.migrateIfNeeded()
         val snapshot = barcodeRepository.loadStartupSnapshot()
         val loadedGroups = snapshot.groups.map { group ->
@@ -113,20 +111,8 @@ class BarcodePersistenceCoordinator(
         return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups)
     }
 
-    private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit) {
-        val next: Job
-        synchronized(persistenceLock) {
-            val previous = persistenceWriteTail
-            next = scope.launch(Dispatchers.IO) {
-                previous?.join()
-                write()
-            }
-            persistenceWriteTail = next
-        }
-        next.invokeOnCompletion {
-            synchronized(persistenceLock) {
-                if (persistenceWriteTail === next) persistenceWriteTail = null
-            }
-        }
-    }
+    suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
+
+    private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> =
+        writeQueue.enqueue(scope, write)
 }
