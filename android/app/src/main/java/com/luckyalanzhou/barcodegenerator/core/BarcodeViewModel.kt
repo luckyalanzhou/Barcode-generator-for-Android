@@ -25,7 +25,6 @@ import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
@@ -69,6 +68,12 @@ class BarcodeViewModel @Inject constructor(
     private val dataStateCoordinator = BarcodeDataStateCoordinator(
         store = favoritesStateStore,
         state = _dataState,
+    )
+    private val favoritesLoadCoordinator = FavoritesLoadCoordinator(
+        persistence = barcodePersistence,
+        store = favoritesStateStore,
+        query = favoritesQueryCoordinator,
+        publish = { isReady -> dataStateCoordinator.publish(isReady) },
     )
 
     private val _generateEditorState = MutableStateFlow(GenerateEditorState())
@@ -443,67 +448,12 @@ class BarcodeViewModel @Inject constructor(
         publishDataState()
     }
 
-    suspend fun loadItemsFromRepository() {
-        val loadedItems = barcodeDataCoordinator.loadItems().map {
-            CodeItem(it.id, it.text, it.format, it.createdAt, it.favorite, it.folder.takeUnless { folder -> folder == "默认" } ?: "", it.inHistory)
-        }
-        favoritesStateStore.edit {
-            items.clear()
-            items.addAll(loadedItems)
-        }
-        publishDataState()
-    }
-
-    suspend fun loadFavoriteGroupsFromRepository() {
-        val groups = barcodeDataCoordinator.loadGroups()
-        val itemIds = barcodeDataCoordinator.loadGroupItems().groupBy { it.groupId }
-        val loadedGroups = groups.map { group ->
-            FavoriteGroup(
-                group.id,
-                group.folder.takeUnless { it == "默认" } ?: "",
-                group.name,
-                group.savedAt,
-                itemIds[group.id].orEmpty().map { it.itemId }.toMutableList(),
-            )
-        }
-        favoritesStateStore.edit {
-            this.groups.clear()
-            this.groups.addAll(loadedGroups)
-        }
-        favoritesQueryCoordinator.resetPaging(
-            loadedGroups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
-            false,
-        )
-        publishDataState()
-    }
-
-    suspend fun loadFavoriteFoldersFromRepository() {
-        val folders = (barcodeDataCoordinator.loadFolders() + favoritesStateStore.groupsSnapshot().map { it.folder })
-                .filter { it.isNotBlank() && it != "默认" }
-                .distinct()
-                .sorted()
-        favoritesStateStore.edit {
-            this.folders.clear()
-            this.folders.addAll(folders)
-        }
-        publishDataState()
-    }
-
     suspend fun loadPersistedData() {
-        _dataState.value = _dataState.value.copy(isReady = false)
-        val loaded = barcodePersistence.load()
-        favoritesStateStore.replace(loaded.items, loaded.groups, loaded.folders)
-        favoritesQueryCoordinator.resetPaging(
-            loaded.groups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) },
-            loaded.hasMoreGroups,
-        )
-        publishDataState(isReady = true)
+        favoritesLoadCoordinator.loadPersistedData()
     }
 
     fun loadMoreFavoriteGroups() {
-        viewModelScope.launch {
-            if (favoritesQueryCoordinator.loadMore()) publishDataState()
-        }
+        viewModelScope.launch { favoritesLoadCoordinator.loadMoreFavoriteGroups() }
     }
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {

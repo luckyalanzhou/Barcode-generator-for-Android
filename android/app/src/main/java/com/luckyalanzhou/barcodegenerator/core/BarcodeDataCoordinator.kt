@@ -14,10 +14,6 @@ class BarcodeDataCoordinator @Inject constructor(
 ) {
     val persistence = BarcodePersistenceCoordinator(repository, legacyBarcodeDataMigrator)
 
-    suspend fun loadItems() = repository.loadItems()
-    suspend fun loadGroups() = repository.loadGroups()
-    suspend fun loadGroupItems() = repository.loadGroupItems()
-    suspend fun loadFolders() = repository.loadFolders()
     suspend fun loadStartupGroupItemIds(groupId: Long) = repository.loadGroupItemIds(groupId)
     suspend fun loadItemsByIds(ids: List<Long>) = repository.loadItemsByIds(ids)
 
