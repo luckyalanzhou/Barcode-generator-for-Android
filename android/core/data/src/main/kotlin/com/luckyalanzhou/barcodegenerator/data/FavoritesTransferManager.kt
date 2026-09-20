@@ -63,14 +63,15 @@ object FavoritesTransferManager {
             while (true) {
                 val entry = zip.nextEntry ?: break
                 require(++entries <= MAX_BACKUP_ZIP_ENTRIES) { "ZIP 备份包含过多文件" }
-                if (entry.isDirectory && entry.name.startsWith("$FAVORITES_DIRECTORY/")) {
+                val relativePath = favoriteRelativePath(entry.name)
+                if (relativePath != null && entry.isDirectory) {
                     hasFavoritesRoot = true
-                    entry.name.removePrefix("$FAVORITES_DIRECTORY/").trim('/').takeIf { it.isNotBlank() }?.let { folder ->
+                    relativePath.trim('/').takeIf { it.isNotBlank() }?.let { folder ->
                         val parts = splitFolder(folder)
                         if (parts.first.isNotBlank()) folders += parts.first
                         if (folder.isNotBlank()) folders += folder
                     }
-                } else if (!entry.isDirectory && entry.name.startsWith("$FAVORITES_DIRECTORY/") && entry.name.endsWith(".json")) {
+                } else if (relativePath != null && !entry.isDirectory && relativePath.endsWith(".json", ignoreCase = true)) {
                     hasFavoritesRoot = true
                     val content = readLimited(zip, MAX_BACKUP_FAVORITE_JSON_BYTES)
                     uncompressed += content.size
@@ -89,6 +90,20 @@ object FavoritesTransferManager {
             }
         }
         error("ZIP 备份中未找到收藏文件")
+    }
+
+    /**
+     * 跨平台 ZIP 常由文件管理器包装一层同名根目录，例如
+     * `barcode-generator-backup-xxx/favorites/...`；导入时只取其中的 favorites 子树。
+     */
+    internal fun favoriteRelativePath(entryName: String): String? {
+        val normalized = entryName.replace('\\', '/').trimStart('/')
+        val root = "$FAVORITES_DIRECTORY/"
+        return when {
+            normalized == FAVORITES_DIRECTORY -> ""
+            normalized.startsWith(root) -> normalized.removePrefix(root)
+            else -> normalized.substringAfter("/$root", missingDelimiterValue = "").takeIf { it.isNotEmpty() }
+        }
     }
 
     private fun parseFavoriteJson(json: String): InterchangeFavorite {

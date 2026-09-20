@@ -64,4 +64,11 @@ class FavoritesTransferManagerTest {
             assertTrue(expected.message.orEmpty().contains("ZIP"))
         }
     }
+
+    @Test
+    fun favoritePathSupportsWrappedCrossPlatformZipRoot() {
+        assertEquals("一级/文件.json", FavoritesTransferManager.favoriteRelativePath("backup-root/favorites/一级/文件.json"))
+        assertEquals("一级/文件.json", FavoritesTransferManager.favoriteRelativePath("favorites/一级/文件.json"))
+        assertEquals(null, FavoritesTransferManager.favoriteRelativePath("other/一级/文件.json"))
+    }
 }
