@@ -68,16 +68,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onConfirm = dependencies.actions::confirm,
                 )
             }
-            AppRoute.FavoriteDetail -> {
-                val resultState by dependencies.viewModel.resultUiState.collectAsStateWithLifecycle()
-                val group = resultState.selectedFavoriteGroup
-                if (group == null) {
-                    LaunchedEffect(Unit) { dependencies.viewModel.navigateTo(AppRoute.Favorites) }
-                } else {
-                    val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
-                    ComposeFavoriteDetailPage(dependencies.viewModel, settings, dark, group)
-                }
-            }
             AppRoute.Results -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 ComposeResultsPage(
