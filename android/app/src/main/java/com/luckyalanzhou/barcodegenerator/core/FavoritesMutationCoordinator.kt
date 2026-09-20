@@ -1,17 +1,17 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.domain.CodeItem
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import kotlinx.coroutines.CoroutineScope
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 
 /** 收藏、文件夹和收藏条码关系的变更协调器。查询和分页由 FavoritesQueryCoordinator 负责。 */
-class FavoritesMutationCoordinator(
-    private val items: MutableList<CodeItem>,
-    private val groups: MutableList<FavoriteGroup>,
-    private val folders: MutableList<String>,
+internal class FavoritesMutationCoordinator(
+    private val store: FavoritesStateStore,
     private val persistence: BarcodePersistenceCoordinator,
     private val scope: CoroutineScope,
 ) {
+    private val items get() = store.items
+    private val groups get() = store.groups
+    private val folders get() = store.folders
     fun renameFolder(path: String, renamedPath: String) {
         groups.filter { it.folder == path || it.folder.startsWith("$path/") }.forEach { group ->
             group.folder = if (group.folder == path) renamedPath else renamedPath + group.folder.removePrefix(path)

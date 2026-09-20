@@ -26,5 +26,6 @@ dependencies {
     implementation(libs.room.ktx)
     api(libs.datastore.preferences)
     ksp(libs.room.compiler)
+    testImplementation(libs.junit)
 }
 

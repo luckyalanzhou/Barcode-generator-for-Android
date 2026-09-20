@@ -1,8 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
-import com.luckyalanzhou.barcodegenerator.domain.CodeItem
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -10,11 +8,12 @@ import kotlinx.coroutines.withContext
 private const val FAVORITE_GROUP_PAGE_SIZE = 100
 
 /** 收藏列表的查询边界：分页、搜索和延迟加载，不处理收藏变更。 */
-class FavoritesQueryCoordinator(
+internal class FavoritesQueryCoordinator(
     private val repository: BarcodeRepository,
-    private val items: MutableList<CodeItem>,
-    private val groups: MutableList<FavoriteGroup>,
+    private val store: FavoritesStateStore,
 ) {
+    private val items get() = store.items
+    private val groups get() = store.groups
     private var offset = 0
     private var hasMore = false
     private var loadingMore = false

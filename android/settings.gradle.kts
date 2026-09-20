@@ -4,4 +4,3 @@ rootProject.name = "BarcodeGenerator"
 include(":app")
 include(":core:domain")
 include(":core:data")
-include(":core:ui")

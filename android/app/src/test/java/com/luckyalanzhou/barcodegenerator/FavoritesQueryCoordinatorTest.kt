@@ -21,33 +21,35 @@ class FavoritesQueryCoordinatorTest {
             firstPage = firstPage,
             secondPage = secondPage,
         )
-        val groups = firstPage.toMutableList()
-        val coordinator = FavoritesQueryCoordinator(repository, mutableListOf(), groups)
-        coordinator.resetPaging(groups.size, true)
+        val store = FavoritesStateStore()
+        store.groups.addAll(firstPage)
+        val coordinator = FavoritesQueryCoordinator(repository, store)
+        coordinator.resetPaging(store.groups.size, true)
 
-        groups.removeAt(0)
+        store.groups.removeAt(0)
         coordinator.onMutation()
         assertTrue(coordinator.loadMore())
 
-        assertEquals(100, groups.size)
-        assertEquals(101L, groups.last().id)
+        assertEquals(100, store.groups.size)
+        assertEquals(101L, store.groups.last().id)
         assertEquals(99, repository.requestedOffsets.single())
     }
 
     @Test
     fun searchAddsOnlyMissingGroupsAndItems() = runBlocking {
-        val groups = mutableListOf(group(1L, "命中"))
-        val items = mutableListOf(CodeItem(1L, "旧内容", "Code 128-B"))
+        val store = FavoritesStateStore()
+        store.groups.add(group(1L, "命中"))
+        store.items.add(CodeItem(1L, "旧内容", "Code 128-B"))
         val repository = FakeFavoriteRepository(
             groups = listOf(group(2L, "搜索结果")),
             items = listOf(CodeItem(2L, "搜索内容", "Code 128-B")),
         )
-        val coordinator = FavoritesQueryCoordinator(repository, items, groups)
+        val coordinator = FavoritesQueryCoordinator(repository, store)
 
         coordinator.search("搜索")
 
-        assertEquals(listOf(1L, 2L), groups.map { it.id })
-        assertEquals(listOf(1L, 2L), items.map { it.id })
+        assertEquals(listOf(1L, 2L), store.groups.map { it.id })
+        assertEquals(listOf(1L, 2L), store.items.map { it.id })
     }
 
     private fun group(id: Long, name: String = "收藏$id") =

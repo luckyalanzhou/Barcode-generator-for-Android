@@ -20,7 +20,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
-import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -45,30 +45,27 @@ class BarcodeViewModel @Inject constructor(
     private val barcodePersistence = barcodeDataCoordinator.persistence
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
+    private val navigationStateCoordinator = NavigationStateCoordinator(_uiState)
 
     /** 条码与收藏的内部工作集合；对外只发布不可变状态快照。 */
-    private val items = mutableListOf<CodeItem>()
-    private val favoriteGroups = mutableListOf<FavoriteGroup>()
-    private val favoriteFolders = mutableListOf<String>()
+    private val favoritesStateStore = FavoritesStateStore()
+    private val items get() = favoritesStateStore.items
+    private val favoriteGroups get() = favoritesStateStore.groups
+    private val favoriteFolders get() = favoritesStateStore.folders
     private val favoritesCoordinator = FavoritesMutationCoordinator(
-        items = items,
-        groups = favoriteGroups,
-        folders = favoriteFolders,
+        store = favoritesStateStore,
         persistence = barcodePersistence,
         scope = viewModelScope,
     )
     private val favoritesQueryCoordinator = FavoritesQueryCoordinator(
         repository = barcodeDataCoordinator.repository,
-        items = items,
-        groups = favoriteGroups,
+        store = favoritesStateStore,
     )
 
     private val _dataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
     private val dataStateCoordinator = BarcodeDataStateCoordinator(
-        items = items,
-        groups = favoriteGroups,
-        folders = favoriteFolders,
+        store = favoritesStateStore,
         state = _dataState,
     )
 
@@ -109,15 +106,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun navigateTo(route: AppRoute) {
-        _uiState.update {
-            it.copy(
-                page = route,
-                selectedTab = when (route.mainTabIndex) {
-                    0, 1, 2, 3 -> route.mainTabIndex
-                    else -> it.selectedTab
-                },
-            )
-        }
+        navigationStateCoordinator.navigateTo(route)
     }
 
     fun prepareMainGenerateTab() {
@@ -126,7 +115,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun updateSettingsReturnPage(route: AppRoute) {
-        _uiState.update { it.copy(settingsReturnPage = route) }
+        navigationStateCoordinator.updateSettingsReturnPage(route)
     }
 
     fun clearSelectedFavoriteGroup() {
@@ -142,8 +131,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun updateSelectedTab(index: Int) {
-        if (index !in 0..3) return
-        _uiState.update { it.copy(selectedTab = index) }
+        navigationStateCoordinator.updateSelectedTab(index)
     }
 
     fun selectMainTab(index: Int) {
