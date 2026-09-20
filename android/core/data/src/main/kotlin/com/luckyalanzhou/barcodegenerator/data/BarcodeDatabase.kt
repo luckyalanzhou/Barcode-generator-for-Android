@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Insert
 import androidx.room.Index
 import androidx.room.OnConflictStrategy
@@ -42,6 +43,20 @@ data class FavoriteGroupEntity(
     tableName = "favorite_group_items",
     primaryKeys = ["groupId", "itemId"],
     indices = [Index(value = ["groupId"]), Index(value = ["itemId"])],
+    foreignKeys = [
+        ForeignKey(
+            entity = FavoriteGroupEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["groupId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = CodeItemEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["itemId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
 )
 data class FavoriteGroupItemEntity(val groupId: Long, val itemId: Long)
 
@@ -93,8 +108,8 @@ interface BarcodeDao {
 
 @Database(
     entities = [CodeItemEntity::class, FavoriteGroupEntity::class, FavoriteGroupItemEntity::class, FavoriteFolderEntity::class],
-    version = 2,
-    exportSchema = false
+    version = 3,
+    exportSchema = true
 )
 abstract class BarcodeDatabase : RoomDatabase() {
     abstract fun barcodeDao(): BarcodeDao
@@ -104,14 +119,39 @@ abstract class BarcodeDatabase : RoomDatabase() {
             context.applicationContext,
             BarcodeDatabase::class.java,
             "barcode_generator.db"
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
-        private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+        internal val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_code_items_inHistory_createdAt ON code_items(inHistory, createdAt)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_code_items_favorite ON code_items(favorite)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_groups_folder_savedAt ON favorite_groups(folder, savedAt)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_groups_name ON favorite_groups(name)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_groupId ON favorite_group_items(groupId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_itemId ON favorite_group_items(itemId)")
+            }
+        }
+
+        internal val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS favorite_group_items_new (
+                        groupId INTEGER NOT NULL,
+                        itemId INTEGER NOT NULL,
+                        PRIMARY KEY(groupId, itemId),
+                        FOREIGN KEY(groupId) REFERENCES favorite_groups(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(itemId) REFERENCES code_items(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT OR IGNORE INTO favorite_group_items_new(groupId, itemId)
+                    SELECT links.groupId, links.itemId
+                    FROM favorite_group_items links
+                    INNER JOIN favorite_groups groups ON groups.id = links.groupId
+                    INNER JOIN code_items items ON items.id = links.itemId
+                """.trimIndent())
+                db.execSQL("DROP TABLE favorite_group_items")
+                db.execSQL("ALTER TABLE favorite_group_items_new RENAME TO favorite_group_items")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_groupId ON favorite_group_items(groupId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_itemId ON favorite_group_items(itemId)")
             }

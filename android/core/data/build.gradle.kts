@@ -24,8 +24,16 @@ dependencies {
     implementation(libs.nanohttpd.websocket)
     api(libs.room.runtime)
     implementation(libs.room.ktx)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     api(libs.datastore.preferences)
     ksp(libs.room.compiler)
     testImplementation(libs.junit)
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.generateKotlin", "true")
 }
 
