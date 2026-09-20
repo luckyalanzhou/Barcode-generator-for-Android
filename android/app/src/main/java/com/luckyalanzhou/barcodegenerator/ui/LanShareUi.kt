@@ -32,14 +32,14 @@ internal fun MainActivity.enterLanShare() {
         return
     }
     viewModel.updateSettingsReturnPage(AppRoute.Settings)
-    viewModel.navigateTo(AppRoute.LanShare)
+    composeAppShellActions().navigateTo(AppRoute.LanShare)
     runCatching {
         lanShareViewModel.startHostSession()
         lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
     }.onFailure {
         lanShareViewModel.stopAutoRefresh()
         lanShareViewModel.closeSession()
-        viewModel.navigateTo(AppRoute.Settings)
+        composeAppShellActions().navigateTo(AppRoute.Settings)
         if (it.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
         else toast(it.message ?: "无法创建房间")
     }

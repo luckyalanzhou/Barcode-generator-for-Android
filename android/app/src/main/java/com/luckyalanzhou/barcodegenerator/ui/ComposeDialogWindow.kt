@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import android.app.Dialog
 import android.view.Gravity

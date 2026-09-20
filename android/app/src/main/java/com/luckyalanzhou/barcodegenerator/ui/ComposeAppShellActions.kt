@@ -1,13 +1,18 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
+import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.UpdateUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.captureText
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */
 internal interface ComposeAppShellActions {
+    fun navigateTo(route: AppRoute)
     fun selectTab(index: Int)
     fun syncBarcodeDisplaySettings(isResults: Boolean)
     fun ensureLanShare()
@@ -39,6 +44,8 @@ internal interface ComposeAppShellActions {
 
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
 internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = object : ComposeAppShellActions {
+    override fun navigateTo(route: AppRoute) = viewModel.navigateTo(route)
+
     override fun selectTab(index: Int) {
         if (viewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
         viewModel.selectMainTab(index)

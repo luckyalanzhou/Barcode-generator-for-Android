@@ -52,7 +52,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                     else {
                         viewModel.renameFavoriteGroupAndPersist(group.id, name)
                         dismiss()
-                        viewModel.navigateTo(AppRoute.Favorites)
+                        composeAppShellActions().navigateTo(AppRoute.Favorites)
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
             }
@@ -81,7 +81,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
                 DialogAction("移动", dark, {
                     viewModel.moveFavoriteGroupAndPersist(group.id, selected)
                     dismiss()
-                    viewModel.navigateTo(AppRoute.Favorites)
+                    composeAppShellActions().navigateTo(AppRoute.Favorites)
                 }, modifier = Modifier.padding(start = 8.dp))
             }
         }
@@ -117,7 +117,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                     showComposeConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
                         viewModel.deleteFavoriteGroupAndPersist(group.id)
                         viewModel.clearSelectedFavoriteGroup()
-                        viewModel.navigateTo(AppRoute.Favorites)
+                        composeAppShellActions().navigateTo(AppRoute.Favorites)
                     }
                 }, modifier = Modifier.padding(start = 8.dp))
                 DialogAction("保存", dark, {

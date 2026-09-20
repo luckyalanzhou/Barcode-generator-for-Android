@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
+import com.luckyalanzhou.barcodegenerator.barcodeFormats
+import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import android.graphics.Bitmap
 import android.graphics.Canvas

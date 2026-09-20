@@ -25,11 +25,12 @@ import java.util.concurrent.CopyOnWriteArraySet
 
 /** 浏览器端服务：HTTP 文件接口和 WebSocket 实时文件事件。 */
 internal class LanShareServer(
+    host: String,
     port: Int,
     private val folder: File,
     private val logger: AppLogger,
     private val accessToken: String,
-) : NanoWSD(port) {
+) : NanoWSD(host, port) {
     @Volatile private var lastBrowserRequestAt = 0L
     @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()

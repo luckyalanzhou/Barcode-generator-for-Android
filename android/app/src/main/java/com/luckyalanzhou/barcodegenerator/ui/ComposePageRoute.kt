@@ -108,7 +108,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dark = dark,
                     entries = dependencies.betaTestEntries,
                     viewModel = dependencies.viewModel,
-                    onNavigate = { pageName -> dependencies.viewModel.navigateTo(AppRoute.fromPage(pageName)) },
+                    onNavigate = { pageName -> dependencies.actions.navigateTo(AppRoute.fromPage(pageName)) },
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                 )
             }

@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
 import com.luckyalanzhou.barcodegenerator.ui.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig
 

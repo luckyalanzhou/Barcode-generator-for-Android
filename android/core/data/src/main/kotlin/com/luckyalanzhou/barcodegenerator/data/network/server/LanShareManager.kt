@@ -84,7 +84,7 @@ class LanShareManager(
         val running = ports.firstNotNullOfOrNull { port ->
             runCatching {
                 val token = newSessionToken()
-                LanShareServer(port, folder, logger, token).also {
+                LanShareServer(address, port, folder, logger, token).also {
                     it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 } to token
             }.getOrNull()

@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row

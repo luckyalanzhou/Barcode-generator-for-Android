@@ -1,8 +1,11 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
-import com.luckyalanzhou.barcodegenerator.ui.*
+import com.luckyalanzhou.barcodegenerator.ui.composeAppShellActions
+import com.luckyalanzhou.barcodegenerator.ui.confirmImportFavoritesCompose
+import com.luckyalanzhou.barcodegenerator.ui.showComposeDialog
+import com.luckyalanzhou.barcodegenerator.ui.toast
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import android.content.ClipData
@@ -113,7 +116,7 @@ internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup) {
         withContext(Dispatchers.Main) {
             result
                 .onSuccess { (itemCount, groupCount) ->
-                    viewModel.navigateTo(AppRoute.Favorites)
+                    composeAppShellActions().navigateTo(AppRoute.Favorites)
                     toast("已导入 $groupCount 个收藏，$itemCount 条码")
                 }
                 .onFailure { toast("收藏导入失败：${it.message ?: "无法写入数据"}") }
