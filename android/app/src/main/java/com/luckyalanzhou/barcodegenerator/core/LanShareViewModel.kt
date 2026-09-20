@@ -95,16 +95,14 @@ class LanShareViewModel @Inject constructor(
             return false
         }
         val uri = address.toUri()
-        val token = uri.getQueryParameter("token")
         if (uri.host.isNullOrBlank() || uri.port !in 1..65535 ||
-            token.isNullOrBlank() || uri.queryParameterNames != setOf("token") ||
             uri.fragment != null || uri.userInfo != null ||
             !lanShareGateway.isRouterLanHost(uri.host)
         ) {
             _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
             return false
         }
-        val session = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}", token)
+        val session = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}")
         joinSession(session)
         startAutoRefresh(session)
         refreshFiles(session)

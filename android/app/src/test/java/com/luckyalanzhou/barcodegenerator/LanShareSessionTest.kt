@@ -6,10 +6,10 @@ import org.junit.Test
 
 class LanShareSessionTest {
     @Test
-    fun shareUrlCarriesSessionToken() {
-        val session = LanShareSession("http://192.168.1.23:18080", "session-token")
+    fun shareUrlDoesNotCarryAuthenticationToken() {
+        val session = LanShareSession("http://192.168.1.23:18080")
 
-        assertEquals("http://192.168.1.23:18080/?token=session-token", session.shareUrl)
+        assertEquals("http://192.168.1.23:18080", session.shareUrl)
     }
 
     @Test

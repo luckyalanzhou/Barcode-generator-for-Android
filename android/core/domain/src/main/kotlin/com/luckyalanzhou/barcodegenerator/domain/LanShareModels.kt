@@ -14,11 +14,9 @@ data class LanShareFile(
 
 data class LanShareSession(
     val baseUrl: String,
-    val token: String = "",
 ) {
-    /** Address intended for QR/manual browser entry; the token is never logged in baseUrl. */
-    val shareUrl: String
-        get() = if (token.isBlank()) baseUrl else "$baseUrl/?token=$token"
+    /** Address intended for QR/manual browser entry. LAN Share does not use token authentication. */
+    val shareUrl: String get() = baseUrl
 }
 
 /** File types that can be rendered as LAN Share previews. */

@@ -10,17 +10,6 @@ const connectionStatus = document.getElementById('connection-status');
 const attachmentSheet = document.getElementById('attachment-sheet');
 const attachmentButton = document.getElementById('attachment-button');
 const clientIdKey = 'lanShareClientId';
-const accessToken = new URLSearchParams(location.search).get('token') || '';
-
-function authHeaders(extra) {
-    const headers = Object.assign({}, extra || {});
-    if (accessToken) headers['x-lan-share-token'] = accessToken;
-    return headers;
-}
-
-function tokenQuery(separator) {
-    return accessToken ? separator + 'token=' + encodeURIComponent(accessToken) : '';
-}
 
 let clientId = localStorage.getItem(clientIdKey);
 if (!clientId) {
@@ -46,7 +35,7 @@ function setConnectionState(connected) {
 }
 
 function fileUrl(file) {
-    return '/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '') + tokenQuery('&');
+    return '/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
 }
 
 function createFileItem(file) {
@@ -133,7 +122,7 @@ async function refreshFiles() {
     }
     refreshInFlight = true;
     try {
-        const response = await fetch('/api/files?_=' + Date.now() + tokenQuery('&'), { cache: 'no-store', headers: authHeaders() });
+        const response = await fetch('/api/files?_=' + Date.now(), { cache: 'no-store' });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         reconcileFiles(await response.json());
     } catch (_) {
@@ -150,13 +139,13 @@ async function refreshFiles() {
 async function uploadFile(file) {
     if (!file) return;
     try {
-        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId) + tokenQuery('&'), {
+        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId), {
             method: 'PUT',
-            headers: authHeaders({
+            headers: {
                 'content-type': file.type || 'application/octet-stream',
                 // Safari/部分移动浏览器使用 chunked PUT，无法由网页设置 Content-Length。
                 'x-file-size': String(file.size)
-            }),
+            },
             body: file
         });
         if (!response.ok) {
@@ -222,7 +211,7 @@ document.addEventListener('click', event => {
 
 async function heartbeat() {
     try {
-        const response = await fetch('/api/presence?_=' + Date.now() + tokenQuery('&'), { cache: 'no-store', headers: authHeaders() });
+        const response = await fetch('/api/presence?_=' + Date.now(), { cache: 'no-store' });
         setConnectionState(response.ok);
     } catch (_) {
         setConnectionState(false);
@@ -232,7 +221,7 @@ async function heartbeat() {
 let socket;
 function connectSocket() {
     try {
-        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + tokenQuery('?'));
+        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
         socket.onopen = () => {
             setConnectionState(true);
             socket.send('sync');

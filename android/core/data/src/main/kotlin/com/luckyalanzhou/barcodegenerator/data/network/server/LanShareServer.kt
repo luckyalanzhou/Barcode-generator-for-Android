@@ -29,7 +29,6 @@ internal class LanShareServer(
     port: Int,
     private val folder: File,
     private val logger: AppLogger,
-    private val accessToken: String,
 ) : NanoWSD(host, port) {
     @Volatile private var lastBrowserRequestAt = 0L
     @Volatile private var fileVersion = 0L
@@ -89,17 +88,8 @@ internal class LanShareServer(
 
     fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
 
-    private fun authorized(session: IHTTPSession): Boolean =
-        session.headers["x-lan-share-token"] == accessToken || session.parms["token"] == accessToken
-
     override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = object : NanoWSD.WebSocket(handshake) {
-        private val isAuthorized = authorized(handshake)
-
         override fun onOpen() {
-            if (!isAuthorized) {
-                close(NanoWSD.WebSocketFrame.CloseCode.PolicyViolation, "unauthorized", false)
-                return
-            }
             webSockets.add(this)
             lastBrowserRequestAt = System.currentTimeMillis()
             // 新网页刚连上时补发当前版本，填补页面初始读取与 WebSocket 建连之间的文件事件。
@@ -111,7 +101,6 @@ internal class LanShareServer(
         }
 
         override fun onMessage(message: NanoWSD.WebSocketFrame) {
-            if (!isAuthorized) return
             // 客户端在 onopen 后请求快照；此时浏览器已安装 onmessage，不会漏掉首批文件。
             if (message.textPayload == "sync") runCatching { send(fileSnapshotEvent()) }
         }
@@ -150,9 +139,6 @@ internal class LanShareServer(
     )).toString()
 
     override fun serveHttp(session: IHTTPSession): Response {
-        if (!authorized(session)) {
-            return newFixedLengthResponse(Response.Status.UNAUTHORIZED, MIME_PLAINTEXT, "unauthorized")
-        }
         if (session.headers["user-agent"].orEmpty().contains("Mozilla", ignoreCase = true)) {
             lastBrowserRequestAt = System.currentTimeMillis()
         }
