@@ -91,6 +91,7 @@ interface BarcodeDao {
     @Query("UPDATE favorite_groups SET folder = CASE WHEN folder = :path THEN :renamedPath ELSE :renamedPath || substr(folder, length(:path) + 1) END WHERE folder = :path OR folder LIKE :prefix") suspend fun renameGroupsFolder(path: String, prefix: String, renamedPath: String)
     @Query("DELETE FROM favorite_groups WHERE folder = :path OR folder LIKE :prefix") suspend fun deleteGroupsByFolder(path: String, prefix: String)
     @Query("SELECT * FROM favorite_group_items") suspend fun loadGroupItems(): List<FavoriteGroupItemEntity>
+    @Query("SELECT * FROM favorite_group_items WHERE groupId IN (:groupIds)") suspend fun loadGroupItemsByGroupIds(groupIds: List<Long>): List<FavoriteGroupItemEntity>
     @Query("SELECT itemId FROM favorite_group_items WHERE groupId = :groupId ORDER BY itemId") suspend fun loadGroupItemIds(groupId: Long): List<Long>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveGroupItems(items: List<FavoriteGroupItemEntity>)
     @Query("DELETE FROM favorite_group_items") suspend fun clearGroupItems()

@@ -55,6 +55,20 @@ class FavoritesQueryCoordinatorTest {
         assertEquals(listOf(1L, 2L), store.itemsSnapshot().map { it.id })
     }
 
+    @Test
+    fun contentSearchKeepsMatchedGroupItemRelations() = runBlocking {
+        val store = FavoritesStateStore()
+        val repository = FakeFavoriteRepository(
+            groups = listOf(group(2L, "不靠名称命中").also { it.itemIds += 2L }),
+            items = listOf(CodeItem(2L, "搜索内容", "Code 128-B")),
+        )
+        val coordinator = FavoritesQueryCoordinator(repository, store)
+
+        coordinator.search("搜索内容")
+
+        assertEquals(listOf(2L), store.groupsSnapshot().single().itemIds)
+    }
+
     private fun group(id: Long, name: String = "收藏$id") =
         FavoriteGroup(id, "一级", name, id, mutableListOf())
 }

@@ -175,7 +175,18 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             .map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
 
     override suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup> =
-        if (ids.isEmpty()) emptyList() else dao.loadGroupsByIds(ids).map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
+        if (ids.isEmpty()) emptyList() else {
+            val itemIdsByGroup = dao.loadGroupItemsByGroupIds(ids).groupBy { it.groupId }
+            dao.loadGroupsByIds(ids).map { group ->
+                FavoriteGroup(
+                    group.id,
+                    group.folder,
+                    group.name,
+                    group.savedAt,
+                    itemIdsByGroup[group.id].orEmpty().map { it.itemId }.toMutableList(),
+                )
+            }
+        }
 
     override suspend fun searchFavoriteGroupIds(query: String): List<Long> {
         if (query.isBlank()) return emptyList()
