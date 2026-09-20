@@ -508,9 +508,9 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun importFavorites(backup: InterchangeBackup): Pair<Int, Int> {
         val counts = barcodeDataCoordinator.importFavorites(backup)
-        loadItemsFromRepository()
-        loadFavoriteGroupsFromRepository()
-        loadFavoriteFoldersFromRepository()
+        // Reuse the startup snapshot path so import does not load every group
+        // into memory or disable cursor paging after the refresh.
+        loadPersistedData()
         return counts
     }
 
