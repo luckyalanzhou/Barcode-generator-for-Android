@@ -56,7 +56,7 @@ internal fun MainActivity.shareResultPage() {
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("分享结果", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
+            Text("分享结果", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
             DialogAction("保存为图片", dark, { saveBitmap(result.bitmap, result.label); dismiss() }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
             DialogAction("保存到文件", dark, {
                 pendingResultImage = result.bitmap

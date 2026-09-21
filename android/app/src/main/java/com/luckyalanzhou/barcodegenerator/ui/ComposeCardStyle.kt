@@ -26,7 +26,7 @@ internal fun Modifier.globalCardSurface(
     .background(color)
     .border(
         1.dp,
-        LocalBarcodeThemeColors.current.cardBorder,
+        LocalBarcodeThemeColors.current.borders.card,
         shape,
     )
 
@@ -40,5 +40,5 @@ internal fun Modifier.globalButtonChrome(
     val themeColors = LocalBarcodeThemeColors.current
     return this
         .shadow(minOf(elevation, 0.5.dp), shape, clip = false)
-        .border(0.5.dp, borderColor ?: themeColors.buttonBorder, shape)
+        .border(0.5.dp, borderColor ?: themeColors.borders.button, shape)
 }

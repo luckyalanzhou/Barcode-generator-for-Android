@@ -80,13 +80,13 @@ internal fun ComposeGeneratePage(
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
     val themeColors = LocalBarcodeThemeColors.current
-    val textColor = themeColors.primary
-    val secondary = themeColors.secondary
-    val cardColor = themeColors.panel
-    val inputColor = themeColors.input
-    val cardBorder = themeColors.cardBorder
-    val inputBorder = themeColors.inputBorder
-    val focusedInputBorder = themeColors.focusedInputBorder
+    val textColor = themeColors.text.primary
+    val secondary = themeColors.text.secondary
+    val cardColor = themeColors.surfaces.panel
+    val inputColor = themeColors.surfaces.input
+    val cardBorder = themeColors.borders.card
+    val inputBorder = themeColors.borders.input
+    val focusedInputBorder = themeColors.borders.focusedInput
     val density = LocalDensity.current
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
@@ -116,7 +116,7 @@ internal fun ComposeGeneratePage(
             ComposeGlassDialogCard(dark) {
                 Text(
                     "\u6e05\u7a7a\u6240\u6709\u8f93\u5165\uff1f",
-                    color = themeColors.primary,
+                    color = themeColors.text.primary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -193,8 +193,8 @@ internal fun ComposeGeneratePage(
 
         val count = values.count { it.trim().isNotEmpty() }
         val generateEnabled = count > 0
-        val generateContainer = if (generateEnabled) themeColors.progress else themeColors.button
-        val generateContent = if (generateEnabled) themeColors.onAccent else themeColors.disabled
+        val generateContainer = if (generateEnabled) themeColors.controls.progress else themeColors.controls.button
+        val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ComposeGenerateActionButton(
                 icon = AddIcon,
@@ -216,7 +216,7 @@ internal fun ComposeGeneratePage(
                 label = "拍照填充",
                 // 与“添加一行”共用同一张卡片容器，避免单独的描边造成外观不一致。
                 containerColor = cardColor,
-                contentColor = themeColors.link,
+                contentColor = themeColors.text.link,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )
@@ -234,7 +234,7 @@ internal fun ComposeGeneratePage(
                         modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
                             .height(40.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(0.5.dp, themeColors.buttonBorder),
+                        border = BorderStroke(0.5.dp, themeColors.borders.button),
                         elevation = ButtonDefaults.buttonElevation(
                             defaultElevation = 0.dp,
                             pressedElevation = 0.dp,
@@ -243,7 +243,7 @@ internal fun ComposeGeneratePage(
                             disabledElevation = 0.dp,
                         ),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = themeColors.button,
+                            containerColor = themeColors.controls.button,
                             contentColor = textColor,
                         ),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
@@ -255,7 +255,7 @@ internal fun ComposeGeneratePage(
                         expanded = formatExpanded,
                         onDismissRequest = { formatExpanded = false },
                         shape = RoundedCornerShape(16.dp),
-                        containerColor = themeColors.surfaceOverlay,
+                        containerColor = themeColors.surfaces.overlay,
                         tonalElevation = 0.dp,
                         shadowElevation = 1.dp,
                         menuWidth = (formatAnchorWidth ?: 148.dp).coerceAtLeast(148.dp),
@@ -264,7 +264,7 @@ internal fun ComposeGeneratePage(
                     ) {
                         barcodeFormats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, color = themeColors.primary, maxLines = 1, softWrap = false) }, onClick = { formatName = name; viewModel.updateGenerateFormat(name); formatExpanded = false })
+                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, color = themeColors.text.primary, maxLines = 1, softWrap = false) }, onClick = { formatName = name; viewModel.updateGenerateFormat(name); formatExpanded = false })
                         }
                     }
                 }
@@ -297,6 +297,6 @@ private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVect
         Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint ?: themeColors.secondary else themeColors.disabled, modifier = Modifier.size(iconSize))
+        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint ?: themeColors.text.secondary else themeColors.text.disabled, modifier = Modifier.size(iconSize))
     }
 }

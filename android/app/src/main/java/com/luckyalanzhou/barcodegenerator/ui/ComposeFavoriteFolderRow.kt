@@ -77,12 +77,12 @@ internal fun FavoriteFolderRow(
             expanded = menuExpanded,
             onDismissRequest = onMenuDismiss,
             shape = RoundedCornerShape(16.dp),
-            containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
+            containerColor = LocalBarcodeThemeColors.current.surfaces.overlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑文件夹", color = LocalBarcodeThemeColors.current.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑文件夹", color = LocalBarcodeThemeColors.current.text.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             val actions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
             actions.forEachIndexed { index, label ->
@@ -93,9 +93,9 @@ internal fun FavoriteFolderRow(
                     contentPadding = PaddingValues(horizontal = 12.dp),
                     text = { Text(label) },
                     trailingIcon = if (deleteAction) {
-                        { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = LocalBarcodeThemeColors.current.destructive, modifier = Modifier.size(20.dp)) }
+                        { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = LocalBarcodeThemeColors.current.text.destructive, modifier = Modifier.size(20.dp)) }
                     } else {
-                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp)) }
+                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = LocalBarcodeThemeColors.current.text.primary, modifier = Modifier.size(20.dp)) }
                     },
                     onClick = {
                         onMenuDismiss()

@@ -53,10 +53,10 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
 
 /** 深色主题：颜色只由外观设置选择，不在页面内单独维护主题状态。 */
 internal fun barcodeDarkColorScheme(background: Color): ColorScheme = darkColorScheme(
-    primary = Color(0xff0a84ff),
-    onPrimary = Color(0xff10224a),
-    secondary = Color(0xff0a84ff),
-    tertiary = Color(0xff0a84ff),
+    primary = BarcodeDarkThemeColors.accent,
+    onPrimary = BarcodeDarkThemeColors.onAccent,
+    secondary = BarcodeDarkThemeColors.accent,
+    tertiary = BarcodeDarkThemeColors.accent,
     background = background,
-    surface = Color(0xff1c1c1e),
+    surface = BarcodeDarkThemeColors.surface,
 )

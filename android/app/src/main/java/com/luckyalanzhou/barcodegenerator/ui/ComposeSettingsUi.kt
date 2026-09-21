@@ -78,7 +78,7 @@ internal fun ComposeSettingsPage(
     onNotice: (String) -> Unit,
 ) {
     val settings by settingsViewModel.uiState.collectAsStateWithLifecycle()
-    val colors = rememberSettingsColors(dark)
+    val colors = rememberSettingsColors()
     var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
     var schemeButtonWidth by remember { mutableIntStateOf(0) }
@@ -116,8 +116,8 @@ internal fun ComposeSettingsPage(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item("settings-appearance") {
-            SettingsCard(colors.card, dark) {
-                    SettingsRow("外观", colors.primary) {
+            SettingsCard(colors.surfaces.card, dark) {
+                    SettingsRow("外观", colors.text.primary) {
                         Box {
                             SettingsDropdownButton(
                                 text = when (settings.scheme) {
@@ -125,8 +125,8 @@ internal fun ComposeSettingsPage(
                                     "light" -> "浅色"
                                     else -> "跟随系统"
                                 },
-                                color = colors.button,
-                                contentColor = colors.primary,
+                                color = colors.controls.button,
+                                contentColor = colors.text.primary,
                                 onClick = { schemeMenu = true },
                                 onMeasured = { schemeButtonWidth = it },
                             )
@@ -141,7 +141,7 @@ internal fun ComposeSettingsPage(
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier.height(40.dp),
-                                        text = { Text(label, color = colors.primary) },
+                                        text = { Text(label, color = colors.text.primary) },
                                         onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) },
                                     )
                                 }
@@ -152,24 +152,24 @@ internal fun ComposeSettingsPage(
         }
 
         item("settings-barcode") {
-            SettingsCard(colors.card, dark) {
-                    SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.primary, colors.accent) {
+            SettingsCard(colors.surfaces.card, dark) {
+                    SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.text.primary, colors.controls.accent) {
                         settingsViewModel.setTextSize(it); persist(settings.copy(textSize = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", colors.primary, colors.accent) {
+                    SettingsSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", colors.text.primary, colors.controls.accent) {
                         settingsViewModel.setBarHeight(it); persist(settings.copy(barHeight = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", colors.primary, colors.accent) {
+                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", colors.text.primary, colors.controls.accent) {
                         settingsViewModel.setBarWidth(it); persist(settings.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", colors.primary, colors.accent) {
+                    SettingsSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", colors.text.primary, colors.controls.accent) {
                         settingsViewModel.setMargin(it); persist(settings.copy(margin = it))
                     }
                     SettingsDivider(dark)
-                    SettingsRow("显示条码格式", colors.primary) {
+                    SettingsRow("显示条码格式", colors.text.primary) {
                         SettingsToggle(
                             checked = settings.showFormat,
                             dark = dark,
@@ -181,13 +181,13 @@ internal fun ComposeSettingsPage(
                         )
                     }
                     SettingsDivider(dark)
-                    SettingsRow("OCR 字符纠错", colors.primary) {
+                    SettingsRow("OCR 字符纠错", colors.text.primary) {
                         val selected = ocrReplacementLabels.filter { (_, bit) -> settings.ocrMask and bit != 0 }.map { it.first }
                         Box {
                             SettingsDropdownButton(
                                 text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
-                                color = colors.button,
-                                contentColor = colors.primary,
+                                color = colors.controls.button,
+                                contentColor = colors.text.primary,
                                 onClick = { ocrMenu = true },
                                 onMeasured = { ocrButtonWidth = it },
                             )
@@ -203,13 +203,13 @@ internal fun ComposeSettingsPage(
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier.height(40.dp),
                                         contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
-                                        text = { Text(label, color = colors.primary, maxLines = 1, softWrap = false) },
+                                        text = { Text(label, color = colors.text.primary, maxLines = 1, softWrap = false) },
                                         trailingIcon = {
                                             val checked = settings.ocrMask and bit != 0
                                             Icon(
                                                 imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
                                                 contentDescription = if (checked) "已选中" else "未选中",
-                                                tint = if (checked) colors.accent else colors.secondary,
+                                                tint = if (checked) colors.controls.accent else colors.text.secondary,
                                                 modifier = Modifier.padding(end = 12.dp).size(24.dp),
                                             )
                                         },
@@ -226,10 +226,10 @@ internal fun ComposeSettingsPage(
         }
 
         item("settings-tools") {
-            SettingsCard(colors.card, dark) {
-                    SettingsActionRow("局域网文件分享", "启动", colors.primary, colors.button, onEnterLanShare)
+            SettingsCard(colors.surfaces.card, dark) {
+                    SettingsActionRow("局域网文件分享", "启动", colors.text.primary, colors.controls.button, onEnterLanShare)
                     SettingsDivider(dark)
-                    SettingsActionRow("恢复默认设置", "恢复", colors.primary, colors.button) {
+                    SettingsActionRow("恢复默认设置", "恢复", colors.text.primary, colors.controls.button) {
                         val defaults = settings.copy(textSize = 14f, barHeight = 55f, barWidth = 220f, margin = 4f)
                         settingsViewModel.setTextSize(defaults.textSize)
                         settingsViewModel.setBarHeight(defaults.barHeight)
@@ -239,33 +239,33 @@ internal fun ComposeSettingsPage(
                         onNotice("已恢复条码默认设置")
                     }
                     SettingsDivider(dark)
-                    SettingsRow("收藏备份", colors.primary) {
+                    SettingsRow("收藏备份", colors.text.primary) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SettingsSmallButton("导入", colors.primary, colors.button, onRestoreFavorites)
-                            SettingsSmallButton("恢复外部", colors.primary, colors.button, onRestoreExternalFavorites)
-                            SettingsSmallButton("导出", colors.primary, colors.button, onExportFavorites)
+                            SettingsSmallButton("导入", colors.text.primary, colors.controls.button, onRestoreFavorites)
+                            SettingsSmallButton("恢复外部", colors.text.primary, colors.controls.button, onRestoreExternalFavorites)
+                            SettingsSmallButton("导出", colors.text.primary, colors.controls.button, onExportFavorites)
                         }
                     }
                     SettingsDivider(dark)
                     if (BuildConfig.DEBUG_LOG_EXPORT) {
                         SettingsDivider(dark)
-                        SettingsActionRow("导出调试日志", "分享", colors.primary, colors.button, onShareDebugLog)
+                        SettingsActionRow("导出调试日志", "分享", colors.text.primary, colors.controls.button, onShareDebugLog)
                     }
             }
         }
 
         item("settings-about") {
-            SettingsCard(colors.card, dark) {
-                Text("关于", color = colors.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 5.dp))
+            SettingsCard(colors.surfaces.card, dark) {
+                Text("关于", color = colors.text.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 5.dp))
                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("作者：Alan", color = colors.secondary, fontSize = 13.sp)
-                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                        Text("作者：Alan", color = colors.text.secondary, fontSize = 13.sp)
+                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.text.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
                     }
                     SettingsButton(
                         text = "检查更新",
-                        color = colors.button,
-                        contentColor = colors.primary,
+                        color = colors.controls.button,
+                        contentColor = colors.text.primary,
                         onClick = onCheckForUpdates,
                         modifier = Modifier.width(132.dp),
                     )

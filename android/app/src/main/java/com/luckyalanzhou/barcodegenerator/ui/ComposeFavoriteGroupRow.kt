@@ -78,7 +78,7 @@ internal fun FavoriteGroupRow(
         ) {
             Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
-            Text(group.name, color = LocalBarcodeThemeColors.current.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(group.name, color = LocalBarcodeThemeColors.current.text.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)), color = secondary, fontSize = 11.sp, maxLines = 1)
         }
         AnchoredDropdownMenu(
@@ -86,12 +86,12 @@ internal fun FavoriteGroupRow(
             expanded = menuExpanded,
             onDismissRequest = onMenuDismiss,
             shape = RoundedCornerShape(16.dp),
-            containerColor = LocalBarcodeThemeColors.current.surfaceOverlay,
+            containerColor = LocalBarcodeThemeColors.current.surfaces.overlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalBarcodeThemeColors.current.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalBarcodeThemeColors.current.text.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             listOf("查看", "移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
@@ -106,7 +106,7 @@ internal fun FavoriteGroupRow(
                             2 -> EditIcon
                             else -> DeleteIcon
                         }
-                        Icon(icon, contentDescription = label, tint = if (index == 3) LocalBarcodeThemeColors.current.destructive else LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
+                        Icon(icon, contentDescription = label, tint = if (index == 3) LocalBarcodeThemeColors.current.text.destructive else LocalBarcodeThemeColors.current.text.primary, modifier = Modifier.size(20.dp))
                     },
                     onClick = {
                         onMenuDismiss()

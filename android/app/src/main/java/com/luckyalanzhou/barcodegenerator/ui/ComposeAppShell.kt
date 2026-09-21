@@ -160,7 +160,7 @@ internal fun ComposeAppShell(
                         Text(
                             text = targetPage.title,
                             modifier = Modifier.fillMaxWidth().height(60.dp),
-                            color = LocalBarcodeThemeColors.current.primary,
+                            color = LocalBarcodeThemeColors.current.text.primary,
                             fontSize = 25.sp,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center,
@@ -234,7 +234,7 @@ internal fun ComposeAppShell(
                         Text(
                             text = targetRoute.title,
                             modifier = Modifier.fillMaxWidth().height(60.dp),
-                            color = LocalBarcodeThemeColors.current.primary,
+                            color = LocalBarcodeThemeColors.current.text.primary,
                             fontSize = 25.sp,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center,

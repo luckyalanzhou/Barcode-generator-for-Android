@@ -61,8 +61,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         )
     }
     val themeColors = LocalBarcodeThemeColors.current
-    val selectedColor = themeColors.accent
-    val unselectedColor = themeColors.tabUnselected
+    val selectedColor = themeColors.controls.accent
+    val unselectedColor = themeColors.navigation.tabUnselected
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
@@ -113,8 +113,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                 .align(Alignment.CenterStart)
                 .drawBehind {
                     val inset = 1.5.dp.toPx()
-                    val rimTop = themeColors.tabRimTop
-                    val rimBottom = themeColors.tabRimBottom
+                    val rimTop = themeColors.navigation.tabRimTop
+                    val rimBottom = themeColors.navigation.tabRimBottom
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
@@ -126,7 +126,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         style = Stroke(width = 1.35.dp.toPx()),
                     )
                     drawRoundRect(
-                        color = themeColors.tabHighlight,
+                        color = themeColors.navigation.tabHighlight,
                         topLeft = Offset(inset, inset),
                         size = Size(size.width - inset * 2f, size.height - inset * 2f),
                         cornerRadius = CornerRadius(16.5.dp.toPx()),

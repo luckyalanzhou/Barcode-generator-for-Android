@@ -52,8 +52,8 @@ internal fun ComposeLanShareQrDialog(
 ) {
     val qrSize = 280.dp
     val dialogWidth = qrSize + 24.dp
-    val foreground = LocalBarcodeThemeColors.current.qrForeground.toArgb()
-    val background = LocalBarcodeThemeColors.current.qrBackground.toArgb()
+    val foreground = LocalBarcodeThemeColors.current.barcode.qrForeground.toArgb()
+    val background = LocalBarcodeThemeColors.current.barcode.qrBackground.toArgb()
     val bitmap = remember(session.shareUrl, dark) { createLanShareQrBitmap(session.shareUrl, foreground, background, qrSize.value.toInt()) }
     Dialog(
         onDismissRequest = {
@@ -72,7 +72,7 @@ internal fun ComposeLanShareQrDialog(
             Surface(
                 modifier = Modifier.width(dialogWidth).clickable { },
                 shape = RoundedCornerShape(22.dp),
-                color = LocalBarcodeThemeColors.current.surface,
+                color = LocalBarcodeThemeColors.current.surfaces.surface,
                 shadowElevation = 1.dp,
             ) {
                 Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)) {
@@ -107,10 +107,10 @@ internal fun MainActivity.showLanShareQrDialogCompose() {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val colors = LocalBarcodeThemeColors.current
-        val primary = colors.primary
-        val secondary = colors.secondary
-        val foreground = colors.qrForeground.toArgb()
-        val qrBackground = colors.qrBackground.toArgb()
+        val primary = colors.text.primary
+        val secondary = colors.text.secondary
+        val foreground = colors.barcode.qrForeground.toArgb()
+        val qrBackground = colors.barcode.qrBackground.toArgb()
         val bitmap = remember(session.shareUrl, dark) { createLanShareQrBitmap(session.shareUrl, foreground, qrBackground) }
         ComposeGlassDialogCard(dark) {
             Image(bitmap = bitmap.asImageBitmap(), contentDescription = "局域网分享二维码", modifier = Modifier.fillMaxWidth().background(Color(qrBackground)), contentScale = ContentScale.FillWidth)

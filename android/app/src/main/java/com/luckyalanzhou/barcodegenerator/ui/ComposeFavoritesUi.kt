@@ -99,11 +99,11 @@ internal fun ComposeFavoritesPage(
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val animation = rememberComposeAnimationConfig()
     val themeColors = LocalBarcodeThemeColors.current
-    val primary = themeColors.primary
-    val secondary = themeColors.secondary
-    val rootFolderColor = themeColors.accent
-    val childFolderColor = themeColors.childFolder
-    val fileColor = themeColors.file
+    val primary = themeColors.text.primary
+    val secondary = themeColors.text.secondary
+    val rootFolderColor = themeColors.content.folder
+    val childFolderColor = themeColors.content.childFolder
+    val fileColor = themeColors.content.file
     val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
@@ -196,7 +196,7 @@ internal fun ComposeFavoritesPage(
                     }
                 }
                 TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
-                    Text("清空", color = themeColors.destructive, fontSize = 14.sp)
+                    Text("清空", color = themeColors.text.destructive, fontSize = 14.sp)
                 }
             }
         }

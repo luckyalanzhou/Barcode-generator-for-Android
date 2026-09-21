@@ -39,7 +39,7 @@ internal fun MainActivity.showComposeDialog(
     composeView.setContent {
         val dark = isDark()
         val colors = barcodeThemeColors(dark)
-        val colorScheme = if (dark) barcodeDarkColorScheme(colors.background) else barcodeLightColorScheme(colors.background)
+        val colorScheme = if (dark) barcodeDarkColorScheme(colors.surfaces.background) else barcodeLightColorScheme(colors.surfaces.background)
         CompositionLocalProvider(LocalBarcodeThemeColors provides colors) {
             MaterialTheme(colorScheme = colorScheme) {
                 content { dialog.dismiss() }

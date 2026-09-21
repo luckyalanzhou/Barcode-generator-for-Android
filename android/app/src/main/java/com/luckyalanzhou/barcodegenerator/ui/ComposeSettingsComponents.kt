@@ -41,29 +41,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-internal data class SettingsColors(
-    val primary: Color,
-    val secondary: Color,
-    val card: Color,
-    val button: Color,
-    val accent: Color,
-)
-
 private val SettingsCardHorizontalPadding = 15.dp
 
 @Composable
-internal fun rememberSettingsColors(dark: Boolean): SettingsColors {
-    val themeColors = LocalBarcodeThemeColors.current
-    return SettingsColors(
-        // Apple 设置使用系统语义文字色：主文字接近纯黑/纯白，次文字使用带透明度的灰白色。
-        primary = if (dark) Color.White else Color.Black,
-        secondary = if (dark) Color(0xffebebf5).copy(alpha = .60f) else Color(0xff3c3c43).copy(alpha = .60f),
-        // 分组设置卡片：浅色为白色，深色为 systemGroupedBackground 的次级表面色。
-        card = if (dark) Color(0xff1c1c1e) else Color.White,
-        button = if (dark) Color(0xff2c2c2e) else Color(0xfff2f2f7),
-        accent = themeColors.accent,
-    )
-}
+internal fun rememberSettingsColors(): BarcodeThemeColors = LocalBarcodeThemeColors.current
 
 @Composable
 internal fun SettingsCard(color: Color, dark: Boolean, content: @Composable ColumnScope.() -> Unit) {
@@ -102,7 +83,7 @@ internal fun SettingsSmallButton(text: String, color: Color, buttonColor: Color,
 
 @Composable
 internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(16.dp), containerColor = LocalBarcodeThemeColors.current.surfaceOverlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, alignEndWithAnchor = true, content = content)
+    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(16.dp), containerColor = LocalBarcodeThemeColors.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, alignEndWithAnchor = true, content = content)
 }
 
 @Composable
@@ -120,17 +101,17 @@ internal fun SettingsDivider(dark: Boolean) {
                     placeable.placeRelative(0, 0)
                 }
             }
-            .background(LocalBarcodeThemeColors.current.divider),
+            .background(LocalBarcodeThemeColors.current.borders.divider),
     )
 }
 
 @Composable
 internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     val themeColors = LocalBarcodeThemeColors.current
-    val trackColor by animateColorAsState(if (checked) themeColors.toggleOn else themeColors.toggleOff, spring(stiffness = 700f), label = "settings-toggle-track")
+    val trackColor by animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, spring(stiffness = 700f), label = "settings-toggle-track")
     val thumbOffset by animateDpAsState(if (checked) 20.dp else 0.dp, spring(dampingRatio = 0.72f, stiffness = 700f), label = "settings-toggle-thumb")
     Box(modifier.width(52.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(trackColor).clickable { onCheckedChange(!checked) }.padding(2.dp), contentAlignment = Alignment.CenterStart) {
-        Box(Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }.size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.thumb))
+        Box(Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }.size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.controls.thumb))
     }
 }
 

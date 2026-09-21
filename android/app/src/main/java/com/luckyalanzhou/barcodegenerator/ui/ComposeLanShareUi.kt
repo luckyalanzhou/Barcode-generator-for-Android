@@ -88,11 +88,11 @@ internal fun ComposeLanSharePage(
 ) {
     val lanState by viewModel.uiState.collectAsStateWithLifecycle()
     val themeColors = LocalBarcodeThemeColors.current
-    val primary = themeColors.primary
-    val secondary = themeColors.secondary
-    val panel = themeColors.surface
-    val inputPanel = themeColors.inputPanel
-    val accent = themeColors.progress
+    val primary = themeColors.text.primary
+    val secondary = themeColors.text.secondary
+    val panel = themeColors.surfaces.surface
+    val inputPanel = themeColors.surfaces.inputPanel
+    val accent = themeColors.controls.progress
     var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
     var attachmentMenu by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -116,7 +116,7 @@ internal fun ComposeLanSharePage(
     }
 
     val listState = rememberLazyListState()
-    val background = themeColors.background
+    val background = themeColors.surfaces.background
     val toggleQr: () -> Unit = {
         if (!qrOpen && lanState.isHost) {
             runCatching { viewModel.restartHostSession(); qrOpen = true }
@@ -199,7 +199,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
-                tint = LocalBarcodeThemeColors.current.link,
+                tint = LocalBarcodeThemeColors.current.text.link,
                 modifier = Modifier.size(30.dp),
             )
         }
@@ -207,7 +207,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
 }
 @Composable
 private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
-    val statusColor = if (connected) LocalBarcodeThemeColors.current.success else secondary
+    val statusColor = if (connected) LocalBarcodeThemeColors.current.controls.success else secondary
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = if (connected) CircleFilledIcon else CircleIcon,
@@ -253,14 +253,14 @@ private fun BoxScope.LanShareComposer(
                 AnchoredDropdownMenu(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
                     shape = RoundedCornerShape(16.dp),
-                    containerColor = themeColors.surfaceOverlay,
+                    containerColor = themeColors.surfaces.overlay,
                     tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 120.dp,
                 ) {
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片", color = themeColors.primary) }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("照片图库", color = themeColors.primary) }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("照片图库", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件", color = themeColors.primary) }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
+                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
                 }
             }
             BasicTextField(
@@ -274,7 +274,7 @@ private fun BoxScope.LanShareComposer(
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = onSend, modifier = Modifier.width(64.dp).height(44.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                Text("发送", color = themeColors.sentContent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text("发送", color = themeColors.content.sentContent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -285,7 +285,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
     val mine = file.id in state.ownFileIds
     val previewFile = (viewModel.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
-    val bubbleColor = if (mine) themeColors.progress.copy(alpha = .44f) else themeColors.surfaceOverlay
+    val bubbleColor = if (mine) themeColors.controls.progress.copy(alpha = .44f) else themeColors.surfaces.overlay
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         if (preview != null) {
             Surface(
@@ -308,7 +308,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     Spacer(Modifier.height(6.dp))
                     Text(
                         middleEllipsize(file.name),
-                        color = if (mine) themeColors.sentContent else primary,
+                        color = if (mine) themeColors.content.sentContent else primary,
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
@@ -331,7 +331,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     Icon(
                         AttachFileIcon,
                         "文件附件",
-                        tint = if (mine) themeColors.sentContent else themeColors.icon,
+                        tint = if (mine) themeColors.content.sentContent else themeColors.content.icon,
                         modifier = Modifier.size(26.dp),
                     )
                     Spacer(Modifier.width(10.dp))
@@ -341,7 +341,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     ) {
                         Text(
                             middleEllipsize(file.name),
-                            color = if (mine) themeColors.sentContent else primary,
+                            color = if (mine) themeColors.content.sentContent else primary,
                             fontSize = 14.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Clip,
@@ -350,7 +350,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                         )
                         Text(
                             formatLanShareSize(file.size),
-                            color = if (mine) themeColors.qrBackground else secondary,
+                            color = if (mine) themeColors.barcode.qrBackground else secondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             modifier = Modifier.fillMaxWidth(),
@@ -364,8 +364,8 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                         contentPadding = PaddingValues(horizontal = 10.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (mine) themeColors.sentContent.copy(alpha = .18f) else themeColors.button,
-                            contentColor = if (mine) themeColors.sentContent else themeColors.link,
+                            containerColor = if (mine) themeColors.content.sentContent.copy(alpha = .18f) else themeColors.controls.button,
+                            contentColor = if (mine) themeColors.content.sentContent else themeColors.text.link,
                         ),
                     ) {
                         Text("下载", fontSize = 12.sp, maxLines = 1)

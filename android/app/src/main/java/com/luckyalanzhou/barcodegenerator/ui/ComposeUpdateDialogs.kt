@@ -57,13 +57,13 @@ internal fun MainActivity.installApkCompose(file: File) {
                 ComposeGlassDialogCard(dark) {
                     Text(
                         "需要允许安装未知应用",
-                        color = LocalBarcodeThemeColors.current.primary,
+                        color = LocalBarcodeThemeColors.current.text.primary,
                         fontSize = 18.sp,
                     )
                     Text(
                         "为了安装应用更新，请在系统设置中允许“条码生成器”安装未知应用。开启后返回本应用，将自动继续安装。",
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                        color = LocalBarcodeThemeColors.current.secondary,
+                        color = LocalBarcodeThemeColors.current.text.secondary,
                         fontSize = 14.sp,
                     )
                     Row(
@@ -145,11 +145,11 @@ internal fun UpdateAvailableDialogContent(
     onUpdate: () -> Unit,
 ) {
     ComposeGlassDialogCard(dark, horizontalPadding = 14.dp) {
-        Text("发现新版本", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
+        Text("发现新版本", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
         Text(
             "检测到版本 $latest，是否立即更新？",
             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-            color = LocalBarcodeThemeColors.current.secondary,
+            color = LocalBarcodeThemeColors.current.text.secondary,
             fontSize = 15.sp,
         )
         Row(
@@ -249,8 +249,8 @@ internal fun MainActivity.showDownloadFailedCompose(
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("更新下载失败", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
-            Text(reason, Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalBarcodeThemeColors.current.secondary, fontSize = 14.sp)
+            Text("更新下载失败", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
+            Text(reason, Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 14.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("重新下载", dark, {
                     dismiss()

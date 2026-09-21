@@ -53,9 +53,9 @@ internal fun ComposeResultsPage(
 ) {
     val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
     val themeColors = LocalBarcodeThemeColors.current
-    val primary = themeColors.primary
-    val secondary = themeColors.secondary
-    val actionColor = themeColors.link
+    val primary = themeColors.text.primary
+    val secondary = themeColors.text.secondary
+    val actionColor = themeColors.text.link
     val items = resultState.items
     val isFavorite = items.isNotEmpty() && items.all { it.favorite }
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
@@ -85,7 +85,7 @@ internal fun ComposeResultsPage(
                 ResultAction(
                     favoriteActionIcon,
                     "收藏",
-                    if (isFavorite) themeColors.favoriteActive else actionColor,
+                    if (isFavorite) themeColors.content.favoriteActive else actionColor,
                     onSaveFavorite,
                 )
                 ResultAction(IosShareIcon, "分享", actionColor, onShare)

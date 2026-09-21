@@ -27,7 +27,7 @@ internal fun MainActivity.createFavoritesExportCompose() {
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("导出收藏", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
+            Text("导出收藏", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
             ComposeDialogChoice("分享到其他应用", dark) {
                 dismiss()
                 shareFavoritesExportForCompose()
@@ -75,10 +75,10 @@ private fun MainActivity.showFavoriteImportConflictDialog(
         val dark = isDark()
         val colors = LocalBarcodeThemeColors.current
         ComposeGlassDialogCard(dark) {
-            Text("发现同名内容", color = colors.primary, fontSize = 18.sp)
+            Text("发现同名内容", color = colors.text.primary, fontSize = 18.sp)
             Text(
                 "发现 ${conflicts.fileKeys.size} 个同路径同名收藏文件。请选择如何处理这些文件；同名文件夹下的其他文件仍会直接导入。",
-                color = colors.secondary,
+                color = colors.text.secondary,
                 fontSize = 15.sp,
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
             )

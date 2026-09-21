@@ -64,13 +64,13 @@ internal fun ComposeGenerateInputPanel(
     modifier: Modifier = Modifier,
 ) {
     val themeColors = LocalBarcodeThemeColors.current
-    val textColor = themeColors.primary
-    val secondary = themeColors.secondary
-    val panelColor = themeColors.panel
-    val inputColor = themeColors.input
-    val panelBorder = themeColors.cardBorder
-    val inputBorder = themeColors.inputBorder
-    val focusedInputBorder = themeColors.focusedInputBorder
+    val textColor = themeColors.text.primary
+    val secondary = themeColors.text.secondary
+    val panelColor = themeColors.surfaces.panel
+    val inputColor = themeColors.surfaces.input
+    val panelBorder = themeColors.borders.card
+    val inputBorder = themeColors.borders.input
+    val focusedInputBorder = themeColors.borders.focusedInput
 
     Surface(
         modifier = modifier.heightIn(min = 72.dp, max = 296.dp),
@@ -143,7 +143,7 @@ internal fun ComposeGenerateInputPanel(
                         Spacer(Modifier.width(4.dp))
                         GenerateInputAction(ArrowUpwardIcon, "上移", index > 0, 27.dp) { onMoveUp(index) }
                         GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex, 27.dp) { onMoveDown(index) }
-                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = themeColors.destructive, onLongClick = onDeleteLongClick) { onDelete(index) }
+                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = themeColors.text.destructive, onLongClick = onDeleteLongClick) { onDelete(index) }
                     }
                 }
             }
@@ -164,8 +164,8 @@ private fun GenerateInputAction(
 ) {
     val themeColors = LocalBarcodeThemeColors.current
     val tint = if (enabled) {
-        if (description == "删除") deleteTint ?: themeColors.destructive else themeColors.accent
-    } else themeColors.disabled.copy(alpha = 0.42f)
+        if (description == "删除") deleteTint ?: themeColors.text.destructive else themeColors.controls.accent
+    } else themeColors.text.disabled.copy(alpha = 0.42f)
     Surface(
         modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,

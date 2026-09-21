@@ -24,7 +24,7 @@ internal fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) 
         ComposeGlassDialogCard(dark) {
             Text(
                 "一键清空历史记录",
-                color = LocalBarcodeThemeColors.current.primary,
+                color = LocalBarcodeThemeColors.current.text.primary,
                 fontSize = 18.sp,
             )
             Row(
