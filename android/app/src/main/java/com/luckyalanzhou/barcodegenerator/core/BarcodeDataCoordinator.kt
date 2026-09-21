@@ -24,7 +24,13 @@ class BarcodeDataCoordinator @Inject constructor(
     suspend fun repairExternalFavorite(group: FavoriteGroup) = persistence.repairExternalFavorite(group)
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary = backupRepository.inspectImport(backup)
-    suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false) = backupRepository.import(backup, overwriteConflicts)
+    suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int> {
+        val result = backupRepository.import(backup, overwriteConflicts)
+        // Import writes directly through the backup repository, so explicitly refresh
+        // the uninstall-safe external mirror before reporting success to the UI.
+        persistence.syncExternalFavorites()
+        return result
+    }
     suspend fun exportFavorites() = backupRepository.export()
     fun restoreFavorites(bytes: ByteArray) = backupRepository.restore(bytes)
 
