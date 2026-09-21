@@ -57,7 +57,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", onSaved:
                         dataState.folders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
                         else -> { onSaved(name); dismiss() }
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }
@@ -100,7 +100,7 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
                             dismiss()
                         }
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }

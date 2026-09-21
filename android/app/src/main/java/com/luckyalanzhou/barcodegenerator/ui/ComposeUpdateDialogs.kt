@@ -86,7 +86,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                                     ),
                                 )
                             },
-                            modifier = Modifier.padding(start = 8.dp),
+                            modifier = Modifier.padding(start = 20.dp),
                             primary = true,
                         )
                     }

@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 
-/** 全局卡片基座：统一圆角、边缘分离度和轻量阴影，页面保留自己的表面颜色。 */
+/** 全局卡片基座：统一圆角、边缘分离度和极轻阴影，页面保留自己的表面颜色。 */
 @Composable
 internal fun Modifier.globalCardSurface(
     dark: Boolean,
@@ -21,7 +21,7 @@ internal fun Modifier.globalCardSurface(
     shape: RoundedCornerShape = RoundedCornerShape(18.dp),
     elevation: Dp = 3.dp,
 ): Modifier = this
-    .shadow(minOf(elevation, 2.dp), shape, clip = true)
+    .shadow(minOf(elevation, 1.dp), shape, clip = true)
     .clip(shape)
     .background(color)
     .border(

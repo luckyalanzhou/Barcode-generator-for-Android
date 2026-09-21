@@ -101,7 +101,7 @@ internal fun ComposeFavoritesPage(
     val themeColors = LocalBarcodeThemeColors.current
     val primary = themeColors.primary
     val secondary = themeColors.secondary
-    val rootFolderColor = themeColors.folder
+    val rootFolderColor = themeColors.accent
     val childFolderColor = themeColors.childFolder
     val fileColor = themeColors.file
     val listState = rememberLazyListState()
@@ -168,16 +168,23 @@ internal fun ComposeFavoritesPage(
                         BasicTextField(
                             value = query,
                             onValueChange = { query = it },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(28.dp),
                             singleLine = true,
-                            textStyle = TextStyle(color = primary, fontSize = 10.sp),
+                            textStyle = TextStyle(
+                                color = primary,
+                                fontSize = 18.sp,
+                                lineHeight = 24.sp,
+                            ),
                             cursorBrush = SolidColor(primary),
                             decorationBox = { field ->
                                 if (query.isEmpty()) {
                                     Text(
                                         "搜索名称、文件夹或内容",
                                         color = secondary,
-                                        fontSize = 10.sp,
+                                        fontSize = 18.sp,
+                                        lineHeight = 24.sp,
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = TextOverflow.Clip,

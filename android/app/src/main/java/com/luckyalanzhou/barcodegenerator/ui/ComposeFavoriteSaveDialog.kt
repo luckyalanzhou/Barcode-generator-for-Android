@@ -221,7 +221,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                             }
                         }
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }

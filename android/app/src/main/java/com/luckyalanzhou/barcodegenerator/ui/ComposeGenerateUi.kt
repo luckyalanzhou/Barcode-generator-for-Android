@@ -134,7 +134,7 @@ internal fun ComposeGeneratePage(
                             syncDraft()
                             clearDialog = false
                         },
-                        modifier = Modifier.padding(start = 8.dp),
+                        modifier = Modifier.padding(start = 20.dp),
                         destructive = true,
                     )
                 }

@@ -130,7 +130,7 @@ internal fun MainActivity.showComposeConfirmDialog(title: String, message: Strin
             Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
-                DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 8.dp))
+                DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 20.dp))
             }
         }
     }

@@ -91,13 +91,13 @@ private fun MainActivity.showFavoriteImportConflictDialog(
                     "跳过冲突",
                     dark,
                     { importFavoritesForCompose(backup, overwriteConflicts = false); dismiss() },
-                    Modifier.padding(start = 8.dp),
+                    Modifier.padding(start = 20.dp),
                 )
                 DialogAction(
                     "覆盖导入",
                     dark,
                     { importFavoritesForCompose(backup, overwriteConflicts = true); dismiss() },
-                    Modifier.padding(start = 8.dp),
+                    Modifier.padding(start = 20.dp),
                 )
             }
         }

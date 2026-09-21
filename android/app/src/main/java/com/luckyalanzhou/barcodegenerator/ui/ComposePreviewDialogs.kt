@@ -64,8 +64,8 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 DialogAction("保存图片", dark, { saveBitmap(bitmap, item.text); dismiss() })
-                DialogAction("分享图片", dark, { shareBitmap(bitmap, item.text); dismiss() }, modifier = Modifier.padding(start = 8.dp))
-                DialogAction("关闭", dark, dismiss, modifier = Modifier.padding(start = 8.dp))
+                DialogAction("分享图片", dark, { shareBitmap(bitmap, item.text); dismiss() }, modifier = Modifier.padding(start = 20.dp))
+                DialogAction("关闭", dark, dismiss, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }

@@ -55,7 +55,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                         dismiss()
                         composeAppShellActions().navigateTo(AppRoute.Favorites)
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }
@@ -83,7 +83,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
                     viewModel.moveFavoriteGroupAndPersist(group.id, selected)
                     dismiss()
                     composeAppShellActions().navigateTo(AppRoute.Favorites)
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }
@@ -120,7 +120,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                         viewModel.clearSelectedFavoriteGroup()
                         composeAppShellActions().navigateTo(AppRoute.Favorites)
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
                 DialogAction("保存", dark, {
                     val cleanName = name.trim()
                     val cleanFolder = folder.trim().ifEmpty { "默认" }
@@ -130,7 +130,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                         viewModel.updateFavoriteGroupAndPersist(group.id, cleanName, cleanFolder)
                         dismiss()
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }
@@ -169,7 +169,7 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
                     showComposeConfirmDialog("删除条目", "确定删除此条码吗？", "删除") {
                         viewModel.deleteBarcodeItem(item.id)
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
                 DialogAction("保存", dark, {
                     val text = value
                     if (text.isBlank()) toast("请输入条码内容")
@@ -177,7 +177,7 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
                         viewModel.updateBarcodeItem(item.id, text, barcodeFormats[selectedIndex].first)
                         dismiss()
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }
@@ -216,7 +216,7 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
                         viewModel.persistItems()
                         dismiss()
                     }
-                }, modifier = Modifier.padding(start = 8.dp))
+                }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }

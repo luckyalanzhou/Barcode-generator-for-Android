@@ -273,7 +273,7 @@ private fun BoxScope.LanShareComposer(
                 },
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onSend, modifier = Modifier.width(64.dp).height(44.dp).globalButtonChrome(RoundedCornerShape(22.dp), 0.5.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+            Button(onClick = onSend, modifier = Modifier.width(64.dp).height(44.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
                 Text("发送", color = themeColors.sentContent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
