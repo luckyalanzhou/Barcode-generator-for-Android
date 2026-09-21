@@ -27,7 +27,6 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     cardBorder = Color.White.copy(alpha = .10f),
     inputBorder = Color.White.copy(alpha = .12f),
     focusedInputBorder = Color(0xff8dbcf0).copy(alpha = .72f),
-    tabSelected = Color(0xfff4f7ff),
     tabUnselected = Color(0xffc4cada),
     tabRimTop = Color(0xfff2f8ff).copy(alpha = .78f),
     tabRimBottom = Color(0xff73baff).copy(alpha = .62f),

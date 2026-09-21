@@ -27,7 +27,6 @@ internal data class BarcodeThemeColors(
     val cardBorder: Color,
     val inputBorder: Color,
     val focusedInputBorder: Color,
-    val tabSelected: Color,
     val tabUnselected: Color,
     val tabRimTop: Color,
     val tabRimBottom: Color,
