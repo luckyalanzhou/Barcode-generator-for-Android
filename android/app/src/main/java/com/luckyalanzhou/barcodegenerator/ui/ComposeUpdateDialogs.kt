@@ -51,7 +51,6 @@ internal fun MainActivity.installApkCompose(file: File) {
             viewModel.setPendingInstallPath(file.absolutePath)
             showComposeDialog(
                 compact = true,
-                metricsLabel = null,
                 onCancel = { viewModel.setPendingInstallPath(null) },
             ) { dismiss ->
                 val dark = isDark()
@@ -114,12 +113,9 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
     downloadUrl: String,
     expectedSize: Long?,
     expectedSha256: String?,
-    simulateOnly: Boolean = false,
-    showMetrics: Boolean = false,
 ) {
     showComposeDialog(
         compact = true,
-        metricsLabel = if (showMetrics) "发现新版本弹窗" else null,
         onCancel = { viewModel.setUpdateDialogShowing(false) },
     ) { dismiss ->
         UpdateAvailableDialogContent(
@@ -132,11 +128,9 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
             onUpdate = {
                 viewModel.setUpdateDialogShowing(false)
                 dismiss()
-                if (!simulateOnly) {
-                    window.decorView.post {
-                        DebugLog.record("update", "immediate update clicked; starting download")
-                        downloadAndInstallCompose(downloadUrl, expectedSize, expectedSha256)
-                    }
+                window.decorView.post {
+                    DebugLog.record("update", "immediate update clicked; starting download")
+                    downloadAndInstallCompose(downloadUrl, expectedSize, expectedSha256)
                 }
             },
         )
@@ -193,8 +187,6 @@ internal fun MainActivity.downloadAndInstallCompose(
     apkUrl: String,
     expectedSize: Long? = viewModel.updateUiState.value.expectedSize,
     expectedSha256: String? = viewModel.updateUiState.value.sha256,
-    simulateOnly: Boolean = false,
-    showMetrics: Boolean = false,
 ) {
     if (viewModel.updateUiState.value.downloadRunning) {
         DebugLog.record("update", "download ignored because another download is running")
@@ -209,7 +201,6 @@ internal fun MainActivity.downloadAndInstallCompose(
     }
     showComposeDialog(
         compact = false,
-        metricsLabel = if (showMetrics) "下载进度弹窗" else null,
         onCancel = cancelDownload,
     ) { dismiss ->
         dismissDialog = dismiss
@@ -245,11 +236,6 @@ internal fun MainActivity.downloadAndInstallCompose(
         }
         ComposeDownloadProgressDialog(viewModel, isDark(), cancelDownload)
     }
-    if (simulateOnly) {
-        viewModel.setUpdateDownloadProgress(50, false, "已下载 50%（模拟）")
-        viewModel.setUpdateDownloadRunning(false)
-        return
-    }
     DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
     viewModel.startUpdateDownload(apkUrl, expectedSize, expectedSha256)
 }
@@ -260,7 +246,7 @@ internal fun MainActivity.showDownloadFailedCompose(
     expectedSha256: String?,
     reason: String,
 ) {
-    showComposeDialog(compact = true, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text("更新下载失败", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)

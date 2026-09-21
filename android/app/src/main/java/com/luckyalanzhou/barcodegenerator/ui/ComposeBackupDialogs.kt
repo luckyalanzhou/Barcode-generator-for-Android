@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
 
 /** 收藏导出方式选择，继续调用原有系统分享和 SAF 文件保存入口。 */
 internal fun MainActivity.createFavoritesExportCompose() {
-    showComposeDialog(compact = true, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text("导出收藏", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
@@ -71,7 +71,7 @@ private fun MainActivity.showFavoriteImportConflictDialog(
     backup: InterchangeBackup,
     conflicts: FavoritesImportConflictSummary,
 ) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val colors = LocalBarcodeThemeColors.current
         ComposeGlassDialogCard(dark) {

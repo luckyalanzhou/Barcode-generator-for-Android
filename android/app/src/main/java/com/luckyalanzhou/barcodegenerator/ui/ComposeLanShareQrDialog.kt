@@ -97,15 +97,14 @@ private fun createLanShareQrBitmap(value: String, foreground: Int, background: I
 }
 
 /** 二维码弹窗统一复用实际的 Compose 结构。 */
-internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShareSession? = null) {
-    val simulated = simulatedSession != null
+internal fun MainActivity.showLanShareQrDialogCompose() {
     val lanState = lanShareViewModel.uiState.value
-    val session = simulatedSession ?: lanState.session
-    if ((!lanState.isHost && !simulated) || session == null) {
+    val session = lanState.session
+    if (!lanState.isHost || session == null) {
         toast("请先创建分享房间")
         return
     }
-    showComposeDialog(compact = false, metricsLabel = if (simulated) "二维码弹窗" else null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val colors = LocalBarcodeThemeColors.current
         val primary = colors.primary
@@ -120,7 +119,7 @@ internal fun MainActivity.showLanShareQrDialogCompose(simulatedSession: LanShare
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("关闭", dark, {
-                    if (!simulated) lanShareViewModel.setQrVisible(false)
+                    lanShareViewModel.setQrVisible(false)
                     dismiss()
                 })
             }

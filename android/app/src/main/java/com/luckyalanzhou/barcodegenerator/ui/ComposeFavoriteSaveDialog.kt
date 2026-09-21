@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 internal fun MainActivity.saveResultAsFavoriteCompose() {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
         val dataState by viewModel.dataState.collectAsStateWithLifecycle()

@@ -113,19 +113,8 @@ internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String) {
 internal fun MainActivity.toast(s: String) = android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_SHORT).show()
 internal fun MainActivity.dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
-internal fun MainActivity.showIos26NoticeDialog(message: String, showMetrics: Boolean = false) {
-    showIos26NoticeDialogCompose(message, showMetrics)
-}
-
-internal fun MainActivity.showSimulatedDialog(
-    title: String,
-    message: String,
-    negative: String?,
-    neutral: String?,
-    positive: String?,
-    showMetrics: Boolean = true,
-) {
-    showSimulatedDialogCompose(title, message, negative, neutral, positive, showMetrics)
+internal fun MainActivity.showIos26NoticeDialog(message: String) {
+    showIos26NoticeDialogCompose(message)
 }
 
 /** 与业务完全分离的 Compose Canvas 烟花彩蛋；不写入设置或条码数据。 */

@@ -32,7 +32,7 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
         toast("内容不符合该格式")
         return
     }
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text(

@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
-import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 
 import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 import android.Manifest
@@ -45,8 +44,8 @@ internal fun MainActivity.enterLanShare() {
     }
 }
 
-internal fun MainActivity.showLanShareNetworkErrorDialog(showMetrics: Boolean = false) {
-    showIos26NoticeDialogCompose("Error: 当前不处于局域网", showMetrics)
+internal fun MainActivity.showLanShareNetworkErrorDialog() {
+    showIos26NoticeDialogCompose("Error: 当前不处于局域网")
 }
 
 internal fun MainActivity.openLanShareCamera() {
@@ -156,8 +155,8 @@ internal fun MainActivity.joinLanShareSession(value: String) {
     lanShareViewModel.joinSessionFromAddress(value)
 }
 
-internal fun MainActivity.showLanShareQrDialog(simulatedSession: LanShareSession? = null) {
-    showLanShareQrDialogCompose(simulatedSession)
+internal fun MainActivity.showLanShareQrDialog() {
+    showLanShareQrDialogCompose()
 }
 
 internal fun MainActivity.closeLanShare() {

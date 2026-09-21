@@ -211,7 +211,7 @@ internal fun HistoryBatchPickerDialogContent(
 }
 
 internal fun MainActivity.showHistoryBatchPickerCompose(batch: List<CodeItem>) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         HistoryBatchPickerDialogContent(
             batch = batch,
             dark = isDark(),

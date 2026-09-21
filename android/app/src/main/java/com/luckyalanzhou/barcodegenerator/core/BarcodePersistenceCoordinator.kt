@@ -154,11 +154,12 @@ class BarcodePersistenceCoordinator(
     }
 
     /** Restores only the favorite document the user is opening. */
-    suspend fun repairExternalFavorite(group: FavoriteGroup) {
-        val external = externalFavoritesStore.readFavorite(group) ?: return
+    suspend fun repairExternalFavorite(group: FavoriteGroup): List<CodeItem> {
+        val external = externalFavoritesStore.readFavorite(group) ?: return emptyList()
         val externalGroup = group.copy(itemIds = external.second.map { it.id }.toMutableList())
-        if (external.second.isEmpty()) return
+        if (external.second.isEmpty()) return emptyList()
         applyFavoriteRepair(externalGroup, external.second)
+        return external.second
     }
 
     private suspend fun applyFavoriteRepair(group: FavoriteGroup, items: List<CodeItem>) {

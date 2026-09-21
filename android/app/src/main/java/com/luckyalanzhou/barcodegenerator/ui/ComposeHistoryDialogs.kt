@@ -19,7 +19,7 @@ internal fun isValidFavoriteFolderPath(value: String): Boolean {
 
 /** History-only confirmation dialogs, isolated from favorite folder editors. */
 internal fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text(

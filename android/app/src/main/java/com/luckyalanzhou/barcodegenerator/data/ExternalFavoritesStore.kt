@@ -49,7 +49,7 @@ class ExternalFavoritesStore(
             val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             resolver.query(
                 collection,
-                arrayOf(MediaStore.MediaColumns._ID),
+                arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME),
                 "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
                 arrayOf("$SHARED_ROOT%"),
                 null,

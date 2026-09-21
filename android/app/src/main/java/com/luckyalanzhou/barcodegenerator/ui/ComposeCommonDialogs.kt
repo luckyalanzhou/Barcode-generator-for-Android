@@ -69,15 +69,11 @@ internal fun AnchoredDropdownMenu(
 
 @Composable
 internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 18.dp, content: @Composable ColumnScope.() -> Unit) {
-    val onMetric = LocalDialogMetric.current
     val card = LocalBarcodeThemeColors.current.surface
-    val cardSelected = LocalDialogSelectedElement.current?.value == "弹窗卡片"
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
             .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
-            .dialogMetricBounds("弹窗卡片", cardSelected, DialogElementVisual(LocalBarcodeThemeColors.current.primary.hexValue(), "继承内容", "容器", card.hexValue(), LocalBarcodeThemeColors.current.cardBorder.hexValue()))
-            .clickable { onMetric("弹窗卡片") }
             .padding(horizontal = horizontalPadding, vertical = 16.dp),
     ) { Column(content = content) }
 }
@@ -91,10 +87,7 @@ internal fun DialogAction(
     primary: Boolean = false,
     destructive: Boolean = false,
 ) {
-    val onMetric = LocalDialogMetric.current
     val colors = LocalBarcodeThemeColors.current
-    val inspectOnly = LocalDialogInspectOnly.current
-    val selected = LocalDialogSelectedElement.current?.value == "按钮：$text"
     val foreground = when {
         primary -> colors.onAccent
         destructive -> colors.destructive
@@ -105,10 +98,9 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
-            .dialogMetricBounds("按钮：$text", selected, DialogElementVisual(foreground.hexValue(), "15sp", "常规", background.hexValue(), border.hexValue()))
             .background(background, RoundedCornerShape(12.dp))
             .border(1.dp, border, RoundedCornerShape(12.dp))
-            .clickable { onMetric("按钮：$text"); if (!inspectOnly) onClick() }
+            .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -121,39 +113,23 @@ internal fun ComposeDropdownDivider(dark: Boolean) {
     HorizontalDivider(thickness = 1.dp, color = LocalBarcodeThemeColors.current.divider)
 }
 
-internal fun MainActivity.showIos26NoticeDialogCompose(message: String, showMetrics: Boolean = false) {
-    showComposeDialog(compact = true, metricsLabel = if (showMetrics) "提示弹窗" else null) { dismiss ->
+internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {
+    showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
-        val onMetric = LocalDialogMetric.current
         ComposeGlassDialogCard(dark) {
-            Text(message, modifier = Modifier.fillMaxWidth().clickable { onMetric("文本") }, color = LocalBarcodeThemeColors.current.primary, fontSize = 16.sp)
+            Text(message, modifier = Modifier.fillMaxWidth(), color = LocalBarcodeThemeColors.current.primary, fontSize = 16.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) { DialogAction("确定", dark, dismiss) }
-        }
-    }
-}
-
-internal fun MainActivity.showSimulatedDialogCompose(title: String, message: String, negative: String?, neutral: String?, positive: String?, showMetrics: Boolean = true) {
-    showComposeDialog(compact = false, metricsLabel = if (showMetrics) title else null) { dismiss ->
-        val dark = isDark()
-        val onMetric = LocalDialogMetric.current
-        ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.dialogMetricTarget("标题", DialogElementVisual(LocalBarcodeThemeColors.current.primary.hexValue(), "18sp", "Medium")), color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).dialogMetricTarget("副标题", DialogElementVisual(LocalBarcodeThemeColors.current.secondary.hexValue(), "15sp", "常规")), color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
-            val actions = listOfNotNull(negative, neutral, positive)
-            if (actions.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                actions.forEachIndexed { index, action -> DialogAction(action, dark, { onMetric("按钮：$action") }, if (index == 0) Modifier else Modifier.padding(start = 8.dp)) }
-            }
         }
     }
 }
 
 /** 带实际确认回调的 Compose 确认弹窗，供收藏编辑等业务继续复用原确认逻辑。 */
 internal fun MainActivity.showComposeConfirmDialog(title: String, message: String, positive: String, onConfirm: () -> Unit) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text(title, modifier = Modifier.dialogMetricTarget("标题", DialogElementVisual(LocalBarcodeThemeColors.current.primary.hexValue(), "18sp", "Medium")), color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).dialogMetricTarget("副标题", DialogElementVisual(LocalBarcodeThemeColors.current.secondary.hexValue(), "15sp", "常规")), color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
+            Text(title, color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
+            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalBarcodeThemeColors.current.secondary, fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 8.dp))

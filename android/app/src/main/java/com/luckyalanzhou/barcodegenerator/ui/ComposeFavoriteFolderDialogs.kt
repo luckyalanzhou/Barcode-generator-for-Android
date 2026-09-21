@@ -20,8 +20,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
-internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetrics: Boolean = false, onSaved: (String) -> Unit) {
-    showComposeDialog(compact = false, metricsLabel = if (showMetrics) "文件夹编辑弹窗" else null) { dismiss ->
+internal fun MainActivity.showFolderEditorCompose(initial: String = "", onSaved: (String) -> Unit) {
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf(initial) }
@@ -65,7 +65,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", showMetr
 
 /** 新建二级文件夹 Compose 弹窗，保持原有斜杠和重名校验。 */
 internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: ((String) -> Unit)? = null) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf("") }

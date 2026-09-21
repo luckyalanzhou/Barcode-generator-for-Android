@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(group.name) }
         ComposeGlassDialogCard(dark) {
@@ -62,7 +62,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
 }
 
 internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         val folders = dataState.folders.filter { it.isNotBlank() }
@@ -90,7 +90,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
 }
 
 internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var name by remember { mutableStateOf(group.name) }
         var folder by remember { mutableStateOf(group.folder) }
@@ -137,7 +137,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
 }
 
 internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(item.text) }
         var selectedIndex by remember { mutableIntStateOf(barcodeFormats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
@@ -184,7 +184,7 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
 }
 
 internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
-    showComposeDialog(compact = false, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(item.folder) }
         ComposeGlassDialogCard(dark) {

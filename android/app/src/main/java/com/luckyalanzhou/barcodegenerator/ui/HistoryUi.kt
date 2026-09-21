@@ -53,7 +53,7 @@ internal fun MainActivity.shareResultPage() {
         toast("没有可分享的条码")
         return
     }
-    showComposeDialog(compact = true, metricsLabel = null) { dismiss ->
+    showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text("分享结果", color = LocalBarcodeThemeColors.current.primary, fontSize = 18.sp)
