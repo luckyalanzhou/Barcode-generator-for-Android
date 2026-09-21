@@ -12,15 +12,24 @@ internal class FavoriteTreeCoordinator {
     fun sync(folders: Set<String>) {
         val validFolders = folders.filter { it.isNotBlank() }.toSet()
         val current = _state.value
-        val nextCollapsed = if (!current.initialized) validFolders else current.collapsedFolders.intersect(validFolders)
-        val next = current.copy(collapsedFolders = nextCollapsed, initialized = true)
+        val newlySeen = validFolders - current.knownFolders
+        val nextCollapsed = if (!current.initialized) validFolders
+        else (current.collapsedFolders intersect validFolders) + newlySeen
+        val next = current.copy(
+            collapsedFolders = nextCollapsed,
+            initialized = true,
+            knownFolders = validFolders,
+        )
         if (next != current) _state.value = next
     }
 
     fun addCollapsed(paths: Set<String>) {
         if (paths.isEmpty()) return
         val current = _state.value
-        _state.value = current.copy(collapsedFolders = current.collapsedFolders + paths)
+        _state.value = current.copy(
+            collapsedFolders = current.collapsedFolders + paths,
+            knownFolders = current.knownFolders + paths,
+        )
     }
 
     fun toggle(path: String, folders: Set<String>) {

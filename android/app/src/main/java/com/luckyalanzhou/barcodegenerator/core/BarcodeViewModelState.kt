@@ -35,6 +35,7 @@ data class ResultUiState(
 data class FavoriteTreeUiState(
     val collapsedFolders: Set<String> = emptySet(),
     val initialized: Boolean = false,
+    val knownFolders: Set<String> = emptySet(),
     val collapsedBeforeSearch: Set<String>? = null,
 )
 
