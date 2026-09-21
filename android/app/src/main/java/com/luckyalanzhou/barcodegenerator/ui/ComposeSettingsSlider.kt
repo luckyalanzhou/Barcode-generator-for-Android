@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -33,7 +35,7 @@ internal fun SettingsSliderRow(
     onChange: (Float) -> Unit,
 ) {
     val sliderAccent = accent.copy(alpha = 0.72f)
-    val valueColor = LocalBarcodeThemeColors.current.text.primary
+    val valueColor = LocalAppColorScheme.current.text.primary
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
         Slider(

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -33,9 +35,9 @@ private fun ComposeSegmentedProgress(progress: Int) {
         animationSpec = tween(durationMillis = animation.progressDurationMillis),
         label = "downloadProgress",
     ).value
-    val fill = LocalBarcodeThemeColors.current.controls.progress
-    val track = LocalBarcodeThemeColors.current.controls.progressTrack
-    val highlight = LocalBarcodeThemeColors.current.controls.progressHighlight
+    val fill = LocalAppColorScheme.current.controls.progress
+    val track = LocalAppColorScheme.current.controls.progressTrack
+    val highlight = LocalAppColorScheme.current.controls.progressHighlight
     Canvas(
         modifier = Modifier.fillMaxWidth().height(14.dp)
             .clip(RoundedCornerShape(7.dp))
@@ -61,8 +63,8 @@ private fun ComposeSegmentedProgress(progress: Int) {
 
 @Composable
 private fun ComposeIndeterminateProgress() {
-    val fill = LocalBarcodeThemeColors.current.controls.progress
-    val track = LocalBarcodeThemeColors.current.controls.progressTrack
+    val fill = LocalAppColorScheme.current.controls.progress
+    val track = LocalAppColorScheme.current.controls.progressTrack
     val transition = rememberInfiniteTransition(label = "downloadIndeterminate")
     val offset by transition.animateFloat(
         initialValue = -0.35f,
@@ -98,11 +100,11 @@ internal fun ComposeDownloadProgressDialog(
 ) {
     val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
     ComposeGlassDialogCard(dark) {
-        Text("下载更新", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
+        Text("下载更新", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
         if (downloadState.indeterminate) ComposeIndeterminateProgress() else ComposeSegmentedProgress(downloadState.progress)
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text(downloadState.status, modifier = Modifier.weight(1f), color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 14.sp, maxLines = 1)
-            if (!downloadState.indeterminate) Text("${downloadState.progress.coerceIn(0, 100)}%", color = LocalBarcodeThemeColors.current.text.link, fontSize = 14.sp)
+            Text(downloadState.status, modifier = Modifier.weight(1f), color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp, maxLines = 1)
+            if (!downloadState.indeterminate) Text("${downloadState.progress.coerceIn(0, 100)}%", color = LocalAppColorScheme.current.text.link, fontSize = 14.sp)
         }
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
             DialogAction("取消下载", dark, onCancel)

@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 
 import com.luckyalanzhou.barcodegenerator.LanShareEvent
@@ -87,7 +91,7 @@ internal fun ComposeLanSharePage(
     onCopyAddress: (String) -> Unit,
 ) {
     val lanState by viewModel.uiState.collectAsStateWithLifecycle()
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val panel = themeColors.surfaces.surface
@@ -199,7 +203,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
-                tint = LocalBarcodeThemeColors.current.text.link,
+                tint = LocalAppColorScheme.current.text.link,
                 modifier = Modifier.size(30.dp),
             )
         }
@@ -207,7 +211,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
 }
 @Composable
 private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
-    val statusColor = if (connected) LocalBarcodeThemeColors.current.controls.success else secondary
+    val statusColor = if (connected) LocalAppColorScheme.current.controls.success else secondary
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = if (connected) CircleFilledIcon else CircleIcon,
@@ -238,7 +242,7 @@ private fun BoxScope.LanShareComposer(
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
 ) {
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     Surface(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
         color = panel,
@@ -281,7 +285,7 @@ private fun BoxScope.LanShareComposer(
 }
 @Composable
 private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     val mine = file.id in state.ownFileIds
     val previewFile = (viewModel.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }

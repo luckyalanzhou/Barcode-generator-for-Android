@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.SettingsUiState

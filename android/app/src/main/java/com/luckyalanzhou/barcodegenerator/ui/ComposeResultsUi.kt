@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
@@ -52,7 +54,7 @@ internal fun ComposeResultsPage(
     onShare: () -> Unit,
 ) {
     val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val actionColor = themeColors.text.link

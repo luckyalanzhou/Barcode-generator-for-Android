@@ -1,6 +1,6 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.component
 
-import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +26,7 @@ internal fun Modifier.globalCardSurface(
     .background(color)
     .border(
         1.dp,
-        LocalBarcodeThemeColors.current.borders.card,
+        LocalAppColorScheme.current.borders.card,
         shape,
     )
 
@@ -37,7 +37,7 @@ internal fun Modifier.globalButtonChrome(
     elevation: Dp = 1.5.dp,
     borderColor: Color? = null,
 ): Modifier {
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     return this
         .shadow(minOf(elevation, 0.5.dp), shape, clip = false)
         .border(0.5.dp, borderColor ?: themeColors.borders.button, shape)

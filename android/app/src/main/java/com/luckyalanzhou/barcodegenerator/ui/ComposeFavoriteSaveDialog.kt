@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
@@ -68,20 +70,20 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
         ComposeGlassDialogCard(dark) {
             Text(
                 if (editingGroup == null) "保存到收藏" else "编辑收藏",
-                color = LocalBarcodeThemeColors.current.text.primary,
+                color = LocalAppColorScheme.current.text.primary,
                 fontSize = 18.sp,
             )
-            Text("选择收藏保存位置", color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            Text("选择收藏保存位置", color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             if (roots.isEmpty()) {
-                Text("暂无一级文件夹，请先新建", color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
+                Text("暂无一级文件夹，请先新建", color = LocalAppColorScheme.current.text.secondary, fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
             } else {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Icon(FolderIcon, "一级文件夹", tint = LocalBarcodeThemeColors.current.content.folder, modifier = Modifier.size(24.dp))
-                        Text("① 一级文件夹", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
+                        Icon(FolderIcon, "一级文件夹", tint = LocalAppColorScheme.current.content.folder, modifier = Modifier.size(24.dp))
+                        Text("① 一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
                     }
                     ComposeChoiceField(
                         value = selectedRoot.ifBlank { "选择一级文件夹" },
@@ -97,11 +99,11 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                         Box(Modifier.width(20.dp).height(28.dp)) {
                             Box(
                                 Modifier.padding(start = 7.dp).width(2.dp).height(28.dp)
-                                    .background(LocalBarcodeThemeColors.current.controls.button),
+                                    .background(LocalAppColorScheme.current.controls.button),
                             )
                         }
-                        Icon(FolderIcon, "二级文件夹", tint = LocalBarcodeThemeColors.current.content.childFolder, modifier = Modifier.size(24.dp))
-                        Text("② 二级文件夹", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
+                        Icon(FolderIcon, "二级文件夹", tint = LocalAppColorScheme.current.content.childFolder, modifier = Modifier.size(24.dp))
+                        Text("② 二级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
                     }
                     ComposeChoiceField(
                         value = selectedChild.ifBlank { "选择二级文件夹" },
@@ -114,29 +116,29 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                        .background(LocalBarcodeThemeColors.current.surfaces.input, RoundedCornerShape(12.dp))
+                        .background(LocalAppColorScheme.current.surfaces.input, RoundedCornerShape(12.dp))
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("当前位置", color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 12.sp)
+                        Text("当前位置", color = LocalAppColorScheme.current.text.secondary, fontSize = 12.sp)
                         Row(Modifier.padding(top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             if (selectedRoot.isBlank()) {
-                                Text("未选择一级文件夹", color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 14.sp)
+                                Text("未选择一级文件夹", color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp)
                             } else {
-                                Icon(FolderIcon, "当前一级文件夹", tint = LocalBarcodeThemeColors.current.controls.accent, modifier = Modifier.size(18.dp))
-                                Text(selectedRoot, color = LocalBarcodeThemeColors.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Icon(FolderIcon, "当前一级文件夹", tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
+                                Text(selectedRoot, color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 if (selectedChild.isNotBlank()) {
-                                    Icon(KeyboardArrowRightIcon, "层级", tint = LocalBarcodeThemeColors.current.text.secondary, modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
-                                    Icon(FolderIcon, "当前二级文件夹", tint = LocalBarcodeThemeColors.current.controls.accent, modifier = Modifier.size(18.dp))
-                                    Text(selectedChild, color = LocalBarcodeThemeColors.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Icon(KeyboardArrowRightIcon, "层级", tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
+                                    Icon(FolderIcon, "当前二级文件夹", tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
+                                    Text(selectedChild, color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
                     }
-                    Icon(KeyboardArrowDownIcon, "展开层级", tint = LocalBarcodeThemeColors.current.text.secondary, modifier = Modifier.size(20.dp))
+                    Icon(KeyboardArrowDownIcon, "展开层级", tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp))
                 }
-                if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = LocalAppColorScheme.current.text.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -154,11 +156,11 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, LocalBarcodeThemeColors.current.borders.button),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.text.primary),
+                    border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
                 ) {
-                    Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalBarcodeThemeColors.current.text.primary, modifier = Modifier.size(20.dp))
-                    Text("新建一级文件夹", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                    Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
+                    Text("新建一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
                 }
                 OutlinedButton(
                     onClick = {
@@ -172,14 +174,14 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, LocalBarcodeThemeColors.current.borders.button),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.text.primary),
+                    border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
                 ) {
-                    Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalBarcodeThemeColors.current.text.primary, modifier = Modifier.size(20.dp))
-                    Text("新建二级文件夹", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                    Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
+                    Text("新建二级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
                 }
             }
-            Text("收藏文件名", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            Text("收藏文件名", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -187,13 +189,13 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                 singleLine = true,
                 shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LocalBarcodeThemeColors.current.text.primary,
-                    unfocusedTextColor = LocalBarcodeThemeColors.current.text.primary,
-                    focusedLabelColor = LocalBarcodeThemeColors.current.text.primary,
-                    unfocusedLabelColor = LocalBarcodeThemeColors.current.text.primary,
-                    cursorColor = LocalBarcodeThemeColors.current.text.primary,
+                    focusedTextColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedTextColor = LocalAppColorScheme.current.text.primary,
+                    focusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("收藏文件名", color = LocalBarcodeThemeColors.current.text.primary) },
+                label = { Text("收藏文件名", color = LocalAppColorScheme.current.text.primary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

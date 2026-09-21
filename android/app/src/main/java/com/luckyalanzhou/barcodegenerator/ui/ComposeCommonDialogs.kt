@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import androidx.compose.foundation.background
@@ -60,7 +64,7 @@ internal fun AnchoredDropdownMenu(
         offset = DpOffset(horizontalOffset, 0.dp),
         modifier = modifier.then(widthModifier).heightIn(max = maxHeight),
         shape = shape,
-        containerColor = containerColor ?: LocalBarcodeThemeColors.current.surfaces.overlay,
+        containerColor = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
         tonalElevation = tonalElevation,
         shadowElevation = shadowElevation,
     ) { content() }
@@ -68,7 +72,7 @@ internal fun AnchoredDropdownMenu(
 
 @Composable
 internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 18.dp, content: @Composable ColumnScope.() -> Unit) {
-    val card = LocalBarcodeThemeColors.current.surfaces.surface
+    val card = LocalAppColorScheme.current.surfaces.surface
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
@@ -86,7 +90,7 @@ internal fun DialogAction(
     primary: Boolean = false,
     destructive: Boolean = false,
 ) {
-    val colors = LocalBarcodeThemeColors.current
+    val colors = LocalAppColorScheme.current
     val foreground = when {
         primary -> colors.text.onAccent
         destructive -> colors.text.destructive
@@ -108,14 +112,14 @@ internal fun DialogAction(
 
 @Composable
 internal fun ComposeDropdownDivider(dark: Boolean) {
-    HorizontalDivider(thickness = if (dark) 0.5.dp else 1.dp, color = LocalBarcodeThemeColors.current.borders.divider)
+    HorizontalDivider(thickness = if (dark) 0.5.dp else 1.dp, color = LocalAppColorScheme.current.borders.divider)
 }
 
 internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text(message, modifier = Modifier.fillMaxWidth(), color = LocalBarcodeThemeColors.current.text.primary, fontSize = 16.sp)
+            Text(message, modifier = Modifier.fillMaxWidth(), color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) { DialogAction("确定", dark, dismiss) }
         }
     }
@@ -126,8 +130,8 @@ internal fun MainActivity.showComposeConfirmDialog(title: String, message: Strin
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text(title, color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalBarcodeThemeColors.current.text.secondary, fontSize = 15.sp)
+            Text(title, color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalAppColorScheme.current.text.secondary, fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 20.dp))

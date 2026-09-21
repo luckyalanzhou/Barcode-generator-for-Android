@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.SettingsViewModel
@@ -35,8 +37,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
@@ -99,8 +99,8 @@ internal fun ComposeAppShell(
         (settingsUiState.style.colorScheme == "system" &&
             (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES)
-    val rootThemeColors = barcodeThemeColors(dark)
-    val background = rootThemeColors.background
+    val rootThemeColors = appColorScheme(dark)
+    val background = rootThemeColors.surfaces.background
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
@@ -131,10 +131,7 @@ internal fun ComposeAppShell(
         }
     }
 
-    val colorScheme = if (dark) barcodeDarkColorScheme(background) else barcodeLightColorScheme(background)
-    val themeColors = rootThemeColors
-    CompositionLocalProvider(LocalBarcodeThemeColors provides themeColors) {
-        MaterialTheme(colorScheme = colorScheme) {
+    AppTheme(dark) {
         Box(Modifier.fillMaxSize().background(background)) {
             Column(
             modifier = Modifier
@@ -160,7 +157,7 @@ internal fun ComposeAppShell(
                         Text(
                             text = targetPage.title,
                             modifier = Modifier.fillMaxWidth().height(60.dp),
-                            color = LocalBarcodeThemeColors.current.text.primary,
+                            color = LocalAppColorScheme.current.text.primary,
                             fontSize = 25.sp,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center,
@@ -234,7 +231,7 @@ internal fun ComposeAppShell(
                         Text(
                             text = targetRoute.title,
                             modifier = Modifier.fillMaxWidth().height(60.dp),
-                            color = LocalBarcodeThemeColors.current.text.primary,
+                            color = LocalAppColorScheme.current.text.primary,
                             fontSize = 25.sp,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center,
@@ -260,7 +257,6 @@ internal fun ComposeAppShell(
             if (fireworksVisible) {
                 ComposeFireworksOverlay()
             }
-        }
-        }
     }
+}
 }

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
@@ -27,7 +29,7 @@ internal fun MainActivity.createFavoritesExportCompose() {
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("导出收藏", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
+            Text("导出收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             ComposeDialogChoice("分享到其他应用", dark) {
                 dismiss()
                 shareFavoritesExportForCompose()
@@ -73,7 +75,7 @@ private fun MainActivity.showFavoriteImportConflictDialog(
 ) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        val colors = LocalBarcodeThemeColors.current
+        val colors = LocalAppColorScheme.current
         ComposeGlassDialogCard(dark) {
             Text("发现同名内容", color = colors.text.primary, fontSize = 18.sp)
             Text(

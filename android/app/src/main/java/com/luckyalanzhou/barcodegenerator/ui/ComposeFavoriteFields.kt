@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,17 +41,17 @@ internal fun ComposeChoiceField(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { buttonWidth = it.size.width },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            border = BorderStroke(0.5.dp, LocalBarcodeThemeColors.current.borders.button),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.text.primary),
+            border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
         ) {
-            Text(value, color = LocalBarcodeThemeColors.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, color = LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         AnchoredDropdownMenu(
             dark = dark,
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-            containerColor = LocalBarcodeThemeColors.current.surfaces.overlay,
+            containerColor = LocalAppColorScheme.current.surfaces.overlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
             menuWidth = buttonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
@@ -58,7 +60,7 @@ internal fun ComposeChoiceField(
                 if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
                     modifier = Modifier.height(40.dp),
-                    text = { Text(option, color = LocalBarcodeThemeColors.current.text.primary) },
+                    text = { Text(option, color = LocalAppColorScheme.current.text.primary) },
                     onClick = { onSelected(option); expanded = false },
                 )
             }

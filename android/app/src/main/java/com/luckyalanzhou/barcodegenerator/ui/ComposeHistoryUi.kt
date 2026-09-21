@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
@@ -63,7 +66,7 @@ internal fun HistoryComposePage(
     onDelete: (List<CodeItem>) -> Unit,
     timeText: (Long) -> String,
 ) {
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val clearColor = themeColors.text.destructive
@@ -129,7 +132,7 @@ private fun HistoryBatchCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val card = LocalBarcodeThemeColors.current.surfaces.card
+    val card = LocalAppColorScheme.current.surfaces.card
     val preview = batch.firstOrNull()?.text.orEmpty().let { text ->
         if (text.length > 8) text.take(8) + "..." else text
     }
@@ -160,7 +163,7 @@ private fun HistoryBatchCard(
             Text(time, color = secondary, fontSize = 12.sp, maxLines = 1)
             Spacer(Modifier.width(2.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                Icon(DeleteIcon, "删除这条历史记录", tint = LocalBarcodeThemeColors.current.text.destructive)
+                Icon(DeleteIcon, "删除这条历史记录", tint = LocalAppColorScheme.current.text.destructive)
             }
         }
     }
@@ -186,7 +189,7 @@ internal fun HistoryBatchPickerDialogContent(
     ComposeGlassDialogCard(dark) {
         Text(
             "本次生成的 ${batch.size} 个条码",
-            color = LocalBarcodeThemeColors.current.text.primary,
+            color = LocalAppColorScheme.current.text.primary,
             fontSize = 20.sp,
         )
         Column(

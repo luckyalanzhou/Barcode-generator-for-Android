@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +30,7 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", onSaved:
         ComposeGlassDialogCard(dark) {
             Text(
                 if (initial.isBlank()) "新建文件夹" else "重命名文件夹",
-                color = LocalBarcodeThemeColors.current.text.primary,
+                color = LocalAppColorScheme.current.text.primary,
                 fontSize = 18.sp,
             )
             OutlinedTextField(
@@ -37,13 +39,13 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", onSaved:
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LocalBarcodeThemeColors.current.text.primary,
-                    unfocusedTextColor = LocalBarcodeThemeColors.current.text.primary,
-                    focusedLabelColor = LocalBarcodeThemeColors.current.text.primary,
-                    unfocusedLabelColor = LocalBarcodeThemeColors.current.text.secondary,
-                    cursorColor = LocalBarcodeThemeColors.current.text.primary,
+                    focusedTextColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedTextColor = LocalAppColorScheme.current.text.primary,
+                    focusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
+                    cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("文件夹名称", color = LocalBarcodeThemeColors.current.text.secondary) },
+                label = { Text("文件夹名称", color = LocalAppColorScheme.current.text.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
@@ -70,20 +72,20 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
         val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf("") }
         ComposeGlassDialogCard(dark) {
-            Text("新建文件夹", color = LocalBarcodeThemeColors.current.text.primary, fontSize = 18.sp)
+            Text("新建文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LocalBarcodeThemeColors.current.text.primary,
-                    unfocusedTextColor = LocalBarcodeThemeColors.current.text.primary,
-                    focusedLabelColor = LocalBarcodeThemeColors.current.text.primary,
-                    unfocusedLabelColor = LocalBarcodeThemeColors.current.text.secondary,
-                    cursorColor = LocalBarcodeThemeColors.current.text.primary,
+                    focusedTextColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedTextColor = LocalAppColorScheme.current.text.primary,
+                    focusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
+                    cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("文件夹名称", color = LocalBarcodeThemeColors.current.text.secondary) },
+                label = { Text("文件夹名称", color = LocalAppColorScheme.current.text.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
@@ -37,14 +39,14 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
         ComposeGlassDialogCard(dark) {
             Text(
                 text = item.format,
-                color = LocalBarcodeThemeColors.current.text.primary,
+                color = LocalAppColorScheme.current.text.primary,
                 fontSize = 18.sp,
             )
             SelectionContainer {
                 Text(
                     text = item.text,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    color = LocalBarcodeThemeColors.current.text.secondary,
+                    color = LocalAppColorScheme.current.text.secondary,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                 )

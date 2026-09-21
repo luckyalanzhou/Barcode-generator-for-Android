@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -24,7 +26,7 @@ internal fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) 
         ComposeGlassDialogCard(dark) {
             Text(
                 "一键清空历史记录",
-                color = LocalBarcodeThemeColors.current.text.primary,
+                color = LocalAppColorScheme.current.text.primary,
                 fontSize = 18.sp,
             )
             Row(

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 
 import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
@@ -63,7 +65,7 @@ internal fun ComposeGenerateInputPanel(
     onDeleteLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     val textColor = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val panelColor = themeColors.surfaces.panel
@@ -162,7 +164,7 @@ private fun GenerateInputAction(
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
-    val themeColors = LocalBarcodeThemeColors.current
+    val themeColors = LocalAppColorScheme.current
     val tint = if (enabled) {
         if (description == "删除") deleteTint ?: themeColors.text.destructive else themeColors.controls.accent
     } else themeColors.text.disabled.copy(alpha = 0.42f)

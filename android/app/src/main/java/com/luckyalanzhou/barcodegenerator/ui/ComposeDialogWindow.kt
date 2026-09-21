@@ -1,13 +1,13 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import android.app.Dialog
 import android.view.Gravity
 import android.view.WindowManager
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -38,20 +38,14 @@ internal fun MainActivity.showComposeDialog(
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
         val dark = isDark()
-        val colors = barcodeThemeColors(dark)
-        val colorScheme = if (dark) barcodeDarkColorScheme(colors.surfaces.background) else barcodeLightColorScheme(colors.surfaces.background)
-        CompositionLocalProvider(LocalBarcodeThemeColors provides colors) {
-            MaterialTheme(colorScheme = colorScheme) {
-                content { dialog.dismiss() }
-            }
-        }
+        AppTheme(dark) { content { dialog.dismiss() } }
     }
     dialog.setContentView(composeView)
     dialog.setCanceledOnTouchOutside(true)
     dialog.setOnCancelListener { onCancel?.invoke() }
     dialog.setOnShowListener {
         dialog.window?.apply {
-            setDimAmount(barcodeThemeColors(isDark()).dialogDimAmount)
+            setDimAmount(appColorScheme(isDark()).metrics.dialogDimAmount)
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             setWindowAnimations(0)
             setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())

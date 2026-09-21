@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
@@ -21,9 +23,9 @@ internal fun MainActivity.isDark() =
             (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES)
 
-internal fun MainActivity.appBackground() = barcodeThemeColors(isDark()).background.toArgb()
-internal fun MainActivity.primaryText() = barcodeThemeColors(isDark()).primary.toArgb()
-internal fun MainActivity.secondaryText() = barcodeThemeColors(isDark()).secondary.toArgb()
+internal fun MainActivity.appBackground() = appColorScheme(isDark()).surfaces.background.toArgb()
+internal fun MainActivity.primaryText() = appColorScheme(isDark()).text.primary.toArgb()
+internal fun MainActivity.secondaryText() = appColorScheme(isDark()).text.secondary.toArgb()
 internal fun MainActivity.applyAppearance() {
     // ComposeAppShell 根据 SettingsUiState 实时选择浅色/深色主题；
     // 这里只同步系统栏，避免 AppCompatDelegate 重建 Activity 造成画面闪烁。
