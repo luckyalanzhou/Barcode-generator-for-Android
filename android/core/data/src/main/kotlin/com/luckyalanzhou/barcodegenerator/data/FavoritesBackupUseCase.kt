@@ -4,6 +4,8 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 
 import java.io.ByteArrayOutputStream
 
@@ -21,19 +23,19 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
 
     override suspend fun inspectImport(backup: InterchangeBackup): FavoritesImportConflictSummary {
         val existing = repository.loadSnapshot()
-        val existingFiles = existing.groups.map { "${it.folder}\u0000${it.name}" }.toSet()
+        val existingFiles = existing.groups.map(::fileKey).toSet()
         return FavoritesImportConflictSummary(
-            fileKeys = backup.favorites.map { "${it.folder}\u0000${it.name}" }
+            fileKeys = backup.favorites.map(::fileKey)
                 .filter { it in existingFiles }.distinct(),
         )
     }
 
     override suspend fun import(backup: InterchangeBackup, overwriteConflicts: Boolean): Pair<Int, Int> {
         var existing = repository.loadSnapshot().toTransferEntities()
-        val existingFileKeys = existing.groups.map { "${it.folder}\u0000${it.name}" }.toSet()
-        val incomingFileKeys = backup.favorites.map { "${it.folder}\u0000${it.name}" }.toSet()
+        val existingFileKeys = existing.groups.map(::fileKey).toSet()
+        val incomingFileKeys = backup.favorites.map(::fileKey).toSet()
         val conflictingGroupIds = existing.groups
-            .filter { "${it.folder}\u0000${it.name}" in incomingFileKeys }
+            .filter { fileKey(it) in incomingFileKeys }
             .map { it.id }
 
         if (overwriteConflicts && conflictingGroupIds.isNotEmpty()) {
@@ -41,11 +43,29 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
             existing = repository.loadSnapshot().toTransferEntities()
         }
 
-        val effectiveBackup = if (overwriteConflicts) backup else backup.copy(
-            favorites = backup.favorites.filterNot { "${it.folder}\u0000${it.name}" in existingFileKeys },
+        val deduplicatedFavorites = backup.favorites
+            .asReversed()
+            .distinctBy(::fileKey)
+            .asReversed()
+        val effectiveBackup = if (overwriteConflicts) backup.copy(
+            favorites = deduplicatedFavorites,
+        ) else backup.copy(
+            favorites = deduplicatedFavorites.filterNot { fileKey(it) in existingFileKeys },
         )
         val transfer = FavoritesTransferManager.appendEntities(effectiveBackup, existing.items, existing.groups, existing.links)
         repository.appendSnapshot(transfer.toSnapshot())
         return transfer.items.size to transfer.groups.size
     }
+
+    private fun fileKey(group: FavoriteGroupEntity): String =
+        fileKey(group.folder, group.name)
+
+    private fun fileKey(group: FavoriteGroup): String =
+        fileKey(group.folder, group.name)
+
+    private fun fileKey(favorite: InterchangeFavorite): String =
+        fileKey(favorite.folder, favorite.name)
+
+    private fun fileKey(folder: String, name: String): String =
+        "${folder.trim().trim('/').let { if (it == "默认") "" else it }}\u0000${name.trim()}"
 }

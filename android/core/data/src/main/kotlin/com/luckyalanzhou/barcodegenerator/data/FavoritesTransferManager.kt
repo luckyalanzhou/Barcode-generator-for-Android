@@ -154,10 +154,10 @@ object FavoritesTransferManager {
         val existingLinksByGroup = existingLinks.groupBy { it.groupId }
         // 收藏文件的身份只由文件夹路径和文件名决定；条码正文、格式和正文数量
         // 只用于确认文件有内容，绝不能参与判重。
-        val existingKeys = existingGroups.map { FavoriteImportKey(it.folder, it.name) }.toSet()
+        val existingKeys = existingGroups.map { FavoriteImportKey(normalizeFolder(it.folder), it.name.trim()) }.toSet()
         val items = mutableListOf<CodeItemEntity>(); val groups = mutableListOf<FavoriteGroupEntity>(); val links = mutableListOf<FavoriteGroupItemEntity>()
         backup.favorites.forEach { favorite ->
-            val key = FavoriteImportKey(favorite.folder, favorite.name)
+            val key = FavoriteImportKey(normalizeFolder(favorite.folder), favorite.name.trim())
             // 只与导入前已经存在的数据去重；备份内部即使存在同内容但不同 ID 的收藏，也必须全部保留。
             // 这样不会因为文件名/正文相同而静默丢失合法收藏。
             if (existingKeys.contains(key)) return@forEach
@@ -173,6 +173,9 @@ object FavoritesTransferManager {
         val folder: String,
         val name: String,
     )
+
+    private fun normalizeFolder(folder: String): String =
+        folder.trim().trim('/').let { if (it == "默认") "" else it }
 
     private fun splitFolder(folder: String): Pair<String, String> {
         val parts = folder.split('/').filter { it.isNotBlank() }
