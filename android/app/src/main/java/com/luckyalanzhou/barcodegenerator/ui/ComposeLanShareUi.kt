@@ -9,11 +9,11 @@ import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 
+import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.CircleFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.CircleIcon
 import com.luckyalanzhou.barcodegenerator.icons.ContentCopyIcon
-import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
 import com.luckyalanzhou.barcodegenerator.icons.QrCode2Icon
 
 import android.graphics.Bitmap
@@ -248,7 +248,7 @@ private fun BoxScope.LanShareComposer(
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
                 IconButton(onClick = onOpenAttachmentMenu, modifier = Modifier.size(48.dp)) {
-                    Icon(AttachFileIcon, "选择附件", tint = themeColors.icon, modifier = Modifier.size(28.dp))
+                    Icon(AddIcon, "添加附件", tint = themeColors.icon, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
@@ -274,7 +274,7 @@ private fun BoxScope.LanShareComposer(
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = onSend, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                Icon(IosShareIcon, "发送文字或上传附件", tint = themeColors.sentContent, modifier = Modifier.size(24.dp))
+                Text("发送", color = themeColors.sentContent, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
