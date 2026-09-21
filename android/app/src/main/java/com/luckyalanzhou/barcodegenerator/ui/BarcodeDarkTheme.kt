@@ -20,7 +20,7 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     buttonBorder = Color.White.copy(alpha = 0.08f),
     icon = Color(0xfff2f4f8),
     destructive = Color(0xffffb0b0),
-    folder = Color(0xff9bc8f5),
+    folder = Color(0xffb3d6f5),
     file = Color(0xff9bd8c0),
     progress = Color(0xff36c8ff),
     surfaceOverlay = Color(0xff1c1c1e).copy(alpha = .98f),
