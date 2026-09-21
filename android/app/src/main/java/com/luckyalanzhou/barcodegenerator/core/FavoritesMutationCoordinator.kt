@@ -101,13 +101,18 @@ internal class FavoritesMutationCoordinator(
     fun deleteGroupAndPersist(groupId: Long) {
         if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
     }
-    fun clearFavoritesAndPersist() { store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }; persistence.clearAllFavoriteGroups(scope); persistAllFavorites() }
-    fun persistAllFavorites() = persistence.persistAllFavorites(
+    fun clearFavoritesAndPersist() {
+        store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }
+        persistence.clearAllFavoriteGroups(scope)
+        persistAllFavorites(syncExternal = false)
+    }
+    fun persistAllFavorites(syncExternal: Boolean = true) = persistence.persistAllFavorites(
         scope,
         store.itemsSnapshot(),
         store.groupsSnapshot(),
         store.foldersSnapshot(),
         store.loadedGroupLinkIdsSnapshot(),
+        syncExternal = syncExternal,
     )
     fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())
     fun persistFolders() = persistence.persistFavoriteFolders(scope, store.foldersSnapshot())

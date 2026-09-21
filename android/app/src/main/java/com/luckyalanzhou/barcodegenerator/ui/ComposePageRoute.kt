@@ -66,7 +66,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onClearAll = {
                         dependencies.actions.confirm(
                             "清空所有收藏",
-                            "将删除全部收藏文件、文件夹层级和外部收藏文件，此操作不可恢复。",
+                            "将清空应用内收藏和文件夹层级；外部收藏备份会保留，可用于后续恢复。",
                             "确定",
                         ) { dependencies.viewModel.clearFavoritesAndPersist() }
                     },

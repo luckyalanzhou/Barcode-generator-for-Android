@@ -37,6 +37,7 @@ class BarcodePersistenceCoordinator(
         groups: List<FavoriteGroup>,
         folders: List<String>,
         replaceGroupLinkIds: Set<Long> = emptySet(),
+        syncExternal: Boolean = true,
     ): Deferred<Result<Unit>> {
         val itemSnapshot = items.map { it.copy() }
         val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
@@ -47,7 +48,7 @@ class BarcodePersistenceCoordinator(
                     group.itemIds.map { itemId -> com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId) }
                 }, folderSnapshot, replaceGroupLinkIds),
             )
-            syncExternalFavorites()
+            if (syncExternal) syncExternalFavorites()
         }
     }
 
@@ -78,7 +79,8 @@ class BarcodePersistenceCoordinator(
     }
 
     fun clearAllFavoriteGroups(scope: CoroutineScope): Deferred<Result<Unit>> {
-        return enqueue(scope) { barcodeRepository.clearAllFavoriteGroups(); syncExternalFavorites() }
+        // Keep the external mirror as a recovery source when app favorites are cleared.
+        return enqueue(scope) { barcodeRepository.clearAllFavoriteGroups() }
     }
 
     fun renameFavoriteFolder(scope: CoroutineScope, path: String, renamedPath: String): Deferred<Result<Unit>> {
@@ -141,7 +143,40 @@ class BarcodePersistenceCoordinator(
         // only a recovery source when the Room favorite index is completely absent.
         if (roomGroups.isNotEmpty()) return
         externalFavoritesStore.readSnapshot()?.let { externalSnapshot ->
-            barcodeRepository.saveAll(externalSnapshot)
+            // Recovery must never replace the whole database: Room may still contain
+            // history rows even when the favorite index was lost. Allocate fresh IDs
+            // so restoring external favorites cannot overwrite those rows.
+            val existingItems = barcodeRepository.loadItems()
+            val existingFolders = barcodeRepository.loadFolders()
+            val itemIds = externalSnapshot.items.map { it.id }.distinct()
+            val itemIdMap = itemIds.mapIndexed { index, oldId ->
+                oldId to (existingItems.maxOfOrNull { it.id } ?: 0L) + index + 1L
+            }.toMap()
+            val groupIdMap = externalSnapshot.groups.mapIndexed { index, group ->
+                group.id to ((roomGroups.maxOfOrNull { it.id } ?: 0L) + index + 1L)
+            }.toMap()
+            val restoredItems = externalSnapshot.items.distinctBy { it.id }.map { item ->
+                item.copy(id = itemIdMap.getValue(item.id), favorite = true, inHistory = false)
+            }
+            val restoredGroups = externalSnapshot.groups.map { group ->
+                group.copy(
+                    id = groupIdMap.getValue(group.id),
+                    itemIds = group.itemIds.mapNotNull { itemIdMap[it] }.toMutableList(),
+                )
+            }
+            val restoredLinks = restoredGroups.flatMap { group ->
+                group.itemIds.map { itemId ->
+                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId)
+                }
+            }
+            barcodeRepository.appendSnapshot(
+                BarcodeSnapshot(
+                    items = restoredItems,
+                    groups = restoredGroups,
+                    links = restoredLinks,
+                    folders = (existingFolders + externalSnapshot.folders).distinct(),
+                ),
+            )
         }
     }
 
