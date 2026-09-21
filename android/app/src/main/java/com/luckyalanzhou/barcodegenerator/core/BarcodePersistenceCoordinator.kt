@@ -117,39 +117,13 @@ class BarcodePersistenceCoordinator(
     /** Restores missing favorite links/items from the uninstall-safe external mirror. */
     suspend fun repairFromExternalFavorites() {
         val roomGroups = barcodeRepository.loadGroups()
+        // Room is the fast runtime index and survives app updates. Do not scan the
+        // shared-storage mirror on every cold start: that made every update look
+        // like a restore operation and delayed the favorites page. The mirror is
+        // only a recovery source when the Room favorite index is completely absent.
+        if (roomGroups.isNotEmpty()) return
         externalFavoritesStore.readSnapshot()?.let { externalSnapshot ->
-            if (roomGroups.isEmpty()) {
-                barcodeRepository.saveAll(externalSnapshot)
-            } else {
-                val roomLinks = barcodeRepository.loadGroupItems()
-                val roomItems = barcodeRepository.loadItems().mapTo(HashSet()) { it.id }
-                val roomGroupIds = roomGroups.mapTo(HashSet()) { it.id }
-                val roomLinkedPairs = roomLinks.mapTo(HashSet()) { it.groupId to it.itemId }
-                val groupsToRepair = externalSnapshot.groups.filter { externalGroup ->
-                    externalGroup.id !in roomGroupIds ||
-                        externalGroup.itemIds.any { it !in roomItems || (externalGroup.id to it) !in roomLinkedPairs }
-                }
-                if (groupsToRepair.isNotEmpty()) {
-                    val repairIds = groupsToRepair.mapTo(HashSet()) { it.id }
-                    val repairItems = externalSnapshot.items.filter { item ->
-                        groupsToRepair.any { it.itemIds.contains(item.id) }
-                    }
-                    val roomFolders = barcodeRepository.loadFolders()
-                    barcodeRepository.applyFavoritesMutation(
-                        BarcodeSnapshot(
-                            items = repairItems,
-                            groups = groupsToRepair,
-                            links = groupsToRepair.flatMap { group ->
-                                group.itemIds.map { itemId ->
-                                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId)
-                                }
-                            },
-                            folders = (roomFolders + externalSnapshot.folders).distinct(),
-                            replaceGroupLinkIds = repairIds,
-                        ),
-                    )
-                }
-            }
+            barcodeRepository.saveAll(externalSnapshot)
         }
     }
 
