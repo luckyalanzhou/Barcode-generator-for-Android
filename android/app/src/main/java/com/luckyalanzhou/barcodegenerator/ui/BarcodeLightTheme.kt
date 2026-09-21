@@ -12,7 +12,7 @@ internal val BarcodeLightThemeColors = BarcodeThemeColors(
     input = Color(0xfff4f6fa),
     primary = Color.Black,
     secondary = Color(0xff3c3c43).copy(alpha = .60f),
-    accent = Color(0xff1f5fc9),
+    accent = Color(0xff007aff),
     favoriteActive = Color(0xffd97706),
     button = Color(0xffeef3f9),
     border = Color(0xffd9e1ec),
@@ -52,10 +52,10 @@ internal val BarcodeLightThemeColors = BarcodeThemeColors(
 
 /** 浅色主题：颜色只由外观设置选择，不在页面内单独维护主题状态。 */
 internal fun barcodeLightColorScheme(background: Color): ColorScheme = lightColorScheme(
-    primary = Color(0xff1f5fc9),
+    primary = Color(0xff007aff),
     onPrimary = Color.White,
-    secondary = Color(0xff1f5fc9),
-    tertiary = Color(0xff1f5fc9),
+    secondary = Color(0xff007aff),
+    tertiary = Color(0xff007aff),
     background = background,
     surface = Color(0xfffbfcff),
 )

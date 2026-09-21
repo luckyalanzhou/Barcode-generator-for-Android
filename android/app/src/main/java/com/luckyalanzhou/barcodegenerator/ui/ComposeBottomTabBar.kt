@@ -5,6 +5,9 @@ import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -31,14 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -48,22 +48,6 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
 private data class ComposeTabSpec(val label: String, val description: String, val icon: ImageVector)
-
-@Composable
-private fun ComposeTabContent(tab: ComposeTabSpec, color: Color) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Icon(
-            imageVector = tab.icon,
-            contentDescription = tab.description,
-            tint = color,
-            modifier = Modifier.size(26.dp),
-        )
-        Text(tab.label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-    }
-}
 
 @Composable
 internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
@@ -157,51 +141,41 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
             tabs.forEachIndexed { index, tab ->
                 val selected = selectedIndex == index
                 val itemCenter = (tabWidth + 4.dp) * index + tabWidth / 2
-                val itemLeft = (tabWidth + 4.dp) * index
-                val itemRight = itemLeft + tabWidth
                 val glassLeft = indicatorOffset
                 val glassRight = indicatorOffset + tabWidth
-                val coveredLeft = maxOf(glassLeft, itemLeft)
-                val coveredRight = minOf(glassRight, itemRight)
-                val hasCoverage = dragging && coveredRight > coveredLeft
-                val overlayLeft = (coveredLeft - itemLeft).coerceIn(0.dp, tabWidth)
-                val overlayRight = (coveredRight - itemLeft).coerceIn(0.dp, tabWidth)
+                val contentHalfWidth = 16.dp
+                val contentLeft = itemCenter - contentHalfWidth
+                val contentRight = itemCenter + contentHalfWidth
+                val glassTouchesContent = dragging && glassRight >= contentLeft && glassLeft <= contentRight
+                val itemColor by animateColorAsState(
+                    targetValue = if (if (dragging) glassTouchesContent else selected) selectedColor else unselectedColor,
+                    animationSpec = tween(100),
+                    label = "tab-item-color-$index",
+                )
+                val itemScale by animateFloatAsState(
+                    targetValue = if (glassTouchesContent) 1.12f else 1f,
+                    animationSpec = tween(120),
+                    label = "tab-item-scale-$index",
+                )
                 Box(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).graphicsLayer { scaleX = itemScale; scaleY = itemScale }
                         .pointerInput(index) {
                             detectTapGestures {
-                            onTabSelected(index)
+                                onTabSelected(index)
                             }
                         }.padding(vertical = 3.dp), contentAlignment = Alignment.Center
                 ) {
-                    ComposeTabContent(
-                        tab = tab,
-                        color = if (!dragging && selected) selectedColor else unselectedColor,
-                    )
-                    if (hasCoverage) {
-                        Box(
-                            modifier = Modifier.fillMaxSize().drawWithContent {
-                                clipRect(
-                                    left = overlayLeft.toPx(),
-                                    right = overlayRight.toPx(),
-                                    top = 0f,
-                                    bottom = size.height,
-                                ) {
-                                    this@drawWithContent.drawContent()
-                                }
-                            },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize().graphicsLayer {
-                                    scaleX = 1.12f
-                                    scaleY = 1.12f
-                                },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                ComposeTabContent(tab = tab, color = selectedColor)
-                            }
-                        }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = tab.description,
+                            tint = itemColor,
+                            modifier = Modifier.size(26.dp),
+                        )
+                        Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                 }
             }

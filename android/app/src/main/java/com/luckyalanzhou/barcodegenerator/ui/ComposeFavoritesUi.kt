@@ -150,7 +150,16 @@ internal fun ComposeFavoritesPage(
                     modifier = Modifier.weight(1f).height(45.dp),
                     singleLine = true,
                     textStyle = TextStyle(color = primary, fontSize = 10.sp),
-                    placeholder = { Text("搜索名称、文件夹或内容", color = secondary, fontSize = 10.sp) },
+                    placeholder = {
+                        Text(
+                            "搜索名称、文件夹或内容",
+                            color = secondary,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                        )
+                    },
                     leadingIcon = { Icon(SearchIcon, "搜索", tint = secondary) },
                     shape = RoundedCornerShape(14.dp),
                 )

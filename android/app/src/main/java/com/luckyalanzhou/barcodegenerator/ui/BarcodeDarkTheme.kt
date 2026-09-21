@@ -13,7 +13,7 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     // Apple 深色模式设置页的语义文字色：主文字为白色，次文字为 EBEBF5 的 60%。
     primary = Color.White,
     secondary = Color(0xffebebf5).copy(alpha = .60f),
-    accent = Color(0xffb8ccff),
+    accent = Color(0xff0a84ff),
     favoriteActive = Color(0xffffbb33),
     button = Color(0xff233246),
     border = Color.White.copy(alpha = 0.10f),
@@ -53,10 +53,10 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
 
 /** 深色主题：颜色只由外观设置选择，不在页面内单独维护主题状态。 */
 internal fun barcodeDarkColorScheme(background: Color): ColorScheme = darkColorScheme(
-    primary = Color(0xffb8ccff),
+    primary = Color(0xff0a84ff),
     onPrimary = Color(0xff10224a),
-    secondary = Color(0xffb8ccff),
-    tertiary = Color(0xffb8ccff),
+    secondary = Color(0xff0a84ff),
+    tertiary = Color(0xff0a84ff),
     background = background,
     surface = Color(0xff1c1c1e),
 )
