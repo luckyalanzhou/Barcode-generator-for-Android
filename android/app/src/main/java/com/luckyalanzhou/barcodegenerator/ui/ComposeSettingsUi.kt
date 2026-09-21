@@ -117,8 +117,7 @@ internal fun ComposeSettingsPage(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item("settings-appearance") {
-            SettingsSection("显示", colors.secondary) {
-                SettingsCard(colors.card, dark) {
+            SettingsCard(colors.card, dark) {
                     SettingsRow("外观", colors.primary) {
                         Box {
                             SettingsDropdownButton(
@@ -150,13 +149,11 @@ internal fun ComposeSettingsPage(
                             }
                         }
                     }
-                }
             }
         }
 
         item("settings-barcode") {
-            SettingsSection("条码", colors.secondary) {
-                SettingsCard(colors.card, dark) {
+            SettingsCard(colors.card, dark) {
                     SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.primary, colors.accent) {
                         settingsViewModel.setTextSize(it); persist(settings.copy(textSize = it))
                     }
@@ -226,13 +223,11 @@ internal fun ComposeSettingsPage(
                             }
                         }
                     }
-                }
             }
         }
 
         item("settings-tools") {
-            SettingsSection("工具", colors.secondary) {
-                SettingsCard(colors.card, dark) {
+            SettingsCard(colors.card, dark) {
                     SettingsActionRow("局域网文件分享", "启动", colors.primary, colors.button, onEnterLanShare)
                     SettingsDivider(dark)
                     SettingsActionRow("恢复默认设置", "恢复", colors.primary, colors.button) {
@@ -257,7 +252,6 @@ internal fun ComposeSettingsPage(
                         SettingsDivider(dark)
                         SettingsActionRow("导出调试日志", "分享", colors.primary, colors.button, onShareDebugLog)
                     }
-                }
             }
         }
 

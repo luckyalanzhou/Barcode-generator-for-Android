@@ -48,20 +48,17 @@ internal data class SettingsColors(
 )
 
 @Composable
-internal fun rememberSettingsColors(dark: Boolean) = SettingsColors(
-    primary = LocalBarcodeThemeColors.current.primary,
-    secondary = LocalBarcodeThemeColors.current.secondary,
-    card = LocalBarcodeThemeColors.current.card,
-    button = LocalBarcodeThemeColors.current.button,
-    accent = LocalBarcodeThemeColors.current.accent,
-)
-
-@Composable
-internal fun SettingsSection(label: String, color: Color, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, color = color, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
-        content()
-    }
+internal fun rememberSettingsColors(dark: Boolean): SettingsColors {
+    val themeColors = LocalBarcodeThemeColors.current
+    return SettingsColors(
+        // Apple 设置使用系统语义文字色：主文字接近纯黑/纯白，次文字使用带透明度的灰白色。
+        primary = if (dark) Color.White else Color.Black,
+        secondary = if (dark) Color(0xffebebf5).copy(alpha = .60f) else Color(0xff3c3c43).copy(alpha = .60f),
+        // 分组设置卡片：浅色为白色，深色为 systemGroupedBackground 的次级表面色。
+        card = if (dark) Color(0xff1c1c1e) else Color.White,
+        button = if (dark) Color(0xff2c2c2e) else Color(0xfff2f2f7),
+        accent = themeColors.accent,
+    )
 }
 
 @Composable

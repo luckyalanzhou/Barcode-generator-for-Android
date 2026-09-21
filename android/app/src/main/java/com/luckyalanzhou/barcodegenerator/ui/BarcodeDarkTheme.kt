@@ -7,10 +7,12 @@ import androidx.compose.ui.graphics.Color
 internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     background = Color.Black,
     surface = Color(0xff1c1c1e),
-    card = Color(0xff1b222d),
+    // 所有页面的卡片表面统一接近 Apple 设置页的 secondarySystemGroupedBackground。
+    card = Color(0xff1c1c1e),
     input = Color(0xff202c3a),
-    primary = Color(0xfff2f4f8),
-    secondary = Color(0xffaeb9c9),
+    // Apple 深色模式设置页的语义文字色：主文字为白色，次文字为 EBEBF5 的 60%。
+    primary = Color.White,
+    secondary = Color(0xffebebf5).copy(alpha = .60f),
     accent = Color(0xffb8ccff),
     favoriteActive = Color(0xffffbb33),
     button = Color(0xff233246),
@@ -21,7 +23,7 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     folder = Color(0xff9bc8f5),
     file = Color(0xff9bd8c0),
     progress = Color(0xff36c8ff),
-    surfaceOverlay = Color(0xff252a33).copy(alpha = .98f),
+    surfaceOverlay = Color(0xff1c1c1e).copy(alpha = .98f),
     cardBorder = Color.White.copy(alpha = .10f),
     inputBorder = Color.White.copy(alpha = .12f),
     focusedInputBorder = Color(0xff8dbcf0).copy(alpha = .72f),
@@ -32,7 +34,7 @@ internal val BarcodeDarkThemeColors = BarcodeThemeColors(
     disabled = Color(0xff657388),
     progressTrack = Color(0xff152938),
     childFolder = Color(0xffe0b383),
-    panel = Color(0xff182330).copy(alpha = .90f),
+    panel = Color(0xff1c1c1e),
     inputPanel = Color(0xff2c2c2e),
     link = Color(0xff8fc1ff),
     qrForeground = Color(0xff111318),
