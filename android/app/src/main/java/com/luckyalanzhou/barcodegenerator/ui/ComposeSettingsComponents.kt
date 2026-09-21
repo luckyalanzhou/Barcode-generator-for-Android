@@ -34,6 +34,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -46,6 +48,8 @@ internal data class SettingsColors(
     val button: Color,
     val accent: Color,
 )
+
+private val SettingsCardHorizontalPadding = 15.dp
 
 @Composable
 internal fun rememberSettingsColors(dark: Boolean): SettingsColors {
@@ -63,7 +67,7 @@ internal fun rememberSettingsColors(dark: Boolean): SettingsColors {
 
 @Composable
 internal fun SettingsCard(color: Color, dark: Boolean, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp).padding(horizontal = 15.dp, vertical = 4.dp), content = content)
+    Column(Modifier.fillMaxWidth().globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp).padding(horizontal = SettingsCardHorizontalPadding, vertical = 4.dp), content = content)
 }
 
 @Composable
@@ -103,7 +107,21 @@ internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, a
 
 @Composable
 internal fun SettingsDivider(dark: Boolean) {
-    Spacer(Modifier.fillMaxWidth().height(if (dark) 0.5.dp else 1.dp).background(LocalBarcodeThemeColors.current.divider))
+    val endExtensionPx = with(LocalDensity.current) { SettingsCardHorizontalPadding.roundToPx() }
+    Spacer(
+        Modifier
+            .height(if (dark) 0.5.dp else 1.dp)
+            .layout { measurable, constraints ->
+                val dividerWidth = constraints.maxWidth + endExtensionPx
+                val placeable = measurable.measure(
+                    constraints.copy(minWidth = dividerWidth, maxWidth = dividerWidth),
+                )
+                layout(dividerWidth, placeable.height) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
+            .background(LocalBarcodeThemeColors.current.divider),
+    )
 }
 
 @Composable
