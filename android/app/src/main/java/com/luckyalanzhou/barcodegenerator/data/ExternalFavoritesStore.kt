@@ -35,6 +35,12 @@ class ExternalFavoritesStore(
 
     fun configuredRootUri(): Uri? = settingsStore.getFavoritesRootUri()?.let(Uri::parse)
 
+    suspend fun isSyncPending(): Boolean = settingsStore.isExternalFavoritesSyncPending()
+
+    suspend fun markSyncPending(pending: Boolean) {
+        settingsStore.setExternalFavoritesSyncPending(pending).join()
+    }
+
     fun mirror(snapshot: BarcodeSnapshot) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             mirrorShared(snapshot)
@@ -44,49 +50,47 @@ class ExternalFavoritesStore(
     }
 
     private fun mirrorShared(snapshot: BarcodeSnapshot) {
-        runCatching {
-            val resolver = context.contentResolver
-            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            resolver.query(
-                collection,
-                arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME),
-                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
-                arrayOf("$SHARED_ROOT%"),
-                null,
-            )?.use { cursor ->
-                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
-                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
-                while (cursor.moveToNext()) {
-                    val name = cursor.getString(nameIndex)
-                    if (name == MARKER || name.endsWith(EXTENSION)) {
-                        resolver.delete(Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()), null, null)
-                    }
+        val resolver = context.contentResolver
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+            arrayOf("$SHARED_ROOT%"),
+            null,
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(nameIndex)
+                if (name == MARKER || name.endsWith(EXTENSION)) {
+                    resolver.delete(Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()), null, null)
                 }
             }
-            val folders = (snapshot.folders + snapshot.groups.map { it.folder })
-                .filter { it.isNotBlank() }
-                .distinct()
-            insertSharedMarker(resolver, collection, SHARED_ROOT)
-            folders.forEach { folder ->
-                val relativePath = SHARED_ROOT + folder.split('/').filter { it.isNotBlank() }
-                    .joinToString("/") { safeSegment(it) } + "/"
-                insertSharedMarker(resolver, collection, relativePath)
+        } ?: error("Cannot query shared favorites directory")
+        val folders = (snapshot.folders + snapshot.groups.map { it.folder })
+            .filter { it.isNotBlank() }
+            .distinct()
+        insertSharedMarker(resolver, collection, SHARED_ROOT)
+        folders.forEach { folder ->
+            val relativePath = SHARED_ROOT + folder.split('/').filter { it.isNotBlank() }
+                .joinToString("/") { safeSegment(it) } + "/"
+            insertSharedMarker(resolver, collection, relativePath)
+        }
+        val itemsById = snapshot.items.associateBy { it.id }
+        snapshot.groups.forEach { group ->
+            val folder = group.folder.split('/').filter { it.isNotBlank() }.joinToString("/") { safeSegment(it) }
+            val relativePath = SHARED_ROOT + folder.takeIf { it.isNotBlank() }?.plus('/') .orEmpty()
+            val fileName = safeFileName(group.name) + EXTENSION
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
             }
-            val itemsById = snapshot.items.associateBy { it.id }
-            snapshot.groups.forEach { group ->
-                val folder = group.folder.split('/').filter { it.isNotBlank() }.joinToString("/") { safeSegment(it) }
-                val relativePath = SHARED_ROOT + folder.takeIf { it.isNotBlank() }?.plus('/') .orEmpty()
-                val fileName = safeFileName(group.name) + EXTENSION
-                val values = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-                }
-                val target = resolver.insert(collection, values) ?: return@forEach
-                resolver.openOutputStream(target)?.use { output ->
-                    DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
-                }
-            }
+            val target = resolver.insert(collection, values) ?: error("Cannot create shared favorite: $fileName")
+            resolver.openOutputStream(target)?.use { output ->
+                DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
+            } ?: error("Cannot open shared favorite: $fileName")
         }
     }
 
@@ -99,26 +103,26 @@ class ExternalFavoritesStore(
             put(MediaStore.MediaColumns.DISPLAY_NAME, MARKER)
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-        })
+        }) ?: error("Cannot create shared favorites marker")
     }
 
     private fun mirrorLegacy(snapshot: BarcodeSnapshot) {
         val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return
         if (!root.isDirectory || !root.canWrite()) return
-        runCatching {
-            val managedRoot = root.findFile(MARKER) != null
-            if (!managedRoot) root.createFile("text/plain", MARKER)
-            if (managedRoot) deleteManagedFiles(root)
-            snapshot.groups.forEach { group ->
-                val folder = ensureFolder(root, group.folder)
-                val itemsById = snapshot.items.associateBy { it.id }
-                val fileName = safeFileName(group.name) + EXTENSION
-                folder.findFile(fileName)?.delete()
-                val target = folder.createFile("application/octet-stream", fileName) ?: return@forEach
-                context.contentResolver.openOutputStream(target.uri)?.use { output ->
-                    DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
-                }
-            }
+        val managedRoot = root.findFile(MARKER) != null
+        if (!managedRoot) root.createFile("text/plain", MARKER)
+            ?: error("Cannot create legacy favorites marker")
+        if (managedRoot) deleteManagedFiles(root)
+        snapshot.groups.forEach { group ->
+            val folder = ensureFolder(root, group.folder)
+            val itemsById = snapshot.items.associateBy { it.id }
+            val fileName = safeFileName(group.name) + EXTENSION
+            folder.findFile(fileName)?.delete()
+            val target = folder.createFile("application/octet-stream", fileName)
+                ?: error("Cannot create legacy favorite: $fileName")
+            context.contentResolver.openOutputStream(target.uri)?.use { output ->
+                DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
+            } ?: error("Cannot open legacy favorite: $fileName")
         }
     }
 

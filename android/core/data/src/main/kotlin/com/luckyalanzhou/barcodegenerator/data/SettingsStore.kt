@@ -36,6 +36,7 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
         val FAVORITES_ROOT_URI = stringPreferencesKey("favorites_root_uri")
+        val FAVORITES_EXTERNAL_SYNC_PENDING = booleanPreferencesKey("favorites_external_sync_pending")
     }
 
     // 所有设置写入串行执行，避免滑块连续拖动时旧快照晚到并覆盖最新值。
@@ -94,6 +95,14 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     override fun setFavoritesRootUri(uri: String): Job {
         cachedFavoritesRootUri = uri.takeUnless { it.isBlank() }
         return write { if (uri.isBlank()) it.remove(FAVORITES_ROOT_URI) else it[FAVORITES_ROOT_URI] = uri }
+    }
+
+    suspend fun isExternalFavoritesSyncPending(): Boolean =
+        context.settingsDataStore.data.first()[FAVORITES_EXTERNAL_SYNC_PENDING] == true
+
+    fun setExternalFavoritesSyncPending(pending: Boolean): Job = write {
+        if (pending) it[FAVORITES_EXTERNAL_SYNC_PENDING] = true
+        else it.remove(FAVORITES_EXTERNAL_SYNC_PENDING)
     }
 
     private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Job = synchronized(writeLock) {

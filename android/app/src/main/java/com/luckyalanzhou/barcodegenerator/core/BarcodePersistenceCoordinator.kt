@@ -108,9 +108,27 @@ class BarcodePersistenceCoordinator(
             .distinct()
             .sorted()
         val loadedItems = snapshot.items.map { it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "") }
-        externalFavoritesStore.ensureSharedMirror(
-            BarcodeSnapshot(snapshot.items, snapshot.groups, snapshot.links, snapshot.folders),
-        )
+        val startupSnapshot = BarcodeSnapshot(snapshot.items, snapshot.groups, snapshot.links, snapshot.folders)
+        if (externalFavoritesStore.isSyncPending()) {
+            runCatching { syncExternalFavorites() }
+                .onFailure { error ->
+                    com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                        "favorites",
+                        "external mirror retry deferred",
+                        error,
+                    )
+                }
+        } else {
+            runCatching { externalFavoritesStore.ensureSharedMirror(startupSnapshot) }
+                .onFailure { error ->
+                    runCatching { externalFavoritesStore.markSyncPending(true) }
+                    com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                        "favorites",
+                        "external mirror initialization deferred",
+                        error,
+                    )
+                }
+        }
         return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups)
     }
 
@@ -153,7 +171,10 @@ class BarcodePersistenceCoordinator(
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
 
     internal suspend fun syncExternalFavorites() {
-        externalFavoritesStore.mirror(barcodeRepository.loadSnapshot())
+        val snapshot = barcodeRepository.loadSnapshot()
+        externalFavoritesStore.markSyncPending(true)
+        externalFavoritesStore.mirror(snapshot)
+        externalFavoritesStore.markSyncPending(false)
     }
 
     private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> {
