@@ -571,6 +571,19 @@ class BarcodeViewModel @Inject constructor(
         return counts
     }
 
+    fun restoreExternalFavorites() {
+        viewModelScope.launch {
+            barcodeDataCoordinator.restoreExternalFavorites(this).await()
+                .onSuccess {
+                    loadPersistedData()
+                    _events.emit(BarcodeEvent.Notice("已从外部收藏目录恢复收藏"))
+                }
+                .onFailure { error ->
+                    _events.emit(BarcodeEvent.Notice("外部收藏恢复失败：${error.message ?: "没有可恢复的收藏"}"))
+                }
+        }
+    }
+
     suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()
 
     fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)

@@ -95,6 +95,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onApplyAppearance = dependencies.actions::applyAppearance,
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onRestoreFavorites = dependencies.actions::restoreFavorites,
+                    onRestoreExternalFavorites = dependencies.actions::restoreExternalFavorites,
                     onExportFavorites = dependencies.actions::exportFavorites,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                     onCheckForUpdates = dependencies.actions::checkForUpdates,

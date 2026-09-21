@@ -41,6 +41,12 @@ class ExternalFavoritesStore(
         settingsStore.setExternalFavoritesSyncPending(pending).join()
     }
 
+    suspend fun isRestoreRequired(): Boolean = settingsStore.isFavoritesRestoreRequired()
+
+    suspend fun markRestoreRequired(required: Boolean) {
+        settingsStore.setFavoritesRestoreRequired(required).join()
+    }
+
     fun mirror(snapshot: BarcodeSnapshot) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             mirrorShared(snapshot)

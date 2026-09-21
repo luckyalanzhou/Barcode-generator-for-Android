@@ -80,7 +80,10 @@ class BarcodePersistenceCoordinator(
 
     fun clearAllFavoriteGroups(scope: CoroutineScope): Deferred<Result<Unit>> {
         // Keep the external mirror as a recovery source when app favorites are cleared.
-        return enqueue(scope) { barcodeRepository.clearAllFavoriteGroups() }
+        return enqueue(scope) {
+            barcodeRepository.clearAllFavoriteGroups()
+            externalFavoritesStore.markRestoreRequired(true)
+        }
     }
 
     fun renameFavoriteFolder(scope: CoroutineScope, path: String, renamedPath: String): Deferred<Result<Unit>> {
@@ -135,13 +138,14 @@ class BarcodePersistenceCoordinator(
     }
 
     /** Restores missing favorite links/items from the uninstall-safe external mirror. */
-    suspend fun repairFromExternalFavorites() {
+    suspend fun repairFromExternalFavorites(force: Boolean = false): Int {
         val roomGroups = barcodeRepository.loadGroups()
         // Room is the fast runtime index and survives app updates. Do not scan the
         // shared-storage mirror on every cold start: that made every update look
         // like a restore operation and delayed the favorites page. The mirror is
         // only a recovery source when the Room favorite index is completely absent.
-        if (roomGroups.isNotEmpty()) return
+        if (roomGroups.isNotEmpty()) return 0
+        if (!force && externalFavoritesStore.isRestoreRequired()) return 0
         externalFavoritesStore.readSnapshot()?.let { externalSnapshot ->
             // Recovery must never replace the whole database: Room may still contain
             // history rows even when the favorite index was lost. Allocate fresh IDs
@@ -177,7 +181,16 @@ class BarcodePersistenceCoordinator(
                     folders = (existingFolders + externalSnapshot.folders).distinct(),
                 ),
             )
+            externalFavoritesStore.markRestoreRequired(false)
+            return externalSnapshot.groups.size
         }
+        return 0
+    }
+
+    fun restoreExternalFavorites(scope: CoroutineScope): Deferred<Result<Unit>> = enqueue(scope) {
+        val restoredCount = repairFromExternalFavorites(force = true)
+        check(restoredCount > 0) { "外部目录中没有可恢复的收藏文件" }
+        syncExternalFavorites()
     }
 
     /** Restores only the favorite document the user is opening. */
@@ -207,9 +220,15 @@ class BarcodePersistenceCoordinator(
 
     internal suspend fun syncExternalFavorites() {
         val snapshot = barcodeRepository.loadSnapshot()
+        // After an intentional in-app clear, history writes can still arrive with
+        // an empty favorite set. Never mirror that empty snapshot over the retained
+        // external recovery files; only an explicit restore or a new favorite may
+        // replace the retained mirror.
+        if (snapshot.groups.isEmpty() && externalFavoritesStore.isRestoreRequired()) return
         externalFavoritesStore.markSyncPending(true)
         externalFavoritesStore.mirror(snapshot)
         externalFavoritesStore.markSyncPending(false)
+        externalFavoritesStore.markRestoreRequired(false)
     }
 
     private fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> {
