@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -257,11 +256,11 @@ internal fun ComposeSettingsPage(
 
         item("settings-about") {
             SettingsCard(colors.card, dark) {
-                Text("关于", color = colors.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("关于", color = colors.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 5.dp))
+                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("作者：Alan", color = colors.secondary, fontSize = 13.sp)
-                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
                     }
                     SettingsButton(
                         text = "检查更新",
@@ -271,7 +270,6 @@ internal fun ComposeSettingsPage(
                         modifier = Modifier.width(132.dp),
                     )
                 }
-                Spacer(Modifier.height(6.dp))
             }
         }
     }
