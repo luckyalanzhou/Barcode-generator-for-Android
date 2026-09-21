@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.DriveFileMoveIcon
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
+import com.luckyalanzhou.barcodegenerator.icons.VisibilityIcon
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -92,7 +93,7 @@ internal fun FavoriteGroupRow(
         ) {
             DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalBarcodeThemeColors.current.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
-            listOf("编辑", "移动", "重命名", "删除").forEachIndexed { index, label ->
+            listOf("查看", "移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
                     modifier = Modifier.height(40.dp),
@@ -100,7 +101,7 @@ internal fun FavoriteGroupRow(
                     text = { Text(label) },
                     trailingIcon = {
                         val icon = when (index) {
-                            0 -> EditIcon
+                            0 -> VisibilityIcon
                             1 -> DriveFileMoveIcon
                             2 -> EditIcon
                             else -> DeleteIcon
