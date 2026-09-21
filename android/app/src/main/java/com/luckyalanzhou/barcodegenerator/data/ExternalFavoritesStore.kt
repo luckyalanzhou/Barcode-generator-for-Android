@@ -47,6 +47,14 @@ class ExternalFavoritesStore(
         settingsStore.setFavoritesRestoreRequired(required).join()
     }
 
+    /** Creates the fixed shared-storage root on first app startup. */
+    fun ensureManagedRoot() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || hasSharedRootMarker()) return
+        val resolver = context.contentResolver
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        insertSharedMarker(resolver, collection, SHARED_ROOT)
+    }
+
     fun mirror(snapshot: BarcodeSnapshot) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             mirrorShared(snapshot)
@@ -199,6 +207,18 @@ class ExternalFavoritesStore(
             arrayOf(MediaStore.MediaColumns._ID),
             "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?",
             arrayOf("$SHARED_ROOT%", "%$EXTENSION"),
+            null,
+        )?.use { it.moveToFirst() } == true
+    }
+
+    private fun hasSharedRootMarker(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        return context.contentResolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
+            arrayOf(SHARED_ROOT, MARKER),
             null,
         )?.use { it.moveToFirst() } == true
     }

@@ -97,6 +97,14 @@ class BarcodePersistenceCoordinator(
     suspend fun load(): LoadedData {
         writeQueue.awaitIdle()
         legacyBarcodeDataMigrator.migrateIfNeeded()
+        runCatching { externalFavoritesStore.ensureManagedRoot() }
+            .onFailure { error ->
+                com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                    "favorites",
+                    "external favorites root initialization deferred",
+                    error,
+                )
+            }
         repairFromExternalFavorites()
         val snapshot = barcodeRepository.loadStartupSnapshot()
         val loadedGroups = snapshot.groups.map { group ->
