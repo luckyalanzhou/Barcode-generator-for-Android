@@ -72,25 +72,23 @@ internal fun ComposeResultsPage(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (!resultState.showingHistoryResult) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Spacer(Modifier.weight(1f))
-                    ResultAction(EditIcon, "编辑", actionColor) {
-                        viewModel.editCurrentResult()
-                    }
-                    ResultAction(
-                        favoriteActionIcon,
-                        "收藏",
-                        if (isFavorite) themeColors.favoriteActive else actionColor,
-                        onSaveFavorite,
-                    )
-                    ResultAction(IosShareIcon, "分享", actionColor, onShare)
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(Modifier.weight(1f))
+                ResultAction(EditIcon, "编辑", actionColor) {
+                    viewModel.editCurrentResult()
                 }
+                ResultAction(
+                    favoriteActionIcon,
+                    "收藏",
+                    if (isFavorite) themeColors.favoriteActive else actionColor,
+                    onSaveFavorite,
+                )
+                ResultAction(IosShareIcon, "分享", actionColor, onShare)
             }
         }
         items(items, key = { it.id }) { item ->
