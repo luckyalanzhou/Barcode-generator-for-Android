@@ -151,7 +151,7 @@ internal fun ComposeResultBarcode(
                 color = textColor,
                 fontSize = textSize.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
             )
         } else {
             Image(
