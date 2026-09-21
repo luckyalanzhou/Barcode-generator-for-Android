@@ -248,7 +248,7 @@ private fun BoxScope.LanShareComposer(
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
                 IconButton(onClick = onOpenAttachmentMenu, modifier = Modifier.size(48.dp)) {
-                    Icon(AddIcon, "添加附件", tint = themeColors.icon, modifier = Modifier.size(28.dp))
+                    Icon(AddIcon, "添加附件", tint = accent, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
@@ -273,8 +273,8 @@ private fun BoxScope.LanShareComposer(
                 },
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onSend, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                Text("发送", color = themeColors.sentContent, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Button(onClick = onSend, modifier = Modifier.width(64.dp).height(44.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+                Text("发送", color = themeColors.sentContent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
