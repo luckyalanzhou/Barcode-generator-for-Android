@@ -30,8 +30,15 @@ internal fun Modifier.globalCardSurface(
         shape,
     )
 
-/** 按钮统一的轻量浮起效果；按钮本身仍负责颜色、无障碍语义和点击反馈。 */
+/** 按钮统一的轻量边缘与浮起效果；按钮本身仍负责颜色、语义和点击反馈。 */
+@Composable
 internal fun Modifier.globalButtonChrome(
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
     elevation: Dp = 1.5.dp,
-): Modifier = this.shadow(minOf(elevation, 1.dp), shape, clip = false)
+    borderColor: Color? = null,
+): Modifier {
+    val themeColors = LocalBarcodeThemeColors.current
+    return this
+        .shadow(minOf(elevation, 0.5.dp), shape, clip = false)
+        .border(0.5.dp, borderColor ?: themeColors.buttonBorder, shape)
+}

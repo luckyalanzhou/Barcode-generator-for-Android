@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -97,9 +96,8 @@ internal fun DialogAction(
     val background = if (primary) colors.progress else colors.button
     Box(
         modifier = modifier
-            .globalButtonChrome(RoundedCornerShape(12.dp), 1.dp)
+            .globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp, border)
             .background(background, RoundedCornerShape(12.dp))
-            .border(1.dp, border, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
@@ -110,7 +108,7 @@ internal fun DialogAction(
 
 @Composable
 internal fun ComposeDropdownDivider(dark: Boolean) {
-    HorizontalDivider(thickness = 1.dp, color = LocalBarcodeThemeColors.current.divider)
+    HorizontalDivider(thickness = if (dark) 0.5.dp else 1.dp, color = LocalBarcodeThemeColors.current.divider)
 }
 
 internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {

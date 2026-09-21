@@ -15,6 +15,7 @@ internal val BarcodeLightThemeColors = BarcodeThemeColors(
     favoriteActive = Color(0xffd97706),
     button = Color(0xffeef3f9),
     border = Color(0xffd9e1ec),
+    buttonBorder = Color(0xffcbd6e4).copy(alpha = .72f),
     icon = Color(0xff344054),
     destructive = Color(0xffc2413b),
     folder = Color(0xff527ca8),

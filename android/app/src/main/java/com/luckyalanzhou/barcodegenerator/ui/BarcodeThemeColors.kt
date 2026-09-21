@@ -17,6 +17,7 @@ internal data class BarcodeThemeColors(
     val favoriteActive: Color,
     val button: Color,
     val border: Color,
+    val buttonBorder: Color,
     val icon: Color,
     val destructive: Color,
     val folder: Color,

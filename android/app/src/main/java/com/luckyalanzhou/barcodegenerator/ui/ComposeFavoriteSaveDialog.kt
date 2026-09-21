@@ -8,6 +8,7 @@ import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -153,6 +154,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(0.5.dp, LocalBarcodeThemeColors.current.buttonBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.primary),
                 ) {
                     Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
@@ -170,6 +172,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(0.5.dp, LocalBarcodeThemeColors.current.buttonBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.primary),
                 ) {
                     Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))

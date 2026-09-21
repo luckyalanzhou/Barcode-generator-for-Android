@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +39,7 @@ internal fun ComposeChoiceField(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { buttonWidth = it.size.width },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            border = BorderStroke(0.5.dp, LocalBarcodeThemeColors.current.buttonBorder),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalBarcodeThemeColors.current.primary),
         ) {
             Text(value, color = LocalBarcodeThemeColors.current.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)

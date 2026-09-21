@@ -230,7 +230,8 @@ internal fun ComposeGeneratePage(
                 Box {
                     Button(
                         onClick = { formatExpanded = true },
-                        modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width },
+                        modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
+                            .globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = themeColors.button,

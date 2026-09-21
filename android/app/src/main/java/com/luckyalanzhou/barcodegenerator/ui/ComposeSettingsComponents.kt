@@ -106,7 +106,7 @@ internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, a
 
 @Composable
 internal fun SettingsDivider(dark: Boolean) {
-    Spacer(Modifier.fillMaxWidth().height(1.dp).background(LocalBarcodeThemeColors.current.divider))
+    Spacer(Modifier.fillMaxWidth().height(if (dark) 0.5.dp else 1.dp).background(LocalBarcodeThemeColors.current.divider))
 }
 
 @Composable

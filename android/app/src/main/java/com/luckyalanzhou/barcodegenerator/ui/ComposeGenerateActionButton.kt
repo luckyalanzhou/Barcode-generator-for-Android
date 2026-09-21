@@ -47,7 +47,7 @@ internal fun ComposeGenerateActionButton(
     )
     Surface(
         onClick = onClick,
-        modifier = modifier.height(52.dp).semantics { role = Role.Button },
+        modifier = modifier.height(52.dp).globalButtonChrome(shape, 0.5.dp, borderColor).semantics { role = Role.Button },
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
