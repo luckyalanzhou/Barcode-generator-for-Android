@@ -58,9 +58,11 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             AppRoute.Favorites -> {
+                val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 ComposeFavoritesPage(
                     viewModel = dependencies.viewModel,
                     dark = dark,
+                    style = settings.style,
                     onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
                     onShowFolderEditor = dependencies.actions::showFolderEditor,
                     onShowMoveDialog = dependencies.actions::showMoveDialog,

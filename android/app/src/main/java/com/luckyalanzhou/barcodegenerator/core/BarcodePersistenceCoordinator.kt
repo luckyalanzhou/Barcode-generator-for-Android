@@ -153,6 +153,28 @@ class BarcodePersistenceCoordinator(
         }
     }
 
+    /** Restores only the favorite document the user is opening. */
+    suspend fun repairExternalFavorite(group: FavoriteGroup) {
+        val external = externalFavoritesStore.readFavorite(group) ?: return
+        val externalGroup = group.copy(itemIds = external.second.map { it.id }.toMutableList())
+        if (external.second.isEmpty()) return
+        applyFavoriteRepair(externalGroup, external.second)
+    }
+
+    private suspend fun applyFavoriteRepair(group: FavoriteGroup, items: List<CodeItem>) {
+        barcodeRepository.applyFavoritesMutation(
+            BarcodeSnapshot(
+                items = items,
+                groups = listOf(group),
+                links = group.itemIds.map { itemId ->
+                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId)
+                },
+                folders = (barcodeRepository.loadFolders() + group.folder).filter { it.isNotBlank() }.distinct(),
+                replaceGroupLinkIds = setOf(group.id),
+            ),
+        )
+    }
+
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
 
     internal suspend fun syncExternalFavorites() {

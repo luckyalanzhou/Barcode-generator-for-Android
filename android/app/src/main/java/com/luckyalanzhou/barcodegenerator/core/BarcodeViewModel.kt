@@ -20,6 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import com.luckyalanzhou.barcodegenerator.ui.DebugLog
 import kotlinx.coroutines.Job
 import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
@@ -207,17 +210,28 @@ class BarcodeViewModel @Inject constructor(
         else -> AppRoute.Generate
     }
 
-    fun openFavoriteGroup(group: FavoriteGroup) {
-        openFavoriteGroupWhenLoaded(group, AppRoute.Results)
+    fun openFavoriteGroup(
+        group: FavoriteGroup,
+        style: StyleSettings? = null,
+        dark: Boolean = false,
+        density: Float = 1f,
+    ) {
+        openFavoriteGroupWhenLoaded(group, AppRoute.Results, style, dark, density)
     }
 
     fun openFavoriteForEditing(group: FavoriteGroup) {
-        openFavoriteGroupWhenLoaded(group, AppRoute.Generate)
+        openFavoriteGroupWhenLoaded(group, AppRoute.Generate, null, false, 1f)
     }
 
-    private fun openFavoriteGroupWhenLoaded(group: FavoriteGroup, destination: AppRoute) {
+    private fun openFavoriteGroupWhenLoaded(
+        group: FavoriteGroup,
+        destination: AppRoute,
+        style: StyleSettings?,
+        dark: Boolean,
+        density: Float,
+    ) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { barcodeDataCoordinator.repairFromExternalFavorites() }
+            withContext(Dispatchers.IO) { barcodeDataCoordinator.repairExternalFavorite(group) }
             var currentGroup = favoritesStateStore.groupsSnapshot().firstOrNull { it.id == group.id }
             if (currentGroup == null) {
                 DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
@@ -248,6 +262,15 @@ class BarcodeViewModel @Inject constructor(
             val itemsById = favoritesStateStore.itemsSnapshot().associateBy { it.id }
             val groupItems = currentGroup.itemIds.mapNotNull { id ->
                 itemsById[id]
+            }
+            if (destination == AppRoute.Results && style != null && groupItems.isNotEmpty()) {
+                withContext(Dispatchers.Default.limitedParallelism(4)) {
+                    coroutineScope {
+                        groupItems.map { item ->
+                            async { barcodeImageRenderer.loadOrCreate(item, style, dark, density) }
+                        }.awaitAll()
+                    }
+                }
             }
             DebugLog.record(
                 "favorites",

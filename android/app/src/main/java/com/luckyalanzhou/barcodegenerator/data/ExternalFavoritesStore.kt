@@ -129,6 +129,52 @@ class ExternalFavoritesStore(
         return readLegacySnapshot()
     }
 
+    /** Reads only the selected favorite document instead of scanning every favorite file. */
+    fun readFavorite(group: FavoriteGroup): Pair<FavoriteGroup, List<CodeItem>>? = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) readSharedFavorite(group)
+        else readLegacyFavorite(group)
+    }.getOrNull()
+
+    private fun readSharedFavorite(group: FavoriteGroup): Pair<FavoriteGroup, List<CodeItem>>? {
+        val resolver = context.contentResolver
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val folderPath = group.folder.split('/').filter { it.isNotBlank() }
+            .joinToString("/") { safeSegment(it) }
+        val relativePath = if (folderPath.isBlank()) SHARED_ROOT else "$SHARED_ROOT$folderPath/"
+        val fileName = safeFileName(group.name) + EXTENSION
+        return resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
+            arrayOf(relativePath, fileName),
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            val pathIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
+            readGroup(
+                MediaStoreFile(
+                    Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()),
+                    cursor.getString(nameIndex),
+                    cursor.getString(pathIndex),
+                ),
+                group.folder,
+            )
+        }
+    }
+
+    private fun readLegacyFavorite(group: FavoriteGroup): Pair<FavoriteGroup, List<CodeItem>>? {
+        val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return null
+        if (!root.isDirectory) return null
+        var directory = root
+        group.folder.split('/').filter { it.isNotBlank() }.forEach { segment ->
+            directory = directory.findFile(safeSegment(segment))?.takeIf { it.isDirectory } ?: return null
+        }
+        val file = directory.findFile(safeFileName(group.name) + EXTENSION) ?: return null
+        return readGroup(file, group.folder)
+    }
+
     fun ensureSharedMirror(snapshot: BarcodeSnapshot) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && snapshot.groups.isNotEmpty() && !hasSharedManagedFiles()) {
             mirrorShared(snapshot)

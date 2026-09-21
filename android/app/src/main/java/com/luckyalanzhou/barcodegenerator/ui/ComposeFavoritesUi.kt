@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig
 
@@ -57,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +77,7 @@ import kotlinx.coroutines.withContext
 internal fun ComposeFavoritesPage(
     viewModel: BarcodeViewModel,
     dark: Boolean,
+    style: StyleSettings,
     onShowSubfolderEditor: (String) -> Unit,
     onShowFolderEditor: (String, (String) -> Unit) -> Unit,
     onShowMoveDialog: (FavoriteGroup) -> Unit,
@@ -85,6 +88,7 @@ internal fun ComposeFavoritesPage(
     val searchState by viewModel.favoriteSearchState.collectAsStateWithLifecycle()
     val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     val hapticView = LocalView.current
+    val density = LocalDensity.current.density
     var query by remember { mutableStateOf("") }
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
@@ -215,7 +219,7 @@ internal fun ComposeFavoritesPage(
                             hapticView = hapticView,
                             menuExpanded = fileMenu?.id == group.id,
                             onMenuDismiss = { fileMenu = null },
-                            onClick = { viewModel.openFavoriteGroup(group) },
+                            onClick = { viewModel.openFavoriteGroup(group, style, dark, density) },
                             onLongClick = {
                                 hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                                 fileMenu = group
