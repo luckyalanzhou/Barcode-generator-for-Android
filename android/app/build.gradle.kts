@@ -69,12 +69,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            // Only local installs opt into a separate package; CI and released builds keep the original ID.
-            if (providers.gradleProperty("localDebugPackageSuffix").orNull == "true") {
-                applicationIdSuffix = ".debug"
-            }
-        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
@@ -90,6 +84,15 @@ android {
     }
 }
 
+androidComponents {
+    beforeVariants { variantBuilder ->
+        if (variantBuilder.buildType == "debug") {
+            // 不生成 officialDebug/betaDebug 本地调试变体；编译认证统一使用 Release 变体。
+            variantBuilder.enable = false
+        }
+    }
+}
+
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
@@ -101,7 +104,6 @@ dependencies {
     implementation(libs.compose.animation.core)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
     implementation(libs.zxing.core)
     implementation(libs.mlkit.text.recognition.chinese)
