@@ -21,7 +21,7 @@ jobs:
         shell: bash
     env:
       GRADLE_OPTS: >-
-        -Dorg.gradle.jvmargs=-Xmx6g -XX:+UseParallelGC
+        -Dorg.gradle.jvmargs=-Xmx8g -XX:+UseParallelGC
         -Dfile.encoding=UTF-8
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
@@ -43,14 +43,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
+          # Beta builds run on a non-default branch; explicitly allow the
+          # dependency cache to be saved for the next Beta build.
+          cache-read-only: false
           # 只保留依赖和 Wrapper 缓存，避免把 build-cache、transforms
           # 和独立 configuration-cache 重复存入 GitHub Actions 缓存。
           gradle-home-cache-includes: |
             caches/modules-2
             caches/jars-9
+            caches/build-cache-1
             wrapper/dists
           cache-cleanup: on-success
           add-job-summary: on-failure
+      - name: Restore Gradle configuration cache
+        uses: actions/cache@v4
+        with:
+          path: android/.gradle/configuration-cache
+          key: gradle-configuration-beta-${{ runner.os }}-${{ hashFiles('android/gradle/**', 'android/*.gradle.kts', 'android/**/build.gradle.kts', 'android/gradle.properties') }}
+          restore-keys: |
+            gradle-configuration-beta-${{ runner.os }}-
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Calculate beta version
