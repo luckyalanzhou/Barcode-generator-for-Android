@@ -147,10 +147,10 @@ internal fun ComposeFavoritesPage(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    modifier = Modifier.weight(1f).height(42.dp),
+                    modifier = Modifier.weight(1f).height(45.dp),
                     singleLine = true,
-                    textStyle = TextStyle(color = primary, fontSize = 17.sp),
-                    placeholder = { Text("搜索名称、文件夹或内容", color = secondary, fontSize = 17.sp) },
+                    textStyle = TextStyle(color = primary, fontSize = 10.sp),
+                    placeholder = { Text("搜索名称、文件夹或内容", color = secondary, fontSize = 10.sp) },
                     leadingIcon = { Icon(SearchIcon, "搜索", tint = secondary) },
                     shape = RoundedCornerShape(14.dp),
                 )
