@@ -21,6 +21,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -38,11 +39,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
@@ -144,25 +146,48 @@ internal fun ComposeFavoritesPage(
     ) {
         item(key = "favorite-search") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.weight(1f).height(45.dp),
-                    singleLine = true,
-                    textStyle = TextStyle(color = primary, fontSize = 10.sp),
-                    placeholder = {
-                        Text(
-                            "搜索名称、文件夹或内容",
-                            color = secondary,
-                            fontSize = 10.sp,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Clip,
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(45.dp)
+                        .border(1.dp, secondary.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = SearchIcon,
+                            contentDescription = "搜索",
+                            tint = secondary,
+                            modifier = Modifier.size(24.dp),
                         )
-                    },
-                    leadingIcon = { Icon(SearchIcon, "搜索", tint = secondary) },
-                    shape = RoundedCornerShape(14.dp),
-                )
+                        Spacer(Modifier.width(10.dp))
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            textStyle = TextStyle(color = primary, fontSize = 10.sp),
+                            cursorBrush = SolidColor(primary),
+                            decorationBox = { field ->
+                                if (query.isEmpty()) {
+                                    Text(
+                                        "搜索名称、文件夹或内容",
+                                        color = secondary,
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Clip,
+                                    )
+                                }
+                                field()
+                            },
+                        )
+                    }
+                }
                 TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
                     Text("清空", color = themeColors.destructive, fontSize = 14.sp)
                 }
