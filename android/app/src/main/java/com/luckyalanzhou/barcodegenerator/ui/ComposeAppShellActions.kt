@@ -21,6 +21,7 @@ internal interface ComposeAppShellActions {
     fun notice(message: String)
     fun clearHistory()
     fun editHistory(batch: List<CodeItem>)
+    fun editFavorite(group: FavoriteGroup)
     fun showSubfolderEditor(parent: String)
     fun showFolderEditor(initial: String, onSaved: (String) -> Unit)
     fun showMoveDialog(group: FavoriteGroup)
@@ -73,6 +74,13 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun editHistory(batch: List<CodeItem>) {
         if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first())
         else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
+    }
+
+    override fun editFavorite(group: FavoriteGroup) {
+        viewModel.loadFavoriteGroupForEditing(group) { batch ->
+            if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first())
+            else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
+        }
     }
 
     override fun showSubfolderEditor(parent: String) = this@composeAppShellActions.showSubfolderEditorCompose(parent)

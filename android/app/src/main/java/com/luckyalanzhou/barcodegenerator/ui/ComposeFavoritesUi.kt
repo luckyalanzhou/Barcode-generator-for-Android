@@ -82,6 +82,7 @@ internal fun ComposeFavoritesPage(
     onClearAll: () -> Unit,
     onShowSubfolderEditor: (String) -> Unit,
     onShowFolderEditor: (String, (String) -> Unit) -> Unit,
+    onEdit: (FavoriteGroup) -> Unit,
     onShowMoveDialog: (FavoriteGroup) -> Unit,
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
@@ -226,6 +227,7 @@ internal fun ComposeFavoritesPage(
                             },
                             onShowMoveDialog = onShowMoveDialog,
                             onShowRenameDialog = onShowRenameDialog,
+                            onEdit = onEdit,
                             onConfirm = onConfirm,
                             viewModel = viewModel,
                         )

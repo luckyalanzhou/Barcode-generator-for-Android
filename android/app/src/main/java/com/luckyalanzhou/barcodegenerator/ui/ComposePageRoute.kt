@@ -72,6 +72,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     },
                     onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
                     onShowFolderEditor = dependencies.actions::showFolderEditor,
+                    onEdit = dependencies.actions::editFavorite,
                     onShowMoveDialog = dependencies.actions::showMoveDialog,
                     onShowRenameDialog = dependencies.actions::showRenameDialog,
                     onConfirm = dependencies.actions::confirm,

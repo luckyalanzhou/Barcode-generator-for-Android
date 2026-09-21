@@ -219,8 +219,8 @@ class BarcodeViewModel @Inject constructor(
         openFavoriteGroupWhenLoaded(group, AppRoute.Results, style, dark, density)
     }
 
-    fun openFavoriteForEditing(group: FavoriteGroup) {
-        openFavoriteGroupWhenLoaded(group, AppRoute.Generate, null, false, 1f)
+    fun loadFavoriteGroupForEditing(group: FavoriteGroup, onLoaded: (List<CodeItem>) -> Unit) {
+        openFavoriteGroupWhenLoaded(group, AppRoute.Favorites, null, false, 1f, onLoaded)
     }
 
     private fun openFavoriteGroupWhenLoaded(
@@ -229,6 +229,7 @@ class BarcodeViewModel @Inject constructor(
         style: StyleSettings?,
         dark: Boolean,
         density: Float,
+        onLoaded: ((List<CodeItem>) -> Unit)? = null,
     ) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { barcodeDataCoordinator.repairExternalFavorite(group) }
@@ -277,6 +278,7 @@ class BarcodeViewModel @Inject constructor(
                 "open complete groupId=${currentGroup.id} linkIds=${currentGroup.itemIds.size} knownItems=${knownItems.size} missingLoaded=${missingIds.size} resultItems=${groupItems.size}",
             )
             _resultUiState.update { it.copy(selectedFavoriteGroup = currentGroup, items = groupItems, showingHistoryResult = false, returnPage = AppRoute.Favorites) }
+            onLoaded?.invoke(groupItems)
             if (destination == AppRoute.Generate) {
                 updateInputDraft(groupItems.map { it.text })
                 _generateEditorState.update { it.copy(pendingFormat = groupItems.firstOrNull()?.format) }

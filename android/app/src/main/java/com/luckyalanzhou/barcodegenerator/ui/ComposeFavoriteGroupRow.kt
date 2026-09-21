@@ -59,6 +59,7 @@ internal fun FavoriteGroupRow(
     onLongClick: () -> Unit,
     onShowMoveDialog: (FavoriteGroup) -> Unit,
     onShowRenameDialog: (FavoriteGroup) -> Unit,
+    onEdit: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
     viewModel: BarcodeViewModel,
 ) {
@@ -91,7 +92,7 @@ internal fun FavoriteGroupRow(
         ) {
             DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalBarcodeThemeColors.current.secondary, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
-            listOf("移动", "重命名", "删除").forEachIndexed { index, label ->
+            listOf("编辑", "移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
                     modifier = Modifier.height(40.dp),
@@ -99,17 +100,19 @@ internal fun FavoriteGroupRow(
                     text = { Text(label) },
                     trailingIcon = {
                         val icon = when (index) {
-                            0 -> DriveFileMoveIcon
-                            1 -> EditIcon
+                            0 -> EditIcon
+                            1 -> DriveFileMoveIcon
+                            2 -> EditIcon
                             else -> DeleteIcon
                         }
-                        Icon(icon, contentDescription = label, tint = if (index == 2) LocalBarcodeThemeColors.current.destructive else LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
+                        Icon(icon, contentDescription = label, tint = if (index == 3) LocalBarcodeThemeColors.current.destructive else LocalBarcodeThemeColors.current.primary, modifier = Modifier.size(20.dp))
                     },
                     onClick = {
                         onMenuDismiss()
                         when (index) {
-                            0 -> onShowMoveDialog(group)
-                            1 -> onShowRenameDialog(group)
+                            0 -> onEdit(group)
+                            1 -> onShowMoveDialog(group)
+                            2 -> onShowRenameDialog(group)
                             else -> onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { viewModel.deleteFavoriteGroupAndPersist(group.id) }
                         }
                     },
