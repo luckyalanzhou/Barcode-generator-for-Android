@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -211,8 +212,8 @@ internal fun ComposeGeneratePage(
             )
             ComposeGenerateActionButton(
                 icon = PhotoCameraIcon,
-                iconDescription = "拍照取字",
-                label = "拍照取字",
+                iconDescription = "拍照填充",
+                label = "拍照填充",
                 // 与“添加一行”共用同一张卡片容器，避免单独的描边造成外观不一致。
                 containerColor = cardColor,
                 contentColor = themeColors.link,
@@ -231,8 +232,16 @@ internal fun ComposeGeneratePage(
                     Button(
                         onClick = { formatExpanded = true },
                         modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
-                            .globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp),
+                            .height(40.dp),
                         shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(0.5.dp, themeColors.buttonBorder),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp,
+                            focusedElevation = 0.dp,
+                            hoveredElevation = 0.dp,
+                            disabledElevation = 0.dp,
+                        ),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = themeColors.button,
                             contentColor = textColor,
