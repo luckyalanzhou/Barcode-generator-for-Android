@@ -59,7 +59,7 @@ private object BetaDebugLogBackend {
             cleanup(targetDirectory)
             val source = dailyFile(targetDirectory)
             if (!source.exists()) source.writeText("暂无应用调试日志\n", Charsets.UTF_8)
-            val export = File(context.cacheDir, "barcode-generator-debug.log")
+            val export = File(context.cacheDir, "barcode-generator-debug-${exportTimestamp()}.log")
             source.copyTo(export, overwrite = true)
             return export
         }
@@ -95,6 +95,9 @@ private object BetaDebugLogBackend {
     }
 
     private fun today(): String = LocalDate.now(ZoneId.systemDefault()).toString()
+
+    private fun exportTimestamp(): String =
+        SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
 }
 
 internal fun debugLogInitializeImpl(context: Context) = BetaDebugLogBackend.initialize(context)

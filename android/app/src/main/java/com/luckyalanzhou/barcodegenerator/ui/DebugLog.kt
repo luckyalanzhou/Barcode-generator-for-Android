@@ -51,7 +51,8 @@ object DebugLog {
             if (!source.exists() || source.length() == 0L) {
                 writeFallback("diagnostics", "日志导出后端不可用，已使用兜底日志文件", error, source)
             }
-            return File(context.cacheDir, "barcode-generator-debug.log").also { export ->
+            val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
+            return File(context.cacheDir, "barcode-generator-debug-$timestamp.log").also { export ->
                 source.copyTo(export, overwrite = true)
             }
         }

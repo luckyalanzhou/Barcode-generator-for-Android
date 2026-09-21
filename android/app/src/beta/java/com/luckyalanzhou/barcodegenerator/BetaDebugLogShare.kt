@@ -13,7 +13,7 @@ internal fun MainActivity.shareDebugLogImpl() {
     val share = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_TITLE, "barcode-generator-debug.log")
+        putExtra(Intent.EXTRA_TITLE, logFile.name)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         clipData = ClipData.newRawUri("应用调试日志", uri)
     }

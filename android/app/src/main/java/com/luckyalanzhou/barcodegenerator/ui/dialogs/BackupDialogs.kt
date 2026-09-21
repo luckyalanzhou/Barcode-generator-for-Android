@@ -18,6 +18,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 收藏备份的业务/系统文件选择桥接。
@@ -27,7 +30,7 @@ import java.io.File
  */
 /** 生成 ZIP 后交给系统分享面板，可发送至聊天、邮件、网盘或文件管理器。 */
 internal fun MainActivity.shareFavoritesExportForCompose() {
-    val name = BuildConfig.BACKUP_FILE_NAME
+    val name = timestampedBackupFileName()
     lifecycleScope.launch(Dispatchers.IO) {
         val exportFile = File(cacheDir, name)
         val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
@@ -53,7 +56,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
 
 /** 保留 SAF 文件保存入口，供用户指定 ZIP 保存位置。 */
 internal fun MainActivity.createFavoritesDocumentExportForCompose() {
-    val name = BuildConfig.BACKUP_FILE_NAME
+    val name = timestampedBackupFileName()
     launchExternalActivity(
         Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             type = "application/zip"
@@ -62,6 +65,12 @@ internal fun MainActivity.createFavoritesDocumentExportForCompose() {
         },
         MainActivity.REQUEST_FAVORITES_EXPORT,
     )
+}
+
+private fun timestampedBackupFileName(): String {
+    val baseName = BuildConfig.BACKUP_FILE_NAME.removeSuffix(".zip")
+    val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
+    return "$baseName-$timestamp.zip"
 }
 
 internal fun MainActivity.restoreFavoritesImport() {
