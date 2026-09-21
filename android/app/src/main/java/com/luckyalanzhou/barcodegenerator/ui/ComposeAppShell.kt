@@ -144,20 +144,30 @@ internal fun ComposeAppShell(
                 .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
             ) {
             if (currentRoute.mainTabIndex != null) {
-                // 主 Tab 不再让 AnimatedContent 同时组合旧页和新页。
-                // 收藏树、历史分组等页面在更新后的首次进入可能因此阻塞主线程数秒。
-                // 页面即时替换，底部液态玻璃选中框和页面内部动画仍保持流畅。
-                Column(Modifier.fillMaxWidth().weight(1f)) {
-                    Text(
-                        text = currentRoute.title,
-                        modifier = Modifier.fillMaxWidth().height(60.dp),
-                        color = LocalBarcodeThemeColors.current.primary,
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                    )
-                    Box(Modifier.fillMaxWidth().weight(1f)) {
-                        ComposeNavigationHost(dependencies, currentRoute, dark)
+                // 主 Tab 使用轻量淡入淡出；不加入位移、缩放或尺寸变化，
+                // 避免收藏树、历史分组等页面切换时产生额外布局开销。
+                AnimatedContent(
+                    targetState = currentRoute,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(180)) togetherWith
+                            fadeOut(animationSpec = tween(120)) using
+                            SizeTransform(clip = false)
+                    },
+                    label = "mainTabFadeTransition",
+                ) { targetPage ->
+                    Column(Modifier.fillMaxSize()) {
+                        Text(
+                            text = targetPage.title,
+                            modifier = Modifier.fillMaxWidth().height(60.dp),
+                            color = LocalBarcodeThemeColors.current.primary,
+                            fontSize = 25.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                        )
+                        Box(Modifier.fillMaxWidth().weight(1f)) {
+                            ComposeNavigationHost(dependencies, targetPage, dark)
+                        }
                     }
                 }
             } else AnimatedContent(
