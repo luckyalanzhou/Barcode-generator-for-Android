@@ -44,6 +44,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
@@ -78,6 +79,7 @@ internal fun ComposeFavoritesPage(
     viewModel: BarcodeViewModel,
     dark: Boolean,
     style: StyleSettings,
+    onClearAll: () -> Unit,
     onShowSubfolderEditor: (String) -> Unit,
     onShowFolderEditor: (String, (String) -> Unit) -> Unit,
     onShowMoveDialog: (FavoriteGroup) -> Unit,
@@ -140,16 +142,21 @@ internal fun ComposeFavoritesPage(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item(key = "favorite-search") {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                textStyle = TextStyle(color = primary, fontSize = 17.sp),
-                placeholder = { Text("搜索名称、文件夹或内容", color = secondary, fontSize = 17.sp) },
-                leadingIcon = { Icon(SearchIcon, "搜索", tint = secondary) },
-                shape = RoundedCornerShape(14.dp),
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    textStyle = TextStyle(color = primary, fontSize = 17.sp),
+                    placeholder = { Text("搜索名称、文件夹或内容", color = secondary, fontSize = 17.sp) },
+                    leadingIcon = { Icon(SearchIcon, "搜索", tint = secondary) },
+                    shape = RoundedCornerShape(14.dp),
+                )
+                TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
+                    Text("清空", color = themeColors.destructive, fontSize = 14.sp)
+                }
+            }
         }
 
         if (!favoritesState.isReady) {
@@ -163,15 +170,8 @@ internal fun ComposeFavoritesPage(
                 )
             }
         } else if (rows == null) {
-            item(key = "favorite-tree-loading") {
-                Text(
-                    "正在整理收藏…",
-                    color = secondary,
-                    fontSize = 17.sp,
-                    modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
-                    textAlign = TextAlign.Center,
-                )
-            }
+            // The tree projection is computed off the main thread; keep the page quiet
+            // during the short recomposition instead of showing a flashing placeholder.
         } else if (rows!!.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(

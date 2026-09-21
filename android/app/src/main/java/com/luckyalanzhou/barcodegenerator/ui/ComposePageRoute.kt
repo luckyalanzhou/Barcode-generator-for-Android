@@ -63,6 +63,13 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     viewModel = dependencies.viewModel,
                     dark = dark,
                     style = settings.style,
+                    onClearAll = {
+                        dependencies.actions.confirm(
+                            "清空所有收藏",
+                            "将删除全部收藏文件、文件夹层级和外部收藏文件，此操作不可恢复。",
+                            "确定",
+                        ) { dependencies.viewModel.clearFavoritesAndPersist() }
+                    },
                     onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
                     onShowFolderEditor = dependencies.actions::showFolderEditor,
                     onShowMoveDialog = dependencies.actions::showMoveDialog,
