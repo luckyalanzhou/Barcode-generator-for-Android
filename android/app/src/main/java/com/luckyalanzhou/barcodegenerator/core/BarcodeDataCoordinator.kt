@@ -19,6 +19,7 @@ class BarcodeDataCoordinator @Inject constructor(
 
     suspend fun loadStartupGroupItemIds(groupId: Long) = repository.loadGroupItemIds(groupId)
     suspend fun loadItemsByIds(ids: List<Long>) = repository.loadItemsByIds(ids)
+    suspend fun repairFromExternalFavorites() = persistence.repairFromExternalFavorites()
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary = backupRepository.inspectImport(backup)
     suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false) = backupRepository.import(backup, overwriteConflicts)

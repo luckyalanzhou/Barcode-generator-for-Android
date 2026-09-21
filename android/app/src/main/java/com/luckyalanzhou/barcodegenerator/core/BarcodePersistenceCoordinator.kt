@@ -92,9 +92,7 @@ class BarcodePersistenceCoordinator(
     suspend fun load(): LoadedData {
         writeQueue.awaitIdle()
         legacyBarcodeDataMigrator.migrateIfNeeded()
-        if (barcodeRepository.loadGroups().isEmpty()) {
-            externalFavoritesStore.readSnapshot()?.let { snapshot -> barcodeRepository.saveAll(snapshot) }
-        }
+        repairFromExternalFavorites()
         val snapshot = barcodeRepository.loadStartupSnapshot()
         val loadedGroups = snapshot.groups.map { group ->
             FavoriteGroup(
@@ -114,6 +112,45 @@ class BarcodePersistenceCoordinator(
             BarcodeSnapshot(snapshot.items, snapshot.groups, snapshot.links, snapshot.folders),
         )
         return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups)
+    }
+
+    /** Restores missing favorite links/items from the uninstall-safe external mirror. */
+    suspend fun repairFromExternalFavorites() {
+        val roomGroups = barcodeRepository.loadGroups()
+        externalFavoritesStore.readSnapshot()?.let { externalSnapshot ->
+            if (roomGroups.isEmpty()) {
+                barcodeRepository.saveAll(externalSnapshot)
+            } else {
+                val roomLinks = barcodeRepository.loadGroupItems()
+                val roomItems = barcodeRepository.loadItems().mapTo(HashSet()) { it.id }
+                val roomGroupIds = roomGroups.mapTo(HashSet()) { it.id }
+                val roomLinkedPairs = roomLinks.mapTo(HashSet()) { it.groupId to it.itemId }
+                val groupsToRepair = externalSnapshot.groups.filter { externalGroup ->
+                    externalGroup.id !in roomGroupIds ||
+                        externalGroup.itemIds.any { it !in roomItems || (externalGroup.id to it) !in roomLinkedPairs }
+                }
+                if (groupsToRepair.isNotEmpty()) {
+                    val repairIds = groupsToRepair.mapTo(HashSet()) { it.id }
+                    val repairItems = externalSnapshot.items.filter { item ->
+                        groupsToRepair.any { it.itemIds.contains(item.id) }
+                    }
+                    val roomFolders = barcodeRepository.loadFolders()
+                    barcodeRepository.applyFavoritesMutation(
+                        BarcodeSnapshot(
+                            items = repairItems,
+                            groups = groupsToRepair,
+                            links = groupsToRepair.flatMap { group ->
+                                group.itemIds.map { itemId ->
+                                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId)
+                                }
+                            },
+                            folders = (roomFolders + externalSnapshot.folders).distinct(),
+                            replaceGroupLinkIds = repairIds,
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()

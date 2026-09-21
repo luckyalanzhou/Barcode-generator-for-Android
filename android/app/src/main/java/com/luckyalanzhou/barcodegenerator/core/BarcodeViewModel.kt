@@ -217,6 +217,7 @@ class BarcodeViewModel @Inject constructor(
 
     private fun openFavoriteGroupWhenLoaded(group: FavoriteGroup, destination: AppRoute) {
         viewModelScope.launch {
+            withContext(Dispatchers.IO) { barcodeDataCoordinator.repairFromExternalFavorites() }
             var currentGroup = favoritesStateStore.groupsSnapshot().firstOrNull { it.id == group.id }
             if (currentGroup == null) {
                 DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
