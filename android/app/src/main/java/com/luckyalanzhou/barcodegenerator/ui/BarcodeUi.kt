@@ -76,6 +76,12 @@ internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String) {
     toast("已保存到相册")
 }
 
+internal fun MainActivity.writeBitmapToUri(bitmap: Bitmap, uri: Uri): Boolean = runCatching {
+    contentResolver.openOutputStream(uri)?.use { output ->
+        check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "图片写入失败" }
+    } ?: error("无法打开文件")
+}.isSuccess
+
 internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String) {
     val values = ContentValues().apply {
         put(MediaStore.Images.Media.DISPLAY_NAME, label.replace(Regex("[^A-Za-z0-9._-]+"), "_").take(80).ifBlank { "barcode" } + ".png")

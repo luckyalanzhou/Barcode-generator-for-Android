@@ -26,6 +26,7 @@ import com.luckyalanzhou.barcodegenerator.ui.selectLanShareAttachment
 import com.luckyalanzhou.barcodegenerator.ui.showIos26NoticeDialog
 import com.luckyalanzhou.barcodegenerator.ui.syncSystemBars
 import com.luckyalanzhou.barcodegenerator.ui.toast
+import com.luckyalanzhou.barcodegenerator.ui.writeBitmapToUri
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.confirmImportFavorites
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.exportFavorites
@@ -96,6 +97,8 @@ class MainActivity : AppCompatActivity() {
         barcodePreviousBrightness = -1f
     }
     internal var composeShellReady: Boolean = false
+    internal var pendingResultImage: Bitmap? = null
+    internal var pendingResultImageLabel: String? = null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val viewModel: BarcodeViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
@@ -123,6 +126,7 @@ class MainActivity : AppCompatActivity() {
         const val REQUEST_LAN_SHARE_CAPTURE = 54
         const val REQUEST_LAN_SHARE_GALLERY_PERMISSION = 56
         const val REQUEST_LAN_SHARE_FILE_PERMISSION = 57
+        const val REQUEST_RESULT_IMAGE_FILE = 58
         const val MAX_HISTORY_ITEMS = 500
         const val MAX_FAVORITE_GROUPS = 200
     }
@@ -268,6 +272,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleExternalActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == REQUEST_RESULT_IMAGE_FILE) {
+            val bitmap = pendingResultImage
+            val label = pendingResultImageLabel
+            pendingResultImage = null
+            pendingResultImageLabel = null
+            if (resultCode == RESULT_OK && bitmap != null && data?.data != null) {
+                if (writeBitmapToUri(bitmap, data.data!!)) toast("已保存到文件")
+                else toast("保存到文件失败")
+            }
+            return
+        }
         if (requestCode == REQUEST_LAN_SHARE_UPLOAD || requestCode == REQUEST_LAN_SHARE_DOWNLOAD) {
             if (resultCode == RESULT_OK) data?.data?.let { uri ->
                 if (requestCode == REQUEST_LAN_SHARE_UPLOAD) selectLanShareAttachment(uri, autoUpload = true)
