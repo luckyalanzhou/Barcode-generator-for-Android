@@ -35,9 +35,6 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
-        val FAVORITES_ROOT_URI = stringPreferencesKey("favorites_root_uri")
-        val FAVORITES_EXTERNAL_SYNC_PENDING = booleanPreferencesKey("favorites_external_sync_pending")
-        val FAVORITES_RESTORE_REQUIRED = booleanPreferencesKey("favorites_restore_required")
     }
 
     // 所有设置写入串行执行，避免滑块连续拖动时旧快照晚到并覆盖最新值。
@@ -46,12 +43,10 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     private var writeTail: Job = Job().apply { complete() }
     @Volatile private var cachedValues: Preferences = emptyPreferences()
     @Volatile private var ocrConfusionReplacementMask = 0
-    @Volatile private var cachedFavoritesRootUri: String? = null
 
     override suspend fun load() {
         cachedValues = context.settingsDataStore.data.first()
         ocrConfusionReplacementMask = cachedValues[OCR_CONFUSION_REPLACEMENT_MASK] ?: 0
-        cachedFavoritesRootUri = cachedValues[FAVORITES_ROOT_URI]
     }
 
     fun <T> get(key: Preferences.Key<T>, default: T): T = cachedValues[key] ?: default
@@ -90,29 +85,6 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     }
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }
-
-    override fun getFavoritesRootUri(): String? = cachedFavoritesRootUri
-
-    override fun setFavoritesRootUri(uri: String): Job {
-        cachedFavoritesRootUri = uri.takeUnless { it.isBlank() }
-        return write { if (uri.isBlank()) it.remove(FAVORITES_ROOT_URI) else it[FAVORITES_ROOT_URI] = uri }
-    }
-
-    suspend fun isExternalFavoritesSyncPending(): Boolean =
-        context.settingsDataStore.data.first()[FAVORITES_EXTERNAL_SYNC_PENDING] == true
-
-    fun setExternalFavoritesSyncPending(pending: Boolean): Job = write {
-        if (pending) it[FAVORITES_EXTERNAL_SYNC_PENDING] = true
-        else it.remove(FAVORITES_EXTERNAL_SYNC_PENDING)
-    }
-
-    suspend fun isFavoritesRestoreRequired(): Boolean =
-        context.settingsDataStore.data.first()[FAVORITES_RESTORE_REQUIRED] == true
-
-    fun setFavoritesRestoreRequired(required: Boolean): Job = write {
-        if (required) it[FAVORITES_RESTORE_REQUIRED] = true
-        else it.remove(FAVORITES_RESTORE_REQUIRED)
-    }
 
     private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Job = synchronized(writeLock) {
         val previous = writeTail

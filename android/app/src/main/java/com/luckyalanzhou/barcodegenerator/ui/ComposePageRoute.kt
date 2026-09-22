@@ -66,7 +66,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onClearAll = {
                         dependencies.actions.confirm(
                             "清空所有收藏",
-                            "将清空应用内收藏和文件夹层级；外部收藏备份会保留，可用于后续恢复。",
+                            "将清空应用内收藏和文件夹层级。此操作无法撤销。",
                             "确定",
                         ) { dependencies.viewModel.clearFavoritesAndPersist() }
                     },
@@ -95,7 +95,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onApplyAppearance = dependencies.actions::applyAppearance,
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onRestoreFavorites = dependencies.actions::restoreFavorites,
-                    onRestoreExternalFavorites = dependencies.actions::restoreExternalFavorites,
                     onExportFavorites = dependencies.actions::exportFavorites,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                     onCheckForUpdates = dependencies.actions::checkForUpdates,

@@ -146,10 +146,6 @@ class BarcodeViewModel @Inject constructor(
         navigationStateCoordinator.navigateTo(route)
     }
 
-    fun syncExternalFavorites() {
-        viewModelScope.launch(Dispatchers.IO) { barcodeDataCoordinator.syncExternalFavorites() }
-    }
-
     fun prepareMainGenerateTab() {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null, returnPage = AppRoute.Generate, showingHistoryResult = false) }
         navigateTo(AppRoute.Generate)
@@ -232,26 +228,10 @@ class BarcodeViewModel @Inject constructor(
         onLoaded: ((List<CodeItem>) -> Unit)? = null,
     ) {
         viewModelScope.launch {
-            val repairedExternalItems = withContext(Dispatchers.IO) {
-                barcodeDataCoordinator.repairExternalFavorite(group)
-            }
             var currentGroup = favoritesStateStore.groupsSnapshot().firstOrNull { it.id == group.id }
             if (currentGroup == null) {
                 DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
                 return@launch
-            }
-            if (repairedExternalItems.isNotEmpty()) {
-                val repairedItemIds = repairedExternalItems.map { it.id }
-                favoritesStateStore.edit {
-                    items.removeAll { item -> item.id in repairedItemIds }
-                    items.addAll(repairedExternalItems.map { it.copy() })
-                    groups.firstOrNull { it.id == group.id }?.itemIds?.apply {
-                        clear()
-                        addAll(repairedItemIds)
-                    }
-                }
-                currentGroup = currentGroup.copy(itemIds = repairedItemIds.toMutableList())
-                publishDataState()
             }
             DebugLog.record(
                 "favorites",
@@ -569,19 +549,6 @@ class BarcodeViewModel @Inject constructor(
         // into memory or disable cursor paging after the refresh.
         loadPersistedData()
         return counts
-    }
-
-    fun restoreExternalFavorites() {
-        viewModelScope.launch {
-            barcodeDataCoordinator.restoreExternalFavorites(this).await()
-                .onSuccess {
-                    loadPersistedData()
-                    _events.emit(BarcodeEvent.Notice("已从外部收藏目录恢复收藏"))
-                }
-                .onFailure { error ->
-                    _events.emit(BarcodeEvent.Notice("外部收藏恢复失败：${error.message ?: "没有可恢复的收藏"}"))
-                }
-        }
     }
 
     suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()

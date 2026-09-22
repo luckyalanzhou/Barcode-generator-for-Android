@@ -73,7 +73,6 @@ internal fun ComposeSettingsPage(
     onApplyAppearance: () -> Unit,
     onEnterLanShare: () -> Unit,
     onRestoreFavorites: () -> Unit,
-    onRestoreExternalFavorites: () -> Unit,
     onExportFavorites: () -> Unit,
     onShareDebugLog: () -> Unit,
     onCheckForUpdates: () -> Unit,
@@ -244,7 +243,6 @@ internal fun ComposeSettingsPage(
                     SettingsRow("收藏备份", colors.text.primary) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SettingsSmallButton("导入", colors.text.primary, colors.controls.button, onRestoreFavorites)
-                            SettingsSmallButton("恢复外部", colors.text.primary, colors.controls.button, onRestoreExternalFavorites)
                             SettingsSmallButton("导出", colors.text.primary, colors.controls.button, onExportFavorites)
                         }
                     }

@@ -32,7 +32,6 @@ internal interface ComposeAppShellActions {
     fun applyAppearance()
     fun enterLanShare()
     fun restoreFavorites()
-    fun restoreExternalFavorites()
     fun exportFavorites()
     fun checkForUpdates()
     fun openLanShareCamera()
@@ -96,11 +95,6 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun applyAppearance() = this@composeAppShellActions.applyAppearance()
     override fun enterLanShare() = this@composeAppShellActions.enterLanShare()
     override fun restoreFavorites() = this@composeAppShellActions.restoreFavoritesImport()
-    override fun restoreExternalFavorites() = showComposeConfirmDialog(
-        "恢复外部收藏",
-        "将读取 Documents/Barcode Generator/Favorites 中的收藏文件，并恢复文件夹层级和条码内容。",
-        "恢复",
-    ) { viewModel.restoreExternalFavorites() }
     override fun exportFavorites() = this@composeAppShellActions.createFavoritesExportCompose()
     override fun checkForUpdates() = this@composeAppShellActions.checkForUpdates(silent = false)
     override fun openLanShareCamera() = this@composeAppShellActions.openLanShareCamera()

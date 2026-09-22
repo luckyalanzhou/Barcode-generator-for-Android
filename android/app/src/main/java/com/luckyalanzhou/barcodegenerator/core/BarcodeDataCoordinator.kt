@@ -6,40 +6,24 @@ import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import javax.inject.Inject
-import com.luckyalanzhou.barcodegenerator.data.ExternalFavoritesStore
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.domain.CodeItem
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 
 /** BarcodeViewModel 的数据边界，集中管理 Repository、迁移和备份服务。 */
 class BarcodeDataCoordinator @Inject constructor(
     internal val repository: BarcodeRepository,
     private val backupRepository: FavoritesBackupRepository,
     legacyBarcodeDataMigrator: BarcodeDataMigration,
-    externalFavoritesStore: ExternalFavoritesStore,
 ) {
-    val persistence = BarcodePersistenceCoordinator(repository, legacyBarcodeDataMigrator, externalFavoritesStore)
+    val persistence = BarcodePersistenceCoordinator(repository, legacyBarcodeDataMigrator)
 
     suspend fun loadStartupGroupItemIds(groupId: Long) = repository.loadGroupItemIds(groupId)
     suspend fun loadItemsByIds(ids: List<Long>) = repository.loadItemsByIds(ids)
-    suspend fun repairFromExternalFavorites() = persistence.repairFromExternalFavorites()
-    fun restoreExternalFavorites(scope: CoroutineScope): Deferred<Result<Unit>> = persistence.restoreExternalFavorites(scope)
-    suspend fun repairExternalFavorite(group: FavoriteGroup): List<CodeItem> = persistence.repairExternalFavorite(group)
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary = backupRepository.inspectImport(backup)
     suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int> {
         val result = backupRepository.import(backup, overwriteConflicts)
-        // Import writes directly through the backup repository, so explicitly refresh
-        // the uninstall-safe external mirror before reporting success to the UI.
-        persistence.syncExternalFavorites()
         return result
     }
     suspend fun exportFavorites() = backupRepository.export()
     fun restoreFavorites(bytes: ByteArray) = backupRepository.restore(bytes)
 
-    suspend fun syncExternalFavorites() {
-        // The persistence coordinator owns the same serialized write boundary.
-        persistence.syncExternalFavorites()
-    }
 }
