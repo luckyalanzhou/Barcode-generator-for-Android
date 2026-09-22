@@ -90,6 +90,7 @@ interface BarcodeDao {
     @Query("SELECT * FROM favorite_groups WHERE :cursorSavedAt IS NULL OR savedAt < :cursorSavedAt OR (savedAt = :cursorSavedAt AND id < :cursorId) ORDER BY savedAt DESC, id DESC LIMIT :limit")
     suspend fun loadGroupsPage(limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Query("SELECT * FROM favorite_groups WHERE id IN (:ids) ORDER BY savedAt DESC, id DESC") suspend fun loadGroupsByIds(ids: List<Long>): List<FavoriteGroupEntity>
+    @Query("SELECT * FROM favorite_groups WHERE id = :id LIMIT 1") suspend fun loadGroupById(id: Long): FavoriteGroupEntity?
     @Query("SELECT DISTINCT fg.* FROM favorite_groups AS fg LEFT JOIN favorite_group_items AS links ON links.groupId = fg.id LEFT JOIN code_items AS items ON items.id = links.itemId WHERE (lower(fg.name) LIKE '%' || lower(:query) || '%' OR lower(fg.folder) LIKE '%' || lower(:query) || '%' OR lower(items.text) LIKE '%' || lower(:query) || '%') AND (:cursorSavedAt IS NULL OR fg.savedAt < :cursorSavedAt OR (fg.savedAt = :cursorSavedAt AND fg.id < :cursorId)) ORDER BY fg.savedAt DESC, fg.id DESC LIMIT :limit") suspend fun searchFavoriteGroups(query: String, limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveGroups(groups: List<FavoriteGroupEntity>)
     @Query("DELETE FROM favorite_groups") suspend fun clearGroups()

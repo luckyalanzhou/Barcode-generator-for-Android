@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
@@ -157,9 +158,11 @@ private class FakeFavoriteRepository(
     override suspend fun loadGroups() = emptyList<FavoriteGroup>()
     override suspend fun loadGroupItems() = emptyList<FavoriteGroupItem>()
     override suspend fun loadGroupItemIds(groupId: Long) = emptyList<Long>()
+    override suspend fun loadFavoriteGroupContent(groupId: Long): FavoriteGroupContent? = null
     override suspend fun loadFolders() = emptyList<String>()
     override suspend fun loadSnapshot() = BarcodeSnapshot(emptyList(), emptyList(), emptyList(), emptyList())
     override suspend fun loadStartupSnapshot() = StartupBarcodeSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), false)
     override suspend fun appendSnapshot(snapshot: BarcodeSnapshot) = Unit
+    override suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>) = Unit
     override suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData) = Unit
 }

@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
@@ -161,6 +162,27 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun loadGroupItemIds(groupId: Long): List<Long> = dao.loadGroupItemIds(groupId)
 
+    override suspend fun loadFavoriteGroupContent(groupId: Long): FavoriteGroupContent? = database.withTransaction {
+        val groupEntity = dao.loadGroupById(groupId) ?: return@withTransaction null
+        val itemIds = dao.loadGroupItemIds(groupId)
+        val itemsById = itemIds.chunked(900)
+            .flatMap { dao.loadItemsByIds(it) }
+            .associateBy(CodeItemEntity::id)
+        val items = itemIds.mapNotNull(itemsById::get).map(CodeItemEntity::toDomain)
+        val invalidItemIds = itemIds.filter { id -> itemsById[id]?.text?.isNotBlank() != true }
+        FavoriteGroupContent(
+            group = FavoriteGroup(
+                groupEntity.id,
+                groupEntity.folder.takeUnless { it == "默认" } ?: "",
+                groupEntity.name,
+                groupEntity.savedAt,
+                itemIds.toMutableList(),
+            ),
+            items = items,
+            invalidItemIds = invalidItemIds,
+        )
+    }
+
     override suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup> =
         dao.loadGroupsPage(limit, cursor?.savedAt, cursor?.id)
             .map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
@@ -222,6 +244,22 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.saveItems(snapshot.items.map(CodeItem::toEntity))
             dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
             dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
+            dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+        }
+    }
+
+    override suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>) {
+        database.withTransaction {
+            if (replacedGroupIds.isNotEmpty()) {
+                val ids = replacedGroupIds.toList()
+                dao.clearFavoriteFlagsForGroups(ids)
+                dao.deleteGroupItems(ids)
+                dao.deleteGroups(ids)
+            }
+            dao.saveItems(snapshot.items.map(CodeItem::toEntity))
+            dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
+            // Import adds folders but must not erase pre-existing empty folders.
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
     }

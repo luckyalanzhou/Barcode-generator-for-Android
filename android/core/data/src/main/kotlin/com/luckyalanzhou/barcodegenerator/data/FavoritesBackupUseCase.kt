@@ -31,17 +31,20 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
     }
 
     override suspend fun import(backup: InterchangeBackup, overwriteConflicts: Boolean): Pair<Int, Int> {
-        var existing = repository.loadSnapshot().toTransferEntities()
+        val existing = repository.loadSnapshot().toTransferEntities()
         val existingFileKeys = existing.groups.map(::fileKey).toSet()
         val incomingFileKeys = backup.favorites.map(::fileKey).toSet()
         val conflictingGroupIds = existing.groups
             .filter { fileKey(it) in incomingFileKeys }
             .map { it.id }
-
-        if (overwriteConflicts && conflictingGroupIds.isNotEmpty()) {
-            repository.deleteFavoriteGroups(conflictingGroupIds)
-            existing = repository.loadSnapshot().toTransferEntities()
-        }
+        val replacedGroupIds = if (overwriteConflicts) conflictingGroupIds.toSet() else emptySet()
+        // Build the complete post-import snapshot without deleting durable data first.
+        // Room applies the replacement and import together, so any constraint/write failure
+        // rolls back and leaves every old favorite intact.
+        val retainedExisting = if (replacedGroupIds.isEmpty()) existing else existing.copy(
+            groups = existing.groups.filterNot { it.id in replacedGroupIds },
+            links = existing.links.filterNot { it.groupId in replacedGroupIds },
+        )
 
         val deduplicatedFavorites = backup.favorites
             .asReversed()
@@ -52,8 +55,13 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
         ) else backup.copy(
             favorites = deduplicatedFavorites.filterNot { fileKey(it) in existingFileKeys },
         )
-        val transfer = FavoritesTransferManager.appendEntities(effectiveBackup, existing.items, existing.groups, existing.links)
-        repository.appendSnapshot(transfer.toSnapshot())
+        val transfer = FavoritesTransferManager.appendEntities(
+            effectiveBackup,
+            retainedExisting.items,
+            retainedExisting.groups,
+            retainedExisting.links,
+        )
+        repository.commitFavoriteImport(transfer.toSnapshot(), replacedGroupIds)
         return transfer.items.size to transfer.groups.size
     }
 

@@ -6,6 +6,14 @@ data class FavoriteGroupItem(
     val itemId: Long,
 )
 
+/** A consistent, single-read view of a favorite file and every barcode linked to it. */
+data class FavoriteGroupContent(
+    val group: FavoriteGroup,
+    val items: List<CodeItem>,
+    /** Linked item IDs that could not be resolved or contain blank barcode data. */
+    val invalidItemIds: List<Long>,
+)
+
 /** 持久化边界使用的领域快照，不暴露 Room Entity。 */
 data class BarcodeSnapshot(
     val items: List<CodeItem>,
@@ -71,6 +79,7 @@ interface BarcodeRepository {
     suspend fun loadGroups(): List<FavoriteGroup>
     suspend fun loadGroupItems(): List<FavoriteGroupItem>
     suspend fun loadGroupItemIds(groupId: Long): List<Long>
+    suspend fun loadFavoriteGroupContent(groupId: Long): FavoriteGroupContent?
     suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup>
     suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup>
     suspend fun searchFavoriteGroups(query: String, limit: Int, cursor: FavoriteSearchGroupCursor?): List<FavoriteGroup>
@@ -78,6 +87,8 @@ interface BarcodeRepository {
     suspend fun loadSnapshot(): BarcodeSnapshot
     suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot
     suspend fun appendSnapshot(snapshot: BarcodeSnapshot)
+    /** Replaces conflicting favorite groups and writes imported rows in one transaction. */
+    suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>)
 
     suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData)
 }
