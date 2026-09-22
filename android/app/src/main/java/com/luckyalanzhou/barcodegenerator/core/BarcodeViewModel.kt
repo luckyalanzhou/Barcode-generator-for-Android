@@ -76,6 +76,10 @@ class BarcodeViewModel @Inject constructor(
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
     private val _favoriteSearchState = MutableStateFlow(BarcodeDataState())
     val favoriteSearchState: StateFlow<BarcodeDataState> = _favoriteSearchState.asStateFlow()
+    private val _favoritePageQuery = MutableStateFlow("")
+    val favoritePageQuery: StateFlow<String> = _favoritePageQuery.asStateFlow()
+    private var favoriteListPositionIndex = 0
+    private var favoriteListPositionOffset = 0
     private val dataStateCoordinator = BarcodeDataStateCoordinator(
         store = favoritesStateStore,
         state = _dataState,
@@ -473,6 +477,17 @@ class BarcodeViewModel @Inject constructor(
     fun takePendingInstallPath(): String? = updateCoordinator.takePendingInstallPath()
     fun syncFavoriteTree(folders: Set<String>) {
         favoriteTreeCoordinator.sync(folders)
+    }
+
+    fun updateFavoritePageQuery(query: String) {
+        _favoritePageQuery.value = query
+    }
+
+    fun favoriteListPosition(): Pair<Int, Int> = favoriteListPositionIndex to favoriteListPositionOffset
+
+    fun rememberFavoriteListPosition(index: Int, offset: Int) {
+        favoriteListPositionIndex = index.coerceAtLeast(0)
+        favoriteListPositionOffset = offset.coerceAtLeast(0)
     }
 
     fun addCollapsedFavoriteFolders(paths: Set<String>) {

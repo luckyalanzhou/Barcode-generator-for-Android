@@ -55,7 +55,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +98,7 @@ internal fun ComposeFavoritesPage(
     val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     val hapticView = LocalView.current
     val density = LocalDensity.current.density
-    var query by rememberSaveable { mutableStateOf("") }
+    val query by viewModel.favoritePageQuery.collectAsStateWithLifecycle()
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val animation = rememberComposeAnimationConfig()
@@ -109,7 +108,11 @@ internal fun ComposeFavoritesPage(
     val rootFolderColor = themeColors.content.folder
     val childFolderColor = themeColors.content.childFolder
     val fileColor = themeColors.content.file
-    val listState = rememberLazyListState()
+    val savedListPosition = viewModel.favoriteListPosition()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = savedListPosition.first,
+        initialFirstVisibleItemScrollOffset = savedListPosition.second,
+    )
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
     val folderPaths = remember(displayState.folders, displayState.groups) {
@@ -125,6 +128,12 @@ internal fun ComposeFavoritesPage(
     LaunchedEffect(folderPaths, displayState.groups) { viewModel.syncFavoriteTree(folderPaths) }
     LaunchedEffect(normalizedQuery) { viewModel.searchFavoriteContent(normalizedQuery) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .distinctUntilChanged()
+            .collect { (index, offset) -> viewModel.rememberFavoriteListPosition(index, offset) }
+    }
 
     val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
     val rows by produceState<List<ComposeFavoriteRow>?>(null, displayState, normalizedQuery, visibleCollapsedFolders) {
@@ -172,7 +181,7 @@ internal fun ComposeFavoritesPage(
                         Spacer(Modifier.width(10.dp))
                         BasicTextField(
                             value = query,
-                            onValueChange = { query = it },
+                            onValueChange = viewModel::updateFavoritePageQuery,
                             modifier = Modifier.weight(1f).height(28.dp),
                             singleLine = true,
                             textStyle = TextStyle(
