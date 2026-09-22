@@ -196,8 +196,8 @@ internal fun ComposeFavoritesPage(
                                             "搜索名称、文件夹或内容",
                                             style = TextStyle(
                                                 color = themeColors.text.placeholder,
-                                                fontSize = 12.sp,
-                                                lineHeight = 18.sp,
+                                                fontSize = 14.sp,
+                                                lineHeight = 20.sp,
                                                 platformStyle = PlatformTextStyle(includeFontPadding = false),
                                                 lineHeightStyle = LineHeightStyle(
                                                     alignment = LineHeightStyle.Alignment.Center,
