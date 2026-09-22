@@ -349,7 +349,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                             fontSize = 14.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Clip,
-                            textAlign = TextAlign.Center,
+                            textAlign = TextAlign.Start,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Text(
@@ -358,7 +358,7 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                             fontSize = 12.sp,
                             maxLines = 1,
                             modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
+                            textAlign = TextAlign.Start,
                         )
                     }
                     Spacer(Modifier.width(8.dp))
