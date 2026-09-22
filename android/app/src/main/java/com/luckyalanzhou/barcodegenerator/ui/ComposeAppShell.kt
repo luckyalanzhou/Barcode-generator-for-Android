@@ -41,7 +41,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -94,7 +93,6 @@ internal fun ComposeAppShell(
     val appUiState by dependencies.viewModel.uiState.collectAsStateWithLifecycle()
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState by dependencies.viewModel.updateUiState.collectAsStateWithLifecycle()
-    val fireworksVisible by dependencies.viewModel.fireworksVisible.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
@@ -274,9 +272,6 @@ internal fun ComposeAppShell(
                 )
             }
         }
-            if (fireworksVisible) {
-                ComposeFireworksOverlay()
-            }
     }
 }
 }

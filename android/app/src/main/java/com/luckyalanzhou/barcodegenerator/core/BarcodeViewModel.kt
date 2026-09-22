@@ -111,9 +111,6 @@ class BarcodeViewModel @Inject constructor(
     private var favoriteSearchJob: Job? = null
     private var currentFavoriteSearchQuery = ""
 
-    private val _fireworksVisible = MutableStateFlow(false)
-    val fireworksVisible: StateFlow<Boolean> = _fireworksVisible.asStateFlow()
-
     private val updateCoordinator = UpdateCoordinator(updateDownloadService, updateCheckService, apkUpdateValidator, appLogger)
     val updateUiState: StateFlow<UpdateUiState> = updateCoordinator.uiState
     val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = updateCoordinator.downloadUiState
@@ -159,14 +156,6 @@ class BarcodeViewModel @Inject constructor(
 
     fun clearSelectedFavoriteGroup() {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null) }
-    }
-
-    fun showFireworks() {
-        _fireworksVisible.value = true
-    }
-
-    fun dismissFireworks() {
-        _fireworksVisible.value = false
     }
 
     fun updateSelectedTab(index: Int) {

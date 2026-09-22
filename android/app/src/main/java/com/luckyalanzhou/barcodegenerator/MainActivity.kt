@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -16,7 +15,6 @@ import com.luckyalanzhou.barcodegenerator.ui.applyAppearance
 import com.luckyalanzhou.barcodegenerator.ui.buildComposeShell
 import com.luckyalanzhou.barcodegenerator.ui.cancelUpdateDownload
 import com.luckyalanzhou.barcodegenerator.ui.closeLanShare
-import com.luckyalanzhou.barcodegenerator.ui.dismissFireworksEasterEgg
 import com.luckyalanzhou.barcodegenerator.ui.findRecentLanCameraMedia
 import com.luckyalanzhou.barcodegenerator.ui.installApkCompose
 import com.luckyalanzhou.barcodegenerator.ui.openLanShareCamera
@@ -222,10 +220,6 @@ class MainActivity : AppCompatActivity() {
 
     /** 统一的现代返回回调，保持原有页面返回路径。 */
     private fun handleAppBackPressed() {
-        if (viewModel.fireworksVisible.value) {
-            dismissFireworksEasterEgg()
-            return
-        }
         when (viewModel.uiState.value.page) {
             AppRoute.Settings -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage)
             AppRoute.LanShare -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }

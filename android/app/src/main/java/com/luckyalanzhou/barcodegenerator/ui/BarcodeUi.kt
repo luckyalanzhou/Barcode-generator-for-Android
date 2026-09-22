@@ -8,7 +8,6 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -118,20 +117,4 @@ internal fun MainActivity.dp(value: Int): Int = (value * resources.displayMetric
 
 internal fun MainActivity.showIos26NoticeDialog(message: String) {
     showIos26NoticeDialogCompose(message)
-}
-
-/** 与业务完全分离的 Compose Canvas 烟花彩蛋；不写入设置或条码数据。 */
-internal fun MainActivity.showFireworksEasterEgg() {
-    viewModel.showFireworks()
-    window.decorView.setBackgroundColor(Color.BLACK)
-    WindowInsetsControllerCompat(window, window.decorView).apply {
-        isAppearanceLightStatusBars = false
-        isAppearanceLightNavigationBars = false
-    }
-}
-
-internal fun MainActivity.dismissFireworksEasterEgg() {
-    if (!viewModel.fireworksVisible.value) return
-    viewModel.dismissFireworks()
-    syncSystemBars()
 }
