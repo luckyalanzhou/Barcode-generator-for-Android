@@ -231,7 +231,13 @@ internal fun ComposeSettingsPage(
                     SettingsActionRow("局域网文件分享", "启动", colors.settingsText.primary, colors.controls.button, onEnterLanShare)
                     SettingsDivider(dark)
                     SettingsActionRow("恢复默认设置", "恢复", colors.settingsText.primary, colors.controls.button) {
-                        val defaults = settings.copy(textSize = 14f, barHeight = 55f, barWidth = 220f, margin = 4f)
+                        val defaults = settings.copy(
+                            textSize = 14f,
+                            barHeight = 55f,
+                            barWidth = 220f,
+                            margin = 4f,
+                            showFormat = false,
+                        )
                         settingsViewModel.setTextSize(defaults.textSize)
                         settingsViewModel.setBarHeight(defaults.barHeight)
                         settingsViewModel.setBarWidth(defaults.barWidth)
