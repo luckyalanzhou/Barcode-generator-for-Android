@@ -13,7 +13,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */
 internal interface ComposeAppShellActions {
     fun navigateTo(route: AppRoute)
-    fun selectTab(index: Int)
+    fun selectTab(index: Int, fromSwipe: Boolean)
     fun syncBarcodeDisplaySettings(isResults: Boolean)
     fun ensureLanShare()
     fun showUpdateDialog(update: UpdateUiState)
@@ -46,9 +46,9 @@ internal interface ComposeAppShellActions {
 internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = object : ComposeAppShellActions {
     override fun navigateTo(route: AppRoute) = viewModel.navigateTo(route)
 
-    override fun selectTab(index: Int) {
+    override fun selectTab(index: Int, fromSwipe: Boolean) {
         if (viewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
-        viewModel.selectMainTab(index)
+        viewModel.selectMainTab(index, fromSwipe)
     }
 
     override fun syncBarcodeDisplaySettings(isResults: Boolean) = this@composeAppShellActions.syncBarcodeDisplaySettings(isResults)

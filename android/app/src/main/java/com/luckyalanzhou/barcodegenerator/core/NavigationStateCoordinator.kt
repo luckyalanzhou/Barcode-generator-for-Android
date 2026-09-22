@@ -8,10 +8,11 @@ import kotlinx.coroutines.flow.update
 internal class NavigationStateCoordinator(
     private val state: MutableStateFlow<AppUiState>,
 ) {
-    fun navigateTo(route: AppRoute) {
+    fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
         state.update {
             it.copy(
                 page = route,
+                tabChangeFromSwipe = fromTabSwipe && route.mainTabIndex != null,
                 selectedTab = when (route.mainTabIndex) {
                     0, 1, 2, 3 -> route.mainTabIndex
                     else -> it.selectedTab

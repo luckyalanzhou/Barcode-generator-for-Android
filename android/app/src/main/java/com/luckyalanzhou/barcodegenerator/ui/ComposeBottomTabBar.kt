@@ -52,7 +52,7 @@ import kotlin.math.roundToInt
 private data class ComposeTabSpec(val label: String, val description: String, val icon: ImageVector)
 
 @Composable
-internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
+internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
@@ -95,12 +95,12 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                     if (target != lastTarget) {
                         lastTarget = target
-                        onTabSelected(target)
+                        onTabSelected(target, true)
                     }
                 },
                 onDragEnd = {
                     dragging = false
-                    onTabSelected(lastTarget)
+                    onTabSelected(lastTarget, true)
                 },
                 onDragCancel = { dragging = false }
             )
@@ -163,7 +163,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     modifier = Modifier.weight(1f).graphicsLayer { scaleX = itemScale; scaleY = itemScale }
                         .pointerInput(index) {
                             detectTapGestures {
-                                onTabSelected(index)
+                                onTabSelected(index, false)
                             }
                         }.padding(vertical = 3.dp), contentAlignment = Alignment.Center
                 ) {

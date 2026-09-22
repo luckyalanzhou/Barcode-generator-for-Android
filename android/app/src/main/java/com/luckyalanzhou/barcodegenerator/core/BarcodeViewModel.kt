@@ -144,13 +144,13 @@ class BarcodeViewModel @Inject constructor(
         dataStateCoordinator.publish(isReady)
     }
 
-    fun navigateTo(route: AppRoute) {
-        navigationStateCoordinator.navigateTo(route)
+    fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
+        navigationStateCoordinator.navigateTo(route, fromTabSwipe)
     }
 
-    fun prepareMainGenerateTab() {
+    fun prepareMainGenerateTab(fromSwipe: Boolean = false) {
         _resultUiState.update { it.copy(selectedFavoriteGroup = null, returnPage = AppRoute.Generate, showingHistoryResult = false) }
-        navigateTo(AppRoute.Generate)
+        navigateTo(AppRoute.Generate, fromSwipe)
     }
 
     fun updateSettingsReturnPage(route: AppRoute) {
@@ -173,25 +173,25 @@ class BarcodeViewModel @Inject constructor(
         navigationStateCoordinator.updateSelectedTab(index)
     }
 
-    fun selectMainTab(index: Int) {
+    fun selectMainTab(index: Int, fromSwipe: Boolean = false) {
         val tabPages = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
         if (index !in tabPages.indices) return
         if (index == 3) {
-            openSettings()
+            openSettings(fromSwipe)
         } else if (_uiState.value.page != tabPages[index]) {
-            if (index == 0) prepareMainGenerateTab() else navigateTo(tabPages[index])
+            if (index == 0) prepareMainGenerateTab(fromSwipe) else navigateTo(tabPages[index], fromSwipe)
         } else {
             updateSelectedTab(index)
         }
     }
 
-    fun openSettings() {
+    fun openSettings(fromSwipe: Boolean = false) {
         if (_uiState.value.page == AppRoute.Settings) {
             updateSelectedTab(3)
             return
         }
         updateSettingsReturnPage(mainTabPageForCurrentPage())
-        navigateTo(AppRoute.Settings)
+        navigateTo(AppRoute.Settings, fromSwipe)
     }
 
     private fun mainTabPageForCurrentPage(): AppRoute = when (_uiState.value.page) {

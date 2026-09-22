@@ -10,6 +10,7 @@ data class AppUiState(
     val page: AppRoute = AppRoute.Generate,
     val selectedTab: Int = 0,
     val settingsReturnPage: AppRoute = AppRoute.Generate,
+    val tabChangeFromSwipe: Boolean = false,
 )
 
 data class BarcodeDataState(

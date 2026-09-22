@@ -145,17 +145,29 @@ internal fun ComposeAppShell(
                 ),
             ) {
             if (currentRoute.mainTabIndex != null) {
-                // 主 Tab 使用轻量淡入淡出；不加入位移、缩放或尺寸变化，
-                // 避免收藏树、历史分组等页面切换时产生额外布局开销。
+                // 主 Tab 使用轻微缩放与淡入淡出；缩放只作用于绘制层，不改变页面测量尺寸。
                 AnimatedContent(
                     targetState = currentRoute,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(180)) togetherWith
-                            fadeOut(animationSpec = tween(120)) using
-                            SizeTransform(clip = false)
+                        if (appUiState.tabChangeFromSwipe) {
+                            val movingForward = (targetState.mainTabIndex ?: 0) > (initialState.mainTabIndex ?: 0)
+                            (slideInHorizontally(
+                                animationSpec = tween(200),
+                                initialOffsetX = { width -> if (movingForward) width / 8 else -width / 8 },
+                            ) + fadeIn(animationSpec = tween(180))) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = tween(160),
+                                    targetOffsetX = { width -> if (movingForward) -width / 8 else width / 8 },
+                                ) + fadeOut(animationSpec = tween(160))) using SizeTransform(clip = false)
+                        } else {
+                            (scaleIn(initialScale = .97f, animationSpec = tween(180)) +
+                                fadeIn(animationSpec = tween(180))) togetherWith
+                                (scaleOut(targetScale = 1.02f, animationSpec = tween(120)) +
+                                    fadeOut(animationSpec = tween(120))) using SizeTransform(clip = false)
+                        }
                     },
-                    label = "mainTabFadeTransition",
+                    label = "mainTabScaleFadeTransition",
                 ) { targetPage ->
                     Column(Modifier.fillMaxSize()) {
                         Text(
@@ -255,7 +267,7 @@ internal fun ComposeAppShell(
                 BarcodeComposeBottomTabBar(
                     selectedIndex = appUiState.selectedTab,
                     dark = dark,
-                    onTabSelected = dependencies.actions::selectTab,
+                    onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(dimensions.bottomTabBarHeight),
