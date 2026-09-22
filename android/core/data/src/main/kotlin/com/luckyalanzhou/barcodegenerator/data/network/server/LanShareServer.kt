@@ -161,7 +161,7 @@ internal class LanShareServer(
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 
                 session.method == Method.GET && requestPath == "/api/events" -> {
-                    val since = session.parms["since"]?.toLongOrNull() ?: 0L
+                    val since = session.parameters["since"]?.firstOrNull()?.toLongOrNull() ?: 0L
                     val deadline = System.currentTimeMillis() + 25_000L
                     while (fileVersion <= since && System.currentTimeMillis() < deadline) Thread.sleep(120L)
                     newFixedLengthResponse(
@@ -188,7 +188,7 @@ internal class LanShareServer(
                         session.parseBody(bodies)
                         val source = bodies["attachment"]?.let(::File)
                             ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
-                        val name = safeFileName(session.parms["attachment"].orEmpty().substringAfterLast('/'))
+                        val name = safeFileName(session.parameters["attachment"]?.firstOrNull().orEmpty().substringAfterLast('/'))
                         val target = File(folder, "app_${System.nanoTime()}_$name")
                         val error = synchronized(uploadLock) {
                             uploadLimitError(source.length()) ?: run {
@@ -211,8 +211,8 @@ internal class LanShareServer(
                     val reservation = reserveUploadCapacity(session, multipart = false)
                         ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
                     try {
-                        val submittedName = Uri.decode(session.parms["name"].orEmpty()).ifBlank { "附件" }
-                        val clientId = safeBrowserClientId(session.parms["client"].orEmpty())
+                        val submittedName = Uri.decode(session.parameters["name"]?.firstOrNull().orEmpty()).ifBlank { "附件" }
+                        val clientId = safeBrowserClientId(session.parameters["client"]?.firstOrNull().orEmpty())
                         val name = safeFileName(submittedName)
                         val targetPrefix = System.nanoTime()
                         val files = HashMap<String, String>()

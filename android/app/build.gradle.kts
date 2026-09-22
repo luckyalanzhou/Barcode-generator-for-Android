@@ -98,7 +98,6 @@ dependencies {
     implementation(project(":core:data"))
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
-    androidTestImplementation(composeBom)
     implementation(libs.activity.compose)
     implementation(libs.compose.ui)
     implementation(libs.compose.animation.core)
