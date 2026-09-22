@@ -24,7 +24,6 @@ jobs:
         -Dfile.encoding=UTF-8
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
-        -Dorg.gradle.configuration-cache=true
         -Dorg.gradle.vfs.watch=false
         -Dkotlin.incremental=true
         -Dksp.incremental=true
@@ -54,13 +53,6 @@ jobs:
             wrapper/dists
           cache-cleanup: on-success
           add-job-summary: on-failure
-      - name: Restore Gradle configuration cache
-        uses: actions/cache@v4
-        with:
-          path: android/.gradle/configuration-cache
-          key: gradle-configuration-beta-${{ runner.os }}-${{ hashFiles('android/gradle/**', 'android/*.gradle.kts', 'android/**/build.gradle.kts', 'android/gradle.properties') }}
-          restore-keys: |
-            gradle-configuration-beta-${{ runner.os }}-
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Calculate beta version
@@ -107,7 +99,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        # Beta versionCode changes on every run, which changes Android DSL configuration inputs.
+        # The prior cached configuration was restored but Gradle could not reuse it; avoid
+        # restoring/storing that cache in CI. Keep configuration cache enabled for local builds.
+        run: ./gradlew assembleBetaRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
