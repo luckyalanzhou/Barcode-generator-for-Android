@@ -82,6 +82,7 @@ internal data class AppBarcodeColors(
 internal data class AppSliderColors(
     val activeTrack: Color,
     val inactiveTrack: Color,
+    val thumbBorder: Color,
     val thumb: Color,
 )
 

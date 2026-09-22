@@ -66,6 +66,7 @@ internal val LightAppColorScheme = AppColorScheme(
     sliders = AppSliderColors(
         activeTrack = AppColorTokens.Light.sliderActiveTrack,
         inactiveTrack = AppColorTokens.Light.sliderInactiveTrack,
+        thumbBorder = AppColorTokens.Light.sliderThumbBorder,
         thumb = AppColorTokens.Light.sliderThumb,
     ),
 )

@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,7 +65,13 @@ internal fun SettingsSliderRow(
                     if (inactiveStart < size.width) drawLine(sliderColors.inactiveTrack, Offset(inactiveStart, centerY), Offset(size.width, centerY), stroke, StrokeCap.Round)
                 }
             },
-            thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(sliderColors.thumb)) },
+            thumb = {
+                Box(
+                    Modifier.requiredSize(18.dp)
+                        .background(sliderColors.thumb, CircleShape)
+                        .border(1.dp, sliderColors.thumbBorder, CircleShape),
+                )
+            },
         )
         val valueParts = valueText.split(' ', limit = 2)
         Row(
