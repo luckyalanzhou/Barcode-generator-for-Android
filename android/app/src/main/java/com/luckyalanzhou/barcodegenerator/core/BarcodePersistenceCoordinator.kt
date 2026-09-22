@@ -148,12 +148,32 @@ class BarcodePersistenceCoordinator(
     /** Restores missing favorite links/items from the uninstall-safe external mirror. */
     suspend fun repairFromExternalFavorites(force: Boolean = false): Int {
         val roomGroups = barcodeRepository.loadGroups()
-        // Room is the fast runtime index and survives app updates. Do not scan the
-        // shared-storage mirror on every cold start: that made every update look
-        // like a restore operation and delayed the favorites page. The mirror is
-        // only a recovery source when the Room favorite index is completely absent.
-        if (roomGroups.isNotEmpty()) return 0
         if (!force && externalFavoritesStore.isRestoreRequired()) return 0
+
+        // Keep normal startup Room-only, but an explicit user restore must also
+        // repair a partially damaged Room index. Previously the mere presence of
+        // any group short-circuited restoration, even when many groups had no links.
+        if (roomGroups.isNotEmpty()) {
+            if (!force) return 0
+            var restoredGroups = 0
+            roomGroups.forEach { group ->
+                val itemIds = barcodeRepository.loadGroupItemIds(group.id)
+                val linkedItems = barcodeRepository.loadItemsByIds(itemIds)
+                val isHealthy = itemIds.isNotEmpty() && linkedItems.size == itemIds.size
+                if (!isHealthy && repairExternalFavorite(group).isNotEmpty()) restoredGroups++
+            }
+            if (restoredGroups > 0) {
+                externalFavoritesStore.markRestoreRequired(false)
+                com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                    "favorites",
+                    "partial external restore completed groups=$restoredGroups roomGroups=${roomGroups.size}",
+                )
+            }
+            return restoredGroups
+        }
+
+        // With an empty Room favorite index, restore the complete external snapshot
+        // while preserving history rows and allocating IDs that cannot overwrite them.
         externalFavoritesStore.readSnapshot()?.let { externalSnapshot ->
             // Recovery must never replace the whole database: Room may still contain
             // history rows even when the favorite index was lost. Allocate fresh IDs

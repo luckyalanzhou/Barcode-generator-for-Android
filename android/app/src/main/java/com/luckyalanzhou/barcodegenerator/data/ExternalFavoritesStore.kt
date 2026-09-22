@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.data
 import android.content.Context
 import android.content.ContentValues
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
@@ -66,19 +65,35 @@ class ExternalFavoritesStore(
     private fun mirrorShared(snapshot: BarcodeSnapshot) {
         val resolver = context.contentResolver
         val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val itemsById = snapshot.items.associateBy { it.id }
+        val groupsWithContent = snapshot.groups.mapNotNull { group ->
+            val groupItems = group.itemIds.mapNotNull(itemsById::get).filter { it.text.isNotBlank() }
+            group.takeIf { groupItems.isNotEmpty() }?.let { it to groupItems }
+        }
+        val groupsWithoutContent = snapshot.groups.filter { group ->
+            group.itemIds.none { itemId -> itemsById[itemId]?.text?.isNotBlank() == true }
+        }
+        val validKeys = groupsWithContent.map { (group, _) -> sharedFileKey(group) }.toSet()
+        val protectedEmptyKeys = groupsWithoutContent.map(::sharedFileKey).toSet()
+        val existingFiles = mutableMapOf<Pair<String, String>, MutableList<Uri>>()
         resolver.query(
             collection,
-            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME),
-            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
-            arrayOf("$SHARED_ROOT%"),
+            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?",
+            arrayOf("$SHARED_ROOT%", "%$EXTENSION"),
             null,
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
             val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            val pathIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
             while (cursor.moveToNext()) {
-                val name = cursor.getString(nameIndex)
-                if (name == MARKER || name.endsWith(EXTENSION)) {
-                    resolver.delete(Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()), null, null)
+                val key = cursor.getString(pathIndex) to cursor.getString(nameIndex)
+                existingFiles.getOrPut(key) { mutableListOf() } +=
+                    Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString())
+            }
+            existingFiles.forEach { (key, uris) ->
+                if (key !in validKeys && key !in protectedEmptyKeys) {
+                    uris.forEach { resolver.delete(it, null, null) }
                 }
             }
         } ?: error("Cannot query shared favorites directory")
@@ -91,20 +106,82 @@ class ExternalFavoritesStore(
                 .joinToString("/") { safeSegment(it) } + "/"
             insertSharedMarker(resolver, collection, relativePath)
         }
-        val itemsById = snapshot.items.associateBy { it.id }
-        snapshot.groups.forEach { group ->
-            val folder = group.folder.split('/').filter { it.isNotBlank() }.joinToString("/") { safeSegment(it) }
-            val relativePath = SHARED_ROOT + folder.takeIf { it.isNotBlank() }?.plus('/') .orEmpty()
+        groupsWithContent.forEach { (group, groupItems) ->
+            val relativePath = sharedFolderPath(group.folder)
             val fileName = safeFileName(group.name) + EXTENSION
-            val values = ContentValues().apply {
+            val key = relativePath to fileName
+            val existing = existingFiles[key].orEmpty()
+            val target = existing.firstOrNull() ?: resolver.insert(collection, ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-            }
-            val target = resolver.insert(collection, values) ?: error("Cannot create shared favorite: $fileName")
-            resolver.openOutputStream(target)?.use { output ->
-                DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
+            }) ?: error("Cannot create shared favorite: $fileName")
+            existing.drop(1).forEach { resolver.delete(it, null, null) }
+            resolver.openOutputStream(target, "wt")?.use { output ->
+                DataOutputStream(BufferedOutputStream(output)).use { destination ->
+                    writeGroup(destination, group.copy(itemIds = groupItems.map { it.id }.toMutableList()), groupItems.associateBy { it.id })
+                }
             } ?: error("Cannot open shared favorite: $fileName")
+        }
+    }
+
+    private fun sharedFolderPath(folder: String): String {
+        val safeFolder = folder.split('/').filter { it.isNotBlank() }.joinToString("/") { safeSegment(it) }
+        return SHARED_ROOT + safeFolder.takeIf { it.isNotBlank() }?.plus('/') .orEmpty()
+    }
+
+    private fun sharedFileKey(group: FavoriteGroup): Pair<String, String> =
+        sharedFolderPath(group.folder) to (safeFileName(group.name) + EXTENSION)
+
+    private fun mirrorLegacy(snapshot: BarcodeSnapshot) {
+        val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return
+        if (!root.isDirectory || !root.canWrite()) return
+        val managedRoot = root.findFile(MARKER) != null
+        if (!managedRoot) root.createFile("text/plain", MARKER)
+            ?: error("Cannot create legacy favorites marker")
+        val itemsById = snapshot.items.associateBy { it.id }
+        val groupsWithContent = snapshot.groups.mapNotNull { group ->
+            val groupItems = group.itemIds.mapNotNull(itemsById::get).filter { it.text.isNotBlank() }
+            group.takeIf { groupItems.isNotEmpty() }?.let { it to groupItems }
+        }
+        val groupsWithoutContent = snapshot.groups.filter { group ->
+            group.itemIds.none { itemId -> itemsById[itemId]?.text?.isNotBlank() == true }
+        }
+        val validKeys = groupsWithContent.map { legacyFileKey(it.first) }.toSet()
+        val protectedEmptyKeys = groupsWithoutContent.map(::legacyFileKey).toSet()
+        if (managedRoot) pruneLegacyFiles(root, "", validKeys, protectedEmptyKeys)
+        groupsWithContent.forEach { (group, groupItems) ->
+            val folder = ensureFolder(root, group.folder)
+            val fileName = safeFileName(group.name) + EXTENSION
+            folder.findFile(fileName)?.delete()
+            val target = folder.createFile("application/octet-stream", fileName)
+                ?: error("Cannot create legacy favorite: $fileName")
+            context.contentResolver.openOutputStream(target.uri)?.use { output ->
+                DataOutputStream(BufferedOutputStream(output)).use { destination ->
+                    writeGroup(destination, group.copy(itemIds = groupItems.map { it.id }.toMutableList()), groupItems.associateBy { it.id })
+                }
+            } ?: error("Cannot open legacy favorite: $fileName")
+        }
+    }
+
+    private fun legacyFileKey(group: FavoriteGroup): Pair<String, String> =
+        group.folder.split('/').filter { it.isNotBlank() }.joinToString("/") { safeSegment(it) } to
+            (safeFileName(group.name) + EXTENSION)
+
+    private fun pruneLegacyFiles(
+        directory: DocumentFile,
+        folderPath: String,
+        validKeys: Set<Pair<String, String>>,
+        protectedEmptyKeys: Set<Pair<String, String>>,
+    ) {
+        directory.listFiles().forEach { file ->
+            if (file.isDirectory) {
+                val childPath = listOf(folderPath, safeSegment(file.name.orEmpty())).filter { it.isNotBlank() }.joinToString("/")
+                pruneLegacyFiles(file, childPath, validKeys, protectedEmptyKeys)
+            } else if (file.name?.endsWith(EXTENSION) == true) {
+                val key = folderPath to file.name.orEmpty()
+                if (key !in validKeys && key !in protectedEmptyKeys) file.delete()
+            }
         }
     }
 
@@ -113,6 +190,14 @@ class ExternalFavoritesStore(
         collection: Uri,
         relativePath: String,
     ) {
+        val exists = resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
+            arrayOf(relativePath, MARKER),
+            null,
+        )?.use { it.moveToFirst() } == true
+        if (exists) return
         resolver.insert(collection, ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, MARKER)
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
@@ -120,25 +205,6 @@ class ExternalFavoritesStore(
         }) ?: error("Cannot create shared favorites marker")
     }
 
-    private fun mirrorLegacy(snapshot: BarcodeSnapshot) {
-        val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return
-        if (!root.isDirectory || !root.canWrite()) return
-        val managedRoot = root.findFile(MARKER) != null
-        if (!managedRoot) root.createFile("text/plain", MARKER)
-            ?: error("Cannot create legacy favorites marker")
-        if (managedRoot) deleteManagedFiles(root)
-        snapshot.groups.forEach { group ->
-            val folder = ensureFolder(root, group.folder)
-            val itemsById = snapshot.items.associateBy { it.id }
-            val fileName = safeFileName(group.name) + EXTENSION
-            folder.findFile(fileName)?.delete()
-            val target = folder.createFile("application/octet-stream", fileName)
-                ?: error("Cannot create legacy favorite: $fileName")
-            context.contentResolver.openOutputStream(target.uri)?.use { output ->
-                DataOutputStream(BufferedOutputStream(output)).use { writeGroup(it, group, itemsById) }
-            } ?: error("Cannot open legacy favorite: $fileName")
-        }
-    }
 
     fun readSnapshot(): BarcodeSnapshot? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -358,13 +424,6 @@ class ExternalFavoritesStore(
                 ?: error("Cannot create favorite folder: $name")
         }
         return current
-    }
-
-    private fun deleteManagedFiles(directory: DocumentFile) {
-        directory.listFiles().forEach { file ->
-            if (file.isDirectory) deleteManagedFiles(file)
-            else if (file.name?.endsWith(EXTENSION) == true) file.delete()
-        }
     }
 
     private fun safeFileName(value: String): String = safeSegment(value).ifBlank { "未命名收藏" }
