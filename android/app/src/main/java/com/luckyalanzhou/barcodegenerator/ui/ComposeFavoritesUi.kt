@@ -109,10 +109,8 @@ internal fun ComposeFavoritesPage(
     val childFolderColor = themeColors.content.childFolder
     val fileColor = themeColors.content.file
     val savedListPosition = viewModel.favoriteListPosition()
-    val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = savedListPosition.first,
-        initialFirstVisibleItemScrollOffset = savedListPosition.second,
-    )
+    val listState = rememberLazyListState()
+    var listPositionRestored by remember { mutableStateOf(false) }
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
     val folderPaths = remember(displayState.folders, displayState.groups) {
@@ -129,7 +127,8 @@ internal fun ComposeFavoritesPage(
     LaunchedEffect(normalizedQuery) { viewModel.searchFavoriteContent(normalizedQuery) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, listPositionRestored) {
+        if (!listPositionRestored) return@LaunchedEffect
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) -> viewModel.rememberFavoriteListPosition(index, offset) }
@@ -139,6 +138,15 @@ internal fun ComposeFavoritesPage(
     val rows by produceState<List<ComposeFavoriteRow>?>(null, displayState, normalizedQuery, visibleCollapsedFolders) {
         value = withContext(Dispatchers.Default) {
             composeFavoriteRows(displayState, normalizedQuery, visibleCollapsedFolders)
+        }
+    }
+
+    LaunchedEffect(favoritesState.isReady, rows) {
+        if (favoritesState.isReady && rows != null && !listPositionRestored) {
+            val lastAvailableIndex = rows!!.size
+            val targetIndex = savedListPosition.first.coerceIn(0, lastAvailableIndex)
+            listState.scrollToItem(targetIndex, savedListPosition.second)
+            listPositionRestored = true
         }
     }
 
@@ -290,7 +298,13 @@ internal fun ComposeFavoritesPage(
                             hapticView = hapticView,
                             menuExpanded = fileMenu?.id == group.id,
                             onMenuDismiss = { fileMenu = null },
-                            onClick = { viewModel.openFavoriteGroup(group, style, dark, density) },
+                            onClick = {
+                                viewModel.rememberFavoriteListPosition(
+                                    listState.firstVisibleItemIndex,
+                                    listState.firstVisibleItemScrollOffset,
+                                )
+                                viewModel.openFavoriteGroup(group, style, dark, density)
+                            },
                             onLongClick = {
                                 hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                                 fileMenu = group
