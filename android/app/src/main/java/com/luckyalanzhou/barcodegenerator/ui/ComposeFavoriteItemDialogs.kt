@@ -155,8 +155,8 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
                     unfocusedTextColor = LocalAppColorScheme.current.text.primary,
                     focusedLabelColor = LocalAppColorScheme.current.text.primary,
                     unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
-                    focusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
-                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
+                    focusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
+                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
                 label = { Text("条码内容", color = LocalAppColorScheme.current.text.secondary) },
@@ -201,12 +201,12 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
                     unfocusedTextColor = LocalAppColorScheme.current.text.primary,
                     focusedLabelColor = LocalAppColorScheme.current.text.primary,
                     unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
-                    focusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
-                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
+                    focusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
+                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
                 label = { Text("文件夹", color = LocalAppColorScheme.current.text.secondary) },
-                placeholder = { Text("例如：工作、商品、旅行", color = LocalAppColorScheme.current.text.secondary) },
+                placeholder = { Text("例如：工作、商品、旅行", color = LocalAppColorScheme.current.text.placeholder) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
