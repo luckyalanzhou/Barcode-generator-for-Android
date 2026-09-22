@@ -72,26 +72,19 @@ internal fun ComposeGenerateInputPanel(
     val themeColors = LocalAppColorScheme.current
     val textColor = themeColors.text.primary
     val secondary = themeColors.text.secondary
-    val panelColor = themeColors.surfaces.panel
     val inputColor = themeColors.surfaces.input
-    val panelBorder = themeColors.borders.card
     val inputBorder = themeColors.borders.input
     val focusedInputBorder = themeColors.borders.focusedInput
 
-    Surface(
-        modifier = modifier.heightIn(min = 72.dp, max = 296.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = panelColor,
-        contentColor = textColor,
-        border = BorderStroke(1.dp, panelBorder),
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+    Column(
+        modifier = modifier
+            .heightIn(min = 72.dp, max = 296.dp)
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            values.forEachIndexed { index, value ->
+        values.forEachIndexed { index, value ->
                 val focusRequester = remember { FocusRequester() }
                 LaunchedEffect(focusedIndex, values.size) {
                     if (focusedIndex == index) {
@@ -174,7 +167,6 @@ internal fun ComposeGenerateInputPanel(
                         GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = themeColors.text.destructive, onLongClick = onDeleteLongClick) { onDelete(index) }
                     }
                 }
-            }
         }
     }
 }
