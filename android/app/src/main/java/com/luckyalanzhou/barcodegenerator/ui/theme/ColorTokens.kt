@@ -15,7 +15,7 @@ internal object AppColorTokens {
         val buttonBorder = Color(0xffcbd6e4).copy(alpha = .72f)
         val destructive = Color(0xffc2413b)
         val progress = Color(0xff2166d1)
-        val cardBorder = Color(0xffdfe5ed).copy(alpha = .72f)
+        val cardBorder = border
         val inputBorder = Color(0xffe3e8f0)
         val focusedInputBorder = Color(0xff7da7d6).copy(alpha = .76f)
         val tabUnselected = Color(0xff64748b)
@@ -41,7 +41,7 @@ internal object AppColorTokens {
         val destructive = Color(0xffffb0b0)
         val progress = Color(0xff36c8ff)
         val cardBorder = Color.White.copy(alpha = 0.10f)
-        val inputBorder = Color.White.copy(alpha = 0.12f)
+        val inputBorder = Color.White.copy(alpha = 0.22f)
         val focusedInputBorder = Color(0xff8dbcf0).copy(alpha = .72f)
         val tabUnselected = Color(0xffc4cada)
         val tabRimBottom = Color(0xff73baff).copy(alpha = .62f)
