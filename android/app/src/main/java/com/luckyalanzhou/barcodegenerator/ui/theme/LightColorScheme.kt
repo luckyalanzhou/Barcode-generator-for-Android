@@ -54,8 +54,8 @@ internal val LightAppColorScheme = AppColorScheme(
     content = AppContentColors(
         favoriteActive = AppColorTokens.Light.favoriteActive,
         icon = AppColorTokens.black,
-        folder = AppColorTokens.black,
-        childFolder = AppColorTokens.black,
+        folder = AppColorTokens.Light.folder,
+        childFolder = AppColorTokens.Light.childFolder,
         file = AppColorTokens.black,
         sentContent = AppColorTokens.white,
     ),
