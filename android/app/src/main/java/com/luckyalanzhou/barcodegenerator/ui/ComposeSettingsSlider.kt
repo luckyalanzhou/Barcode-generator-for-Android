@@ -67,7 +67,7 @@ internal fun SettingsSliderRow(
             },
             thumb = {
                 Box(
-                    Modifier.requiredSize(18.dp)
+                    Modifier.requiredSize(22.dp)
                         .background(sliderColors.thumb, CircleShape)
                         .border(1.dp, sliderColors.thumbBorder, CircleShape),
                 )
