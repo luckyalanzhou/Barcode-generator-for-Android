@@ -59,6 +59,11 @@ internal val DarkAppColorScheme = AppColorScheme(
         qrForeground = AppColorTokens.Dark.qrForeground,
         qrBackground = AppColorTokens.Dark.qrBackground,
     ),
+    sliders = AppSliderColors(
+        activeTrack = AppColorTokens.Dark.sliderActiveTrack,
+        inactiveTrack = AppColorTokens.Dark.sliderInactiveTrack,
+        thumb = AppColorTokens.Dark.sliderThumb,
+    ),
 )
 
 internal fun appDarkMaterialColorScheme(colors: AppColorScheme): ColorScheme = darkColorScheme(

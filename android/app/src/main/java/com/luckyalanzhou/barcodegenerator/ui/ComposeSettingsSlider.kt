@@ -31,10 +31,9 @@ internal fun SettingsSliderRow(
     range: ClosedFloatingPointRange<Float>,
     valueText: String,
     color: Color,
-    accent: Color,
     onChange: (Float) -> Unit,
 ) {
-    val sliderAccent = accent
+    val sliderColors = LocalAppColorScheme.current.sliders
     val valueColor = LocalAppColorScheme.current.text.primary
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
@@ -61,11 +60,11 @@ internal fun SettingsSliderRow(
                     val stroke = 4.dp.toPx()
                     val activeEnd = (centerX - gap).coerceAtLeast(0f)
                     val inactiveStart = (centerX + gap).coerceAtMost(size.width)
-                    if (activeEnd > 0f) drawLine(sliderAccent, Offset(0f, centerY), Offset(activeEnd, centerY), stroke, StrokeCap.Round)
-                    if (inactiveStart < size.width) drawLine(sliderAccent.copy(alpha = .18f), Offset(inactiveStart, centerY), Offset(size.width, centerY), stroke, StrokeCap.Round)
+                    if (activeEnd > 0f) drawLine(sliderColors.activeTrack, Offset(0f, centerY), Offset(activeEnd, centerY), stroke, StrokeCap.Round)
+                    if (inactiveStart < size.width) drawLine(sliderColors.inactiveTrack, Offset(inactiveStart, centerY), Offset(size.width, centerY), stroke, StrokeCap.Round)
                 }
             },
-            thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(sliderAccent)) },
+            thumb = { Box(Modifier.requiredSize(18.dp).clip(CircleShape).background(sliderColors.thumb)) },
         )
         val valueParts = valueText.split(' ', limit = 2)
         Row(

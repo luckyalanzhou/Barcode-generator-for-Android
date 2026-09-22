@@ -59,6 +59,11 @@ internal val LightAppColorScheme = AppColorScheme(
         qrForeground = AppColorTokens.black,
         qrBackground = AppColorTokens.white,
     ),
+    sliders = AppSliderColors(
+        activeTrack = AppColorTokens.Light.sliderActiveTrack,
+        inactiveTrack = AppColorTokens.Light.sliderInactiveTrack,
+        thumb = AppColorTokens.Light.sliderThumb,
+    ),
 )
 
 internal fun appLightMaterialColorScheme(colors: AppColorScheme): ColorScheme = lightColorScheme(

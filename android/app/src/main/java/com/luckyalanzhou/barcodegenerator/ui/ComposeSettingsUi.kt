@@ -154,19 +154,19 @@ internal fun ComposeSettingsPage(
 
         item("settings-barcode") {
             SettingsCard(colors.surfaces.card, dark) {
-                    SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.text.primary, colors.controls.accent) {
+                    SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.text.primary) {
                         settingsViewModel.setTextSize(it); persist(settings.copy(textSize = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", colors.text.primary, colors.controls.accent) {
+                    SettingsSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", colors.text.primary) {
                         settingsViewModel.setBarHeight(it); persist(settings.copy(barHeight = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", colors.text.primary, colors.controls.accent) {
+                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", colors.text.primary) {
                         settingsViewModel.setBarWidth(it); persist(settings.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", colors.text.primary, colors.controls.accent) {
+                    SettingsSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", colors.text.primary) {
                         settingsViewModel.setMargin(it); persist(settings.copy(margin = it))
                     }
                     SettingsDivider(dark)

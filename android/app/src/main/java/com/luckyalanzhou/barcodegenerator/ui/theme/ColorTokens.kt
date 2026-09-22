@@ -25,9 +25,12 @@ internal object AppColorTokens {
         val progressTrack = Color(0xffe4eaf2)
         val inputPanel = Color(0xfff0f2f5)
         val divider = Color(0xff667085).copy(alpha = .12f)
-        val toggleOn = Color(0xff2868c7)
+        val toggleOn = Color(0xff34c759)
         val toggleOff = Color(0xffd5dbe4)
         val success = Color(0xff22c55e)
+        val sliderActiveTrack = Color(0xff007aff)
+        val sliderInactiveTrack = Color(0xff787878).copy(alpha = .20f)
+        val sliderThumb = Color.White
     }
 
     internal object Dark {
@@ -54,9 +57,12 @@ internal object AppColorTokens {
         val placeholder = Color(0xff8e8e93)
         val onAccent = Color(0xff10224a)
         val divider = Color.White.copy(alpha = .10f)
-        val toggleOn = Color(0xff4f8fe8)
+        val toggleOn = Color(0xff30d158)
         val toggleOff = Color(0xff4a5565)
         val success = Color(0xff4ade80)
+        val sliderActiveTrack = Color(0xff0a84ff)
+        val sliderInactiveTrack = Color(0xff787880).copy(alpha = .34f)
+        val sliderThumb = Color(0xfff8f8f8)
         val folder = Color(0xffb3d6f5)
         val childFolder = Color(0xffe0b383)
         val file = Color(0xff9bd8c0)
