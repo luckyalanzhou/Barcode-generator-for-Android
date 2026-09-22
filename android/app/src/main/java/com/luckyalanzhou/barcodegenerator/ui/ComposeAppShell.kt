@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.getValue
@@ -97,6 +98,7 @@ internal fun ComposeAppShell(
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
+    val pageStateHolder = rememberSaveableStateHolder()
 
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
@@ -165,7 +167,9 @@ internal fun ComposeAppShell(
                             textAlign = TextAlign.Center,
                         )
                         Box(Modifier.fillMaxWidth().weight(1f)) {
-                            ComposeNavigationHost(dependencies, targetPage, dark)
+                            pageStateHolder.SaveableStateProvider(targetPage.pageName) {
+                                ComposeNavigationHost(dependencies, targetPage, dark)
+                            }
                         }
                     }
                 }
@@ -240,7 +244,9 @@ internal fun ComposeAppShell(
                         )
                     }
                     Box(Modifier.fillMaxWidth().weight(1f)) {
-                        ComposeNavigationHost(dependencies, targetPage, dark)
+                        pageStateHolder.SaveableStateProvider(targetPage.pageName) {
+                            ComposeNavigationHost(dependencies, targetPage, dark)
+                        }
                     }
                 }
             }

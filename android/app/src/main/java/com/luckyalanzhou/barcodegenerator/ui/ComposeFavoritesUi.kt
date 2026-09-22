@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,7 +97,7 @@ internal fun ComposeFavoritesPage(
     val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     val hapticView = LocalView.current
     val density = LocalDensity.current.density
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val animation = rememberComposeAnimationConfig()
