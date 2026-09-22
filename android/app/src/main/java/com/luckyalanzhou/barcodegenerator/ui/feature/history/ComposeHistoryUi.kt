@@ -219,7 +219,7 @@ internal fun MainActivity.showHistoryBatchPickerCompose(batch: List<CodeItem>) {
             batch = batch,
             dark = isDark(),
             onDismiss = dismiss,
-            onEdit = { item -> window.decorView.post { showItemEditorCompose(item) } },
+            onEdit = { item -> window.decorView.post { showItemEditorCompose(item, viewModel::deleteBarcodeItem, viewModel::updateBarcodeItem) } },
         )
     }
 }

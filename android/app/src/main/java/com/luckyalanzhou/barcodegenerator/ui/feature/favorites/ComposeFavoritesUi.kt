@@ -2,8 +2,9 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.ComposeAnimationConfig
@@ -72,7 +73,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -82,9 +82,24 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun ComposeFavoritesPage(
-    viewModel: BarcodeViewModel,
+    favoritesState: BarcodeDataState,
+    searchState: BarcodeDataState,
+    treeState: FavoriteTreeUiState,
+    query: String,
+    savedListPosition: Pair<Int, Int>,
     dark: Boolean,
     style: StyleSettings,
+    onQueryChange: (String) -> Unit,
+    onSyncFavoriteTree: (Set<String>) -> Unit,
+    onSearchFavoriteContent: (String) -> Unit,
+    onUpdateFavoriteSearch: (Set<String>, Boolean) -> Unit,
+    onRememberListPosition: (Int, Int) -> Unit,
+    onLoadMoreGroups: (String) -> Unit,
+    onToggleFolder: (String, Set<String>) -> Unit,
+    onOpenGroup: (FavoriteGroup, StyleSettings, Boolean, Float) -> Unit,
+    onRenameFolder: (String, String) -> Unit,
+    onDeleteFolder: (String) -> Unit,
+    onDeleteGroup: (FavoriteGroup) -> Unit,
     onClearAll: () -> Unit,
     onShowSubfolderEditor: (String) -> Unit,
     onShowFolderEditor: (String, (String) -> Unit) -> Unit,
@@ -93,12 +108,8 @@ internal fun ComposeFavoritesPage(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
-    val favoritesState by viewModel.dataState.collectAsStateWithLifecycle()
-    val searchState by viewModel.favoriteSearchState.collectAsStateWithLifecycle()
-    val treeState by viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
     val hapticView = LocalView.current
     val density = LocalDensity.current.density
-    val query by viewModel.favoritePageQuery.collectAsStateWithLifecycle()
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val animation = rememberComposeAnimationConfig()
@@ -108,7 +119,6 @@ internal fun ComposeFavoritesPage(
     val rootFolderColor = themeColors.content.folder
     val childFolderColor = themeColors.content.childFolder
     val fileColor = themeColors.content.file
-    val savedListPosition = viewModel.favoriteListPosition()
     val listState = rememberLazyListState()
     var listPositionRestored by remember { mutableStateOf(false) }
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
@@ -123,15 +133,15 @@ internal fun ComposeFavoritesPage(
         }
     }
 
-    LaunchedEffect(folderPaths, displayState.groups) { viewModel.syncFavoriteTree(folderPaths) }
-    LaunchedEffect(normalizedQuery) { viewModel.searchFavoriteContent(normalizedQuery) }
-    LaunchedEffect(normalizedQuery, expandedSearchPaths) { viewModel.updateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
+    LaunchedEffect(folderPaths, displayState.groups) { onSyncFavoriteTree(folderPaths) }
+    LaunchedEffect(normalizedQuery) { onSearchFavoriteContent(normalizedQuery) }
+    LaunchedEffect(normalizedQuery, expandedSearchPaths) { onUpdateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     LaunchedEffect(listState, listPositionRestored) {
         if (!listPositionRestored) return@LaunchedEffect
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
-            .collect { (index, offset) -> viewModel.rememberFavoriteListPosition(index, offset) }
+            .collect { (index, offset) -> onRememberListPosition(index, offset) }
     }
 
     val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
@@ -154,9 +164,7 @@ internal fun ComposeFavoritesPage(
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
             .distinctUntilChanged()
             .collect { lastVisible ->
-                if (rows != null && lastVisible >= rows!!.size - 5) {
-                    viewModel.loadMoreFavoriteGroups(normalizedQuery)
-                }
+                if (rows != null && lastVisible >= rows!!.size - 5) onLoadMoreGroups(normalizedQuery)
             }
     }
 
@@ -189,7 +197,7 @@ internal fun ComposeFavoritesPage(
                         Spacer(Modifier.width(10.dp))
                         BasicTextField(
                             value = query,
-                            onValueChange = viewModel::updateFavoritePageQuery,
+                            onValueChange = onQueryChange,
                             modifier = Modifier.weight(1f).height(28.dp),
                             singleLine = true,
                             textStyle = TextStyle(
@@ -276,7 +284,7 @@ internal fun ComposeFavoritesPage(
                         animation = animation,
                         menuExpanded = folderMenu?.first == row.path,
                         onMenuDismiss = { folderMenu = null },
-                        onClick = { viewModel.toggleFavoriteFolder(row.path, folderPaths) },
+                        onClick = { onToggleFolder(row.path, folderPaths) },
                         onLongClick = {
                             hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                             folderMenu = row.path to row.level
@@ -284,7 +292,8 @@ internal fun ComposeFavoritesPage(
                         onShowSubfolderEditor = onShowSubfolderEditor,
                         onShowFolderEditor = onShowFolderEditor,
                         onConfirm = onConfirm,
-                        viewModel = viewModel,
+                        onRenameFolder = onRenameFolder,
+                        onDeleteFolder = onDeleteFolder,
                     )
                 } else {
                     row.group?.let { group ->
@@ -299,11 +308,11 @@ internal fun ComposeFavoritesPage(
                             menuExpanded = fileMenu?.id == group.id,
                             onMenuDismiss = { fileMenu = null },
                             onClick = {
-                                viewModel.rememberFavoriteListPosition(
+                                onRememberListPosition(
                                     listState.firstVisibleItemIndex,
                                     listState.firstVisibleItemScrollOffset,
                                 )
-                                viewModel.openFavoriteGroup(group, style, dark, density)
+                                onOpenGroup(group, style, dark, density)
                             },
                             onLongClick = {
                                 hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
@@ -313,7 +322,7 @@ internal fun ComposeFavoritesPage(
                             onShowRenameDialog = onShowRenameDialog,
                             onEdit = onEdit,
                             onConfirm = onConfirm,
-                            viewModel = viewModel,
+                            onDelete = onDeleteGroup,
                         )
                     }
                 }

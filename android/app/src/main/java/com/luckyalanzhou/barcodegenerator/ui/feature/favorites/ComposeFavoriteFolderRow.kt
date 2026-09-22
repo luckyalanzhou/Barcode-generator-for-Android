@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
@@ -47,7 +46,8 @@ internal fun FavoriteFolderRow(
     onShowSubfolderEditor: (String) -> Unit,
     onShowFolderEditor: (String, (String) -> Unit) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
-    viewModel: BarcodeViewModel,
+    onRenameFolder: (String, String) -> Unit,
+    onDeleteFolder: (String) -> Unit,
 ) {
     val interactionSource = remember(row.path) { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -105,9 +105,9 @@ internal fun FavoriteFolderRow(
                             row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
                             index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
                                 val parent = row.path.substringBeforeLast('/', "")
-                                viewModel.renameFavoriteFolderAndPersist(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
+                                onRenameFolder(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
                             }
-                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { viewModel.deleteFavoriteFolderAndPersist(row.path) }
+                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { onDeleteFolder(row.path) }
                         }
                     },
                 )

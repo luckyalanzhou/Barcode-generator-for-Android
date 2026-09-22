@@ -93,18 +93,8 @@ internal fun ComposeLanSharePage(
     onCopyAddress: (String) -> Unit,
 ) {
     val lanState by viewModel.uiState.collectAsStateWithLifecycle()
-    val themeColors = LocalAppColorScheme.current
-    val primary = themeColors.text.primary
-    val secondary = themeColors.text.secondary
-    val panel = themeColors.surfaces.surface
-    val inputPanel = themeColors.surfaces.inputPanel
-    val accent = themeColors.controls.progress
-    var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
-    var attachmentMenu by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
-    val session = lanState.session
-
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
                 is LanShareEvent.Error -> onNotice(event.message)
@@ -115,6 +105,59 @@ internal fun ComposeLanSharePage(
             }
         }
     }
+    ComposeLanShareContent(
+        lanState = lanState,
+        message = message,
+        dark = dark,
+        onMessageChange = { message = it },
+        onRestartHost = viewModel::restartHostSession,
+        onSetQrVisible = viewModel::setQrVisible,
+        onSend = { text ->
+            val state = viewModel.uiState.value
+            if (state.pendingUploadUri != null) {
+                viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
+                    state.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
+                }
+            } else text.takeIf { it.isNotBlank() }?.let { value ->
+                state.session?.let { session -> viewModel.uploadText(session, value) }
+            }
+        },
+        localFile = viewModel::localFile,
+        onOpenCamera = onOpenCamera,
+        onOpenGallery = onOpenGallery,
+        onOpenFiles = onOpenFiles,
+        onSaveFile = onSaveFile,
+        onNotice = onNotice,
+        onCopyAddress = onCopyAddress,
+    )
+}
+
+@Composable
+private fun ComposeLanShareContent(
+    lanState: LanShareUiState,
+    message: String,
+    dark: Boolean,
+    onMessageChange: (String) -> Unit,
+    onRestartHost: () -> LanShareSession,
+    onSetQrVisible: (Boolean) -> Unit,
+    onSend: (String) -> Unit,
+    localFile: (String) -> java.io.File?,
+    onOpenCamera: () -> Unit,
+    onOpenGallery: () -> Unit,
+    onOpenFiles: () -> Unit,
+    onSaveFile: (LanShareFile) -> Unit,
+    onNotice: (String) -> Unit,
+    onCopyAddress: (String) -> Unit,
+) {
+    val themeColors = LocalAppColorScheme.current
+    val primary = themeColors.text.primary
+    val secondary = themeColors.text.secondary
+    val panel = themeColors.surfaces.surface
+    val inputPanel = themeColors.surfaces.inputPanel
+    val accent = themeColors.controls.progress
+    var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
+    var attachmentMenu by remember { mutableStateOf(false) }
+    val session = lanState.session
 
     if (session == null) {
         Text("正在创建分享房间…", color = secondary, modifier = Modifier.fillMaxWidth().padding(32.dp), textAlign = TextAlign.Center)
@@ -125,11 +168,11 @@ internal fun ComposeLanSharePage(
     val background = themeColors.surfaces.background
     val toggleQr: () -> Unit = {
         if (!qrOpen && lanState.isHost) {
-            runCatching { viewModel.restartHostSession(); qrOpen = true }
+            runCatching { onRestartHost(); qrOpen = true }
                 .onFailure { onNotice(it.message ?: "无法刷新分享端口") }
         } else if (qrOpen) {
             qrOpen = false
-            viewModel.setQrVisible(false)
+            onSetQrVisible(false)
         }
     }
 
@@ -147,7 +190,7 @@ internal fun ComposeLanSharePage(
                 LanShareConnectionStatus(lanState.browserConnected)
             }
             items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
-                ComposeLanShareBubble(viewModel, lanState, file, dark, primary, secondary, onSaveFile)
+                ComposeLanShareBubble(localFile, lanState, file, dark, primary, secondary, onSaveFile)
             }
         }
 
@@ -160,16 +203,8 @@ internal fun ComposeLanSharePage(
             accent = accent,
             pendingUploadName = lanState.pendingUploadName,
             message = message,
-            onMessageChange = { message = it },
-            onSend = {
-                if (lanState.pendingUploadUri != null) {
-                    viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
-                        lanState.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
-                    }
-                } else message.takeIf { it.isNotBlank() }?.let { text ->
-                    lanState.session?.let { session -> viewModel.uploadText(session, text) }
-                }
-            },
+            onMessageChange = onMessageChange,
+            onSend = { onSend(message) },
             onOpenAttachmentMenu = { attachmentMenu = true },
             attachmentMenu = attachmentMenu,
             onDismissAttachmentMenu = { attachmentMenu = false },
@@ -182,7 +217,7 @@ internal fun ComposeLanSharePage(
     if (qrOpen) {
         ComposeLanShareQrDialog(
             onCopyAddress = onCopyAddress,
-            onHideQr = { viewModel.setQrVisible(false) },
+            onHideQr = { onSetQrVisible(false) },
             session = session,
             dark = dark,
             primary = primary,
@@ -295,11 +330,11 @@ private fun BoxScope.LanShareComposer(
     }
 }
 @Composable
-private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
+private fun ComposeLanShareBubble(localFile: (String) -> java.io.File?, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
     val themeColors = LocalAppColorScheme.current
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
-    val previewFile = (viewModel.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
+    val previewFile = (localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
     val bubbleColor = if (mine) themeColors.controls.progress.copy(alpha = .44f) else themeColors.surfaces.overlay
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {

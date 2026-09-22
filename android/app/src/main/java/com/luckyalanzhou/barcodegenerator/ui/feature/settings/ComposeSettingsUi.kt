@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 
@@ -45,7 +44,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,16 +59,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
 import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
 
 @Composable
 internal fun ComposeSettingsPage(
-    settingsViewModel: SettingsViewModel,
+    settings: SettingsUiState,
     dark: Boolean,
-    onApplyAppearance: () -> Unit,
+    onPersist: (SettingsUiState) -> Unit,
+    onOcrMaskChange: (Int) -> Unit,
     onEnterLanShare: () -> Unit,
     onRestoreFavorites: () -> Unit,
     onExportFavorites: () -> Unit,
@@ -78,38 +75,16 @@ internal fun ComposeSettingsPage(
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
-    val settings by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val colors = rememberSettingsColors()
     var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
     var schemeButtonWidth by remember { mutableIntStateOf(0) }
     var ocrButtonWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
     val schemeWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
-    fun persist(next: SettingsUiState = settings) {
-        val style = settings.style
-        val schemeChanged = style.colorScheme != next.scheme
-        settingsViewModel.updateStyle(
-            style.copy(
-                textSize = next.textSize,
-                barHeight = next.barHeight.toInt(),
-                barWidth = next.barWidth,
-                margin = next.margin.toInt(),
-                showFormat = next.showFormat,
-                colorScheme = next.scheme,
-            ),
-        )
-        val saveJob = settingsViewModel.save()
-        if (schemeChanged) {
-            scope.launch {
-                saveJob.join()
-                onApplyAppearance()
-            }
-        }
-    }
+    fun persist(next: SettingsUiState = settings) = onPersist(next)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -155,19 +130,19 @@ internal fun ComposeSettingsPage(
         item("settings-barcode") {
             SettingsCard(colors.surfaces.card, dark) {
                     SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.settingsText.primary) {
-                        settingsViewModel.setTextSize(it); persist(settings.copy(textSize = it))
+                        persist(settings.copy(textSize = it))
                     }
                     SettingsDivider(dark)
                     SettingsSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", colors.settingsText.primary) {
-                        settingsViewModel.setBarHeight(it); persist(settings.copy(barHeight = it))
+                        persist(settings.copy(barHeight = it))
                     }
                     SettingsDivider(dark)
                     SettingsSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", colors.settingsText.primary) {
-                        settingsViewModel.setBarWidth(it); persist(settings.copy(barWidth = it))
+                        persist(settings.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
                     SettingsSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", colors.settingsText.primary) {
-                        settingsViewModel.setMargin(it); persist(settings.copy(margin = it))
+                        persist(settings.copy(margin = it))
                     }
                     SettingsDivider(dark)
                     SettingsRow("显示条码格式", colors.settingsText.primary) {
@@ -176,7 +151,6 @@ internal fun ComposeSettingsPage(
                             dark = dark,
                             modifier = Modifier.padding(end = 8.dp),
                             onCheckedChange = { next ->
-                                settingsViewModel.setShowFormat(next)
                                 persist(settings.copy(showFormat = next))
                             },
                         )
@@ -216,7 +190,7 @@ internal fun ComposeSettingsPage(
                                         },
                                         onClick = {
                                             val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
-                                            settingsViewModel.setOcrMaskPersisted(mask)
+                                            onOcrMaskChange(mask)
                                         },
                                     )
                                 }
@@ -238,10 +212,6 @@ internal fun ComposeSettingsPage(
                             margin = 4f,
                             showFormat = false,
                         )
-                        settingsViewModel.setTextSize(defaults.textSize)
-                        settingsViewModel.setBarHeight(defaults.barHeight)
-                        settingsViewModel.setBarWidth(defaults.barWidth)
-                        settingsViewModel.setMargin(defaults.margin)
                         persist(defaults)
                         onNotice("已恢复条码默认设置")
                     }

@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
+import com.luckyalanzhou.barcodegenerator.UpdateDownloadUiState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -25,7 +25,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 private fun ComposeSegmentedProgress(progress: Int) {
@@ -94,11 +93,10 @@ private fun ComposeIndeterminateProgress() {
 
 @Composable
 internal fun ComposeDownloadProgressDialog(
-    viewModel: BarcodeViewModel,
+    downloadState: UpdateDownloadUiState,
     dark: Boolean,
     onCancel: () -> Unit,
 ) {
-    val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
     ComposeGlassDialogCard(dark) {
         Text("下载更新", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
         if (downloadState.indeterminate) ComposeIndeterminateProgress() else ComposeSegmentedProgress(downloadState.progress)

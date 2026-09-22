@@ -12,20 +12,18 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luckyalanzhou.barcodegenerator.BarcodeDataState
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
-internal fun MainActivity.showFolderEditorCompose(initial: String = "", onSaved: (String) -> Unit) {
+internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf(initial) }
         ComposeGlassDialogCard(dark) {
             Text(
@@ -66,10 +64,9 @@ internal fun MainActivity.showFolderEditorCompose(initial: String = "", onSaved:
 }
 
 /** 新建二级文件夹 Compose 弹窗，保持原有斜杠和重名校验。 */
-internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: ((String) -> Unit)? = null) {
+internal fun MainActivity.showSubfolderEditorCompose(dataState: BarcodeDataState, parent: String, onCreated: ((String) -> Unit)? = null, onCreateFolder: (String) -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         var value by remember { mutableStateOf("") }
         ComposeGlassDialogCard(dark) {
             Text("新建文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
@@ -97,7 +94,7 @@ internal fun MainActivity.showSubfolderEditorCompose(parent: String, onCreated: 
                         child.contains('/') -> toast("名称不能包含斜杠")
                         path in dataState.folders -> toast("已存在同名文件夹")
                         else -> {
-                            viewModel.createFavoriteFolder(path)
+                            onCreateFolder(path)
                             onCreated?.invoke(child)
                             dismiss()
                         }

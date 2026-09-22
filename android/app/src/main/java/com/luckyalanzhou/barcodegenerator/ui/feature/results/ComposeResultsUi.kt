@@ -2,8 +2,8 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.SettingsUiState
+import com.luckyalanzhou.barcodegenerator.ResultUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
@@ -30,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,13 +46,14 @@ import kotlin.math.roundToInt
 
 @Composable
 internal fun ComposeResultsPage(
-    viewModel: BarcodeViewModel,
+    resultState: ResultUiState,
     settings: SettingsUiState,
     dark: Boolean,
+    onEdit: () -> Unit,
     onSaveFavorite: () -> Unit,
     onShare: () -> Unit,
+    loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
 ) {
-    val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
@@ -83,7 +83,7 @@ internal fun ComposeResultsPage(
             ) {
                 Spacer(Modifier.weight(1f))
                 ResultAction(EditIcon, "编辑", resultActionBlue) {
-                    viewModel.editCurrentResult()
+                    onEdit()
                 }
                 ResultAction(
                     favoriteActionIcon,
@@ -95,7 +95,7 @@ internal fun ComposeResultsPage(
             }
         }
         items(items, key = { it.id }) { item ->
-            ComposeResultBarcode(viewModel, item, primary, settings, dark)
+            ComposeResultBarcode(item, primary, settings, dark, loadBarcodeImage)
         }
     }
 }
@@ -115,11 +115,11 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 
 @Composable
 internal fun ComposeResultBarcode(
-    viewModel: BarcodeViewModel,
     item: CodeItem,
     textColor: Color,
     settings: SettingsUiState,
     dark: Boolean,
+    loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
 ) {
     val isCode128 = item.format == "Code 128-B"
     val style = settings.style
@@ -131,7 +131,7 @@ internal fun ComposeResultBarcode(
     // 先读取已生成的图片；未命中时才在后台生成并写回，页面导航不等待。
     val displayed by produceState<Bitmap?>(initialValue = null, item, barWidth, barHeight, textSize, showFormat, dark) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            viewModel.loadOrCreateBarcodeImage(item, style, dark, density)
+            loadBarcodeImage(item, dark, density)
         }
     }
 

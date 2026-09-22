@@ -13,6 +13,12 @@ data class AppUiState(
     val tabChangeFromSwipe: Boolean = false,
 )
 
+/** One-shot request from business work; the Compose host performs the actual navigation. */
+data class NavigationRequest(
+    val route: AppRoute,
+    val fromTabSwipe: Boolean = false,
+)
+
 data class BarcodeDataState(
     val items: List<CodeItem> = emptyList(),
     val groups: List<FavoriteGroup> = emptyList(),

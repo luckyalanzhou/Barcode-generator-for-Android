@@ -48,7 +48,16 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
 
     override fun selectTab(index: Int, fromSwipe: Boolean) {
         if (viewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
-        viewModel.selectMainTab(index, fromSwipe)
+        val routes = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
+        if (index !in routes.indices) return
+        if (index == 3 && viewModel.uiState.value.page != AppRoute.Settings) {
+            val current = viewModel.uiState.value.page
+            val returnPage = current.takeIf { it.mainTabIndex != null && it != AppRoute.Settings }
+                ?: viewModel.resultUiState.value.returnPage
+            viewModel.updateSettingsReturnPage(returnPage)
+        }
+        if (index == 0) viewModel.prepareMainGenerateTab()
+        viewModel.navigateTo(routes[index], fromSwipe)
     }
 
     override fun syncBarcodeDisplaySettings(isResults: Boolean) = this@composeAppShellActions.syncBarcodeDisplaySettings(isResults)
@@ -72,25 +81,43 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun clearHistory() = this@composeAppShellActions.confirmClearCompose(false)
 
     override fun editHistory(batch: List<CodeItem>) {
-        if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first())
+        if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), viewModel::deleteBarcodeItem, viewModel::updateBarcodeItem)
         else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
     }
 
     override fun editFavorite(group: FavoriteGroup) {
         viewModel.loadFavoriteGroupForEditing(group) { batch ->
-            if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first())
+            if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), viewModel::deleteBarcodeItem, viewModel::updateBarcodeItem)
             else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
         }
     }
 
-    override fun showSubfolderEditor(parent: String) = this@composeAppShellActions.showSubfolderEditorCompose(parent)
+    override fun showSubfolderEditor(parent: String) = this@composeAppShellActions.showSubfolderEditorCompose(
+        dataState = viewModel.dataState.value,
+        parent = parent,
+        onCreateFolder = { viewModel.createFavoriteFolder(it) },
+    )
     override fun showFolderEditor(initial: String, onSaved: (String) -> Unit) =
-        this@composeAppShellActions.showFolderEditorCompose(initial, onSaved = onSaved)
-    override fun showMoveDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteMoveDialogCompose(group)
-    override fun showRenameDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteRenameDialogCompose(group)
+        this@composeAppShellActions.showFolderEditorCompose(viewModel.dataState.value, initial, onSaved = onSaved)
+    override fun showMoveDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteMoveDialogCompose(
+        group = group,
+        dataState = viewModel.dataState.value,
+        onMove = viewModel::moveFavoriteGroupAndPersist,
+        onNavigateFavorites = { viewModel.navigateTo(AppRoute.Favorites) },
+    )
+    override fun showRenameDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteRenameDialogCompose(
+        group = group,
+        onRename = viewModel::renameFavoriteGroupAndPersist,
+        onNavigateFavorites = { viewModel.navigateTo(AppRoute.Favorites) },
+    )
     override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
         this@composeAppShellActions.showComposeConfirmDialog(title, message, positive, onConfirm)
-    override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose()
+    override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose(
+        resultState = viewModel.resultUiState.value,
+        dataState = viewModel.dataState.value,
+        onSave = viewModel::saveResultAsFavorite,
+        onCreateFolder = viewModel::createFavoriteFolder,
+    )
     override fun shareResult() = this@composeAppShellActions.shareResultPage()
     override fun applyAppearance() = this@composeAppShellActions.applyAppearance()
     override fun enterLanShare() = this@composeAppShellActions.enterLanShare()

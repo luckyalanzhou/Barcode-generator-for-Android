@@ -3,6 +3,8 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.ResultUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
@@ -37,13 +39,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-internal fun MainActivity.saveResultAsFavoriteCompose() {
+internal fun MainActivity.saveResultAsFavoriteCompose(
+    resultState: ResultUiState,
+    dataState: BarcodeDataState,
+    onSave: (List<Long>, Long?, Long?, String, String) -> Boolean,
+        onCreateFolder: (String) -> Unit,
+) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        val resultState by viewModel.resultUiState.collectAsStateWithLifecycle()
-        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         if (resultState.items.isEmpty()) {
             LaunchedEffect(Unit) { dismiss() }
             return@showComposeDialog
@@ -58,13 +62,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
         val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
         fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String) {
-            viewModel.saveResultAsFavorite(
-                resultItemIds = resultState.items.map { it.id },
-                editingGroupId = editingGroup?.id,
-                targetGroupId = target?.id,
-                folder = folder,
-                name = cleanName,
-            )
+            onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
             toast("已保存到 " + folder)
         }
         ComposeGlassDialogCard(dark) {
@@ -146,9 +144,9 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
             ) {
                 OutlinedButton(
                     onClick = {
-                        showFolderEditorCompose { folder ->
+                        showFolderEditorCompose(dataState) { folder ->
                             if (folder !in folders) folders.add(folder)
-                            viewModel.createFavoriteFolder(folder)
+                            onCreateFolder(folder)
                             selectedRoot = folder
                             selectedChild = ""
                         }
@@ -165,11 +163,11 @@ internal fun MainActivity.saveResultAsFavoriteCompose() {
                 OutlinedButton(
                     onClick = {
                         if (selectedRoot.isBlank()) toast("请先选择一级文件夹")
-                        else showSubfolderEditorCompose(selectedRoot) { child ->
+                        else showSubfolderEditorCompose(dataState, selectedRoot, onCreated = { child ->
                             val path = "$selectedRoot/$child"
                             if (path !in folders) folders.add(path)
                             selectedChild = child
-                        }
+                        }, onCreateFolder = onCreateFolder)
                     },
                     modifier = Modifier.weight(1f).height(40.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),

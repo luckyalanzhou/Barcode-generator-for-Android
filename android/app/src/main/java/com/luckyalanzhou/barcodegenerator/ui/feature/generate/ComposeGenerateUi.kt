@@ -3,8 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
-import com.luckyalanzhou.barcodegenerator.BarcodeEvent
+import com.luckyalanzhou.barcodegenerator.GenerateEditorState
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
@@ -61,17 +60,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ComposeGeneratePage(
-    viewModel: BarcodeViewModel,
+    editorState: GenerateEditorState,
     initialFormat: String,
     dark: Boolean,
+    onDraftChanged: (List<String>) -> Unit,
+    onFormatChanged: (String) -> Unit,
+    onGenerate: (List<String>, String) -> Unit,
     onCaptureText: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
-    val editorState by viewModel.generateEditorState.collectAsStateWithLifecycle()
     val values = remember {
         mutableStateListOf<String>().apply {
             addAll(editorState.inputDraft.ifEmpty { listOf("") })
@@ -93,22 +93,13 @@ internal fun ComposeGeneratePage(
     val density = LocalDensity.current
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
-    fun syncDraft() { viewModel.updateInputDraft(values) }
+    fun syncDraft() { onDraftChanged(values.toList()) }
 
     LaunchedEffect(editorState.inputDraft) {
         if (editorState.inputDraft.isNotEmpty() && values.toList() != editorState.inputDraft) {
             values.clear()
             values.addAll(editorState.inputDraft)
             focusedIndex = -1
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is BarcodeEvent.RecognizedText -> viewModel.updateInputDraft(event.lines)
-                is BarcodeEvent.Notice -> onNotice(event.message)
-            }
         }
     }
 
@@ -267,7 +258,7 @@ internal fun ComposeGeneratePage(
                     ) {
                         barcodeFormats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, color = themeColors.text.primary, maxLines = 1, softWrap = false) }, onClick = { formatName = name; viewModel.updateGenerateFormat(name); formatExpanded = false })
+                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, color = themeColors.text.primary, maxLines = 1, softWrap = false) }, onClick = { formatName = name; onFormatChanged(name); formatExpanded = false })
                         }
                     }
                 }
@@ -277,15 +268,7 @@ internal fun ComposeGeneratePage(
         Box(
             modifier = Modifier.fillMaxWidth().globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp)
                 .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled) {
-                syncDraft()
-                viewModel.updateGenerateFormat(formatName)
-                val result = viewModel.generateBarcodes(formatName)
-                if (!result.isValid) {
-                    val message = result.errorMessage
-                    if (message == "请输入内容") onNotice(message)
-                    else onNotice("第 ${result.errorIndex + 1} 行：$message")
-                } else {
-                }
+                onGenerate(values.toList(), formatName)
             },
             contentAlignment = Alignment.Center
         ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", color = generateContent, fontSize = 16.sp) }

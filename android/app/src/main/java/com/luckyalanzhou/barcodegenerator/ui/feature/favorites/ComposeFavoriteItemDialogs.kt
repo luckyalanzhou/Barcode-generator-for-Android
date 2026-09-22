@@ -24,9 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) {
+internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, onRename: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(group.name) }
@@ -53,9 +52,9 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
                     val name = value.trim()
                     if (name.isBlank()) toast("请输入收藏文件名")
                     else {
-                        viewModel.renameFavoriteGroupAndPersist(group.id, name)
+                        onRename(group.id, name)
                         dismiss()
-                        composeAppShellActions().navigateTo(AppRoute.Favorites)
+                        onNavigateFavorites()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }
@@ -63,10 +62,9 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup) 
     }
 }
 
-internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
+internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, dataState: com.luckyalanzhou.barcodegenerator.BarcodeDataState, onMove: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        val dataState by viewModel.dataState.collectAsStateWithLifecycle()
         val folders = dataState.folders.filter { it.isNotBlank() }
         if (folders.isEmpty()) {
             LaunchedEffect(Unit) {
@@ -82,16 +80,22 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup) {
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("移动", dark, {
-                    viewModel.moveFavoriteGroupAndPersist(group.id, selected)
+                    onMove(group.id, selected)
                     dismiss()
-                    composeAppShellActions().navigateTo(AppRoute.Favorites)
+                    onNavigateFavorites()
                 }, modifier = Modifier.padding(start = 20.dp))
             }
         }
     }
 }
 
-internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
+internal fun MainActivity.showGroupEditorCompose(
+    group: FavoriteGroup,
+    onDelete: (Long) -> Unit,
+    onClearSelection: () -> Unit,
+    onUpdate: (Long, String, String) -> Boolean,
+    onNavigateFavorites: () -> Unit,
+) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var name by remember { mutableStateOf(group.name) }
@@ -118,9 +122,9 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                 DialogAction("删除", dark, {
                     dismiss()
                     showComposeConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
-                        viewModel.deleteFavoriteGroupAndPersist(group.id)
-                        viewModel.clearSelectedFavoriteGroup()
-                        composeAppShellActions().navigateTo(AppRoute.Favorites)
+                        onDelete(group.id)
+                        onClearSelection()
+                        onNavigateFavorites()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
                 DialogAction("保存", dark, {
@@ -129,8 +133,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
                     if (cleanName.isBlank()) toast("请输入收藏文件名")
                     else if (!isValidFavoriteFolderPath(cleanFolder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
-                        viewModel.updateFavoriteGroupAndPersist(group.id, cleanName, cleanFolder)
-                        dismiss()
+                        if (onUpdate(group.id, cleanName, cleanFolder)) dismiss()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }
@@ -138,7 +141,7 @@ internal fun MainActivity.showGroupEditorCompose(group: FavoriteGroup) {
     }
 }
 
-internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
+internal fun MainActivity.showItemEditorCompose(item: CodeItem, onDelete: (Long) -> Unit, onUpdate: (Long, String, String) -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(item.text) }
@@ -169,14 +172,14 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
                 DialogAction("删除", dark, {
                     dismiss()
                     showComposeConfirmDialog("删除条目", "确定删除此条码吗？", "删除") {
-                        viewModel.deleteBarcodeItem(item.id)
+                        onDelete(item.id)
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
                 DialogAction("保存", dark, {
                     val text = value
                     if (text.isBlank()) toast("请输入条码内容")
                     else {
-                        viewModel.updateBarcodeItem(item.id, text, barcodeFormats[selectedIndex].first)
+                        onUpdate(item.id, text, barcodeFormats[selectedIndex].first)
                         dismiss()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
@@ -185,7 +188,7 @@ internal fun MainActivity.showItemEditorCompose(item: CodeItem) {
     }
 }
 
-internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
+internal fun MainActivity.moveToFolderCompose(item: CodeItem, onPersist: (CodeItem) -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(item.folder) }
@@ -215,7 +218,7 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem) {
                     if (!isValidFavoriteFolderPath(folder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
                         item.folder = folder
-                        viewModel.persistItems()
+                        onPersist(item)
                         dismiss()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))

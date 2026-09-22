@@ -25,8 +25,4 @@ internal class NavigationStateCoordinator(
         state.update { it.copy(settingsReturnPage = route) }
     }
 
-    fun updateSelectedTab(index: Int) {
-        if (index !in 0..3) return
-        state.update { it.copy(selectedTab = index) }
-    }
 }

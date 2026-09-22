@@ -99,6 +99,7 @@ class MainActivity : AppCompatActivity() {
     internal var pendingResultImageLabel: String? = null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val viewModel: BarcodeViewModel by viewModels()
+    internal val generateViewModel: GenerateViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
 
@@ -151,12 +152,12 @@ class MainActivity : AppCompatActivity() {
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                buildComposeShell()
                 if (state != null && viewModel.uiState.value.page == AppRoute.Generate) {
-                    viewModel.navigateTo(AppRoute.fromPage(state.getString("page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
+                    viewModel.syncNavigationStateFromUi(AppRoute.fromPage(state.getString("page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
                     viewModel.updateSettingsReturnPage(AppRoute.fromPage(state.getString("settings_return_page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
                     viewModel.setStartupUpdateCheckStarted(state.getBoolean("startup_update_check_started", false))
                 }
+                buildComposeShell()
                 if (viewModel.uiState.value.page == AppRoute.LanShare && lanShareViewModel.uiState.value.session != null) {
                     lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
@@ -335,7 +336,7 @@ class MainActivity : AppCompatActivity() {
                 val decoded = viewModel.decodeBarcode(bitmap)
                 // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
                 if (decoded != null) {
-                    viewModel.updateInputDraft(listOf(decoded))
+                    generateViewModel.updateDraft(listOf(decoded))
                     toast("条码识别成功")
                 } else {
                     toast("未识别到条码，请更换清晰图片")

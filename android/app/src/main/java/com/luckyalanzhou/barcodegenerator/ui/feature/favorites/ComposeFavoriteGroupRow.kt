@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
@@ -64,7 +63,7 @@ internal fun FavoriteGroupRow(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onEdit: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
-    viewModel: BarcodeViewModel,
+    onDelete: (FavoriteGroup) -> Unit,
 ) {
     val interactionSource = remember(group.id) { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -116,7 +115,7 @@ internal fun FavoriteGroupRow(
                             0 -> onEdit(group)
                             1 -> onShowMoveDialog(group)
                             2 -> onShowRenameDialog(group)
-                            else -> onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { viewModel.deleteFavoriteGroupAndPersist(group.id) }
+                            else -> onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { onDelete(group) }
                         }
                     },
                 )
