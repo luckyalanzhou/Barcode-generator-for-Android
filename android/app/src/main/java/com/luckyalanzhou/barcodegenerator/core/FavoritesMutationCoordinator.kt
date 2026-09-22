@@ -135,7 +135,7 @@ internal class FavoritesMutationCoordinator(
         if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
     }
     fun clearFavoritesAndPersist() {
-        store.edit { groups.clear(); items.forEach { it.favorite = false; it.folder = "默认" } }
+        store.clearFavorites()
         persistence.clearAllFavoriteGroups(scope)
         persistAllFavorites()
     }

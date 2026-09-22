@@ -61,6 +61,16 @@ internal class FavoritesStateStore {
         }
     }
 
+    fun clearFavorites() = edit {
+        groups.clear()
+        folders.clear()
+        loadedGroupLinkIds.clear()
+        items.forEach { item ->
+            item.favorite = false
+            item.folder = "默认"
+        }
+    }
+
     fun snapshot(isReady: Boolean): BarcodeDataState = synchronized(lock) {
         BarcodeDataState(
             items = items.map { it.copy() },

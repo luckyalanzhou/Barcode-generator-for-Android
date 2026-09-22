@@ -23,6 +23,25 @@ class FavoritesStateStoreTest {
     }
 
     @Test
+    fun clearingFavoritesAlsoClearsFolderHierarchyAndLoadedLinks() {
+        val store = FavoritesStateStore()
+        val favorite = CodeItem(1L, "FAVORITE", "Code 128-B", favorite = true, folder = "一级/二级")
+        val history = CodeItem(2L, "HISTORY", "Code 128-B", inHistory = true)
+        val group = FavoriteGroup(7L, "一级/二级", "文件", 7L, mutableListOf(favorite.id))
+        store.replace(listOf(favorite, history), listOf(group), listOf("一级", "一级/二级"))
+        store.markGroupLinksLoaded(group.id)
+
+        store.clearFavorites()
+
+        assertEquals(emptyList<FavoriteGroup>(), store.groupsSnapshot())
+        assertEquals(emptyList<String>(), store.foldersSnapshot())
+        assertEquals(emptySet<Long>(), store.loadedGroupLinkIdsSnapshot())
+        assertEquals(false, store.itemsSnapshot().first { it.id == favorite.id }.favorite)
+        assertEquals("默认", store.itemsSnapshot().first { it.id == favorite.id }.folder)
+        assertEquals(true, store.itemsSnapshot().first { it.id == history.id }.inHistory)
+    }
+
+    @Test
     fun concurrentSnapshotsAndEditsRemainConsistent() = runBlocking {
         val store = FavoritesStateStore()
         val writers = (1L..8L).map { writer ->
