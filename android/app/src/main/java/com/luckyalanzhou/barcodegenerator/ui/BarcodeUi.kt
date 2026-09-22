@@ -18,10 +18,11 @@ import androidx.compose.ui.graphics.toArgb
 import kotlin.math.roundToInt
 
 internal fun MainActivity.isDark() =
-    settingsViewModel.style.colorScheme == "dark" ||
-        (settingsViewModel.style.colorScheme == "system" &&
-            (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES)
+    resolveDarkAppearance(
+        settingsViewModel.style.colorScheme,
+        (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES,
+    )
 
 internal fun MainActivity.appBackground() = appColorScheme(isDark()).surfaces.background.toArgb()
 internal fun MainActivity.primaryText() = appColorScheme(isDark()).text.primary.toArgb()

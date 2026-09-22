@@ -71,12 +71,6 @@ internal data class AppBarcodeColors(
     val qrBackground: Color,
 )
 
-@Immutable
-internal data class AppThemeMetrics(
-    val primaryBorderAlpha: Float,
-    val dialogDimAmount: Float,
-)
-
 /**
  * 全局 UI 颜色契约。页面只能依赖语义分类，不直接依赖具体色值。
  * 颜色由浅色/深色主题实例提供，外观设置只负责选择当前实例。
@@ -90,7 +84,6 @@ internal data class AppColorScheme(
     val navigation: AppNavigationColors,
     val content: AppContentColors,
     val barcode: AppBarcodeColors,
-    val metrics: AppThemeMetrics,
 )
 
 internal fun appColorScheme(dark: Boolean): AppColorScheme =

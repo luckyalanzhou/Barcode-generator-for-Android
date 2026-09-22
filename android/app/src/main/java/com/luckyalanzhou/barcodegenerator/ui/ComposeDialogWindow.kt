@@ -37,15 +37,14 @@ internal fun MainActivity.showComposeDialog(
     composeView.setViewTreeLifecycleOwner(this)
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
-        val dark = isDark()
-        AppTheme(dark) { content { dialog.dismiss() } }
+        AppTheme(settingsViewModel.style.colorScheme) { content { dialog.dismiss() } }
     }
     dialog.setContentView(composeView)
     dialog.setCanceledOnTouchOutside(true)
     dialog.setOnCancelListener { onCancel?.invoke() }
     dialog.setOnShowListener {
         dialog.window?.apply {
-            setDimAmount(appColorScheme(isDark()).metrics.dialogDimAmount)
+            setDimAmount(appVisualEffects(isDark()).dialogDimAmount)
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             setWindowAnimations(0)
             setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())

@@ -18,7 +18,7 @@ import androidx.compose.runtime.Composable
 internal fun Modifier.globalCardSurface(
     dark: Boolean,
     color: Color,
-    shape: RoundedCornerShape = RoundedCornerShape(18.dp),
+    shape: RoundedCornerShape = RoundedCornerShape(LocalAppDimensions.current.cardCornerRadius),
     elevation: Dp = 3.dp,
 ): Modifier = this
     .shadow(minOf(elevation, 1.dp), shape, clip = true)
@@ -33,7 +33,7 @@ internal fun Modifier.globalCardSurface(
 /** 按钮统一的轻量边缘与浮起效果；按钮本身仍负责颜色、语义和点击反馈。 */
 @Composable
 internal fun Modifier.globalButtonChrome(
-    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
+    shape: RoundedCornerShape = RoundedCornerShape(LocalAppDimensions.current.buttonCornerRadius),
     elevation: Dp = 1.5.dp,
     borderColor: Color? = null,
 ): Modifier {

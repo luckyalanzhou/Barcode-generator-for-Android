@@ -58,10 +58,6 @@ internal val LightAppColorScheme = AppColorScheme(
         qrForeground = AppColorTokens.black,
         qrBackground = AppColorTokens.white,
     ),
-    metrics = AppThemeMetrics(
-        primaryBorderAlpha = AppColorTokens.Light.primaryBorderAlpha,
-        dialogDimAmount = AppColorTokens.Light.dialogDimAmount,
-    ),
 )
 
 internal fun appLightMaterialColorScheme(colors: AppColorScheme): ColorScheme = lightColorScheme(

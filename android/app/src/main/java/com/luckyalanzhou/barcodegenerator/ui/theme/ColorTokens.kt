@@ -27,8 +27,6 @@ internal object AppColorTokens {
         val toggleOn = Color(0xff2868c7)
         val toggleOff = Color(0xffd5dbe4)
         val success = Color(0xff22c55e)
-        val dialogDimAmount = .34f
-        val primaryBorderAlpha = .22f
     }
 
     internal object Dark {
@@ -62,8 +60,6 @@ internal object AppColorTokens {
         val icon = Color(0xfff2f4f8)
         val qrForeground = Color(0xff111318)
         val qrBackground = Color(0xfff1f3f6)
-        val dialogDimAmount = .48f
-        val primaryBorderAlpha = .32f
     }
 
     internal val black = Color.Black

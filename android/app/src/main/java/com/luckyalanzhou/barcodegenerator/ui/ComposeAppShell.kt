@@ -94,13 +94,6 @@ internal fun ComposeAppShell(
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState by dependencies.viewModel.updateUiState.collectAsStateWithLifecycle()
     val fireworksVisible by dependencies.viewModel.fireworksVisible.collectAsStateWithLifecycle()
-    val uiMode = LocalConfiguration.current.uiMode
-    val dark = settingsUiState.style.colorScheme == "dark" ||
-        (settingsUiState.style.colorScheme == "system" &&
-            (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES)
-    val rootThemeColors = appColorScheme(dark)
-    val background = rootThemeColors.surfaces.background
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
@@ -131,14 +124,23 @@ internal fun ComposeAppShell(
         }
     }
 
-    AppTheme(dark) {
+    AppTheme(settingsUiState.style.colorScheme) {
+        val dark = LocalResolvedAppAppearance.current.isDark
+        val rootThemeColors = LocalAppColorScheme.current
+        val dimensions = LocalAppDimensions.current
+        val background = rootThemeColors.surfaces.background
         Box(Modifier.fillMaxSize().background(background)) {
             Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
+                .padding(
+                    start = dimensions.pageHorizontalPadding,
+                    end = dimensions.pageHorizontalPadding,
+                    top = dimensions.pageTopPadding,
+                    bottom = dimensions.pageBottomPadding,
+                ),
             ) {
             if (currentRoute.mainTabIndex != null) {
                 // 主 Tab 使用轻量淡入淡出；不加入位移、缩放或尺寸变化，
@@ -250,7 +252,7 @@ internal fun ComposeAppShell(
                     onTabSelected = dependencies.actions::selectTab,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(72.dp),
+                        .height(dimensions.bottomTabBarHeight),
                 )
             }
         }
