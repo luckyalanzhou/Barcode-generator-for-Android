@@ -24,6 +24,13 @@ class ExternalFavoritesStore(
     private val context: Context,
     private val settingsStore: SettingsStore,
 ) {
+    data class FavoriteDocument(
+        val group: FavoriteGroup,
+        val items: List<CodeItem>,
+        /** File-system modification time in milliseconds since epoch. */
+        val modifiedAt: Long,
+    )
+
     companion object {
         private const val MAGIC = "BGEN-FAVORITE"
         private const val VERSION = 1
@@ -214,12 +221,12 @@ class ExternalFavoritesStore(
     }
 
     /** Reads only the selected favorite document instead of scanning every favorite file. */
-    fun readFavorite(group: FavoriteGroup): Pair<FavoriteGroup, List<CodeItem>>? = runCatching {
+    fun readFavorite(group: FavoriteGroup): FavoriteDocument? = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) readSharedFavorite(group)
         else readLegacyFavorite(group)
     }.getOrNull()
 
-    private fun readSharedFavorite(group: FavoriteGroup): Pair<FavoriteGroup, List<CodeItem>>? {
+    private fun readSharedFavorite(group: FavoriteGroup): FavoriteDocument? {
         val resolver = context.contentResolver
         val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val folderPath = group.folder.split('/').filter { it.isNotBlank() }
@@ -228,7 +235,12 @@ class ExternalFavoritesStore(
         val fileName = safeFileName(group.name) + EXTENSION
         return resolver.query(
             collection,
-            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH),
+            arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.DATE_MODIFIED,
+            ),
             "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
             arrayOf(relativePath, fileName),
             null,
@@ -237,7 +249,7 @@ class ExternalFavoritesStore(
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
             val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
             val pathIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
-            readGroup(
+            val (loadedGroup, loadedItems) = readGroup(
                 MediaStoreFile(
                     Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()),
                     cursor.getString(nameIndex),
@@ -245,10 +257,12 @@ class ExternalFavoritesStore(
                 ),
                 group.folder,
             )
+            val modifiedAtSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED))
+            FavoriteDocument(loadedGroup, loadedItems, modifiedAtSeconds * 1_000L)
         }
     }
 
-    private fun readLegacyFavorite(group: FavoriteGroup): Pair<FavoriteGroup, List<CodeItem>>? {
+    private fun readLegacyFavorite(group: FavoriteGroup): FavoriteDocument? {
         val root = configuredRootUri()?.let { DocumentFile.fromTreeUri(context, it) } ?: return null
         if (!root.isDirectory) return null
         var directory = root
@@ -256,7 +270,8 @@ class ExternalFavoritesStore(
             directory = directory.findFile(safeSegment(segment))?.takeIf { it.isDirectory } ?: return null
         }
         val file = directory.findFile(safeFileName(group.name) + EXTENSION) ?: return null
-        return readGroup(file, group.folder)
+        val (loadedGroup, loadedItems) = readGroup(file, group.folder)
+        return FavoriteDocument(loadedGroup, loadedItems, file.lastModified())
     }
 
     fun ensureSharedMirror(snapshot: BarcodeSnapshot) {

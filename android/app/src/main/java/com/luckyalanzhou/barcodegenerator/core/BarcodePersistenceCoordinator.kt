@@ -155,21 +155,62 @@ class BarcodePersistenceCoordinator(
         // any group short-circuited restoration, even when many groups had no links.
         if (roomGroups.isNotEmpty()) {
             if (!force) return 0
-            var restoredGroups = 0
+            var restoredGroupCount = 0
             roomGroups.forEach { group ->
-                val itemIds = barcodeRepository.loadGroupItemIds(group.id)
-                val linkedItems = barcodeRepository.loadItemsByIds(itemIds)
-                val isHealthy = itemIds.isNotEmpty() && linkedItems.size == itemIds.size
-                if (!isHealthy && repairExternalFavorite(group).isNotEmpty()) restoredGroups++
+                if (repairExternalFavorite(group).isNotEmpty()) restoredGroupCount++
             }
-            if (restoredGroups > 0) {
+            externalFavoritesStore.readSnapshot()?.let { externalSnapshot ->
+                val knownKeys = roomGroups.map { favoriteKey(it.folder, it.name) }.toMutableSet()
+                val existingItems = barcodeRepository.loadItems()
+                var nextItemId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L
+                var nextGroupId = (roomGroups.maxOfOrNull { it.id } ?: 0L) + 1L
+                val externalItemsById = externalSnapshot.items.groupBy { it.id }
+                val newItems = mutableListOf<CodeItem>()
+                val newGroups = mutableListOf<FavoriteGroup>()
+                val restoredLinks = mutableListOf<com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem>()
+                externalSnapshot.groups.forEach { externalGroup ->
+                    if (!knownKeys.add(favoriteKey(externalGroup.folder, externalGroup.name))) return@forEach
+                    val content = externalGroup.itemIds.flatMap { externalItemsById[it].orEmpty() }
+                        .filter { it.text.isNotBlank() }
+                    if (content.isEmpty()) return@forEach
+                    val restoredGroupItems = content.map { item ->
+                        item.copy(id = nextItemId++, favorite = true, inHistory = false).also(newItems::add)
+                    }
+                    val restoredGroup = externalGroup.copy(
+                        id = nextGroupId++,
+                        itemIds = restoredGroupItems.map { it.id }.toMutableList(),
+                    )
+                    newGroups += restoredGroup
+                    restoredLinks += restoredGroup.itemIds.map { itemId ->
+                        com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(restoredGroup.id, itemId)
+                    }
+                }
+                if (newGroups.isNotEmpty() || externalSnapshot.folders.isNotEmpty()) {
+                    barcodeRepository.appendSnapshot(
+                        BarcodeSnapshot(
+                            items = newItems,
+                            groups = newGroups,
+                            links = restoredLinks,
+                            folders = (barcodeRepository.loadFolders() + externalSnapshot.folders).distinct(),
+                        ),
+                    )
+                    if (newGroups.isNotEmpty()) {
+                        restoredGroupCount += newGroups.size
+                        com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                            "favorites",
+                            "missing external groups restored groups=${newGroups.size}",
+                        )
+                    }
+                }
+            }
+            if (restoredGroupCount > 0) {
                 externalFavoritesStore.markRestoreRequired(false)
                 com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
                     "favorites",
-                    "partial external restore completed groups=$restoredGroups roomGroups=${roomGroups.size}",
+                    "partial external restore completed groups=$restoredGroupCount roomGroups=${roomGroups.size}",
                 )
             }
-            return restoredGroups
+            return restoredGroupCount
         }
 
         // With an empty Room favorite index, restore the complete external snapshot
@@ -235,27 +276,42 @@ class BarcodePersistenceCoordinator(
 
     /** Restores only the favorite document the user is opening. */
     suspend fun repairExternalFavorite(group: FavoriteGroup): List<CodeItem> {
-        // Do not let a stale external mirror overwrite a healthy Room result. This
-        // check is important after app updates: Room IDs are the live index and the
-        // external document may have been written by an older app version/device.
+        // Compare versions by their persisted timestamps before applying external
+        // content; mere presence of Room rows is not enough to decide which copy wins.
         val roomItemIds = barcodeRepository.loadGroupItemIds(group.id)
         val roomItems = barcodeRepository.loadItemsByIds(roomItemIds)
-        if (roomItemIds.isNotEmpty() && roomItems.size == roomItemIds.size) return emptyList()
-
-        val external = externalFavoritesStore.readFavorite(group)?.takeIf { it.second.isNotEmpty() }
+        val external = externalFavoritesStore.readFavorite(group)?.takeIf { document ->
+            document.items.any { it.text.isNotBlank() }
+        }
             ?: externalFavoritesStore.readSnapshot()
                 ?.let { snapshot ->
                     val match = snapshot.groups.firstOrNull {
                         it.folder.trim('/') == group.folder.trim('/') && it.name == group.name
                     } ?: return@let null
                     val byId = snapshot.items.associateBy { it.id }
-                    match to match.itemIds.mapNotNull(byId::get)
+                    ExternalFavoritesStore.FavoriteDocument(
+                        group = match,
+                        items = match.itemIds.mapNotNull(byId::get),
+                        // Snapshot decoding is only a fallback when direct file metadata
+                        // is unavailable; use the timestamp embedded when the file was written.
+                        modifiedAt = match.savedAt,
+                    ).takeIf { document -> document.items.any { it.text.isNotBlank() } }
                 }
-        val externalItems = external?.second.orEmpty()
+        val externalDocument = external ?: return emptyList()
+        val externalItems = externalDocument.items.filter { it.text.isNotBlank() }
         if (externalItems.isEmpty()) {
             com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
                 "favorites",
                 "favorite repair unavailable groupId=${group.id} name=${group.name} roomLinks=${roomItemIds.size} roomItems=${roomItems.size}",
+            )
+            return emptyList()
+        }
+
+        val hasInternalBarcodeData = roomItems.any { it.text.isNotBlank() }
+        if (hasInternalBarcodeData && externalDocument.modifiedAt <= group.savedAt) {
+            com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                "favorites",
+                "external favorite skipped because Room is newer groupId=${group.id} name=${group.name} roomModifiedAt=${group.savedAt} externalModifiedAt=${externalDocument.modifiedAt}",
             )
             return emptyList()
         }
@@ -269,11 +325,14 @@ class BarcodePersistenceCoordinator(
             while (nextId in existingItemIds) nextId++
             item.copy(id = nextId++, favorite = true, inHistory = false).also { existingItemIds += it.id }
         }
-        val restoredGroup = group.copy(itemIds = restoredItems.map { it.id }.toMutableList())
+        val restoredGroup = group.copy(
+            savedAt = maxOf(group.savedAt, externalDocument.modifiedAt),
+            itemIds = restoredItems.map { it.id }.toMutableList(),
+        )
         applyFavoriteRepair(restoredGroup, restoredItems)
         com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
             "favorites",
-            "favorite repaired from external groupId=${group.id} name=${group.name} previousLinks=${roomItemIds.size} restoredItems=${restoredItems.size}",
+            "favorite repaired from external groupId=${group.id} name=${group.name} previousLinks=${roomItemIds.size} restoredItems=${restoredItems.size} roomModifiedAt=${group.savedAt} externalModifiedAt=${externalDocument.modifiedAt}",
         )
         return restoredItems
     }
@@ -291,6 +350,9 @@ class BarcodePersistenceCoordinator(
             ),
         )
     }
+
+    private fun favoriteKey(folder: String, name: String): Pair<String, String> =
+        folder.trim('/').replace('\\', '/') to name
 
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
 

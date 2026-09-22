@@ -11,9 +11,13 @@ internal class FavoritesMutationCoordinator(
 ) {
     fun renameFolder(path: String, renamedPath: String) {
         store.edit {
-            groups.filter { it.folder == path || it.folder.startsWith("$path/") }.forEach { group ->
-                group.folder = if (group.folder == path) renamedPath else renamedPath + group.folder.removePrefix(path)
-            }
+            val modifiedAt = System.currentTimeMillis()
+            groups.indices.filter { groups[it].folder == path || groups[it].folder.startsWith("$path/") }
+                .forEach { index ->
+                    val group = groups[index]
+                    val newPath = if (group.folder == path) renamedPath else renamedPath + group.folder.removePrefix(path)
+                    groups[index] = group.copy(folder = newPath, savedAt = modifiedAt)
+                }
             folders.filter { it == path || it.startsWith("$path/") }.toList().forEach { old ->
                 folders.remove(old)
                 folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
@@ -47,7 +51,12 @@ internal class FavoritesMutationCoordinator(
     fun deleteItem(itemId: Long) {
         store.edit {
             items.removeAll { it.id == itemId }
-            groups.forEach { group -> group.itemIds.removeAll { it == itemId } }
+            val modifiedAt = System.currentTimeMillis()
+            groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
+                val group = groups[index]
+                group.itemIds.removeAll { it == itemId }
+                groups[index] = group.copy(savedAt = modifiedAt)
+            }
         }
         persistAllFavorites()
     }
@@ -57,6 +66,10 @@ internal class FavoritesMutationCoordinator(
             val item = items.firstOrNull { it.id == itemId } ?: return@edit null
             item.text = text
             item.format = format
+            val modifiedAt = System.currentTimeMillis()
+            groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
+                groups[index] = groups[index].copy(savedAt = modifiedAt)
+            }
             item.favorite
         } ?: return
         if (favorite) persistAllFavorites() else persistItems()
@@ -83,9 +96,14 @@ internal class FavoritesMutationCoordinator(
 
     fun updateGroup(groupId: Long, name: String, folder: String): Boolean {
         val updated = store.edit {
-            val group = groups.firstOrNull { it.id == groupId } ?: return@edit false
-            group.name = name
-            group.folder = folder
+            val index = groups.indexOfFirst { it.id == groupId }
+            if (index < 0) return@edit false
+            val group = groups[index]
+            groups[index] = group.copy(
+                name = name,
+                folder = folder,
+                savedAt = System.currentTimeMillis(),
+            )
             if (folder !in folders) folders.add(folder)
             true
         }
@@ -96,8 +114,23 @@ internal class FavoritesMutationCoordinator(
 
     fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(scope, path, renamedPath) }
     fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(scope, path) }
-    fun renameGroupAndPersist(groupId: Long, name: String) { store.edit { groups.firstOrNull { it.id == groupId }?.name = name }; persistAllFavorites() }
-    fun moveGroupAndPersist(groupId: Long, folder: String) { store.edit { groups.firstOrNull { it.id == groupId }?.let { it.folder = folder; if (folder.isNotBlank() && folder !in folders) folders.add(folder) } }; persistAllFavorites() }
+    fun renameGroupAndPersist(groupId: Long, name: String) {
+        store.edit {
+            val index = groups.indexOfFirst { it.id == groupId }
+            if (index >= 0) groups[index] = groups[index].copy(name = name, savedAt = System.currentTimeMillis())
+        }
+        persistAllFavorites()
+    }
+    fun moveGroupAndPersist(groupId: Long, folder: String) {
+        store.edit {
+            val index = groups.indexOfFirst { it.id == groupId }
+            if (index >= 0) {
+                groups[index] = groups[index].copy(folder = folder, savedAt = System.currentTimeMillis())
+                if (folder.isNotBlank() && folder !in folders) folders.add(folder)
+            }
+        }
+        persistAllFavorites()
+    }
     fun deleteGroupAndPersist(groupId: Long) {
         if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
     }
