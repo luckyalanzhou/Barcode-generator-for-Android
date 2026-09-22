@@ -13,6 +13,10 @@ internal val LightAppColorScheme = AppColorScheme(
         link = AppColorTokens.black,
         onAccent = AppColorTokens.white,
     ),
+    settingsText = AppSettingsTextColors(
+        primary = AppColorTokens.Light.settingsPrimaryText,
+        secondary = AppColorTokens.Light.settingsSecondaryText,
+    ),
     surfaces = AppSurfaceColors(
         background = AppColorTokens.Light.background,
         surface = AppColorTokens.Light.surface,

@@ -15,6 +15,12 @@ internal data class AppTextColors(
 )
 
 @Immutable
+internal data class AppSettingsTextColors(
+    val primary: Color,
+    val secondary: Color,
+)
+
+@Immutable
 internal data class AppSurfaceColors(
     val background: Color,
     val surface: Color,
@@ -86,6 +92,7 @@ internal data class AppSliderColors(
 @Immutable
 internal data class AppColorScheme(
     val text: AppTextColors,
+    val settingsText: AppSettingsTextColors,
     val surfaces: AppSurfaceColors,
     val controls: AppControlColors,
     val borders: AppBorderColors,

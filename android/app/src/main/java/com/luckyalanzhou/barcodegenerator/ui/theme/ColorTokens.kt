@@ -31,6 +31,8 @@ internal object AppColorTokens {
         val sliderActiveTrack = Color(0xff007aff)
         val sliderInactiveTrack = Color(0xff787878).copy(alpha = .20f)
         val sliderThumb = Color.White
+        val settingsPrimaryText = Color(0xff000000)
+        val settingsSecondaryText = Color(0xff3c3c43).copy(alpha = .60f)
     }
 
     internal object Dark {
@@ -63,6 +65,8 @@ internal object AppColorTokens {
         val sliderActiveTrack = Color(0xff0a84ff)
         val sliderInactiveTrack = Color(0xff787880).copy(alpha = .34f)
         val sliderThumb = Color(0xfff8f8f8)
+        val settingsPrimaryText = Color(0xffffffff)
+        val settingsSecondaryText = Color(0xffebebf5).copy(alpha = .60f)
         val folder = Color(0xffb3d6f5)
         val childFolder = Color(0xffe0b383)
         val file = Color(0xff9bd8c0)

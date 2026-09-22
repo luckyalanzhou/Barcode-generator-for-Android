@@ -13,6 +13,10 @@ internal val DarkAppColorScheme = AppColorScheme(
         link = AppColorTokens.Dark.link,
         onAccent = AppColorTokens.Dark.onAccent,
     ),
+    settingsText = AppSettingsTextColors(
+        primary = AppColorTokens.Dark.settingsPrimaryText,
+        secondary = AppColorTokens.Dark.settingsSecondaryText,
+    ),
     surfaces = AppSurfaceColors(
         background = AppColorTokens.Dark.background,
         surface = AppColorTokens.Dark.surface,
