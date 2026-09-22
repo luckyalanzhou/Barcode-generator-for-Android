@@ -259,8 +259,8 @@ internal fun ComposeSettingsPage(
                 Text("关于", color = colors.text.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 5.dp))
                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("作者：Alan", color = colors.text.secondary, fontSize = 13.sp)
-                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.text.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                        Text("作者：Alan", color = colors.text.primary, fontSize = 13.sp)
+                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.text.primary, fontSize = 13.sp)
                     }
                     SettingsButton(
                         text = "检查更新",

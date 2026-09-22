@@ -219,7 +219,7 @@ internal fun ComposeGeneratePage(
                 label = "拍照填充",
                 // 与“添加一行”共用同一张卡片容器，避免单独的描边造成外观不一致。
                 containerColor = cardColor,
-                contentColor = themeColors.text.link,
+                contentColor = textColor,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )

@@ -49,6 +49,7 @@ internal object AppColorTokens {
         val progressTrack = Color(0xff152938)
         val inputPanel = Color(0xff2c2c2e)
         val link = Color(0xff8fc1ff)
+        val secondaryText = Color(0xff8e8e93)
         val onAccent = Color(0xff10224a)
         val divider = Color.White.copy(alpha = .10f)
         val toggleOn = Color(0xff4f8fe8)

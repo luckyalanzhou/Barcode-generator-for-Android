@@ -6,7 +6,7 @@ import androidx.compose.material3.darkColorScheme
 internal val DarkAppColorScheme = AppColorScheme(
     text = AppTextColors(
         primary = AppColorTokens.white,
-        secondary = AppColorTokens.Dark.link.copy(alpha = .60f),
+        secondary = AppColorTokens.Dark.secondaryText,
         disabled = AppColorTokens.Dark.disabled,
         destructive = AppColorTokens.Dark.destructive,
         link = AppColorTokens.Dark.link,

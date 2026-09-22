@@ -160,7 +160,7 @@ private fun HistoryBatchCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(time, color = secondary, fontSize = 12.sp, maxLines = 1)
+            Text(time, color = primary, fontSize = 12.sp, maxLines = 1)
             Spacer(Modifier.width(2.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
                 Icon(DeleteIcon, "删除这条历史记录", tint = LocalAppColorScheme.current.text.destructive)

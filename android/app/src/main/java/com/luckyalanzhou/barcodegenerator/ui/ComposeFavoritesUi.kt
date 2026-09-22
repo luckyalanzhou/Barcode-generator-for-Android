@@ -66,6 +66,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -153,7 +155,7 @@ internal fun ComposeFavoritesPage(
                     modifier = Modifier
                         .weight(1f)
                         .height(45.dp)
-                        .border(1.dp, secondary.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
+                        .border(1.dp, themeColors.borders.input, RoundedCornerShape(14.dp))
                         .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
@@ -164,36 +166,51 @@ internal fun ComposeFavoritesPage(
                         Icon(
                             imageVector = SearchIcon,
                             contentDescription = "搜索",
-                            tint = secondary,
+                            tint = primary,
                             modifier = Modifier.size(24.dp),
                         )
                         Spacer(Modifier.width(10.dp))
                         BasicTextField(
                             value = query,
                             onValueChange = { query = it },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(28.dp),
+                            modifier = Modifier.weight(1f).height(28.dp),
                             singleLine = true,
                             textStyle = TextStyle(
                                 color = primary,
                                 fontSize = 18.sp,
                                 lineHeight = 24.sp,
+                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                lineHeightStyle = LineHeightStyle(
+                                    alignment = LineHeightStyle.Alignment.Center,
+                                    trim = LineHeightStyle.Trim.Both,
+                                ),
                             ),
                             cursorBrush = SolidColor(primary),
                             decorationBox = { field ->
-                                if (query.isEmpty()) {
-                                    Text(
-                                        "搜索名称、文件夹或内容",
-                                        color = secondary,
-                                        fontSize = 18.sp,
-                                        lineHeight = 24.sp,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Clip,
-                                    )
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    if (query.isEmpty()) {
+                                        Text(
+                                            "搜索名称、文件夹或内容",
+                                            style = TextStyle(
+                                                color = secondary,
+                                                fontSize = 18.sp,
+                                                lineHeight = 24.sp,
+                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                lineHeightStyle = LineHeightStyle(
+                                                    alignment = LineHeightStyle.Alignment.Center,
+                                                    trim = LineHeightStyle.Trim.Both,
+                                                ),
+                                            ),
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Clip,
+                                        )
+                                    }
+                                    field()
                                 }
-                                field()
                             },
                         )
                     }
