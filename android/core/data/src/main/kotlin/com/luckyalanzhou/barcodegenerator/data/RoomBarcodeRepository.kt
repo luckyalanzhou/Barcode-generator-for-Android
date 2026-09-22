@@ -22,8 +22,13 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun saveAll(snapshot: BarcodeSnapshot) {
         database.withTransaction {
             val retainedItemIds = snapshot.items.map { it.id }
-            if (retainedItemIds.isEmpty()) dao.clearItems()
-            else dao.deleteItemsExcept(retainedItemIds)
+            if (retainedItemIds.isEmpty()) {
+                dao.clearGroupItems()
+                dao.clearItems()
+            } else {
+                dao.deleteGroupItemsForItemsExcept(retainedItemIds)
+                dao.deleteItemsExcept(retainedItemIds)
+            }
             val retainedGroupIds = snapshot.groups.map { it.id }
             if (retainedGroupIds.isEmpty()) {
                 dao.clearGroupItems()
@@ -34,8 +39,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.clearGroupItemsForGroups(retainedGroupIds)
             }
             dao.clearFolders()
-            dao.saveItems(snapshot.items.map(CodeItem::toEntity))
-            dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
+            dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
             dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
@@ -45,10 +50,10 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         database.withTransaction {
             // The in-memory store may contain only the loaded favorite pages. Upsert the
             // supplied rows and replace links only for those groups; never delete unloaded data.
-            dao.saveItems(snapshot.items.map(CodeItem::toEntity))
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
             if (snapshot.groups.isNotEmpty()) {
                 val groupIds = snapshot.groups.map { it.id }
-                dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+                dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
                 val linkGroups = snapshot.replaceGroupLinkIds.intersect(groupIds.toSet())
                 dao.clearGroupItemsForGroups(linkGroups.toList())
                 dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap { group ->
@@ -65,12 +70,12 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             val retainedHistoryIds = items.filter { !it.favorite }.map { it.id }
             if (retainedHistoryIds.isEmpty()) dao.clearNonFavoriteItems()
             else dao.deleteNonFavoriteItemsExcept(retainedHistoryIds)
-            dao.saveItems(items.map(CodeItem::toEntity))
+            dao.upsertItems(items.map(CodeItem::toEntity))
         }
     }
 
     override suspend fun upsertItems(items: List<CodeItem>) {
-        if (items.isNotEmpty()) dao.saveItems(items.map(CodeItem::toEntity))
+        if (items.isNotEmpty()) dao.upsertItems(items.map(CodeItem::toEntity))
     }
 
     override suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem> =
@@ -101,7 +106,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.deleteGroupsExcept(retainedGroupIds)
                 dao.clearGroupItemsForGroups(retainedGroupIds)
             }
-            dao.saveGroups(groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.upsertGroups(groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
             dao.saveGroupItems(links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
         }
     }
@@ -241,8 +246,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun appendSnapshot(snapshot: BarcodeSnapshot) {
         database.withTransaction {
-            dao.saveItems(snapshot.items.map(CodeItem::toEntity))
-            dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
+            dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
             dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
@@ -256,8 +261,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.deleteGroupItems(ids)
                 dao.deleteGroups(ids)
             }
-            dao.saveItems(snapshot.items.map(CodeItem::toEntity))
-            dao.saveGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
+            dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
             dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
             // Import adds folders but must not erase pre-existing empty folders.
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
@@ -282,7 +287,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                             }.getOrNull()
                         }
                     }
-                dao.saveItems(items)
+                dao.upsertItems(items)
             }
             if (dao.loadGroups().isEmpty()) {
                 val groups = mutableListOf<FavoriteGroupEntity>()
@@ -302,7 +307,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                         }
                     }
                 }
-                dao.saveGroups(groups)
+                dao.upsertGroups(groups)
                 dao.saveGroupItems(links)
             }
             if (dao.loadFolders().isEmpty()) dao.saveFolders(legacy.folders.filter { it.isNotBlank() && it != "默认" }.map(::FavoriteFolderEntity))

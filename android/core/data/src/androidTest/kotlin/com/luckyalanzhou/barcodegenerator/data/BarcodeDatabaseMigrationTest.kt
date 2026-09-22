@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -32,12 +33,22 @@ class BarcodeDatabaseMigrationTest {
             BarcodeDatabase.MIGRATION_1_2.migrate(database)
             BarcodeDatabase.MIGRATION_2_3.migrate(database)
             BarcodeDatabase.MIGRATION_3_4.migrate(database)
+            BarcodeDatabase.MIGRATION_4_5.migrate(database)
 
             database.query("SELECT COUNT(*) FROM favorite_group_items").use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals(1, cursor.getInt(0))
             }
             database.execSQL("PRAGMA foreign_keys = ON")
+            val groupDeleteWasRejected = runCatching {
+                database.execSQL("DELETE FROM favorite_groups WHERE id = 10")
+            }.exceptionOrNull() is SQLiteConstraintException
+            assertTrue(groupDeleteWasRejected)
+            val itemDeleteWasRejected = runCatching {
+                database.execSQL("DELETE FROM code_items WHERE id = 1")
+            }.exceptionOrNull() is SQLiteConstraintException
+            assertTrue(itemDeleteWasRejected)
+            database.execSQL("DELETE FROM favorite_group_items WHERE groupId = 10")
             database.execSQL("DELETE FROM favorite_groups WHERE id = 10")
             database.query("SELECT COUNT(*) FROM favorite_group_items").use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -49,6 +60,13 @@ class BarcodeDatabaseMigrationTest {
                     while (cursor.moveToNext()) add(cursor.getString(nameColumn))
                 }
                 assertTrue(indexes.contains("index_favorite_groups_savedAt_id"))
+            }
+            database.query("PRAGMA foreign_key_list('favorite_group_items')").use { cursor ->
+                val onDeleteColumn = cursor.getColumnIndex("on_delete")
+                val actions = buildList {
+                    while (cursor.moveToNext()) add(cursor.getString(onDeleteColumn))
+                }
+                assertEquals(listOf("RESTRICT", "RESTRICT"), actions)
             }
         } finally {
             database.close()
