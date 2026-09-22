@@ -1,9 +1,6 @@
 name: Build Android Beta APK
 
 on:
-  push:
-    branches:
-      - beta
   workflow_dispatch:
 permissions:
   contents: write
