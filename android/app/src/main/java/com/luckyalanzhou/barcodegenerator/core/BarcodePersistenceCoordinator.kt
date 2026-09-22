@@ -198,16 +198,64 @@ class BarcodePersistenceCoordinator(
     fun restoreExternalFavorites(scope: CoroutineScope): Deferred<Result<Unit>> = enqueue(scope) {
         val restoredCount = repairFromExternalFavorites(force = true)
         check(restoredCount > 0) { "外部目录中没有可恢复的收藏文件" }
-        syncExternalFavorites()
+        // Room is the runtime source of truth. Once the database transaction has
+        // committed, a failure to refresh the uninstall-safe mirror must not report
+        // that the restore itself failed or roll the UI back to the empty snapshot.
+        // syncExternalFavorites marks the mirror pending before writing, so startup
+        // can retry it if the shared-storage provider is temporarily unavailable.
+        runCatching { syncExternalFavorites() }
+            .onFailure { error ->
+                com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                    "favorites",
+                    "external mirror refresh deferred after restore",
+                    error,
+                )
+            }
     }
 
     /** Restores only the favorite document the user is opening. */
     suspend fun repairExternalFavorite(group: FavoriteGroup): List<CodeItem> {
-        val external = externalFavoritesStore.readFavorite(group) ?: return emptyList()
-        val externalGroup = group.copy(itemIds = external.second.map { it.id }.toMutableList())
-        if (external.second.isEmpty()) return emptyList()
-        applyFavoriteRepair(externalGroup, external.second)
-        return external.second
+        // Do not let a stale external mirror overwrite a healthy Room result. This
+        // check is important after app updates: Room IDs are the live index and the
+        // external document may have been written by an older app version/device.
+        val roomItemIds = barcodeRepository.loadGroupItemIds(group.id)
+        val roomItems = barcodeRepository.loadItemsByIds(roomItemIds)
+        if (roomItemIds.isNotEmpty() && roomItems.size == roomItemIds.size) return emptyList()
+
+        val external = externalFavoritesStore.readFavorite(group)?.takeIf { it.second.isNotEmpty() }
+            ?: externalFavoritesStore.readSnapshot()
+                ?.let { snapshot ->
+                    val match = snapshot.groups.firstOrNull {
+                        it.folder.trim('/') == group.folder.trim('/') && it.name == group.name
+                    } ?: return@let null
+                    val byId = snapshot.items.associateBy { it.id }
+                    match to match.itemIds.mapNotNull(byId::get)
+                }
+        val externalItems = external?.second.orEmpty()
+        if (externalItems.isEmpty()) {
+            com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+                "favorites",
+                "favorite repair unavailable groupId=${group.id} name=${group.name} roomLinks=${roomItemIds.size} roomItems=${roomItems.size}",
+            )
+            return emptyList()
+        }
+
+        // External IDs can collide with history or with IDs retained by a previous
+        // recovery attempt. Allocate fresh IDs and atomically replace only this
+        // favorite group's links, preserving every unrelated Room row.
+        val existingItemIds = barcodeRepository.loadItems().asSequence().map { it.id }.toHashSet()
+        var nextId = (existingItemIds.maxOrNull() ?: 0L) + 1L
+        val restoredItems = externalItems.map { item ->
+            while (nextId in existingItemIds) nextId++
+            item.copy(id = nextId++, favorite = true, inHistory = false).also { existingItemIds += it.id }
+        }
+        val restoredGroup = group.copy(itemIds = restoredItems.map { it.id }.toMutableList())
+        applyFavoriteRepair(restoredGroup, restoredItems)
+        com.luckyalanzhou.barcodegenerator.ui.DebugLog.record(
+            "favorites",
+            "favorite repaired from external groupId=${group.id} name=${group.name} previousLinks=${roomItemIds.size} restoredItems=${restoredItems.size}",
+        )
+        return restoredItems
     }
 
     private suspend fun applyFavoriteRepair(group: FavoriteGroup, items: List<CodeItem>) {
