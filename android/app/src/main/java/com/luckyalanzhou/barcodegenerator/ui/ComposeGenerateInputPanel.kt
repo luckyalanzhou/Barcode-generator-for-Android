@@ -81,7 +81,9 @@ internal fun ComposeGenerateInputPanel(
             .heightIn(min = 72.dp, max = 296.dp)
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            // Keep the complete input + reorder/delete action row aligned to the
+            // full-width action row below (Add row / Capture text).
+            .padding(vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         values.forEachIndexed { index, value ->
