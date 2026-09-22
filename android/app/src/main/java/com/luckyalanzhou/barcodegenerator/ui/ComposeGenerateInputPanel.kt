@@ -142,9 +142,9 @@ internal fun ComposeGenerateInputPanel(
                                             Text(
                                                 text = "输入一行条码内容",
                                                 style = LocalTextStyle.current.copy(
-                                                    color = secondary,
-                                                    fontSize = 16.sp,
-                                                    lineHeight = 22.sp,
+                                                    color = themeColors.text.placeholder,
+                                                    fontSize = 12.sp,
+                                                    lineHeight = 18.sp,
                                                     background = Color.Transparent,
                                                     platformStyle = PlatformTextStyle(includeFontPadding = false),
                                                     lineHeightStyle = LineHeightStyle(

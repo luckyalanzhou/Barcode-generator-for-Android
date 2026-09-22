@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 internal data class AppTextColors(
     val primary: Color,
     val secondary: Color,
+    val placeholder: Color,
     val disabled: Color,
     val destructive: Color,
     val link: Color,

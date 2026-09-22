@@ -7,6 +7,7 @@ internal val DarkAppColorScheme = AppColorScheme(
     text = AppTextColors(
         primary = AppColorTokens.white,
         secondary = AppColorTokens.Dark.secondaryText,
+        placeholder = AppColorTokens.Dark.placeholder,
         disabled = AppColorTokens.Dark.disabled,
         destructive = AppColorTokens.Dark.destructive,
         link = AppColorTokens.Dark.link,
