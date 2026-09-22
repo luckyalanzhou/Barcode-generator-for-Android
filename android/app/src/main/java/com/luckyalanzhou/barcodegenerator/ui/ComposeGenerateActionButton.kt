@@ -1,10 +1,12 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +19,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,13 +46,15 @@ internal fun ComposeGenerateActionButton(
     iconSize: Dp = 22.dp,
     contentSpacing: Dp = 6.dp,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     val shape = RoundedCornerShape(18.dp)
     val transparentTextStyle = LocalTextStyle.current.merge(
         TextStyle(color = contentColor, background = Color.Transparent),
     )
     Surface(
         onClick = onClick,
-        modifier = modifier.height(52.dp).globalButtonChrome(shape, 0.5.dp, borderColor).semantics { role = Role.Button },
+        interactionSource = interactionSource,
+        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape, 0.5.dp, borderColor).semantics { role = Role.Button },
         shape = shape,
         color = containerColor,
         contentColor = contentColor,

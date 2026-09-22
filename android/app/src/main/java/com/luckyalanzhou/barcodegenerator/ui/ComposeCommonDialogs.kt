@@ -3,11 +3,13 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -98,11 +101,13 @@ internal fun DialogAction(
     }
     val border = if (primary) foreground.copy(alpha = 0.62f) else colors.borders.border
     val background = if (primary) colors.controls.progress else colors.controls.button
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
+            .iosPressFeedback(interactionSource)
             .globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp, border)
             .background(background, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {

@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 
@@ -25,6 +26,7 @@ import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -142,7 +144,7 @@ internal fun ComposeLanSharePage(
                 LanShareHeader(dark, panel, primary, accent, toggleQr)
             }
             item(key = "connection", contentType = "connection") {
-                LanShareConnectionStatus(lanState.browserConnected, secondary)
+                LanShareConnectionStatus(lanState.browserConnected)
             }
             items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
                 ComposeLanShareBubble(viewModel, lanState, file, dark, primary, secondary, onSaveFile)
@@ -191,6 +193,7 @@ internal fun ComposeLanSharePage(
 }
 @Composable
 private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: Color, onQrClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 8.dp)
             .globalCardSurface(dark, panel, RoundedCornerShape(18.dp), 3.dp),
@@ -199,7 +202,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
         Spacer(Modifier.width(60.dp))
         Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // 二维码入口只保留在右侧图标的点击区域，标题卡片本身不承担点击行为。
-        IconButton(onClick = onQrClick, modifier = Modifier.width(58.dp).height(48.dp)) {
+        IconButton(onClick = onQrClick, interactionSource = interactionSource, modifier = Modifier.iosPressFeedback(interactionSource).width(58.dp).height(48.dp)) {
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
@@ -210,8 +213,9 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
     }
 }
 @Composable
-private fun LanShareConnectionStatus(connected: Boolean, secondary: Color) {
-    val statusColor = if (connected) LocalAppColorScheme.current.controls.success else secondary
+private fun LanShareConnectionStatus(connected: Boolean) {
+    val colors = LocalAppColorScheme.current
+    val statusColor = if (connected) colors.controls.success else colors.text.placeholder
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = if (connected) CircleFilledIcon else CircleIcon,
@@ -243,6 +247,8 @@ private fun BoxScope.LanShareComposer(
     onOpenFiles: () -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
+    val attachmentInteraction = remember { MutableInteractionSource() }
+    val sendInteraction = remember { MutableInteractionSource() }
     Surface(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
         color = panel,
@@ -251,7 +257,7 @@ private fun BoxScope.LanShareComposer(
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
-                IconButton(onClick = onOpenAttachmentMenu, modifier = Modifier.size(48.dp)) {
+                IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp)) {
                     Icon(AddIcon, "添加附件", tint = accent, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
@@ -271,13 +277,18 @@ private fun BoxScope.LanShareComposer(
                 value = message, onValueChange = onMessageChange, singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp),
                 cursorBrush = SolidColor(primary),
-                modifier = Modifier.weight(1f).height(44.dp).background(inputPanel, RoundedCornerShape(24.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.weight(1f).height(44.dp).background(inputPanel, RoundedCornerShape(24.dp)).padding(horizontal = 14.dp),
                 decorationBox = { field ->
-                    Box { if (message.isEmpty()) Text(pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = secondary, fontSize = 15.sp); field() }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                        if (message.isEmpty()) {
+                            Text(pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = themeColors.text.placeholder, fontSize = 15.sp)
+                        }
+                        field()
+                    }
                 },
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onSend, modifier = Modifier.width(64.dp).height(44.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
+            Button(onClick = onSend, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(44.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
                 Text("发送", color = themeColors.content.sentContent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
@@ -286,6 +297,7 @@ private fun BoxScope.LanShareComposer(
 @Composable
 private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareUiState, file: LanShareFile, dark: Boolean, primary: Color, secondary: Color, onSaveFile: (LanShareFile) -> Unit) {
     val themeColors = LocalAppColorScheme.current
+    val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
     val previewFile = (viewModel.localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
@@ -364,7 +376,8 @@ private fun ComposeLanShareBubble(viewModel: LanShareViewModel, state: LanShareU
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSaveFile(file) },
-                        modifier = Modifier.height(36.dp).globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp),
+                        interactionSource = downloadInteraction,
+                        modifier = Modifier.iosPressFeedback(downloadInteraction).height(36.dp).globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(

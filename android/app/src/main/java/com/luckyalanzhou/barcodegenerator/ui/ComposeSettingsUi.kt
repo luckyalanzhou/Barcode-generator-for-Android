@@ -254,7 +254,6 @@ internal fun ComposeSettingsPage(
                     }
                     SettingsDivider(dark)
                     if (BuildConfig.DEBUG_LOG_EXPORT) {
-                        SettingsDivider(dark)
                         SettingsActionRow("导出调试日志", "分享", colors.settingsText.primary, colors.controls.button, onShareDebugLog)
                     }
             }
