@@ -58,6 +58,7 @@ internal fun ComposeResultsPage(
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val actionColor = themeColors.text.link
+    val resultActionBlue = themeColors.controls.accent
     val items = resultState.items
     val isFavorite = items.isNotEmpty() && items.all { it.favorite }
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
@@ -81,7 +82,7 @@ internal fun ComposeResultsPage(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Spacer(Modifier.weight(1f))
-                ResultAction(EditIcon, "编辑", actionColor) {
+                ResultAction(EditIcon, "编辑", resultActionBlue) {
                     viewModel.editCurrentResult()
                 }
                 ResultAction(
@@ -90,7 +91,7 @@ internal fun ComposeResultsPage(
                     if (isFavorite) themeColors.content.favoriteActive else actionColor,
                     onSaveFavorite,
                 )
-                ResultAction(IosShareIcon, "分享", actionColor, onShare)
+                ResultAction(IosShareIcon, "分享", resultActionBlue, onShare)
             }
         }
         items(items, key = { it.id }) { item ->

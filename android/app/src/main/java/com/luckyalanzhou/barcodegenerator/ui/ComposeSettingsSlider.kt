@@ -34,7 +34,7 @@ internal fun SettingsSliderRow(
     accent: Color,
     onChange: (Float) -> Unit,
 ) {
-    val sliderAccent = accent.copy(alpha = 0.72f)
+    val sliderAccent = accent
     val valueColor = LocalAppColorScheme.current.text.primary
     Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
@@ -81,7 +81,7 @@ internal fun SettingsSliderRow(
             )
             Text(
                 valueParts.getOrNull(1).orEmpty(),
-                style = TextStyle(color = valueColor, fontSize = 13.sp, fontWeight = FontWeight.Normal),
+                style = TextStyle(color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.End,
                 modifier = Modifier.width(20.dp),
             )
