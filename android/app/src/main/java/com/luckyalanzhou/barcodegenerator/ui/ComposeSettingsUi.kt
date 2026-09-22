@@ -262,7 +262,7 @@ internal fun ComposeSettingsPage(
 
         item("settings-about") {
             SettingsCard(colors.surfaces.card, dark) {
-                Text("关于", color = colors.settingsText.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 5.dp))
+                Text("关于", color = colors.settingsText.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 1.dp))
                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("作者：Alan", color = colors.settingsText.secondary, fontSize = 13.sp)
