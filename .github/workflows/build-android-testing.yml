@@ -13,7 +13,7 @@ jobs:
   build:
     if: github.ref_name == 'beta'
     name: Assemble signed beta release APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
@@ -21,7 +21,6 @@ jobs:
         shell: bash
     env:
       GRADLE_OPTS: >-
-        -Dorg.gradle.jvmargs=-Xmx8g -XX:+UseParallelGC
         -Dfile.encoding=UTF-8
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
