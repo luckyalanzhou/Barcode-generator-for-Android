@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -47,7 +48,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -121,20 +124,41 @@ internal fun ComposeGenerateInputPanel(
                                 value = value,
                                 onValueChange = { onValueChange(index, it) },
                                 singleLine = true,
-                                textStyle = TextStyle(color = textColor, fontSize = 16.sp, background = Color.Transparent),
+                                textStyle = TextStyle(
+                                    color = textColor,
+                                    fontSize = 16.sp,
+                                    lineHeight = 22.sp,
+                                    background = Color.Transparent,
+                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                    lineHeightStyle = LineHeightStyle(
+                                        alignment = LineHeightStyle.Alignment.Center,
+                                        trim = LineHeightStyle.Trim.Both,
+                                    ),
+                                ),
                                 cursorBrush = SolidColor(textColor),
                                 modifier = Modifier.weight(1f).height(48.dp)
                                     .focusRequester(focusRequester)
                                     .onFocusChanged { if (it.isFocused) onFocus(index) }
-                                    .padding(horizontal = 6.dp, vertical = 13.dp),
+                                    .padding(horizontal = 6.dp),
                                 decorationBox = { field ->
-                                    Box {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                                        contentAlignment = Alignment.CenterStart,
+                                    ) {
                                         if (value.isEmpty()) {
                                             Text(
                                                 text = "输入一行条码内容",
-                                                color = secondary,
-                                                fontSize = 16.sp,
-                                                style = LocalTextStyle.current.copy(background = Color.Transparent),
+                                                style = LocalTextStyle.current.copy(
+                                                    color = secondary,
+                                                    fontSize = 16.sp,
+                                                    lineHeight = 22.sp,
+                                                    background = Color.Transparent,
+                                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                    lineHeightStyle = LineHeightStyle(
+                                                        alignment = LineHeightStyle.Alignment.Center,
+                                                        trim = LineHeightStyle.Trim.Both,
+                                                    ),
+                                                ),
                                             )
                                         }
                                         field()
