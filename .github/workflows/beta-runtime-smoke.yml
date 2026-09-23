@@ -43,11 +43,11 @@ jobs:
       - name: Run Beta runtime smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          # Use a lighter API 30 x86 image for the public runner. GitHub-hosted
+          # Use a lighter Android 10 x86 image for the public runner. GitHub-hosted
           # Linux runners do not expose KVM, so the emulator must run without
           # hardware acceleration; the smaller image is substantially more
           # reliable than the API 34 x86_64 image in software emulation.
-          api-level: 30
+          api-level: 29
           target: default
           arch: x86
           profile: pixel_2
