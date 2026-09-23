@@ -76,7 +76,10 @@ internal fun SettingsSliderRow(
         val valueParts = valueText.split(' ', limit = 2)
         Row(
             modifier = Modifier.width(74.dp).padding(end = 8.dp),
-            horizontalArrangement = Arrangement.End,
+            // Keep the numeric value anchored to the slider-side edge. This
+            // mirrors the fixed 6.dp inset on the title side; the unit stays
+            // right-aligned independently of the value width.
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -85,6 +88,7 @@ internal fun SettingsSliderRow(
                 textAlign = TextAlign.Start,
                 modifier = Modifier.width(38.dp),
             )
+            Spacer(Modifier.weight(1f))
             Text(
                 valueParts.getOrNull(1).orEmpty(),
                 style = TextStyle(color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.Bold),
