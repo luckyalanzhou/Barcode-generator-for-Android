@@ -161,7 +161,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         }
                         Box(Modifier.fillMaxWidth().weight(1f)) {
                             pageStateHolder.SaveableStateProvider(targetPage.pageName) {
-                                ComposeNavigationHost(dependencies, targetPage, dark)
+                                ComposePageRenderer(dependencies, targetPage, dark)
                             }
                         }
                     }

@@ -8,11 +8,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import com.google.zxing.BarcodeFormat
@@ -53,8 +50,6 @@ class BarcodeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
     private val navigationStateCoordinator = NavigationStateCoordinator(_uiState)
-    private val _navigationEvents = MutableSharedFlow<NavigationRequest>(extraBufferCapacity = 8)
-    val navigationEvents: SharedFlow<NavigationRequest> = _navigationEvents.asSharedFlow()
 
     /** 条码与收藏的内部工作集合；对外只发布不可变状态快照。 */
     private val favoritesStateStore = FavoritesStateStore()
@@ -143,11 +138,9 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
-        // ComposeAppShell now renders directly from AppUiState. Keep the state
-        // update here as the authoritative navigation mutation; the event is
-        // retained for legacy bridges that still observe navigation requests.
+        // ComposeAppShell renders directly from AppUiState, so navigation is a
+        // state mutation rather than a second event-driven navigation channel.
         navigationStateCoordinator.navigateTo(route, fromTabSwipe)
-        _navigationEvents.tryEmit(NavigationRequest(route, fromTabSwipe))
     }
 
     /** Transitional UI mirror; Compose Navigation owns the destination and back stack. */

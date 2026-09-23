@@ -17,9 +17,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.BarcodeEvent
 import kotlinx.coroutines.launch
 
-/** 页面路由渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
+/** 页面渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
 @Composable
-internal fun ComposeNavigationHost(dependencies: ComposeAppShellDependencies, displayPage: AppRoute, dark: Boolean) {
+internal fun ComposePageRenderer(dependencies: ComposeAppShellDependencies, displayPage: AppRoute, dark: Boolean) {
     ComposePageRoute(dependencies, displayPage, dark)
 }
 
