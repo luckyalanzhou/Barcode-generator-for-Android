@@ -122,7 +122,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     targetState = currentRoute,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     transitionSpec = {
-                        val initialTabIndex = initialState.mainTabIndex
+                        if (targetState == AppRoute.Results) {
+                            androidx.compose.animation.EnterTransition.None togetherWith
+                                androidx.compose.animation.ExitTransition.None
+                        } else {
+                            val initialTabIndex = initialState.mainTabIndex
                         val targetTabIndex = targetState.mainTabIndex
                         if (initialTabIndex != null && targetTabIndex != null) {
                             if (appUiState.tabChangeFromSwipe) {
@@ -144,6 +148,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                 else -> (fadeIn(tween(animation.pageEnterDurationMillis)) + slideInVertically(tween(animation.pageEnterDurationMillis)) { it / 2 }) togetherWith
                                     (fadeOut(tween(animation.pageExitDurationMillis)) + slideOutHorizontally(tween(animation.pageExitDurationMillis)) { it / 4 }) using SizeTransform(clip = false)
                             }
+                        }
                         }
                     },
                     label = "pageTransition",
