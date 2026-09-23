@@ -104,6 +104,7 @@ jobs:
         # restoring/storing that cache in CI. Keep configuration cache enabled for local builds.
         run: ./gradlew assembleBetaRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
+        id: beta-apk
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
         run: |
@@ -112,7 +113,10 @@ jobs:
           target_apk="app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${VERSION_NAME}.apk"
           test -f "$source_apk" || { echo "::error::Testing APK not found"; exit 1; }
           mv "$source_apk" "$target_apk"
+          sha256="$(sha256sum "$target_apk" | awk '{print $1}')"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           ls -lh "$target_apk"
+          echo "APK SHA-256: $sha256"
       - name: Upload beta APK artifact
         uses: actions/upload-artifact@v6
         with:
@@ -131,6 +135,7 @@ jobs:
             channel: beta
             versionName: ${{ steps.app-version.outputs.version }}
             versionCode: ${{ steps.app-version.outputs.version_code }}
+            sha256: ${{ steps.beta-apk.outputs.sha256 }}
           overwrite_files: true
           files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
@@ -140,6 +145,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
           VERSION_CODE: ${{ steps.app-version.outputs.version_code }}
+          SHA256: ${{ steps.beta-apk.outputs.sha256 }}
         run: |
           set -euo pipefail
           gh release edit android-test-v9.9.9 \
@@ -147,7 +153,8 @@ jobs:
             --title "Barcode Generator Beta v${VERSION_NAME}" \
             --notes "channel: beta
           versionName: ${VERSION_NAME}
-          versionCode: ${VERSION_CODE}"
+          versionCode: ${VERSION_CODE}
+          sha256: ${SHA256}"
       - name: Remove temporary keystore
         if: always()
         run: rm -f release.jks

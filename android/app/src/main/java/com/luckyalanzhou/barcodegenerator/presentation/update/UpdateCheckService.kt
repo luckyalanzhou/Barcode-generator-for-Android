@@ -57,8 +57,19 @@ class UpdateCheckService(private val logger: AppLogger) {
             val latest = parseAppVersion(releaseTag)
                 ?: return@withContext UpdateCheckResult.Failed("版本信息格式不正确")
             val expectedSize = apkAsset.optLong("size", 0L).takeIf { it > 0L }
-            val expectedSha256 = apkAsset.optString("digest").removePrefix("sha256:").trim().lowercase(Locale.US)
+            val releaseSha256 = release.optString("body")
+                .lineSequence()
+                .map(String::trim)
+                .firstOrNull { it.startsWith("sha256:", ignoreCase = true) }
+                ?.substringAfter(':')
+                ?.trim()
+                ?.lowercase(Locale.US)
+                ?.takeIf { it.matches(Regex("[0-9a-f]{64}")) }
+            val assetSha256 = apkAsset.optString("digest").removePrefix("sha256:").trim().lowercase(Locale.US)
                 .takeIf { it.matches(Regex("[0-9a-f]{64}")) }
+            // GitHub's asset digest can remain stale after an in-place asset replacement.
+            // Prefer the hash calculated from the exact APK by the Beta workflow.
+            val expectedSha256 = releaseSha256 ?: assetSha256
             val releaseVersionCode = release.optString("body")
                 .lineSequence()
                 .map(String::trim)
