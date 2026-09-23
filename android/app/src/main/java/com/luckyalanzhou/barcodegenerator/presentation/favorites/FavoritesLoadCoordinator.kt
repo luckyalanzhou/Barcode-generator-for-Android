@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
+
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor

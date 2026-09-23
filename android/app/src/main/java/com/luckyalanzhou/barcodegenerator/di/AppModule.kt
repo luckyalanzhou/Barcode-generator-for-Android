@@ -19,11 +19,11 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
-import com.luckyalanzhou.barcodegenerator.UpdateDownloadService
-import com.luckyalanzhou.barcodegenerator.UpdateCheckService
-import com.luckyalanzhou.barcodegenerator.OcrTextService
-import com.luckyalanzhou.barcodegenerator.BarcodeDecodeService
-import com.luckyalanzhou.barcodegenerator.ApkUpdateValidator
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDecodeService
+import com.luckyalanzhou.barcodegenerator.presentation.shared.OcrTextService
+import com.luckyalanzhou.barcodegenerator.presentation.update.ApkUpdateValidator
+import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateCheckService
+import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateDownloadService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

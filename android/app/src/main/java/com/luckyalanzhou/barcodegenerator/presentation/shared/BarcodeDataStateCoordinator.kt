@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
-import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
+
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.presentation.*

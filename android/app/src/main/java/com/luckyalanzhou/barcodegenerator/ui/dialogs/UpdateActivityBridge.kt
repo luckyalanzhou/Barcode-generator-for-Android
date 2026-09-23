@@ -5,7 +5,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
-import com.luckyalanzhou.barcodegenerator.UpdateCheckResult
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
 import com.luckyalanzhou.barcodegenerator.UpdateUiState
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute

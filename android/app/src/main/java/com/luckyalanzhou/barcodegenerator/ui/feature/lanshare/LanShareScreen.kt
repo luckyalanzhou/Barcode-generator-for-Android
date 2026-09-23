@@ -7,8 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.luckyalanzhou.barcodegenerator.LanShareEvent
-import com.luckyalanzhou.barcodegenerator.LanShareViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareEvent
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 
 /** Screen layer: owns the LAN Share ViewModel and translates effects into UI callbacks. */

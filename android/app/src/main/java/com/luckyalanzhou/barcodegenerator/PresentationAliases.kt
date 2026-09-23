@@ -1,0 +1,37 @@
+package com.luckyalanzhou.barcodegenerator
+
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel as PresentationBarcodeViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.AppUiState as PresentationAppUiState
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState as PresentationBarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeEvent as PresentationBarcodeEvent
+import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState as PresentationFavoriteTreeUiState
+import com.luckyalanzhou.barcodegenerator.presentation.GenerateEditorState as PresentationGenerateEditorState
+import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState as PresentationResultUiState
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult as PresentationUpdateCheckResult
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadUiState as PresentationUpdateDownloadUiState
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent as PresentationUpdateEvent
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateUiState as PresentationUpdateUiState
+import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel as PresentationGenerateViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel as PresentationLanShareViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel as PresentationSettingsViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState as PresentationSettingsUiState
+
+typealias BarcodeViewModel = PresentationBarcodeViewModel
+typealias GenerateViewModel = PresentationGenerateViewModel
+typealias LanShareViewModel = PresentationLanShareViewModel
+typealias SettingsViewModel = PresentationSettingsViewModel
+typealias SettingsUiState = PresentationSettingsUiState
+
+typealias AppUiState = PresentationAppUiState
+typealias BarcodeDataState = PresentationBarcodeDataState
+typealias GenerateEditorState = PresentationGenerateEditorState
+typealias ResultUiState = PresentationResultUiState
+typealias FavoriteTreeUiState = PresentationFavoriteTreeUiState
+typealias UpdateUiState = PresentationUpdateUiState
+typealias UpdateDownloadUiState = PresentationUpdateDownloadUiState
+typealias UpdateEvent = PresentationUpdateEvent
+typealias UpdateCheckResult = PresentationUpdateCheckResult
+typealias BarcodeEvent = PresentationBarcodeEvent
+
+typealias LanShareUiState = com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
+typealias LanShareEvent = com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareEvent

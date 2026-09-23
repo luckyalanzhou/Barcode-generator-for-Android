@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
-import com.luckyalanzhou.barcodegenerator.*
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred

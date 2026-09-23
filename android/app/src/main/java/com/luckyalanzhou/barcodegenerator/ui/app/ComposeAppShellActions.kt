@@ -5,7 +5,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
-import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.UpdateUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
