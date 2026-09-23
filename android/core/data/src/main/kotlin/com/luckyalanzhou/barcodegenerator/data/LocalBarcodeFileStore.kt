@@ -1,13 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.data
 
-import com.luckyalanzhou.barcodegenerator.domain.CodeItem
-
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import java.io.File
-import java.security.MessageDigest
 
 /** 应用私有文件数据源；Room 仍然是条码索引和查询的唯一数据源。 */
 class LocalBarcodeFileStore(context: Context) {
@@ -36,10 +33,4 @@ class LocalBarcodeFileStore(context: Context) {
         if (!temporary.renameTo(target)) { target.delete(); check(temporary.renameTo(target)) }
         imageMemoryCache.put(key, bitmap)
     }
-
-    fun imageKey(item: CodeItem, width: Int, height: Int, textSize: Float, showFormat: Boolean, dark: Boolean): String {
-        val raw = listOf("barcode-bg-v2", item.text, item.format, width, height, textSize, showFormat, dark).joinToString("|")
-        return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
-    }
-
 }

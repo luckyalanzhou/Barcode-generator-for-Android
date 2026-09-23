@@ -33,7 +33,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.*
-import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
@@ -48,13 +47,13 @@ import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
-    private val localBarcodeFileStore: LocalBarcodeFileStore,
+    private val barcodeImageCache: BarcodeImageCache,
     private val ocrTextGateway: OcrTextGateway,
     private val barcodeDecodeGateway: BarcodeDecodeGateway,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,
 ) : ViewModel() {
-    private val barcodeImageRenderer = BarcodeImageRenderer(localBarcodeFileStore)
+    private val barcodeImageRenderer = BarcodeImageRenderer(barcodeImageCache)
     private val barcodePersistence = barcodeDataCoordinator.persistence
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()

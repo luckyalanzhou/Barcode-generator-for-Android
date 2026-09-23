@@ -13,9 +13,9 @@ import androidx.core.graphics.get
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
-import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import java.security.MessageDigest
 import kotlin.math.roundToInt
 
 /**
@@ -24,7 +24,7 @@ import kotlin.math.roundToInt
  * ViewModel 只负责调度，不再持有 ZXing、Bitmap 和缓存细节。
  */
 class BarcodeImageRenderer(
-    private val fileStore: LocalBarcodeFileStore,
+    private val imageCache: BarcodeImageCache,
 ) {
     fun loadOrCreate(
         item: CodeItem,
@@ -35,15 +35,30 @@ class BarcodeImageRenderer(
         val width = style.barWidth.toInt().coerceIn(120, 300)
         val height = style.barHeight.coerceIn(30, 80).coerceAtLeast(1)
         val textSize = style.textSize.coerceIn(10f, 24f)
-        val key = fileStore.imageKey(item, width, height, textSize, style.showFormat, dark)
-        fileStore.readImage(key)?.let { return it }
+        val key = imageKey(item, width, height, textSize, style.showFormat, dark)
+        imageCache.readImage(key)?.let { return it }
         val format = barcodeFormats.firstOrNull { it.first == item.format }?.second ?: BarcodeFormat.CODE_128
         val encoded = encode(item.text, format, style, dark, density) ?: return null
         val image = if (item.format == "Code 128-B") {
             addQuietZone(trim(encoded), BarcodeImageColors.background(dark))
         } else encoded
-        fileStore.writeImage(key, image)
+        imageCache.writeImage(key, image)
         return image
+    }
+
+    private fun imageKey(
+        item: CodeItem,
+        width: Int,
+        height: Int,
+        textSize: Float,
+        showFormat: Boolean,
+        dark: Boolean,
+    ): String {
+        val raw = listOf("barcode-bg-v2", item.text, item.format, width, height, textSize, showFormat, dark)
+            .joinToString("|")
+        return MessageDigest.getInstance("SHA-256")
+            .digest(raw.toByteArray())
+            .joinToString("") { "%02x".format(it) }
     }
 
     fun create(
