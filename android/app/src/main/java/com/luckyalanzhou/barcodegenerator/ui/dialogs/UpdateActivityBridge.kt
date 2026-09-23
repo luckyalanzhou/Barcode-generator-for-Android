@@ -6,7 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
-import com.luckyalanzhou.barcodegenerator.presentation.UpdateUiState
+import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.closeLanShare
@@ -27,10 +27,10 @@ import java.io.File
 internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
     DebugLog.record("update", "check started silent=${silent} current=${BuildConfig.VERSION_NAME}")
     lifecycleScope.launch {
-        when (val result = viewModel.checkForUpdates()) {
+        when (val result = updateViewModel.checkForUpdates()) {
             is UpdateCheckResult.Available -> {
                 DebugLog.record("update", "latest=${result.version} available=true")
-                if (!viewModel.updateUiState.value.dialogShowing) viewModel.setUpdateDialogShowing(true)
+                if (!updateViewModel.uiState.value.dialogShowing) updateViewModel.setDialogShowing(true)
             }
             UpdateCheckResult.UpToDate -> if (!silent) showIos26NoticeDialog("当前已是最新版本")
             is UpdateCheckResult.Failed -> if (!silent) toast(result.reason)

@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent
+import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 import androidx.core.net.toUri
@@ -32,10 +33,10 @@ internal fun MainActivity.installApkCompose(file: File) {
             return
         }
         if (!packageManager.canRequestPackageInstalls()) {
-            viewModel.setPendingInstallPath(file.absolutePath)
+            updateViewModel.setPendingInstallPath(file.absolutePath)
             showComposeDialog(
                 compact = true,
-                onCancel = { viewModel.setPendingInstallPath(null) },
+                onCancel = { updateViewModel.setPendingInstallPath(null) },
             ) { dismiss ->
                 val dark = isDark()
                 ComposeGlassDialogCard(dark) {
@@ -55,7 +56,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                         horizontalArrangement = Arrangement.End,
                     ) {
                         DialogAction("取消", dark, {
-                            viewModel.setPendingInstallPath(null)
+                            updateViewModel.setPendingInstallPath(null)
                             dismiss()
                         })
                         DialogAction(
@@ -100,17 +101,17 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
 ) {
     showComposeDialog(
         compact = true,
-        onCancel = { viewModel.setUpdateDialogShowing(false) },
+        onCancel = { updateViewModel.setDialogShowing(false) },
     ) { dismiss ->
         UpdateAvailableDialogContent(
             latest = latest,
             dark = isDark(),
             onLater = {
-                viewModel.setUpdateDialogShowing(false)
+                updateViewModel.setDialogShowing(false)
                 dismiss()
             },
             onUpdate = {
-                viewModel.setUpdateDialogShowing(false)
+                updateViewModel.setDialogShowing(false)
                 dismiss()
                 window.decorView.post {
                     DebugLog.record("update", "immediate update clicked; starting download")
@@ -164,19 +165,19 @@ private fun ComposeUpdateAction(
 }
 
 internal fun MainActivity.cancelUpdateDownload() {
-    viewModel.cancelUpdateDownload()
+    updateViewModel.cancelDownload()
 }
 
 internal fun MainActivity.downloadAndInstallCompose(
     apkUrl: String,
-    expectedSize: Long? = viewModel.updateUiState.value.expectedSize,
-    expectedSha256: String? = viewModel.updateUiState.value.sha256,
+    expectedSize: Long? = updateViewModel.uiState.value.expectedSize,
+    expectedSha256: String? = updateViewModel.uiState.value.sha256,
 ) {
-    if (viewModel.updateUiState.value.downloadRunning) {
+    if (updateViewModel.uiState.value.downloadRunning) {
         DebugLog.record("update", "download ignored because another download is running")
         return
     }
-    viewModel.resetUpdateDownloadState()
+    updateViewModel.resetDownloadState()
     var dismissDialog: (() -> Unit)? = null
     lateinit var cancelDownload: () -> Unit
     cancelDownload = {
@@ -187,16 +188,16 @@ internal fun MainActivity.downloadAndInstallCompose(
         compact = false,
         onCancel = cancelDownload,
     ) { dismiss ->
-        val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
+        val downloadState by updateViewModel.downloadUiState.collectAsStateWithLifecycle()
         dismissDialog = dismiss
         LaunchedEffect(Unit) {
-            viewModel.updateEvents.collect { event ->
+            updateViewModel.events.collect { event ->
                 when (event) {
                     is UpdateEvent.DownloadReady -> {
                         dismiss()
                         try {
                             val file = File(event.filePath)
-                            viewModel.validateDownloadedApk(file)
+                            updateViewModel.validateDownloadedApk(file)
                             installApkCompose(file)
                         } catch (error: Exception) {
                             showDownloadFailedCompose(
@@ -222,7 +223,7 @@ internal fun MainActivity.downloadAndInstallCompose(
         ComposeDownloadProgressDialog(downloadState, isDark(), cancelDownload)
     }
     DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
-    viewModel.startUpdateDownload(apkUrl, expectedSize, expectedSha256)
+    updateViewModel.startDownload(apkUrl, expectedSize, expectedSha256)
 }
 
 internal fun MainActivity.showDownloadFailedCompose(

@@ -13,6 +13,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.applyAppearance
@@ -106,6 +107,7 @@ class MainActivity : AppCompatActivity() {
     internal val generateViewModel: GenerateViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
+    internal val updateViewModel: UpdateViewModel by viewModels()
 
     private val externalActivityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -156,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                         ?: AppRoute.Generate.pageName,
                 ),
             )
-            viewModel.setStartupUpdateCheckStarted(state.getBoolean("startup_update_check_started", false))
+            updateViewModel.setStartupCheckStarted(state.getBoolean("startup_update_check_started", false))
         }
         buildComposeShell()
 
@@ -197,8 +199,8 @@ class MainActivity : AppCompatActivity() {
                     }
             }
             window.decorView.post {
-                if (!viewModel.updateUiState.value.startupCheckStarted) {
-                    viewModel.setStartupUpdateCheckStarted(true)
+                if (!updateViewModel.uiState.value.startupCheckStarted) {
+                    updateViewModel.setStartupCheckStarted(true)
                     checkForUpdates(silent = true)
                 }
             }
@@ -213,16 +215,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val pendingPath = viewModel.updateUiState.value.pendingInstallPath ?: return
+        val pendingPath = updateViewModel.uiState.value.pendingInstallPath ?: return
         if (packageManager.canRequestPackageInstalls()) {
-            viewModel.takePendingInstallPath()?.let { installApkCompose(File(it)) }
+            updateViewModel.takePendingInstallPath()?.let { installApkCompose(File(it)) }
         }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("page", viewModel.uiState.value.page.pageName)
         outState.putString("settings_return_page", viewModel.uiState.value.settingsReturnPage.pageName)
-        outState.putBoolean("startup_update_check_started", viewModel.updateUiState.value.startupCheckStarted)
+        outState.putBoolean("startup_update_check_started", updateViewModel.uiState.value.startupCheckStarted)
         super.onSaveInstanceState(outState)
     }
 

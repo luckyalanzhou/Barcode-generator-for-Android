@@ -32,13 +32,10 @@ import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorSt
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsCoordinator
-import com.luckyalanzhou.barcodegenerator.presentation.update.*
 import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
-import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
-import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
@@ -46,18 +43,14 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
-import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
     private val localBarcodeFileStore: LocalBarcodeFileStore,
-    private val updateDownloadGateway: ApkDownloadGateway,
-    private val updateCatalogGateway: UpdateCatalogGateway,
     private val ocrTextGateway: OcrTextGateway,
     private val barcodeDecodeGateway: BarcodeDecodeGateway,
-    private val apkValidationGateway: ApkValidationGateway,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,
 ) : ViewModel() {
@@ -105,11 +98,6 @@ class BarcodeViewModel @Inject constructor(
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcrFacade.cameraState
     private var favoriteSearchJob: Job? = null
     private var currentFavoriteSearchQuery = ""
-
-    private val updateFacade = UpdateFacade(updateDownloadGateway, updateCatalogGateway, apkValidationGateway, appLogger)
-    val updateUiState: StateFlow<UpdateUiState> = updateFacade.uiState
-    val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = updateFacade.downloadUiState
-    val updateEvents: SharedFlow<UpdateEvent> = updateFacade.events
 
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
@@ -396,25 +384,6 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun decodeBarcode(bitmap: Bitmap): String? = cameraOcrFacade.decodeBarcode(bitmap)
-    fun setStartupUpdateCheckStarted(value: Boolean) = updateFacade.setStartupCheckStarted(value)
-    suspend fun checkForUpdates(): UpdateCheckResult = updateFacade.checkForUpdates()
-    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) =
-        updateFacade.setAvailableUpdate(version, url, expectedSize, sha256)
-    fun clearAvailableUpdate() = updateFacade.clearAvailableUpdate()
-    fun setUpdateDialogShowing(value: Boolean) = updateFacade.setDialogShowing(value)
-    fun setUpdateDownloadRunning(value: Boolean) = updateFacade.setDownloadRunning(value)
-    fun resetUpdateDownloadState() = updateFacade.resetDownloadState()
-    fun setUpdateDownloadProgress(progress: Int, indeterminate: Boolean, status: String) =
-        updateFacade.setDownloadProgress(progress, indeterminate, status)
-    suspend fun downloadUpdate(apkUrl: String, expectedSize: Long?, expectedSha256: String?): File =
-        updateFacade.downloadUpdate(apkUrl, expectedSize, expectedSha256)
-    fun validateDownloadedApk(file: File) = updateFacade.validateDownloadedApk(file)
-    fun startUpdateDownload(apkUrl: String, expectedSize: Long?, expectedSha256: String?) =
-        updateFacade.startDownload(viewModelScope, apkUrl, expectedSize, expectedSha256)
-    fun cancelUpdateDownload() = updateFacade.cancelDownload()
-    fun setPendingInstallPath(path: String?) = updateFacade.setPendingInstallPath(path)
-
-    fun takePendingInstallPath(): String? = updateFacade.takePendingInstallPath()
     fun syncFavoriteTree(folders: Set<String>) {
         favoritesPageStateCoordinator.syncTree(folders)
     }

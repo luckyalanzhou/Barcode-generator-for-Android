@@ -10,7 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** 更新功能的组合边界；UI 只通过 BarcodeViewModel 访问它。 */
+/** 更新功能的组合边界；UI 通过 UpdateViewModel 访问它。 */
 internal class UpdateFacade(
     updateDownloadGateway: ApkDownloadGateway,
     updateCatalogGateway: UpdateCatalogGateway,

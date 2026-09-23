@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -49,6 +50,7 @@ internal data class ComposeAppShellDependencies(
     val generateViewModel: GenerateViewModel,
     val settingsViewModel: SettingsViewModel,
     val lanShareViewModel: LanShareViewModel,
+    val updateViewModel: UpdateViewModel,
     val actions: ComposeAppShellActions,
 )
 
@@ -64,6 +66,7 @@ internal fun MainActivity.buildComposeShell() {
                         generateViewModel = activity.generateViewModel,
                         settingsViewModel = activity.settingsViewModel,
                         lanShareViewModel = activity.lanShareViewModel,
+                        updateViewModel = activity.updateViewModel,
                         actions = activity.composeAppShellActions(),
                     ),
                 )
@@ -78,7 +81,7 @@ internal fun MainActivity.buildComposeShell() {
 internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val appUiState by dependencies.viewModel.uiState.collectAsStateWithLifecycle()
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
-    val updateUiState by dependencies.viewModel.updateUiState.collectAsStateWithLifecycle()
+    val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
