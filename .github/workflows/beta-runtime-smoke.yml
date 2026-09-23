@@ -40,8 +40,30 @@ jobs:
         working-directory: android
         run: chmod +x gradlew
 
+      - name: Decode Beta test keystore
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Missing RELEASE_KEYSTORE_BASE64 secret"; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo "::error::Missing RELEASE_KEYSTORE_PASSWORD secret"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::Missing RELEASE_KEY_ALIAS secret"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::Missing RELEASE_KEY_PASSWORD secret"; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.jks
+          test -s release.jks
+          chmod 600 release.jks
+
       - name: Run Beta runtime smoke test
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         with:
           # Use a lighter Android 10 x86 image for the public runner. GitHub-hosted
           # Linux runners do not expose KVM, so the emulator must run without
@@ -60,3 +82,8 @@ jobs:
           emulator-boot-timeout: 300
           working-directory: android
           script: ./gradlew connectedBetaReleaseAndroidTest --no-configuration-cache --no-daemon
+
+      - name: Remove temporary keystore
+        if: always()
+        working-directory: android
+        run: rm -f release.jks
