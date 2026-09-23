@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator
 import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
 import com.luckyalanzhou.barcodegenerator.data.SettingsStore
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
