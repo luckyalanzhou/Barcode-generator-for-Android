@@ -30,8 +30,8 @@ class BarcodeImageRenderer(
         dark: Boolean,
         density: Float,
     ): Bitmap? {
-        val width = style.barWidth.toInt().coerceIn(120, 360)
-        val height = style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
+        val width = style.barWidth.toInt().coerceIn(120, 300)
+        val height = style.barHeight.coerceIn(30, 80).coerceAtLeast(1)
         val textSize = style.textSize.coerceIn(10f, 24f)
         val key = fileStore.imageKey(item, width, height, textSize, style.showFormat, dark)
         fileStore.readImage(key)?.let { return it }
@@ -67,8 +67,8 @@ class BarcodeImageRenderer(
         withBackground: Boolean = true,
     ): Bitmap? = runCatching {
         val code128 = format == BarcodeFormat.CODE_128
-        val width = if (code128) (style.barWidth.roundToInt().coerceIn(120, 360) * density).roundToInt().coerceAtLeast(1) else 500
-        val barcodeHeight = if (code128) (style.barHeight.coerceIn(30, 150) * density).roundToInt().coerceAtLeast(1)
+        val width = if (code128) (style.barWidth.roundToInt().coerceIn(120, 300) * density).roundToInt().coerceAtLeast(1) else 500
+        val barcodeHeight = if (code128) (style.barHeight.coerceIn(30, 80) * density).roundToInt().coerceAtLeast(1)
         else if (format == BarcodeFormat.QR_CODE) 500 else 200
         val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, mapOf(EncodeHintType.MARGIN to 0))
         val paint = Paint().apply { color = BarcodeImageColors.foreground(dark) }

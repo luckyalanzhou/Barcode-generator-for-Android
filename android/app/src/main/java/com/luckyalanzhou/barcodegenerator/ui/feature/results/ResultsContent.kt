@@ -126,8 +126,8 @@ internal fun ComposeResultBarcode(
     val isCode128 = item.format == "Code 128-B"
     val style = settings.style
     val density = LocalDensity.current.density
-    val barHeight = style.barHeight.coerceIn(30, 150).coerceAtLeast(1)
-    val barWidth = style.barWidth.roundToInt().coerceIn(120, 360)
+    val barHeight = style.barHeight.coerceIn(30, 80).coerceAtLeast(1)
+    val barWidth = style.barWidth.roundToInt().coerceIn(120, 300)
     val textSize = style.textSize.coerceIn(10f, 24f)
     val showFormat = style.showFormat
     // 先读取已生成的图片；未命中时才在后台生成并写回，页面导航不等待。

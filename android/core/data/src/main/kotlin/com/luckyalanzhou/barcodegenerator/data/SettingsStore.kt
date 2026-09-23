@@ -58,9 +58,9 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         showText = get(SHOW_TEXT, true),
         textPosition = get(TEXT_POSITION, "bottom"),
         textSize = get(TEXT_SIZE, 14f).coerceIn(10f, 24f),
-        barHeight = get(BAR_HEIGHT, 55).coerceIn(30, 150),
-        barWidth = get(BAR_WIDTH, 220f).coerceIn(120f, 360f),
-        margin = get(MARGIN, 4).coerceIn(0, 40),
+        barHeight = get(BAR_HEIGHT, 55).coerceIn(30, 80),
+        barWidth = get(BAR_WIDTH, 220f).coerceIn(120f, 300f),
+        margin = get(MARGIN, 4).coerceIn(0, 10),
         showFormat = get(SHOW_FORMAT, false),
         colorScheme = get(COLOR_SCHEME, "system"),
     )

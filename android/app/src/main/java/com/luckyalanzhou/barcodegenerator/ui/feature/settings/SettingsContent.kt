@@ -133,15 +133,15 @@ internal fun SettingsContent(
                         persist(settings.copy(textSize = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码高度", settings.barHeight, 30f..150f, "${settings.barHeight.toInt()} dp", colors.settingsText.primary) {
+                    SettingsSliderRow("条码高度", settings.barHeight, 30f..80f, "${settings.barHeight.toInt()} dp", colors.settingsText.primary) {
                         persist(settings.copy(barHeight = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..360f, "${settings.barWidth.toInt()} dp", colors.settingsText.primary) {
+                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..300f, "${settings.barWidth.toInt()} dp", colors.settingsText.primary) {
                         persist(settings.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码间距", settings.margin, 0f..40f, "${settings.margin.toInt()} dp", colors.settingsText.primary) {
+                    SettingsSliderRow("条码间距", settings.margin, 0f..10f, "${settings.margin.toInt()} dp", colors.settingsText.primary) {
                         persist(settings.copy(margin = it))
                     }
                     SettingsDivider(dark)
