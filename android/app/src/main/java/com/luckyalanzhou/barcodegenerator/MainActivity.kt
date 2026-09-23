@@ -139,6 +139,23 @@ class MainActivity : AppCompatActivity() {
         DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // 先挂载 Compose 首屏，再读取设置和迁移旧设置。设置存储或迁移发生等待时，
+        // Activity 仍然必须能绘制默认页面，不能停留在窗口背景的黑屏状态。
+        if (state != null && viewModel.uiState.value.page == AppRoute.Generate) {
+            viewModel.syncNavigationStateFromUi(
+                AppRoute.fromPage(state.getString("page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName),
+            )
+            viewModel.updateSettingsReturnPage(
+                AppRoute.fromPage(
+                    state.getString("settings_return_page", AppRoute.Generate.pageName)
+                        ?: AppRoute.Generate.pageName,
+                ),
+            )
+            viewModel.setStartupUpdateCheckStarted(state.getBoolean("startup_update_check_started", false))
+        }
+        buildComposeShell()
+
         lifecycleScope.launch {
             var settingsError: Throwable? = null
             try {
@@ -152,26 +169,12 @@ class MainActivity : AppCompatActivity() {
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                if (state != null && viewModel.uiState.value.page == AppRoute.Generate) {
-                    viewModel.syncNavigationStateFromUi(AppRoute.fromPage(state.getString("page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
-                    viewModel.updateSettingsReturnPage(AppRoute.fromPage(state.getString("settings_return_page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName))
-                    viewModel.setStartupUpdateCheckStarted(state.getBoolean("startup_update_check_started", false))
-                }
-                buildComposeShell()
                 if (viewModel.uiState.value.page == AppRoute.LanShare && lanShareViewModel.uiState.value.session != null) {
                     lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
             } catch (error: Exception) {
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
                 DebugLog.record("startup", "UI initialization failed", error)
-            }
-            if (!composeShellReady) {
-                setContentView(androidx.compose.ui.platform.ComposeView(this@MainActivity).apply {
-                    setContent {
-                        androidx.compose.material3.Text("应用初始化失败，请重新打开应用")
-                    }
-                })
-                return@launch
             }
             settingsError?.let {
                 window.decorView.post { showIos26NoticeDialog("数据加载失败，已使用默认页面启动") }
