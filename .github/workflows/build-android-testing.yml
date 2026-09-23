@@ -99,10 +99,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        # Beta versionCode changes on every run, which changes Android DSL configuration inputs.
-        # The prior cached configuration was restored but Gradle could not reuse it; avoid
-        # restoring/storing that cache in CI. Keep configuration cache enabled for local builds.
-        run: ./gradlew assembleBetaRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        # Beta versionCode changes on every run, so Gradle may invalidate the cached
+        # configuration for that run. Configuration Cache remains enabled for CI and local builds.
+        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
         id: beta-apk
         env:
