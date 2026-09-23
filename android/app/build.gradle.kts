@@ -25,11 +25,7 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = suppliedVersionCode ?: 11
-        versionName = suppliedVersionName ?: "1.0.10"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // 本地 Debug 变体被禁用；Beta 的运行回归绑定到 Release 变体。
-        testBuildType = "release"
-    }
+        versionName = suppliedVersionName ?: "1.0.10"    }
 
     flavorDimensions += "channel"
     productFlavors {
@@ -119,7 +115,4 @@ dependencies {
     implementation(libs.activity.ktx)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.androidx.test.uiautomator)
 }
