@@ -70,12 +70,28 @@ jobs:
           [[ "$base_version" == "9.9.9" ]] || { echo "::error::Beta versionName must remain 9.9.9"; exit 1; }
           [[ "$base_code" =~ ^[0-9]+$ ]] || { echo "::error::versionCode format is invalid"; exit 1; }
 
-          # Beta 固定使用 9.9.9；versionCode 使用 workflow run number 递增。
-          # 运行编号允许因失败构建产生空洞，但始终保证后续成功 APK 可升级覆盖旧版本。
+          # Beta 固定使用 9.9.9；versionCode 以当前 Beta Release 中记录的值为准递增。
+          # Release 不存在或没有有效 versionCode 时，使用 beta-version.properties 作为初始值。
           version_name="$base_version"
-          version_code=$((base_code + GITHUB_RUN_NUMBER - 1))
+          release_body=""
+          release_found=false
+          if release_body="$(gh release view android-test-v9.9.9 --repo "$GITHUB_REPOSITORY" --json body --jq '.body' 2>/dev/null)"; then
+            release_found=true
+            release_code="$(printf '%s\n' "$release_body" | sed -nE 's/^versionCode: ([0-9]+)$/\1/p' | head -n 1)"
+          else
+            release_code=""
+          fi
 
-          echo "base=$base_version; version=$version_name; versionCode=$version_code; run=$GITHUB_RUN_NUMBER"
+          if [[ "$release_found" == true ]]; then
+            [[ "$release_code" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Beta Release versionCode is missing or invalid"; exit 1; }
+            version_code=$((release_code + 1))
+            version_source="beta Release"
+          else
+            version_code="$base_code"
+            version_source="beta-version.properties fallback"
+          fi
+
+          echo "base=$base_version; version=$version_name; versionCode=$version_code; source=$version_source"
           echo "version=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
