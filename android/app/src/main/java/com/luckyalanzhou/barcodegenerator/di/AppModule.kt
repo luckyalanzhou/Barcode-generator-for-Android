@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.data.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.data.SettingsStore
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkValidationGateway
+import com.luckyalanzhou.barcodegenerator.data.platform.AndroidUpdateCatalogGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.MlKitOcrTextGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.ZxingBarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
@@ -26,8 +27,8 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
+import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
-import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateCheckService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -83,7 +84,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    internal fun provideUpdateCheckService(logger: AppLogger): UpdateCheckService = UpdateCheckService(logger)
+    internal fun provideUpdateCatalogGateway(logger: AppLogger): UpdateCatalogGateway = AndroidUpdateCatalogGateway(
+        logger = logger,
+        updateTagPrefix = com.luckyalanzhou.barcodegenerator.BuildConfig.UPDATE_TAG_PREFIX,
+        apkFilePrefix = com.luckyalanzhou.barcodegenerator.BuildConfig.APK_FILE_PREFIX,
+        currentVersionName = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_NAME,
+        currentVersionCode = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_CODE.toLong(),
+    )
 
     @Provides
     @Singleton

@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.update
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
+import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -12,13 +13,13 @@ import kotlinx.coroutines.flow.StateFlow
 /** 更新功能的组合边界；UI 只通过 BarcodeViewModel 访问它。 */
 internal class UpdateFacade(
     updateDownloadGateway: ApkDownloadGateway,
-    updateCheckService: UpdateCheckService,
+    updateCatalogGateway: UpdateCatalogGateway,
     apkValidationGateway: ApkValidationGateway,
     logger: AppLogger,
 ) {
     private val coordinator = UpdateCoordinator(
         updateDownloadGateway,
-        updateCheckService,
+        updateCatalogGateway,
         apkValidationGateway,
         logger,
     )

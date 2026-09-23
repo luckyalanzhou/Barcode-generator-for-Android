@@ -25,3 +25,19 @@ interface ApkDownloadGateway {
 interface ApkValidationGateway {
     fun validate(file: File)
 }
+
+sealed interface UpdateLookupResult {
+    data class Available(
+        val version: String,
+        val downloadUrl: String,
+        val expectedSize: Long?,
+        val expectedSha256: String?,
+    ) : UpdateLookupResult
+
+    data object UpToDate : UpdateLookupResult
+    data class Failed(val reason: String) : UpdateLookupResult
+}
+
+interface UpdateCatalogGateway {
+    suspend fun check(): UpdateLookupResult
+}

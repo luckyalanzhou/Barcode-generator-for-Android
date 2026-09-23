@@ -4,6 +4,8 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
+import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
+import com.luckyalanzhou.barcodegenerator.domain.UpdateLookupResult
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -21,7 +23,7 @@ import kotlinx.coroutines.launch
 /** 更新领域的协调器，负责检查、下载、校验以及一次性更新事件。 */
 class UpdateCoordinator(
     private val updateDownloadGateway: ApkDownloadGateway,
-    private val updateCheckService: UpdateCheckService,
+    private val updateCatalogGateway: UpdateCatalogGateway,
     private val apkValidationGateway: ApkValidationGateway,
     private val logger: AppLogger,
 ) {
@@ -41,11 +43,20 @@ class UpdateCoordinator(
         _uiState.update { it.copy(startupCheckStarted = value) }
     }
 
-    suspend fun checkForUpdates(): UpdateCheckResult = updateCheckService.check().also { result ->
-        if (result is UpdateCheckResult.Available) {
-            setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
-        } else {
-            clearAvailableUpdate()
+    suspend fun checkForUpdates(): UpdateCheckResult {
+        return when (val result = updateCatalogGateway.check()) {
+            is UpdateLookupResult.Available -> {
+                setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
+                UpdateCheckResult.Available(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
+            }
+            UpdateLookupResult.UpToDate -> {
+                clearAvailableUpdate()
+                UpdateCheckResult.UpToDate
+            }
+            is UpdateLookupResult.Failed -> {
+                clearAvailableUpdate()
+                UpdateCheckResult.Failed(result.reason)
+            }
         }
     }
 
