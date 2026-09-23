@@ -1,7 +1,5 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.domain
 
-import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
-import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

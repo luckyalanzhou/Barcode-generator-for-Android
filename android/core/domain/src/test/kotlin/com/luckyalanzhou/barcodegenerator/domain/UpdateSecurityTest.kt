@@ -1,6 +1,5 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.domain
 
-import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
