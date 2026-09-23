@@ -59,7 +59,6 @@ internal fun ResultsContent(
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
-    val actionColor = themeColors.text.link
     val resultActionBlue = themeColors.controls.accent
     val items = resultState.items
     val isFavorite = items.isNotEmpty() && items.all { it.favorite }
@@ -90,7 +89,7 @@ internal fun ResultsContent(
                 ResultAction(
                     favoriteActionIcon,
                     "收藏",
-                    if (isFavorite) themeColors.content.favoriteActive else actionColor,
+                    if (isFavorite) themeColors.content.favoriteActive else resultActionBlue,
                     onSaveFavorite,
                 )
                 ResultAction(IosShareIcon, "分享", resultActionBlue, onShare)
