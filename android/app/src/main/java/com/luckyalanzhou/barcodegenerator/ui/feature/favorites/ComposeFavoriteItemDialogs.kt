@@ -67,7 +67,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
     }
 }
 
-internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, dataState: com.luckyalanzhou.barcodegenerator.BarcodeDataState, onMove: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
+internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, dataState: com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState, onMove: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val folders = dataState.folders.filter { it.isNotBlank() }

@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
-import com.luckyalanzhou.barcodegenerator.LanShareUiState
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback

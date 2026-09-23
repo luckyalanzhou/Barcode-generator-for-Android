@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.SettingsUiState
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 
 import androidx.compose.animation.animateColorAsState

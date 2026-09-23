@@ -5,7 +5,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 
-import com.luckyalanzhou.barcodegenerator.GenerateEditorState
+import com.luckyalanzhou.barcodegenerator.presentation.GenerateEditorState
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon

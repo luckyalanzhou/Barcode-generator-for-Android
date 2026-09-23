@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.history
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.luckyalanzhou.barcodegenerator.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 /** History route/state adapter. All view rendering remains in [HistoryComposePage]. */

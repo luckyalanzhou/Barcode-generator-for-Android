@@ -6,7 +6,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewMode
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.UpdateUiState
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile

@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import org.junit.Assert.assertEquals

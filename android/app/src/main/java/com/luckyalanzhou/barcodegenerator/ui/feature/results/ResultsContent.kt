@@ -4,8 +4,8 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.SettingsUiState
-import com.luckyalanzhou.barcodegenerator.ResultUiState
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
+import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon

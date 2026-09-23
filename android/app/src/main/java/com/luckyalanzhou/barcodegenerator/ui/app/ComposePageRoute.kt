@@ -17,7 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.luckyalanzhou.barcodegenerator.BarcodeEvent
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeEvent
 import kotlinx.coroutines.launch
 
 /** 页面渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */

@@ -23,7 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.luckyalanzhou.barcodegenerator.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
 internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Unit) {

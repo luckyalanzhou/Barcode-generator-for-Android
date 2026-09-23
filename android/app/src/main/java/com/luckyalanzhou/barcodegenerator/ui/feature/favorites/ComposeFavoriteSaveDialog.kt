@@ -9,8 +9,8 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.BarcodeDataState
-import com.luckyalanzhou.barcodegenerator.ResultUiState
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon

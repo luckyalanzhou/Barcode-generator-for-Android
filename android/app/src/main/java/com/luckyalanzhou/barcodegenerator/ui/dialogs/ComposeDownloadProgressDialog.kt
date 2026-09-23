@@ -4,7 +4,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.app.rememberComposeAnimationConfig
 
-import com.luckyalanzhou.barcodegenerator.UpdateDownloadUiState
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadUiState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState

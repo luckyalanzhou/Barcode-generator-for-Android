@@ -26,7 +26,7 @@ import kotlinx.coroutines.coroutineScope
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import kotlinx.coroutines.Job
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute as AppRoute
-import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationStateCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppRouteStateFacade
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
@@ -60,44 +60,27 @@ class BarcodeViewModel @Inject constructor(
     private val barcodePersistence = barcodeDataCoordinator.persistence
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
-    private val navigationStateCoordinator = NavigationStateCoordinator(_uiState)
-
-    /** 条码与收藏的内部工作集合；对外只发布不可变状态快照。 */
-    private val favoritesStateStore = FavoritesStateStore()
-    /** 搜索结果与普通分页列表隔离，避免多次搜索持续膨胀普通收藏状态。 */
-    private val favoriteSearchStateStore = FavoritesStateStore()
-    private val favoritesCoordinator = FavoritesMutationCoordinator(
-        store = favoritesStateStore,
-        persistence = barcodePersistence,
-        scope = viewModelScope,
-    )
-    private val favoritesQueryCoordinator = FavoritesQueryCoordinator(
-        repository = barcodeDataCoordinator.repository,
-        store = favoritesStateStore,
-        searchStore = favoriteSearchStateStore,
-    )
-    private val historyCoordinator = HistoryCoordinator(
-        store = favoritesStateStore,
-        persistItems = { items -> barcodePersistence.persistItems(viewModelScope, items) },
-    )
-
+    private val routeFacade = AppRouteStateFacade(_uiState)
     private val _dataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
     private val _favoriteSearchState = MutableStateFlow(BarcodeDataState())
     val favoriteSearchState: StateFlow<BarcodeDataState> = _favoriteSearchState.asStateFlow()
-    private val favoritesPageStateCoordinator = FavoritesPageStateCoordinator()
-    val favoritePageQuery: StateFlow<String> = favoritesPageStateCoordinator.query
-    private val dataStateCoordinator = BarcodeDataStateCoordinator(
-        store = favoritesStateStore,
-        state = _dataState,
-    )
-    private val favoritesLoadCoordinator = FavoritesLoadCoordinator(
+    private val favoritesFacade = FavoritesFacade(
+        repository = barcodeDataCoordinator.repository,
         persistence = barcodePersistence,
-        store = favoritesStateStore,
-        query = favoritesQueryCoordinator,
-        publish = { isReady -> dataStateCoordinator.publish(isReady) },
-        publishSearch = { publishFavoriteSearchState() },
+        scope = viewModelScope,
+        dataState = _dataState,
+        searchState = _favoriteSearchState,
     )
+    private val favoritesStateStore = favoritesFacade.store
+    private val favoriteSearchStateStore = favoritesFacade.searchStore
+    private val favoritesCoordinator = favoritesFacade.mutation
+    private val favoritesQueryCoordinator = favoritesFacade.query
+    private val historyCoordinator = favoritesFacade.history
+    private val favoritesPageStateCoordinator = favoritesFacade.pageState
+    val favoritePageQuery: StateFlow<String> = favoritesPageStateCoordinator.query
+    private val dataStateCoordinator = favoritesFacade.dataStateCoordinator
+    private val favoritesLoadCoordinator = favoritesFacade.load
 
     private val resultsCoordinator = ResultsCoordinator()
     val resultUiState: StateFlow<ResultUiState> = resultsCoordinator.state
@@ -113,15 +96,15 @@ class BarcodeViewModel @Inject constructor(
 
     val favoriteTreeUiState: StateFlow<FavoriteTreeUiState> = favoritesPageStateCoordinator.treeState
 
-    private val cameraRequestCoordinator = CameraRequestCoordinator()
-    val cameraCaptureState: StateFlow<CameraCaptureState> = cameraRequestCoordinator.state
+    private val cameraOcrFacade = CameraOcrFacade(ocrTextService, barcodeDecodeService)
+    val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcrFacade.cameraState
     private var favoriteSearchJob: Job? = null
     private var currentFavoriteSearchQuery = ""
 
-    private val updateCoordinator = UpdateCoordinator(updateDownloadService, updateCheckService, apkUpdateValidator, appLogger)
-    val updateUiState: StateFlow<UpdateUiState> = updateCoordinator.uiState
-    val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = updateCoordinator.downloadUiState
-    val updateEvents: SharedFlow<UpdateEvent> = updateCoordinator.events
+    private val updateFacade = UpdateFacade(updateDownloadService, updateCheckService, apkUpdateValidator, appLogger)
+    val updateUiState: StateFlow<UpdateUiState> = updateFacade.uiState
+    val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = updateFacade.downloadUiState
+    val updateEvents: SharedFlow<UpdateEvent> = updateFacade.events
 
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
@@ -151,12 +134,12 @@ class BarcodeViewModel @Inject constructor(
     fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
         // ComposeAppShell renders directly from AppUiState, so navigation is a
         // state mutation rather than a second event-driven navigation channel.
-        navigationStateCoordinator.navigateTo(route, fromTabSwipe)
+        routeFacade.navigateTo(route, fromTabSwipe)
     }
 
     /** Transitional UI mirror; Compose Navigation owns the destination and back stack. */
     fun syncNavigationStateFromUi(route: AppRoute, fromTabSwipe: Boolean = false) {
-        navigationStateCoordinator.navigateTo(route, fromTabSwipe)
+        routeFacade.navigateTo(route, fromTabSwipe)
     }
 
     fun prepareMainGenerateTab() {
@@ -164,7 +147,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun updateSettingsReturnPage(route: AppRoute) {
-        navigationStateCoordinator.updateSettingsReturnPage(route)
+        routeFacade.updateSettingsReturnPage(route)
     }
 
     fun clearSelectedFavoriteGroup() {
@@ -356,35 +339,35 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun prepareCameraRequest(requestCode: Int) {
-        cameraRequestCoordinator.prepare(requestCode)
+        cameraOcrFacade.prepareCameraRequest(requestCode)
     }
 
     fun setCameraOutput(uri: Uri?, file: File?) {
-        cameraRequestCoordinator.setOutput(uri, file)
+        cameraOcrFacade.setCameraOutput(uri, file)
     }
 
     fun markCameraCaptureStarted(nowMillis: Long = System.currentTimeMillis()) {
-        cameraRequestCoordinator.markStarted(nowMillis)
+        cameraOcrFacade.markCameraCaptureStarted(nowMillis)
     }
 
     fun clearCameraOutput(): CameraCaptureState {
-        return cameraRequestCoordinator.clearOutput()
+        return cameraOcrFacade.clearCameraOutput()
     }
 
     fun beginExternalActivityRequest(requestCode: Int) {
-        cameraRequestCoordinator.beginExternalActivity(requestCode)
+        cameraOcrFacade.beginExternalActivityRequest(requestCode)
     }
 
     fun consumeExternalActivityRequest(): Int {
-        return cameraRequestCoordinator.consumeExternalActivity()
+        return cameraOcrFacade.consumeExternalActivityRequest()
     }
 
     fun beginPermissionRequest(requestCode: Int) {
-        cameraRequestCoordinator.beginPermission(requestCode)
+        cameraOcrFacade.beginPermissionRequest(requestCode)
     }
 
     fun consumePermissionRequest(): Int {
-        return cameraRequestCoordinator.consumePermission()
+        return cameraOcrFacade.consumePermissionRequest()
     }
 
     fun generateBarcodes(formatName: String): GenerateBarcodesUseCase.Output {
@@ -398,7 +381,7 @@ class BarcodeViewModel @Inject constructor(
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
         viewModelScope.launch {
-            val normalized = ocrTextService.recognize(bitmap, confusionMask)
+            val normalized = cameraOcrFacade.recognizeText(bitmap, confusionMask)
             if (normalized.isEmpty()) _events.emit(BarcodeEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
             else {
                 _events.emit(BarcodeEvent.RecognizedText(normalized))
@@ -407,26 +390,26 @@ class BarcodeViewModel @Inject constructor(
         }
     }
 
-    suspend fun decodeBarcode(bitmap: Bitmap): String? = barcodeDecodeService.decode(bitmap)
-    fun setStartupUpdateCheckStarted(value: Boolean) = updateCoordinator.setStartupCheckStarted(value)
-    suspend fun checkForUpdates(): UpdateCheckResult = updateCoordinator.checkForUpdates()
+    suspend fun decodeBarcode(bitmap: Bitmap): String? = cameraOcrFacade.decodeBarcode(bitmap)
+    fun setStartupUpdateCheckStarted(value: Boolean) = updateFacade.setStartupCheckStarted(value)
+    suspend fun checkForUpdates(): UpdateCheckResult = updateFacade.checkForUpdates()
     fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) =
-        updateCoordinator.setAvailableUpdate(version, url, expectedSize, sha256)
-    fun clearAvailableUpdate() = updateCoordinator.clearAvailableUpdate()
-    fun setUpdateDialogShowing(value: Boolean) = updateCoordinator.setDialogShowing(value)
-    fun setUpdateDownloadRunning(value: Boolean) = updateCoordinator.setDownloadRunning(value)
-    fun resetUpdateDownloadState() = updateCoordinator.resetDownloadState()
+        updateFacade.setAvailableUpdate(version, url, expectedSize, sha256)
+    fun clearAvailableUpdate() = updateFacade.clearAvailableUpdate()
+    fun setUpdateDialogShowing(value: Boolean) = updateFacade.setDialogShowing(value)
+    fun setUpdateDownloadRunning(value: Boolean) = updateFacade.setDownloadRunning(value)
+    fun resetUpdateDownloadState() = updateFacade.resetDownloadState()
     fun setUpdateDownloadProgress(progress: Int, indeterminate: Boolean, status: String) =
-        updateCoordinator.setDownloadProgress(progress, indeterminate, status)
+        updateFacade.setDownloadProgress(progress, indeterminate, status)
     suspend fun downloadUpdate(apkUrl: String, expectedSize: Long?, expectedSha256: String?): File =
-        updateCoordinator.downloadUpdate(apkUrl, expectedSize, expectedSha256)
-    fun validateDownloadedApk(file: File) = updateCoordinator.validateDownloadedApk(file)
+        updateFacade.downloadUpdate(apkUrl, expectedSize, expectedSha256)
+    fun validateDownloadedApk(file: File) = updateFacade.validateDownloadedApk(file)
     fun startUpdateDownload(apkUrl: String, expectedSize: Long?, expectedSha256: String?) =
-        updateCoordinator.startDownload(viewModelScope, apkUrl, expectedSize, expectedSha256)
-    fun cancelUpdateDownload() = updateCoordinator.cancelDownload()
-    fun setPendingInstallPath(path: String?) = updateCoordinator.setPendingInstallPath(path)
+        updateFacade.startDownload(viewModelScope, apkUrl, expectedSize, expectedSha256)
+    fun cancelUpdateDownload() = updateFacade.cancelDownload()
+    fun setPendingInstallPath(path: String?) = updateFacade.setPendingInstallPath(path)
 
-    fun takePendingInstallPath(): String? = updateCoordinator.takePendingInstallPath()
+    fun takePendingInstallPath(): String? = updateFacade.takePendingInstallPath()
     fun syncFavoriteTree(folders: Set<String>) {
         favoritesPageStateCoordinator.syncTree(folders)
     }
