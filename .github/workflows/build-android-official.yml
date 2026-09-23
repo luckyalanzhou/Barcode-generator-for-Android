@@ -36,7 +36,6 @@ jobs:
         -Dorg.gradle.caching=true
         -Dorg.gradle.parallel=true
         -Dkotlin.incremental=true
-        -Dorg.gradle.configuration-cache=true
         -Dorg.gradle.vfs.watch=false
         -Dksp.incremental=true
         -Dkotlin.compiler.plugins.strongSkipping=true
@@ -94,7 +93,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        run: ./gradlew assembleOfficialRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare release APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}

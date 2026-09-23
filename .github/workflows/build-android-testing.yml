@@ -99,9 +99,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        # Beta versionCode changes on every run, so Gradle may invalidate the cached
-        # configuration for that run. Configuration Cache remains enabled for CI and local builds.
-        run: ./gradlew assembleBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        # Beta versionCode changes on every run; remote release builds deliberately disable
+        # Configuration Cache. Local quick verification keeps it enabled through gradle.properties.
+        run: ./gradlew assembleBetaRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
         id: beta-apk
         env:
