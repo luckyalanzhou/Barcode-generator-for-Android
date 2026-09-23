@@ -12,11 +12,14 @@ internal object AppColorTokens {
         val favoriteActive = Color(0xffd97706)
         val folder = Color(0xff5b8def)
         val childFolder = Color(0xff83aeea)
-        val button = Color(0xffeef3f9)
+        // Low-saturation blue surface for secondary actions; primary actions
+        // use the system accent below so the hierarchy remains clear.
+        val button = Color(0xffeaf2ff)
         val border = Color(0xffd9e1ec)
-        val buttonBorder = Color(0xffcbd6e4).copy(alpha = .72f)
+        val buttonBorder = Color(0xffd6e2f2)
         val destructive = Color(0xffc2413b)
-        val progress = Color(0xff2166d1)
+        // Apple system blue is shared by the primary action and progress fill.
+        val progress = Color(0xff007aff)
         val cardBorder = border
         val inputBorder = Color(0xffe3e8f0)
         val focusedInputBorder = Color(0xff7da7d6).copy(alpha = .76f)
@@ -44,11 +47,12 @@ internal object AppColorTokens {
         val input = Color(0xff202c3a)
         val accent = Color(0xff0a84ff)
         val favoriteActive = Color(0xffffbb33)
-        val button = Color(0xff233246)
+        val button = Color(0xff1c2a3a)
         val border = Color.White.copy(alpha = 0.10f)
         val buttonBorder = Color.White.copy(alpha = 0.08f)
         val destructive = Color(0xffffb0b0)
-        val progress = Color(0xff36c8ff)
+        // Dark-mode system blue keeps primary actions consistent with tabs and sliders.
+        val progress = Color(0xff0a84ff)
         val cardBorder = Color.White.copy(alpha = 0.10f)
         val inputBorder = Color.White.copy(alpha = 0.22f)
         val focusedInputBorder = Color(0xff8dbcf0).copy(alpha = .72f)
