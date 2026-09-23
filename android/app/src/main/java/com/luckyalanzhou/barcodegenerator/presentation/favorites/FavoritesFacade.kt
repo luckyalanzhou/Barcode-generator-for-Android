@@ -23,7 +23,6 @@ internal class FavoritesFacade(
         store = store,
         persistItems = { items -> persistence.persistItems(scope, items) },
     )
-    val pageState = FavoritesPageStateCoordinator()
     val dataStateCoordinator = BarcodeDataStateCoordinator(store, dataState)
     val load = FavoritesLoadCoordinator(
         persistence = persistence,

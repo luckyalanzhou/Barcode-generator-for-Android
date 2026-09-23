@@ -131,7 +131,7 @@ internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, o
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
             val counts = viewModel.importFavorites(backup, overwriteConflicts)
-            viewModel.addCollapsedFavoriteFolders(
+            favoritesViewModel.addCollapsed(
                 (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.toSet(),
             )
             counts

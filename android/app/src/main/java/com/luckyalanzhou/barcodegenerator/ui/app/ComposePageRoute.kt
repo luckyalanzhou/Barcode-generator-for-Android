@@ -85,23 +85,23 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val favoriteData by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
                 val favoriteSearch by dependencies.viewModel.favoriteSearchState.collectAsStateWithLifecycle()
-                val favoriteTree by dependencies.viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
-                val favoriteQuery by dependencies.viewModel.favoritePageQuery.collectAsStateWithLifecycle()
+                val favoriteTree by dependencies.favoritesViewModel.treeState.collectAsStateWithLifecycle()
+                val favoriteQuery by dependencies.favoritesViewModel.query.collectAsStateWithLifecycle()
                 FavoritesContent(
                     favoritesState = favoriteData,
                     searchState = favoriteSearch,
                     treeState = favoriteTree,
                     query = favoriteQuery,
-                    savedListPosition = dependencies.viewModel.favoriteListPosition(),
+                    savedListPosition = dependencies.favoritesViewModel.position(),
                     dark = dark,
                     style = settings.style,
-                    onQueryChange = dependencies.viewModel::updateFavoritePageQuery,
-                    onSyncFavoriteTree = dependencies.viewModel::syncFavoriteTree,
+                    onQueryChange = dependencies.favoritesViewModel::updateQuery,
+                    onSyncFavoriteTree = dependencies.favoritesViewModel::syncTree,
                     onSearchFavoriteContent = dependencies.viewModel::searchFavoriteContent,
-                    onUpdateFavoriteSearch = dependencies.viewModel::updateFavoriteSearch,
-                    onRememberListPosition = dependencies.viewModel::rememberFavoriteListPosition,
+                    onUpdateFavoriteSearch = dependencies.favoritesViewModel::updateSearch,
+                    onRememberListPosition = dependencies.favoritesViewModel::rememberPosition,
                     onLoadMoreGroups = dependencies.viewModel::loadMoreFavoriteGroups,
-                    onToggleFolder = dependencies.viewModel::toggleFavoriteFolder,
+                    onToggleFolder = dependencies.favoritesViewModel::toggleFolder,
                     onOpenGroup = dependencies.viewModel::openFavoriteGroup,
                     onRenameFolder = dependencies.viewModel::renameFavoriteFolderAndPersist,
                     onDeleteFolder = dependencies.viewModel::deleteFavoriteFolderAndPersist,

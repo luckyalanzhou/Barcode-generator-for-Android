@@ -74,8 +74,6 @@ class BarcodeViewModel @Inject constructor(
     private val favoritesCoordinator = favoritesFacade.mutation
     private val favoritesQueryCoordinator = favoritesFacade.query
     private val historyCoordinator = favoritesFacade.history
-    private val favoritesPageStateCoordinator = favoritesFacade.pageState
-    val favoritePageQuery: StateFlow<String> = favoritesPageStateCoordinator.query
     private val dataStateCoordinator = favoritesFacade.dataStateCoordinator
     private val favoritesLoadCoordinator = favoritesFacade.load
 
@@ -90,8 +88,6 @@ class BarcodeViewModel @Inject constructor(
         readDraft = { generateEditor.state.value.inputDraft },
         persistItems = ::persistItems,
     )
-
-    val favoriteTreeUiState: StateFlow<FavoriteTreeUiState> = favoritesPageStateCoordinator.treeState
 
     private val cameraOcrFacade = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcrFacade.cameraState
@@ -383,32 +379,6 @@ class BarcodeViewModel @Inject constructor(
     }
 
     suspend fun decodeBarcode(bitmap: Bitmap): String? = cameraOcrFacade.decodeBarcode(bitmap)
-    fun syncFavoriteTree(folders: Set<String>) {
-        favoritesPageStateCoordinator.syncTree(folders)
-    }
-
-    fun updateFavoritePageQuery(query: String) {
-        favoritesPageStateCoordinator.updateQuery(query)
-    }
-
-    fun favoriteListPosition(): Pair<Int, Int> = favoritesPageStateCoordinator.position()
-
-    fun rememberFavoriteListPosition(index: Int, offset: Int) {
-        favoritesPageStateCoordinator.rememberPosition(index, offset)
-    }
-
-    fun addCollapsedFavoriteFolders(paths: Set<String>) {
-        favoritesPageStateCoordinator.addCollapsed(paths)
-    }
-
-    fun toggleFavoriteFolder(path: String, folders: Set<String>) {
-        favoritesPageStateCoordinator.toggleFolder(path, folders)
-    }
-
-    fun updateFavoriteSearch(expandedPaths: Set<String>, searching: Boolean) {
-        favoritesPageStateCoordinator.updateSearch(expandedPaths, searching)
-    }
-
     fun renameFavoriteFolder(path: String, renamedPath: String) {
         favoritesCoordinator.renameFolder(path, renamedPath)
         refreshFavoritesAfterMutation()

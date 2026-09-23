@@ -14,6 +14,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.applyAppearance
@@ -108,6 +109,7 @@ class MainActivity : AppCompatActivity() {
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
     internal val updateViewModel: UpdateViewModel by viewModels()
+    internal val favoritesViewModel: FavoritesViewModel by viewModels()
 
     private val externalActivityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
