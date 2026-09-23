@@ -37,10 +37,14 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
+import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
+import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 @HiltViewModel
@@ -48,11 +52,11 @@ class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val generateBarcodesUseCase: GenerateBarcodesUseCase,
     private val localBarcodeFileStore: LocalBarcodeFileStore,
-    private val updateDownloadService: UpdateDownloadService,
+    private val updateDownloadGateway: ApkDownloadGateway,
     private val updateCheckService: UpdateCheckService,
-    private val ocrTextService: OcrTextService,
-    private val barcodeDecodeService: BarcodeDecodeService,
-    private val apkUpdateValidator: ApkUpdateValidator,
+    private val ocrTextGateway: OcrTextGateway,
+    private val barcodeDecodeGateway: BarcodeDecodeGateway,
+    private val apkValidationGateway: ApkValidationGateway,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,
 ) : ViewModel() {
@@ -96,12 +100,12 @@ class BarcodeViewModel @Inject constructor(
 
     val favoriteTreeUiState: StateFlow<FavoriteTreeUiState> = favoritesPageStateCoordinator.treeState
 
-    private val cameraOcrFacade = CameraOcrFacade(ocrTextService, barcodeDecodeService)
+    private val cameraOcrFacade = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcrFacade.cameraState
     private var favoriteSearchJob: Job? = null
     private var currentFavoriteSearchQuery = ""
 
-    private val updateFacade = UpdateFacade(updateDownloadService, updateCheckService, apkUpdateValidator, appLogger)
+    private val updateFacade = UpdateFacade(updateDownloadGateway, updateCheckService, apkValidationGateway, appLogger)
     val updateUiState: StateFlow<UpdateUiState> = updateFacade.uiState
     val updateDownloadUiState: StateFlow<UpdateDownloadUiState> = updateFacade.downloadUiState
     val updateEvents: SharedFlow<UpdateEvent> = updateFacade.events

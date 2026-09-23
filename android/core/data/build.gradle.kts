@@ -20,6 +20,10 @@ android {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.zxing.core)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.text.recognition.chinese)
     implementation(libs.nanohttpd)
     implementation(libs.nanohttpd.websocket)
     api(libs.room.runtime)

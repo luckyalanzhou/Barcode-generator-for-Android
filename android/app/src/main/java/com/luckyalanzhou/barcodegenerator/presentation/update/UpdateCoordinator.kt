@@ -2,6 +2,8 @@ package com.luckyalanzhou.barcodegenerator.presentation.update
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
+import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -18,9 +20,9 @@ import kotlinx.coroutines.launch
 
 /** 更新领域的协调器，负责检查、下载、校验以及一次性更新事件。 */
 class UpdateCoordinator(
-    private val updateDownloadService: UpdateDownloadService,
+    private val updateDownloadGateway: ApkDownloadGateway,
     private val updateCheckService: UpdateCheckService,
-    private val apkUpdateValidator: ApkUpdateValidator,
+    private val apkValidationGateway: ApkValidationGateway,
     private val logger: AppLogger,
 ) {
     private val _uiState = MutableStateFlow(UpdateUiState())
@@ -84,12 +86,12 @@ class UpdateCoordinator(
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
-    ): File = updateDownloadService.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
+    ): File = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
         setDownloadProgress(progress, indeterminate, status)
     }
 
     fun validateDownloadedApk(file: File) {
-        apkUpdateValidator.validate(file)
+        apkValidationGateway.validate(file)
     }
 
     fun startDownload(scope: CoroutineScope, apkUrl: String, expectedSize: Long?, expectedSha256: String?) {

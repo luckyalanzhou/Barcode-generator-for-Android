@@ -10,20 +10,24 @@ import com.luckyalanzhou.barcodegenerator.data.LegacySettingsMigrator
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.data.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.data.SettingsStore
+import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkDownloadGateway
+import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkValidationGateway
+import com.luckyalanzhou.barcodegenerator.data.platform.MlKitOcrTextGateway
+import com.luckyalanzhou.barcodegenerator.data.platform.ZxingBarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
+import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
+import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
-import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDecodeService
-import com.luckyalanzhou.barcodegenerator.presentation.shared.OcrTextService
-import com.luckyalanzhou.barcodegenerator.presentation.update.ApkUpdateValidator
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateCheckService
-import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateDownloadService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -74,8 +78,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    internal fun provideUpdateDownloadService(@ApplicationContext context: Context, logger: AppLogger): UpdateDownloadService =
-        UpdateDownloadService(context, logger)
+    internal fun provideUpdateDownloadGateway(@ApplicationContext context: Context, logger: AppLogger): ApkDownloadGateway =
+        AndroidApkDownloadGateway(context, logger, "BarcodeGenerator/${com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_NAME}")
 
     @Provides
     @Singleton
@@ -83,16 +87,16 @@ object AppModule {
 
     @Provides
     @Singleton
-    internal fun provideApkUpdateValidator(@ApplicationContext context: Context): ApkUpdateValidator =
-        ApkUpdateValidator(context)
+    internal fun provideApkValidationGateway(@ApplicationContext context: Context): ApkValidationGateway =
+        AndroidApkValidationGateway(context, com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_CODE.toLong())
 
     @Provides
     @Singleton
-    internal fun provideOcrTextService(): OcrTextService = OcrTextService()
+    internal fun provideOcrTextGateway(): OcrTextGateway = MlKitOcrTextGateway()
 
     @Provides
     @Singleton
-    internal fun provideBarcodeDecodeService(): BarcodeDecodeService = BarcodeDecodeService()
+    internal fun provideBarcodeDecodeGateway(): BarcodeDecodeGateway = ZxingBarcodeDecodeGateway()
 
     @Provides
     internal fun provideLegacySettingsMigrator(

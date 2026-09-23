@@ -1,16 +1,12 @@
-package com.luckyalanzhou.barcodegenerator.presentation.update
-
-import com.luckyalanzhou.barcodegenerator.BuildConfig
-
-import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
-
-import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+package com.luckyalanzhou.barcodegenerator.data.platform
 
 import android.content.Context
-import android.net.Uri
 import androidx.core.net.toUri
-import kotlinx.coroutines.ensureActive
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
+import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
@@ -18,12 +14,13 @@ import java.net.URL
 import java.security.MessageDigest
 import kotlin.coroutines.coroutineContext
 
-/** APK 更新下载与完整性校验的数据层服务；不持有 UI 状态，也不触碰导航。 */
-class UpdateDownloadService(
+/** Android file/network adapter for secure APK download and checksum validation. */
+class AndroidApkDownloadGateway(
     private val context: Context,
     private val logger: AppLogger,
-) {
-    suspend fun download(
+    private val userAgent: String,
+) : ApkDownloadGateway {
+    override suspend fun download(
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
@@ -42,11 +39,11 @@ class UpdateDownloadService(
                 connectTimeout = 15000
                 readTimeout = 30000
                 instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "BarcodeGenerator/" + BuildConfig.VERSION_NAME)
+                setRequestProperty("User-Agent", userAgent)
             }
             require(connection.responseCode in 200..299) { "HTTP ${connection.responseCode}" }
             logger.record("update", "download response=${connection.responseCode} contentLength=${connection.contentLengthLong}", null)
-            val total = connection.contentLengthLong.takeIf { it > 0 } ?: expectedSize
+            val total = connection.contentLengthLong.takeIf { it > 0L } ?: expectedSize
             require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
             temp.delete()
             connection.inputStream.use { input ->
@@ -69,9 +66,7 @@ class UpdateDownloadService(
                 }
             }
             require(temp.isFile && temp.length() > 0L) { "APK 为空" }
-            require(expectedSize == null || temp.length() == expectedSize) {
-                "文件大小校验失败：${temp.length()} / $expectedSize"
-            }
+            require(expectedSize == null || temp.length() == expectedSize) { "文件大小校验失败：${temp.length()} / $expectedSize" }
             val digest = MessageDigest.getInstance("SHA-256")
             val actual = temp.inputStream().use { input ->
                 val buffer = ByteArray(16 * 1024)
