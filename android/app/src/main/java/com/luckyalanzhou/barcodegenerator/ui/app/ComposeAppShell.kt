@@ -132,7 +132,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             if (appUiState.tabChangeFromSwipe) {
                                 val forward = targetTabIndex > initialTabIndex
                                 (slideInHorizontally(tween(200)) { if (forward) it / 8 else -it / 8 } + fadeIn(tween(180))) togetherWith
-                                    (slideOutHorizontally(tween(160)) { if (forward) -it / 8 else it / 8 } + fadeOut(tween(160))) using SizeTransform(clip = false)
+                                    (slideOutHorizontally(tween(160)) { if (forward) -it / 8 else it / 8 } + fadeOut(tween(160))) using SizeTransform(clip = true)
                             } else {
                                 (scaleIn(initialScale = .97f, animationSpec = tween(180)) + fadeIn(tween(180))) togetherWith
                                     (scaleOut(targetScale = 1.02f, animationSpec = tween(120)) + fadeOut(tween(120))) using SizeTransform(clip = false)
