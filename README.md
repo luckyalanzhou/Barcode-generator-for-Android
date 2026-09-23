@@ -42,11 +42,33 @@ APK 文件名：`BarcodeGeneratorTest1.0.57.apk`
 
 ```text
 android/
-├─ app/             # Android 应用、Compose 页面和应用层业务
-├─ core/domain/     # 与 Android 无关的领域模型和用例
-├─ core/data/       # Room、文件和数据仓储
-└─ core/ui/         # Compose 动画和共享 UI 配置
+├─ app/             # Android 应用、Compose 界面、ViewModel、协调器和依赖装配
+│  └─ src/main/java/com/luckyalanzhou/barcodegenerator/
+│     ├─ presentation/ # 页面状态、ViewModel 和业务流程协调
+│     ├─ ui/           # Compose 页面、组件、主题和系统能力桥接
+│     └─ di/           # Hilt 依赖绑定
+└─ core/
+   ├─ domain/       # Kotlin/JVM 领域模型、校验、用例和接口
+   └─ data/         # Room、DataStore、文件、网络及 Android 平台接口实现
 ```
+
+### 模块依赖
+
+```mermaid
+graph LR
+    app[":app<br/>Compose、ViewModel、协调器、Hilt 装配"] --> domain[":core:domain<br/>领域模型、用例、接口"]
+    app --> data[":core:data<br/>Room、DataStore、文件和平台实现"]
+    data --> domain
+```
+
+`:core:domain` 不依赖 Android；`:core:data` 依赖领域接口并提供实现；`:app` 负责展示、流程协调和依赖装配。当前共享 Compose UI 位于 `:app`，没有单独的 `:core:ui` 模块。
+
+### 条码生成流程
+
+1. Compose 生成页面将输入草稿和格式交给 `GenerateViewModel`。
+2. `BarcodeViewModel` 通过 `GenerateCoordinator` 调用 `GenerateBarcodesUseCase`，验证输入并产生领域模型。
+3. 持久化协调器调用 `BarcodeRepository`；`:core:data` 中的 Room 实现负责保存历史和收藏数据。
+4. ViewModel 发布结果状态并切换到结果页，Compose 加载或生成条码图像后显示。
 
 ## 测试说明
 
