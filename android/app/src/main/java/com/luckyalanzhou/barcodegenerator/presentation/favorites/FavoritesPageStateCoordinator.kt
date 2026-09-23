@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.favorites
+
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

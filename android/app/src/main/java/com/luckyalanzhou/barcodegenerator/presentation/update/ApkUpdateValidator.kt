@@ -1,5 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.*
 import android.content.Context
 import android.content.pm.PackageManager
 import java.io.File

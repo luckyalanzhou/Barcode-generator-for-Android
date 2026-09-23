@@ -1,5 +1,7 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong

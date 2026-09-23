@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
+import com.luckyalanzhou.barcodegenerator.presentation.*
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity

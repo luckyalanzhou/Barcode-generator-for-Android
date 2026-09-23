@@ -1,6 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.navigation
 
-import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
+import com.luckyalanzhou.barcodegenerator.AppUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 

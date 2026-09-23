@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.results
 
+import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 

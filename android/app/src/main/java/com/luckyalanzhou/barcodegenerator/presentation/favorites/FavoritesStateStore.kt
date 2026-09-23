@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.favorites
+
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup

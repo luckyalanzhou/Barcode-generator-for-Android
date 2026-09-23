@@ -1,5 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.*
 import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
 
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger

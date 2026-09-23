@@ -10,6 +10,10 @@ import android.os.Handler
 import android.os.Looper
 import android.net.Uri
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.applyAppearance
 import com.luckyalanzhou.barcodegenerator.ui.app.buildComposeShell

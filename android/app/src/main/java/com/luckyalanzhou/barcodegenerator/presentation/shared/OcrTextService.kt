@@ -1,4 +1,6 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.shared
+
+import com.luckyalanzhou.barcodegenerator.*
 
 import com.luckyalanzhou.barcodegenerator.domain.OcrCorrectionMask
 

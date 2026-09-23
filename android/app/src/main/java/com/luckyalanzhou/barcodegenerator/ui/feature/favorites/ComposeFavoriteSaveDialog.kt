@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
+import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField

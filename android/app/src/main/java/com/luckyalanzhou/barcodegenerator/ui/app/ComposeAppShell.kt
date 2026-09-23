@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.presentation.*
+import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.LanShareViewModel

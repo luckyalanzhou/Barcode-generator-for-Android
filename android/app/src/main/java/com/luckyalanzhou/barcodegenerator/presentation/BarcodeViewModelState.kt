@@ -1,9 +1,9 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation
 
 import android.net.Uri
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute as AppRoute
 import java.io.File
 
 data class AppUiState(

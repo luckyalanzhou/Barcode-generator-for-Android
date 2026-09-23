@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.navigation
 
 /** Core navigation identity shared by state and coordinators. */
 enum class NavigationRoute(

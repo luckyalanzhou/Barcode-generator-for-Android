@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation
 
 import android.graphics.Bitmap
 import android.net.Uri
@@ -22,7 +22,15 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import kotlinx.coroutines.Job
-import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute as AppRoute
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationStateCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
+import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.update.*
+import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger

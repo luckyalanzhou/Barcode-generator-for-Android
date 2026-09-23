@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.history
+
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 

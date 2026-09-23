@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.shared
+
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository

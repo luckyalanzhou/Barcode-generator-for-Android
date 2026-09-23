@@ -1,8 +1,11 @@
-package com.luckyalanzhou.barcodegenerator
+package com.luckyalanzhou.barcodegenerator.presentation.generate
+
+import com.luckyalanzhou.barcodegenerator.*
+import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import androidx.lifecycle.ViewModel
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
-import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute as AppRoute
 
 /** 生成流程协调器：隔离输入解析、结果快照和持久化，避免 ViewModel 继续膨胀。 */
 internal class GenerateCoordinator(
