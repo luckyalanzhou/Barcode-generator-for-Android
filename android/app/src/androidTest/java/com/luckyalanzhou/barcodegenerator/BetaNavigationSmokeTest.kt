@@ -21,13 +21,13 @@ class BetaNavigationSmokeTest {
             assertText(device, "条码生成器")
 
             clickTab(device, "历史")
-            assertText(device, "历史记录")
+            assertText(device, "暂无历史记录")
 
             clickTab(device, "收藏")
-            assertText(device, "收藏")
+            assertText(device, "还没有收藏")
 
             clickTab(device, "设置")
-            assertText(device, "设置")
+            assertText(device, "外观")
 
             clickTab(device, "生成")
             assertText(device, "条码生成器")
