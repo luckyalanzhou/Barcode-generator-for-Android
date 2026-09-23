@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Row
@@ -57,6 +58,7 @@ internal fun ResultsContent(
     loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
 ) {
     val themeColors = LocalAppColorScheme.current
+    val dimensions = LocalAppDimensions.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val resultActionBlue = themeColors.controls.accent
@@ -65,7 +67,7 @@ internal fun ResultsContent(
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
 
     if (items.isEmpty()) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("生成结果", color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
             Text("暂无生成结果", color = secondary, fontSize = 17.sp, modifier = Modifier.padding(vertical = 40.dp))
         }
@@ -74,6 +76,7 @@ internal fun ResultsContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(top = dimensions.pageTopPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         item {

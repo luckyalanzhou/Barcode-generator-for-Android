@@ -112,9 +112,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .padding(
-                        start = dimensions.pageHorizontalPadding,
-                        end = dimensions.pageHorizontalPadding,
-                        top = dimensions.pageTopPadding,
+                        top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,
                         bottom = dimensions.pageBottomPadding,
                     ),
             ) {
@@ -164,7 +162,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                 textAlign = TextAlign.Center,
                             )
                         }
-                        Box(Modifier.fillMaxWidth().weight(1f)) {
+                        Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = dimensions.pageHorizontalPadding)) {
                             pageStateHolder.SaveableStateProvider(targetPage.pageName) {
                                 ComposePageRenderer(dependencies, targetPage, dark)
                             }
@@ -176,7 +174,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         selectedIndex = appUiState.selectedTab,
                         dark = dark,
                         onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
-                        modifier = Modifier.fillMaxWidth().height(dimensions.bottomTabBarHeight),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                     )
                 }
             }
