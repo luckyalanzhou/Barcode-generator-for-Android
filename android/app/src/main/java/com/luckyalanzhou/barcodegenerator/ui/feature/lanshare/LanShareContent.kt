@@ -185,7 +185,7 @@ private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: 
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
-                tint = LocalAppColorScheme.current.text.link,
+                tint = accent,
                 modifier = Modifier.size(30.dp),
             )
         }
