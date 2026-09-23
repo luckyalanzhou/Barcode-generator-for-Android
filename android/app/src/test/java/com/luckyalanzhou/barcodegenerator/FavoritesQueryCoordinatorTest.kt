@@ -11,6 +11,8 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQueryCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
