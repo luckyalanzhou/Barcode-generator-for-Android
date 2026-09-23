@@ -143,6 +143,10 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
+        // ComposeAppShell now renders directly from AppUiState. Keep the state
+        // update here as the authoritative navigation mutation; the event is
+        // retained for legacy bridges that still observe navigation requests.
+        navigationStateCoordinator.navigateTo(route, fromTabSwipe)
         _navigationEvents.tryEmit(NavigationRequest(route, fromTabSwipe))
     }
 
