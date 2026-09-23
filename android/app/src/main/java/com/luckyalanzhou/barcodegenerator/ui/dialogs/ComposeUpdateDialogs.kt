@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -184,6 +186,7 @@ internal fun MainActivity.downloadAndInstallCompose(
         compact = false,
         onCancel = cancelDownload,
     ) { dismiss ->
+        val downloadState by viewModel.updateDownloadUiState.collectAsStateWithLifecycle()
         dismissDialog = dismiss
         LaunchedEffect(Unit) {
             viewModel.updateEvents.collect { event ->
@@ -215,7 +218,7 @@ internal fun MainActivity.downloadAndInstallCompose(
                 }
             }
         }
-        ComposeDownloadProgressDialog(viewModel.updateDownloadUiState.value, isDark(), cancelDownload)
+        ComposeDownloadProgressDialog(downloadState, isDark(), cancelDownload)
     }
     DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
     viewModel.startUpdateDownload(apkUrl, expectedSize, expectedSha256)
