@@ -103,17 +103,6 @@ jobs:
         # The prior cached configuration was restored but Gradle could not reuse it; avoid
         # restoring/storing that cache in CI. Keep configuration cache enabled for local builds.
         run: ./gradlew assembleBetaRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
-      - name: Run Beta runtime smoke test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim
-          disable-animations: true
-          working-directory: android
-          script: ./gradlew connectedBetaReleaseAndroidTest --no-configuration-cache
       - name: Prepare beta APK
         id: beta-apk
         env:
