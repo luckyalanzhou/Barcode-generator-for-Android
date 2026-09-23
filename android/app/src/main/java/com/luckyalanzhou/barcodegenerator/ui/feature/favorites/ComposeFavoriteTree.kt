@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
 import com.luckyalanzhou.barcodegenerator.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup

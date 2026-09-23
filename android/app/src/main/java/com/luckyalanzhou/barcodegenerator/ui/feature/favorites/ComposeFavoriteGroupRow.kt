@@ -1,4 +1,8 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
+
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
+import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 

@@ -1,4 +1,12 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.app
+
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.settings.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.generate.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +42,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                         }
                     }
                 }
-                ComposeGeneratePage(
+                GenerateContent(
                     editorState = editorState,
                     initialFormat = initialFormat,
                     dark = dark,
@@ -76,7 +84,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val favoriteSearch by dependencies.viewModel.favoriteSearchState.collectAsStateWithLifecycle()
                 val favoriteTree by dependencies.viewModel.favoriteTreeUiState.collectAsStateWithLifecycle()
                 val favoriteQuery by dependencies.viewModel.favoritePageQuery.collectAsStateWithLifecycle()
-                ComposeFavoritesPage(
+                FavoritesContent(
                     favoritesState = favoriteData,
                     searchState = favoriteSearch,
                     treeState = favoriteTree,
@@ -113,7 +121,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             AppRoute.Results -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val resultState by dependencies.viewModel.resultUiState.collectAsStateWithLifecycle()
-                ComposeResultsPage(
+                ResultsContent(
                     resultState = resultState,
                     settings = settings,
                     dark = dark,
@@ -128,7 +136,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             AppRoute.Settings -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val scope = rememberCoroutineScope()
-                ComposeSettingsPage(
+                SettingsContent(
                     settings = settings,
                     dark = dark,
                     onPersist = { next ->
@@ -161,7 +169,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             AppRoute.LanShare -> {
-                ComposeLanSharePage(
+                LanShareScreen(
                     viewModel = dependencies.lanShareViewModel,
                     dark = dark,
                     onOpenCamera = dependencies.actions::openLanShareCamera,

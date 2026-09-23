@@ -1,14 +1,16 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
-import com.luckyalanzhou.barcodegenerator.ui.composeAppShellActions
-import com.luckyalanzhou.barcodegenerator.ui.confirmImportFavoritesCompose
-import com.luckyalanzhou.barcodegenerator.ui.showComposeDialog
-import com.luckyalanzhou.barcodegenerator.ui.toast
+import com.luckyalanzhou.barcodegenerator.ui.app.composeAppShellActions
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.confirmImportFavoritesCompose
+import com.luckyalanzhou.barcodegenerator.ui.app.showComposeDialog
+import com.luckyalanzhou.barcodegenerator.ui.app.toast
 
-import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import android.content.ClipData
 import android.content.Intent
 import android.net.Uri

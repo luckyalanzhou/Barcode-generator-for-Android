@@ -1,4 +1,8 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.history
+
+import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface

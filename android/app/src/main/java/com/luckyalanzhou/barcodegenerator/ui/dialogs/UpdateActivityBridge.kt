@@ -1,15 +1,17 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.UpdateCheckResult
 import com.luckyalanzhou.barcodegenerator.UpdateUiState
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
-import com.luckyalanzhou.barcodegenerator.ui.AppRoute
-import com.luckyalanzhou.barcodegenerator.ui.closeLanShare
-import com.luckyalanzhou.barcodegenerator.ui.composeAppShellActions
-import com.luckyalanzhou.barcodegenerator.ui.showIos26NoticeDialog
-import com.luckyalanzhou.barcodegenerator.ui.toast
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
+import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.closeLanShare
+import com.luckyalanzhou.barcodegenerator.ui.app.composeAppShellActions
+import com.luckyalanzhou.barcodegenerator.ui.app.showIos26NoticeDialog
+import com.luckyalanzhou.barcodegenerator.ui.app.toast
 
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch

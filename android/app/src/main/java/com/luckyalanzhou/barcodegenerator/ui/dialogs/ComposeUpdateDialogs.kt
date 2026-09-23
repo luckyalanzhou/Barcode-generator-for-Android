@@ -1,9 +1,12 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.dialogs
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.UpdateEvent
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 import androidx.core.net.toUri
 import java.io.File

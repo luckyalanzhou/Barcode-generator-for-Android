@@ -1,5 +1,6 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface

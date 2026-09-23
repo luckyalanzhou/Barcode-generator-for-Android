@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.history
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -11,13 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-internal fun isValidFavoriteFolderPath(value: String): Boolean {
-    val parts = value.split('/')
-    return parts.size in 1..2 && parts.all { part ->
-        part.isNotBlank() && part != "." && part != ".." && !part.contains('\\')
-    }
-}
 
 /** History-only confirmation dialogs, isolated from favorite folder editors. */
 internal fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) {

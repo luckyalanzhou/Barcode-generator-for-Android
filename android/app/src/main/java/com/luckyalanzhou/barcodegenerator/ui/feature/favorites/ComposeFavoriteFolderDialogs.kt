@@ -1,4 +1,8 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 

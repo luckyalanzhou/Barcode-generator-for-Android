@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import kotlinx.coroutines.Job
 import com.luckyalanzhou.barcodegenerator.NavigationRoute as AppRoute
 import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore

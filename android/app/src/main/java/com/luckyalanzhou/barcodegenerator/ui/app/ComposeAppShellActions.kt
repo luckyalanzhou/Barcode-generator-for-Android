@@ -1,4 +1,6 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.app
+
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
@@ -9,6 +11,13 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.captureText
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.showComposeConfirmDialog as showComposeConfirmDialogImpl
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.shareResultPage
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
+import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.shareDebugLog
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */
 internal interface ComposeAppShellActions {
@@ -111,7 +120,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         onNavigateFavorites = { viewModel.navigateTo(AppRoute.Favorites) },
     )
     override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
-        this@composeAppShellActions.showComposeConfirmDialog(title, message, positive, onConfirm)
+        this@composeAppShellActions.showComposeConfirmDialogImpl(title, message, positive, onConfirm)
     override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose(
         resultState = viewModel.resultUiState.value,
         dataState = viewModel.dataState.value,

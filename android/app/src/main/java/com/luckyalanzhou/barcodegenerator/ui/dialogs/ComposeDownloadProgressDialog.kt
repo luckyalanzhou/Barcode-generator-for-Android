@@ -1,6 +1,7 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
+import com.luckyalanzhou.barcodegenerator.ui.app.rememberComposeAnimationConfig
 
 import com.luckyalanzhou.barcodegenerator.UpdateDownloadUiState
 import androidx.compose.animation.core.LinearEasing

@@ -1,7 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+
 import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.ui.toast
+import com.luckyalanzhou.barcodegenerator.ui.app.toast
 
 import android.Manifest
 import android.content.*

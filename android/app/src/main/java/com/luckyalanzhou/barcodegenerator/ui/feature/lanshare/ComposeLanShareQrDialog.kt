@@ -1,4 +1,7 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 

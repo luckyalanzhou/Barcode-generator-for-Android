@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -7,8 +7,8 @@ import com.luckyalanzhou.barcodegenerator.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
-import com.luckyalanzhou.barcodegenerator.ui.ComposeAnimationConfig
-import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.app.rememberComposeAnimationConfig
 
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
@@ -81,7 +81,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
 @Composable
-internal fun ComposeFavoritesPage(
+internal fun FavoritesContent(
     favoritesState: BarcodeDataState,
     searchState: BarcodeDataState,
     treeState: FavoriteTreeUiState,

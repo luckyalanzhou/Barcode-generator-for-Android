@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember

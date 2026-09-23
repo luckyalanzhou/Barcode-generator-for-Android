@@ -18,7 +18,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.UpdateDownloadService
 import com.luckyalanzhou.barcodegenerator.UpdateCheckService
 import com.luckyalanzhou.barcodegenerator.OcrTextService

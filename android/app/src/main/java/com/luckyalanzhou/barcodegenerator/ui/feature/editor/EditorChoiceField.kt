@@ -1,14 +1,15 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.editor
 
-import com.luckyalanzhou.barcodegenerator.ui.theme.*
-
-import androidx.compose.foundation.layout.Box
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,7 +23,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** 收藏编辑相关的下拉选择字段，统一处理锚定宽度和选项高度。 */
 @Composable
 internal fun ComposeChoiceField(
     value: String,

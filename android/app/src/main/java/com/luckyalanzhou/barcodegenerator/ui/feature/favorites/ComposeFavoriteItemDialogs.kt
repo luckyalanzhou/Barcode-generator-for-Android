@@ -1,4 +1,8 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -134,53 +138,6 @@ internal fun MainActivity.showGroupEditorCompose(
                     else if (!isValidFavoriteFolderPath(cleanFolder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
                         if (onUpdate(group.id, cleanName, cleanFolder)) dismiss()
-                    }
-                }, modifier = Modifier.padding(start = 20.dp))
-            }
-        }
-    }
-}
-
-internal fun MainActivity.showItemEditorCompose(item: CodeItem, onDelete: (Long) -> Unit, onUpdate: (Long, String, String) -> Unit) {
-    showComposeDialog(compact = false) { dismiss ->
-        val dark = isDark()
-        var value by remember { mutableStateOf(item.text) }
-        var selectedIndex by remember { mutableIntStateOf(barcodeFormats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
-        ComposeGlassDialogCard(dark) {
-            Text("编辑条目", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            OutlinedTextField(
-                value,
-                { value = it },
-                Modifier.fillMaxWidth().padding(top = 12.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LocalAppColorScheme.current.text.primary,
-                    unfocusedTextColor = LocalAppColorScheme.current.text.primary,
-                    focusedLabelColor = LocalAppColorScheme.current.text.primary,
-                    unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
-                    focusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
-                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
-                    cursorColor = LocalAppColorScheme.current.text.primary,
-                ),
-                label = { Text("条码内容", color = LocalAppColorScheme.current.text.secondary) },
-            )
-            ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark) { choice ->
-                selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
-                DialogAction("删除", dark, {
-                    dismiss()
-                    showComposeConfirmDialog("删除条目", "确定删除此条码吗？", "删除") {
-                        onDelete(item.id)
-                    }
-                }, modifier = Modifier.padding(start = 20.dp))
-                DialogAction("保存", dark, {
-                    val text = value
-                    if (text.isBlank()) toast("请输入条码内容")
-                    else {
-                        onUpdate(item.id, text, barcodeFormats[selectedIndex].first)
-                        dismiss()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }

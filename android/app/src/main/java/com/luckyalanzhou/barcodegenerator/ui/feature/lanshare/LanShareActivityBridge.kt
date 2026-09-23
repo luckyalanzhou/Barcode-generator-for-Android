@@ -1,9 +1,12 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.showIos26NoticeDialogCompose
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 
-import com.luckyalanzhou.barcodegenerator.ui.AppRoute
+import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
@@ -22,7 +25,8 @@ import java.util.Locale
 /**
  * 局域网分享的业务和系统桥接。
  *
- * 可见页面、文件气泡、附件菜单和二维码弹窗由 ComposeLanShareUi.kt 负责；
+ * 可见页面、文件气泡、附件菜单和二维码弹窗由 LanShareContent、LanShareMessageBubble、
+ * LanShareInputBar 和 ComposeLanShareQrDialog 负责；
  * 本文件保留局域网会话、轮询、文件传输、系统相机/图库/文件选择器。
  */
 internal fun MainActivity.enterLanShare() {

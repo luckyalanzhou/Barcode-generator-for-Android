@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.app
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -7,9 +7,6 @@ import com.luckyalanzhou.barcodegenerator.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.LanShareViewModel
-import com.luckyalanzhou.barcodegenerator.ui.rememberComposeAnimationConfig
-
-import com.luckyalanzhou.barcodegenerator.ui.AppRoute
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut

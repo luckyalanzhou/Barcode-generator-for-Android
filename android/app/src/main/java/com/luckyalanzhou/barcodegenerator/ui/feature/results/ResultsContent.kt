@@ -1,5 +1,6 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.results
 
+import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.SettingsUiState
@@ -45,7 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlin.math.roundToInt
 
 @Composable
-internal fun ComposeResultsPage(
+internal fun ResultsContent(
     resultState: ResultUiState,
     settings: SettingsUiState,
     dark: Boolean,

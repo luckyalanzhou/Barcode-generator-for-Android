@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
-import com.luckyalanzhou.barcodegenerator.ui.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 /** Loads favorite/history data and owns the paging refresh boundary. */
 internal class FavoritesLoadCoordinator(

@@ -1,5 +1,6 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 
@@ -62,7 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun ComposeGeneratePage(
+internal fun GenerateContent(
     editorState: GenerateEditorState,
     initialFormat: String,
     dark: Boolean,

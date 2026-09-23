@@ -1,8 +1,8 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 
@@ -63,7 +63,7 @@ import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
 import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
 
 @Composable
-internal fun ComposeSettingsPage(
+internal fun SettingsContent(
     settings: SettingsUiState,
     dark: Boolean,
     onPersist: (SettingsUiState) -> Unit,

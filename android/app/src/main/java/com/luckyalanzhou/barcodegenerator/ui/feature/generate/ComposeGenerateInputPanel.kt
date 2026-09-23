@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui
+package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
