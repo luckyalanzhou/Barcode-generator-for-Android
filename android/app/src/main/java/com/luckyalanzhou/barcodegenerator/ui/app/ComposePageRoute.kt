@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.luckyalanzhou.barcodegenerator.presentation.BarcodeEvent
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
 import kotlinx.coroutines.launch
 
@@ -38,13 +37,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 LaunchedEffect(routePage, initialFormat) {
                     dependencies.generateViewModel.clearPendingFormat()
                     dependencies.generateViewModel.updateFormat(initialFormat)
-                }
-                LaunchedEffect(dependencies.viewModel) {
-                    dependencies.viewModel.events.collect { event ->
-                        when (event) {
-                            is BarcodeEvent.Notice -> dependencies.actions.notice(event.message)
-                        }
-                    }
                 }
                 LaunchedEffect(dependencies.cameraOcrViewModel) {
                     dependencies.cameraOcrViewModel.events.collect { event ->
@@ -68,7 +60,9 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                                 if (message == "请输入内容") message else "第 ${result.errorIndex + 1} 行：$message",
                             )
                         } else {
-                            dependencies.viewModel.commitGeneratedBarcodes(result.items)
+                            dependencies.resultsViewModel.commitGeneratedBarcodes(result.items) {
+                                dependencies.actions.navigateTo(AppRoute.Results)
+                            }
                         }
                     },
                     onCaptureText = dependencies.actions::captureText,
@@ -81,7 +75,11 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dataState = historyState,
                     dark = dark,
                     onClear = dependencies.actions::clearHistory,
-                    onOpen = dependencies.viewModel::openHistoryResult,
+                    onOpen = { batch ->
+                        dependencies.resultsViewModel.showHistoryResult(batch) {
+                            dependencies.actions.navigateTo(AppRoute.Results)
+                        }
+                    },
                     onEdit = dependencies.actions::editHistory,
                     onDelete = { batch ->
                         dependencies.actions.confirm("删除历史记录", "确定删除这条历史记录吗？", "删除") {
@@ -112,16 +110,18 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onLoadMoreGroups = dependencies.favoritesViewModel::loadMoreFavoriteGroups,
                     onToggleFolder = dependencies.favoritesViewModel::toggleFolder,
                     onOpenGroup = { group, style, isDark, density ->
-                        dependencies.viewModel.cancelFavoriteGroupRendering()
+                        dependencies.resultsViewModel.cancelFavoriteGroupRendering()
                         dependencies.favoritesViewModel.loadFavoriteGroupContent(
                             group = group,
                             onLoaded = { content ->
-                                dependencies.viewModel.openFavoriteGroup(
+                                dependencies.resultsViewModel.openFavoriteGroup(
                                     content = content,
                                     style = style,
                                     dark = isDark,
                                     density = density,
                                     isCurrent = dependencies.favoritesViewModel::isFavoriteGroupCurrent,
+                                    onNavigateToResults = { dependencies.actions.navigateTo(AppRoute.Results) },
+                                    onNotice = dependencies.actions::notice,
                                 )
                             },
                             onNotice = dependencies.actions::notice,
@@ -147,16 +147,20 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             AppRoute.Results -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
-                val resultState by dependencies.viewModel.resultUiState.collectAsStateWithLifecycle()
+                val resultState by dependencies.resultsViewModel.resultUiState.collectAsStateWithLifecycle()
                 ResultsContent(
                     resultState = resultState,
                     settings = settings,
                     dark = dark,
-                    onEdit = dependencies.viewModel::editCurrentResult,
+                    onEdit = {
+                        dependencies.resultsViewModel.editCurrentResult {
+                            dependencies.actions.navigateTo(AppRoute.Generate)
+                        }
+                    },
                     onSaveFavorite = dependencies.actions::saveFavorite,
                     onShare = dependencies.actions::shareResult,
                     loadBarcodeImage = { item, isDark, density ->
-                        dependencies.viewModel.loadOrCreateBarcodeImage(item, settings.style, isDark, density)
+                        dependencies.resultsViewModel.loadOrCreateBarcodeImage(item, settings.style, isDark, density)
                     },
                 )
             }

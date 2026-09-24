@@ -34,7 +34,7 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
         toast("不支持的条码格式")
         return
     }
-    val bitmap = viewModel.createBarcodeImage(item.text, format, settingsViewModel.style, isDark(), resources.displayMetrics.density) ?: run {
+    val bitmap = resultsViewModel.createBarcodeImage(item.text, format, settingsViewModel.style, isDark(), resources.displayMetrics.density) ?: run {
         toast("内容不符合该格式")
         return
     }

@@ -64,10 +64,10 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         if (index == 3 && viewModel.uiState.value.page != AppRoute.Settings) {
             val current = viewModel.uiState.value.page
             val returnPage = current.takeIf { it.mainTabIndex != null && it != AppRoute.Settings }
-                ?: viewModel.resultUiState.value.returnPage
+                ?: resultsViewModel.resultUiState.value.returnPage
             viewModel.updateSettingsReturnPage(returnPage)
         }
-        if (index == 0) viewModel.prepareMainGenerateTab()
+        if (index == 0) resultsViewModel.prepareMainGenerateTab()
         viewModel.navigateTo(routes[index], fromSwipe)
     }
 
@@ -97,11 +97,11 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     }
 
     override fun editFavorite(group: FavoriteGroup) {
-        viewModel.cancelFavoriteGroupRendering()
+        resultsViewModel.cancelFavoriteGroupRendering()
         favoritesViewModel.loadFavoriteGroupContent(
             group = group,
             onLoaded = { content ->
-                viewModel.loadFavoriteGroupForEditing(content) { batch ->
+                resultsViewModel.prepareFavoriteGroupForEditing(content) { batch ->
                     if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::deleteBarcodeItem, barcodeItemViewModel::updateBarcodeItem)
                     else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
                 }
@@ -131,7 +131,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
         this@composeAppShellActions.showComposeConfirmDialogImpl(title, message, positive, onConfirm)
     override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose(
-        resultState = viewModel.resultUiState.value,
+        resultState = resultsViewModel.resultUiState.value,
         dataState = favoritesViewModel.dataState.value,
         onSave = { itemIds, editingGroupId, targetGroupId, folder, name ->
             val saved = favoritesViewModel.saveResultAsFavorite(
@@ -142,7 +142,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
                 name,
             )
             if (saved) {
-                viewModel.clearSelectedFavoriteGroup()
+                resultsViewModel.clearSelectedFavoriteGroup()
                 viewModel.navigateTo(AppRoute.Favorites)
             }
             saved

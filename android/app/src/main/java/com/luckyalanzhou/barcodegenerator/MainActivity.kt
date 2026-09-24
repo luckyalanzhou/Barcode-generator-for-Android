@@ -16,6 +16,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
@@ -115,6 +116,7 @@ class MainActivity : AppCompatActivity() {
     internal val updateViewModel: UpdateViewModel by viewModels()
     internal val favoritesViewModel: FavoritesViewModel by viewModels()
     internal val historyViewModel: HistoryViewModel by viewModels()
+    internal val resultsViewModel: ResultsViewModel by viewModels()
     internal val barcodeItemViewModel: BarcodeItemViewModel by viewModels()
 
     private val externalActivityLauncher = registerForActivityResult(
@@ -241,7 +243,7 @@ class MainActivity : AppCompatActivity() {
         when (viewModel.uiState.value.page) {
             AppRoute.Settings -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage)
             AppRoute.LanShare -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }
-            AppRoute.Results -> viewModel.navigateTo(viewModel.resultUiState.value.returnPage)
+            AppRoute.Results -> viewModel.navigateTo(resultsViewModel.resultUiState.value.returnPage)
             else -> finish()
         }
     }

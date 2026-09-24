@@ -24,9 +24,9 @@ private data class ResultPageImage(val bitmap: Bitmap, val label: String)
 
 /** 为当前结果批次生成统一的合成图片。 */
 private fun MainActivity.createResultPageImage(): ResultPageImage? {
-    val resultItems = viewModel.resultUiState.value.items
+    val resultItems = resultsViewModel.resultUiState.value.items
     val images = resultItems.mapNotNull { item ->
-        viewModel.createBarcodeImage(
+        resultsViewModel.createBarcodeImage(
             item.text,
             barcodeFormats.firstOrNull { it.first == item.format }?.second ?: com.google.zxing.BarcodeFormat.CODE_128,
             settingsViewModel.style,

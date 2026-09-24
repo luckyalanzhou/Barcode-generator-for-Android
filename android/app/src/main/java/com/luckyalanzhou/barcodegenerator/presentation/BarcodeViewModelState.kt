@@ -84,7 +84,3 @@ sealed interface UpdateCheckResult {
     data object UpToDate : UpdateCheckResult
     data class Failed(val reason: String) : UpdateCheckResult
 }
-
-sealed interface BarcodeEvent {
-    data class Notice(val message: String) : BarcodeEvent
-}
