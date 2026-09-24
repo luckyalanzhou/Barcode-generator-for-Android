@@ -17,6 +17,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppNavigationViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
@@ -84,7 +85,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 条码结果页每次触摸都重新获得 5 分钟亮屏时间；无操作后恢复系统熄屏规则。 */
     private fun refreshBarcodeDisplayTimeout() {
-        if (viewModel.uiState.value.page != AppRoute.Results) return
+        if (navigationViewModel.uiState.value.page != AppRoute.Results) return
         syncBarcodeDisplaySettings(true)
         barcodeDisplayHandler.removeCallbacks(barcodeDisplayTimeout)
         barcodeDisplayHandler.postDelayed(barcodeDisplayTimeout, 5 * 60 * 1000L)
@@ -109,6 +110,7 @@ class MainActivity : AppCompatActivity() {
     internal var pendingResultImageLabel: String? = null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val viewModel: BarcodeViewModel by viewModels()
+    internal val navigationViewModel: AppNavigationViewModel by viewModels()
     internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()
     internal val generateViewModel: GenerateViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
@@ -158,11 +160,11 @@ class MainActivity : AppCompatActivity() {
 
         // 先挂载 Compose 首屏，再读取设置和迁移旧设置。设置存储或迁移发生等待时，
         // Activity 仍然必须能绘制默认页面，不能停留在窗口背景的黑屏状态。
-        if (state != null && viewModel.uiState.value.page == AppRoute.Generate) {
-            viewModel.syncNavigationStateFromUi(
+        if (state != null && navigationViewModel.uiState.value.page == AppRoute.Generate) {
+            navigationViewModel.syncNavigationStateFromUi(
                 AppRoute.fromPage(state.getString("page", AppRoute.Generate.pageName) ?: AppRoute.Generate.pageName),
             )
-            viewModel.updateSettingsReturnPage(
+            navigationViewModel.updateSettingsReturnPage(
                 AppRoute.fromPage(
                     state.getString("settings_return_page", AppRoute.Generate.pageName)
                         ?: AppRoute.Generate.pageName,
@@ -185,7 +187,7 @@ class MainActivity : AppCompatActivity() {
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                if (viewModel.uiState.value.page == AppRoute.LanShare && lanShareViewModel.uiState.value.session != null) {
+                if (navigationViewModel.uiState.value.page == AppRoute.LanShare && lanShareViewModel.uiState.value.session != null) {
                     lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
                 }
             } catch (error: Exception) {
@@ -232,18 +234,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("page", viewModel.uiState.value.page.pageName)
-        outState.putString("settings_return_page", viewModel.uiState.value.settingsReturnPage.pageName)
+        outState.putString("page", navigationViewModel.uiState.value.page.pageName)
+        outState.putString("settings_return_page", navigationViewModel.uiState.value.settingsReturnPage.pageName)
         outState.putBoolean("startup_update_check_started", updateViewModel.uiState.value.startupCheckStarted)
         super.onSaveInstanceState(outState)
     }
 
     /** 统一的现代返回回调，保持原有页面返回路径。 */
     private fun handleAppBackPressed() {
-        when (viewModel.uiState.value.page) {
-            AppRoute.Settings -> viewModel.navigateTo(viewModel.uiState.value.settingsReturnPage)
-            AppRoute.LanShare -> { closeLanShare(); viewModel.navigateTo(AppRoute.Settings) }
-            AppRoute.Results -> viewModel.navigateTo(resultsViewModel.resultUiState.value.returnPage)
+        when (navigationViewModel.uiState.value.page) {
+            AppRoute.Settings -> navigationViewModel.navigateTo(navigationViewModel.uiState.value.settingsReturnPage)
+            AppRoute.LanShare -> { closeLanShare(); navigationViewModel.navigateTo(AppRoute.Settings) }
+            AppRoute.Results -> navigationViewModel.navigateTo(resultsViewModel.resultUiState.value.returnPage)
             else -> finish()
         }
     }

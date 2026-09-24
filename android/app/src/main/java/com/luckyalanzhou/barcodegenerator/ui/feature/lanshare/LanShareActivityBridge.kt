@@ -34,7 +34,7 @@ internal fun MainActivity.enterLanShare() {
         showLanShareNetworkErrorDialog()
         return
     }
-    viewModel.updateSettingsReturnPage(AppRoute.Settings)
+    navigationViewModel.updateSettingsReturnPage(AppRoute.Settings)
     composeAppShellActions().navigateTo(AppRoute.LanShare)
     runCatching {
         lanShareViewModel.startHostSession()

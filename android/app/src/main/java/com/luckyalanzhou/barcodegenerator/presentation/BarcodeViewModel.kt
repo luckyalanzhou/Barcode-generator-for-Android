@@ -12,8 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute as AppRoute
-import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppRouteStateFacade
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
 import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -27,9 +25,6 @@ class BarcodeViewModel @Inject constructor(
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val barcodePersistence = barcodeDataCoordinator.persistence
-    private val _uiState = MutableStateFlow(AppUiState())
-    val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
-    private val routeFacade = AppRouteStateFacade(_uiState)
     val dataState: StateFlow<BarcodeDataState> = favoritesDataSession.dataState
     private val favoritesFacade = FavoritesFacade(
         persistence = barcodePersistence,
@@ -62,21 +57,6 @@ class BarcodeViewModel @Inject constructor(
     /** 发布只读快照，页面不会直接观察可变集合。 */
     fun publishDataState(isReady: Boolean = dataState.value.isReady) {
         favoritesDataSession.publishDataState(isReady)
-    }
-
-    fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
-        // ComposeAppShell renders directly from AppUiState, so navigation is a
-        // state mutation rather than a second event-driven navigation channel.
-        routeFacade.navigateTo(route, fromTabSwipe)
-    }
-
-    /** Transitional UI mirror; Compose Navigation owns the destination and back stack. */
-    fun syncNavigationStateFromUi(route: AppRoute, fromTabSwipe: Boolean = false) {
-        routeFacade.navigateTo(route, fromTabSwipe)
-    }
-
-    fun updateSettingsReturnPage(route: AppRoute) {
-        routeFacade.updateSettingsReturnPage(route)
     }
 
     fun persistAllFavorites() {

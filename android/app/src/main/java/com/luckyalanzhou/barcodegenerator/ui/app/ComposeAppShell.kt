@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppNavigationViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.collect
 
 internal data class ComposeAppShellDependencies(
     val viewModel: BarcodeViewModel,
+    val navigationViewModel: AppNavigationViewModel,
     val cameraOcrViewModel: CameraOcrViewModel,
     val generateViewModel: GenerateViewModel,
     val settingsViewModel: SettingsViewModel,
@@ -73,6 +75,7 @@ internal fun MainActivity.buildComposeShell() {
                 ComposeAppShell(
                     dependencies = ComposeAppShellDependencies(
                         viewModel = activity.viewModel,
+                        navigationViewModel = activity.navigationViewModel,
                         cameraOcrViewModel = activity.cameraOcrViewModel,
                         generateViewModel = activity.generateViewModel,
                         settingsViewModel = activity.settingsViewModel,
@@ -94,7 +97,7 @@ internal fun MainActivity.buildComposeShell() {
 /** Single source of truth for pages: AppUiState drives rendering; no NavController race. */
 @Composable
 internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
-    val appUiState by dependencies.viewModel.uiState.collectAsStateWithLifecycle()
+    val appUiState by dependencies.navigationViewModel.uiState.collectAsStateWithLifecycle()
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
