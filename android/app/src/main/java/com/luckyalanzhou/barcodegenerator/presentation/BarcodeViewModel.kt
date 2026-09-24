@@ -62,6 +62,8 @@ class BarcodeViewModel @Inject constructor(
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
     private val _favoriteSearchState = MutableStateFlow(BarcodeDataState())
     val favoriteSearchState: StateFlow<BarcodeDataState> = _favoriteSearchState.asStateFlow()
+    private val favoriteSearchQueryState = FavoriteSearchQueryState()
+    val favoriteSearchQuery: StateFlow<String> = favoriteSearchQueryState.query
     private val favoritesFacade = FavoritesFacade(
         repository = barcodeDataCoordinator.repository,
         persistence = barcodePersistence,
@@ -92,7 +94,8 @@ class BarcodeViewModel @Inject constructor(
     private val cameraOcrFacade = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcrFacade.cameraState
     private var favoriteSearchJob: Job? = null
-    private var currentFavoriteSearchQuery = ""
+    private val currentFavoriteSearchQuery: String
+        get() = favoriteSearchQueryState.normalizedQuery
 
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
@@ -264,11 +267,17 @@ class BarcodeViewModel @Inject constructor(
         publishFavoriteSearchState()
     }
 
-    fun searchFavoriteContent(query: String) {
+    fun updateFavoriteSearchQuery(query: String) {
+        if (favoriteSearchQueryState.update(query)) {
+            searchFavoriteContent(currentFavoriteSearchQuery)
+        }
+    }
+
+    private fun searchFavoriteContent(query: String) {
         favoriteSearchJob?.cancel()
-        currentFavoriteSearchQuery = query.trim()
+        val normalizedQuery = query
         favoriteSearchJob = viewModelScope.launch {
-            favoritesQueryCoordinator.search(currentFavoriteSearchQuery)
+            favoritesQueryCoordinator.search(normalizedQuery)
             publishFavoriteSearchState()
         }
     }

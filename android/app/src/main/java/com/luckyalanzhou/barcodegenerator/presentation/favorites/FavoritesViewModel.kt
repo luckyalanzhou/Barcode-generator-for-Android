@@ -12,14 +12,12 @@ class FavoritesViewModel @Inject constructor() : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
 
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
-    val query: StateFlow<String> = pageState.query
 
     fun syncTree(folders: Set<String>) = pageState.syncTree(folders)
     fun addCollapsed(paths: Set<String>) = pageState.addCollapsed(paths)
     fun toggleFolder(path: String, folders: Set<String>) = pageState.toggleFolder(path, folders)
     fun updateSearch(expandedPaths: Set<String>, searching: Boolean) =
         pageState.updateSearch(expandedPaths, searching)
-    fun updateQuery(value: String) = pageState.updateQuery(value)
     fun position(): Pair<Int, Int> = pageState.position()
     fun rememberPosition(index: Int, offset: Int) = pageState.rememberPosition(index, offset)
 }

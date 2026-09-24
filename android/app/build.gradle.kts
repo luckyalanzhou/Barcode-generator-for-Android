@@ -3,6 +3,9 @@ import java.util.Properties
 
 val suppliedVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull()
 val suppliedVersionName = providers.gradleProperty("versionName").orNull
+val enableAppUnitTests = providers.gradleProperty("enableAppUnitTests")
+    .map(String::toBoolean)
+    .getOrElse(false)
 val betaVersionProperties = Properties().apply {
     val versionFile = rootProject.file("beta-version.properties")
     if (versionFile.isFile) versionFile.inputStream().use(::load)
@@ -85,8 +88,8 @@ android {
 
 androidComponents {
     beforeVariants { variantBuilder ->
-        if (variantBuilder.buildType == "debug") {
-            // 不生成 officialDebug/betaDebug 本地调试变体；编译认证统一使用 Release 变体。
+        if (variantBuilder.buildType == "debug" && !enableAppUnitTests) {
+            // 默认不生成 officialDebug/betaDebug；显式开启应用单测时才创建测试所需的 debug 变体。
             variantBuilder.enable = false
         }
     }
