@@ -13,7 +13,6 @@ coreKtx = "1.19.0"
 documentfile = "1.1.0"
 exifinterface = "1.4.2"
 lifecycle = "2.11.0"
-navigation = "2.10.1"
 room = "2.8.5"
 datastore = "1.2.1"
 nanohttpd = "2.3.1"
@@ -39,7 +38,6 @@ androidx-documentfile = { module = "androidx.documentfile:documentfile", version
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
-androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
