@@ -14,10 +14,6 @@ internal class FavoritesFacade(
     val searchStore = session.searchStore
     val mutation = FavoritesMutationCoordinator(store, persistence, scope)
     val query = querySession.coordinator
-    val history = com.luckyalanzhou.barcodegenerator.presentation.history.HistoryCoordinator(
-        store = store,
-        persistItems = { items -> persistence.persistItems(scope, items) },
-    )
     val load = FavoritesLoadCoordinator(
         persistence = persistence,
         store = store,

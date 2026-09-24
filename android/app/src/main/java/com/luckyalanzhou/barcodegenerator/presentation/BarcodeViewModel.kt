@@ -28,7 +28,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppRouteStateF
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
-import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
@@ -64,7 +63,6 @@ class BarcodeViewModel @Inject constructor(
     private val favoriteSearchStateStore = favoritesFacade.searchStore
     private val favoritesCoordinator = favoritesFacade.mutation
     private val favoritesQueryCoordinator = favoritesFacade.query
-    private val historyCoordinator = favoritesFacade.history
     private val favoritesLoadCoordinator = favoritesFacade.load
 
     private val resultsCoordinator = ResultsCoordinator()
@@ -261,10 +259,6 @@ class BarcodeViewModel @Inject constructor(
         navigateTo(AppRoute.Generate)
     }
 
-    fun deleteHistoryBatch(batch: List<CodeItem>) {
-        historyCoordinator.deleteBatch(batch)
-    }
-
     /** 结果页图片缓存的唯一入口；Compose 不直接访问文件缓存或执行条码生成。 */
     fun loadOrCreateBarcodeImage(
         item: CodeItem,
@@ -296,11 +290,6 @@ class BarcodeViewModel @Inject constructor(
     fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); refreshFavoritesAfterMutation() }
 
     fun updateBarcodeItem(itemId: Long, text: String, format: String) { favoritesCoordinator.updateItem(itemId, text, format); refreshFavoritesAfterMutation() }
-
-    fun clearHistoryAndPersist() {
-        historyCoordinator.clearHistory()
-        refreshFavoritesAfterMutation()
-    }
 
     fun saveResultAsFavorite(
         resultItemIds: List<Long>,

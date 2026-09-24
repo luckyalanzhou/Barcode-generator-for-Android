@@ -44,7 +44,7 @@ internal fun MainActivity.showClearHistoryConfirmCompose(onConfirm: () -> Unit) 
 
 internal fun MainActivity.confirmClearCompose(favoritesOnly: Boolean) {
     if (!favoritesOnly) {
-        showClearHistoryConfirmCompose { viewModel.clearHistoryAndPersist() }
+        showClearHistoryConfirmCompose { historyViewModel.clearHistoryAndPersist() }
         return
     }
     showComposeConfirmDialog(

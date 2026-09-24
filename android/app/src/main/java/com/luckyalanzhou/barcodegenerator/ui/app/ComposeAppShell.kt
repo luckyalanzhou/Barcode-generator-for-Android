@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -55,6 +56,7 @@ internal data class ComposeAppShellDependencies(
     val lanShareViewModel: LanShareViewModel,
     val updateViewModel: UpdateViewModel,
     val favoritesViewModel: FavoritesViewModel,
+    val historyViewModel: HistoryViewModel,
     val actions: ComposeAppShellActions,
 )
 
@@ -73,6 +75,7 @@ internal fun MainActivity.buildComposeShell() {
                         lanShareViewModel = activity.lanShareViewModel,
                         updateViewModel = activity.updateViewModel,
                         favoritesViewModel = activity.favoritesViewModel,
+                        historyViewModel = activity.historyViewModel,
                         actions = activity.composeAppShellActions(),
                     ),
                 )

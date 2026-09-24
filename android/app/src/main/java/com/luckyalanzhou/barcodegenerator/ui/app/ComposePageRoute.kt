@@ -76,7 +76,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             AppRoute.History -> {
-                val historyState by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
+                val historyState by dependencies.historyViewModel.dataState.collectAsStateWithLifecycle()
                 HistoryScreen(
                     dataState = historyState,
                     dark = dark,
@@ -85,7 +85,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onEdit = dependencies.actions::editHistory,
                     onDelete = { batch ->
                         dependencies.actions.confirm("删除历史记录", "确定删除这条历史记录吗？", "删除") {
-                            dependencies.viewModel.deleteHistoryBatch(batch)
+                            dependencies.historyViewModel.deleteHistoryBatch(batch)
                         }
                     },
                 )
