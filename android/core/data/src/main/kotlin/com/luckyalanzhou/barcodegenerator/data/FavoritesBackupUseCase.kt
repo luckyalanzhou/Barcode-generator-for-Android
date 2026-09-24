@@ -4,13 +4,15 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
-import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportPlanner
 
 import java.io.ByteArrayOutputStream
 
 /** 收藏备份用例：协调 ZIP 格式与 Repository，UI 不再直接访问 DAO 或事务。 */
-class FavoritesBackupUseCase(private val repository: BarcodeRepository) : FavoritesBackupRepository {
+class FavoritesBackupUseCase(
+    private val repository: BarcodeRepository,
+    private val importPlanner: FavoritesImportPlanner = FavoritesImportPlanner(),
+) : FavoritesBackupRepository {
     override suspend fun export(): ByteArray {
         val entities = repository.loadSnapshot().toTransferEntities()
         return ByteArrayOutputStream().use { output ->
@@ -23,21 +25,16 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
 
     override suspend fun inspectImport(backup: InterchangeBackup): FavoritesImportConflictSummary {
         val existing = repository.loadSnapshot()
-        val existingFiles = existing.groups.map(::fileKey).toSet()
         return FavoritesImportConflictSummary(
-            fileKeys = backup.favorites.map(::fileKey)
-                .filter { it in existingFiles }.distinct(),
+            fileKeys = importPlanner.inspectConflicts(existing.groups, backup.favorites),
         )
     }
 
     override suspend fun import(backup: InterchangeBackup, overwriteConflicts: Boolean): Pair<Int, Int> {
-        val existing = repository.loadSnapshot().toTransferEntities()
-        val existingFileKeys = existing.groups.map(::fileKey).toSet()
-        val incomingFileKeys = backup.favorites.map(::fileKey).toSet()
-        val conflictingGroupIds = existing.groups
-            .filter { fileKey(it) in incomingFileKeys }
-            .map { it.id }
-        val replacedGroupIds = if (overwriteConflicts) conflictingGroupIds.toSet() else emptySet()
+        val existingSnapshot = repository.loadSnapshot()
+        val existing = existingSnapshot.toTransferEntities()
+        val plan = importPlanner.plan(existingSnapshot.groups, backup.favorites, overwriteConflicts)
+        val replacedGroupIds = plan.replacedGroupIds
         // Build the complete post-import snapshot without deleting durable data first.
         // Room applies the replacement and import together, so any constraint/write failure
         // rolls back and leaves every old favorite intact.
@@ -46,15 +43,7 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
             links = existing.links.filterNot { it.groupId in replacedGroupIds },
         )
 
-        val deduplicatedFavorites = backup.favorites
-            .asReversed()
-            .distinctBy(::fileKey)
-            .asReversed()
-        val effectiveBackup = if (overwriteConflicts) backup.copy(
-            favorites = deduplicatedFavorites,
-        ) else backup.copy(
-            favorites = deduplicatedFavorites.filterNot { fileKey(it) in existingFileKeys },
-        )
+        val effectiveBackup = backup.copy(favorites = plan.favoritesToImport)
         val transfer = FavoritesTransferManager.appendEntities(
             effectiveBackup,
             retainedExisting.items,
@@ -64,16 +53,4 @@ class FavoritesBackupUseCase(private val repository: BarcodeRepository) : Favori
         repository.commitFavoriteImport(transfer.toSnapshot(), replacedGroupIds)
         return transfer.items.size to transfer.groups.size
     }
-
-    private fun fileKey(group: FavoriteGroupEntity): String =
-        fileKey(group.folder, group.name)
-
-    private fun fileKey(group: FavoriteGroup): String =
-        fileKey(group.folder, group.name)
-
-    private fun fileKey(favorite: InterchangeFavorite): String =
-        fileKey(favorite.folder, favorite.name)
-
-    private fun fileKey(folder: String, name: String): String =
-        "${folder.trim().trim('/').let { if (it == "默认") "" else it }}\u0000${name.trim()}"
 }
