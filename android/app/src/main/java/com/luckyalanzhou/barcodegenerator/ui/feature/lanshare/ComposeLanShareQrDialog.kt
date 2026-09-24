@@ -85,7 +85,11 @@ internal fun ComposeLanShareQrDialog(
                         Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(qrSize).background(Color(background)), contentScale = ContentScale.FillBounds)
                         Row(Modifier.width(qrSize).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(session.shareUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                            IconButton(onClick = { onCopyAddress(session.shareUrl) }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制局域网传输地址", tint = primary) }
+                            IconButton(onClick = { onCopyAddress(session.shareUrl) }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制完整分享链接", tint = primary) }
+                        }
+                        Text("手动连接：打开 ${session.baseUrl} 并输入访问码", color = secondary, fontSize = 12.sp, textAlign = TextAlign.Center)
+                        SelectionContainer {
+                            Text(session.accessToken, color = primary, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
                         }
                     }
                 }
@@ -122,7 +126,12 @@ internal fun MainActivity.showLanShareQrDialogCompose() {
             SelectionContainer {
                 Text(session.shareUrl, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = secondary, fontSize = 13.sp, textAlign = TextAlign.Center)
             }
+            Text("手动连接：打开 ${session.baseUrl} 并输入访问码", modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = secondary, fontSize = 12.sp, textAlign = TextAlign.Center)
+            SelectionContainer {
+                Text(session.accessToken, modifier = Modifier.fillMaxWidth().padding(top = 4.dp), color = primary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                DialogAction("复制完整链接", dark, { composeAppShellActions().copyLanShareAddress(session.shareUrl) })
                 DialogAction("关闭", dark, {
                     lanShareViewModel.setQrVisible(false)
                     dismiss()

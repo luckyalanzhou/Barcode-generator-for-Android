@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.domain
 
 import java.io.File
 import java.io.InputStream
+import java.net.URI
 
 /** LAN Share 展示和会话模型，供 ViewModel 与 Compose 使用，不暴露网络 DTO 包。 */
 data class LanShareFile(
@@ -14,9 +15,34 @@ data class LanShareFile(
 
 data class LanShareSession(
     val baseUrl: String,
+    val accessToken: String,
 ) {
-    /** Address intended for QR/manual browser entry. LAN Share does not use token authentication. */
-    val shareUrl: String get() = baseUrl
+    init {
+        require(ACCESS_TOKEN.matches(accessToken)) { "无效的局域网分享访问码" }
+    }
+
+    /** QR and copied browser address; never log or persist this URL. */
+    val shareUrl: String get() = "$baseUrl/?token=$accessToken"
+
+    companion object {
+        private val ACCESS_TOKEN = Regex("[A-Za-z0-9_-]{22}")
+
+        fun fromShareUrl(value: String): LanShareSession? = runCatching {
+            val uri = URI(value.trim())
+            val host = uri.host ?: return@runCatching null
+            val isIpv4 = host.split('.').let { parts ->
+                parts.size == 4 && parts.all { part -> part.toIntOrNull()?.let { it in 0..255 } == true }
+            }
+            if (!uri.scheme.equals("http", ignoreCase = true) || !isIpv4 ||
+                uri.port !in 1..65535 || uri.userInfo != null || uri.fragment != null ||
+                uri.rawPath !in listOf("", "/")
+            ) return@runCatching null
+            val token = uri.rawQuery?.takeIf { it.startsWith("token=") }
+                ?.removePrefix("token=")?.takeIf(ACCESS_TOKEN::matches)
+                ?: return@runCatching null
+            LanShareSession("http://$host:${uri.port}", token)
+        }.getOrNull()
+    }
 }
 
 /** File types that can be rendered as LAN Share previews. */

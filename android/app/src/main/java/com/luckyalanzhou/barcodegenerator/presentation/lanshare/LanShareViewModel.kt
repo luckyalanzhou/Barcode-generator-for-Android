@@ -90,20 +90,11 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun joinSessionFromAddress(value: String): Boolean {
-        val address = value.trim()
-        if (!address.startsWith("http://", ignoreCase = true)) {
-            _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
+        val session = LanShareSession.fromShareUrl(value)
+        if (session == null || !lanShareGateway.isRouterLanHost(session.baseUrl.toUri().host)) {
+            _events.trySend(LanShareEvent.Error("分享地址无效或缺少访问码，请扫描新二维码"))
             return false
         }
-        val uri = address.toUri()
-        if (uri.host.isNullOrBlank() || uri.port !in 1..65535 ||
-            uri.fragment != null || uri.userInfo != null ||
-            !lanShareGateway.isRouterLanHost(uri.host)
-        ) {
-            _events.trySend(LanShareEvent.Error("这不是局域网分享地址"))
-            return false
-        }
-        val session = LanShareSession("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else 80}")
         joinSession(session)
         startAutoRefresh(session)
         refreshFiles(session)

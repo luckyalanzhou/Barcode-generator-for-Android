@@ -2,6 +2,8 @@ package com.luckyalanzhou.barcodegenerator.data.network.server
 
 import com.luckyalanzhou.barcodegenerator.data.network.client.LanShareClient
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
+import java.security.SecureRandom
+import java.util.Base64
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
@@ -90,16 +92,18 @@ class LanShareManager(
             .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
         val ports = (18080..28080).filter { it != lastPort }.shuffled() + listOfNotNull(lastPort)
+        val accessToken = ByteArray(16).also(SecureRandom()::nextBytes)
+            .let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
         val running = ports.firstNotNullOfOrNull { port ->
             runCatching {
-                LanShareServer(address, port, folder, logger).also {
+                LanShareServer(address, port, folder, accessToken, logger).also {
                     it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 }
             }.getOrNull()
         } ?: error("无法启动局域网分享服务")
         server = running
         lastPort = running.listeningPort
-        val session = LanShareSession("http://$address:${running.listeningPort}")
+        val session = LanShareSession("http://$address:${running.listeningPort}", accessToken)
         logger.record("lan", "server started address=${session.baseUrl}", null)
         return session
     }

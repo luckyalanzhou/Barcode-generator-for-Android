@@ -8,11 +8,9 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeBrowserClien
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeFileName
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebAccessPage
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
-
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
-
-
 import android.net.Uri
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD
@@ -28,8 +26,10 @@ internal class LanShareServer(
     host: String,
     port: Int,
     private val folder: File,
+    accessToken: String,
     private val logger: AppLogger,
 ) : NanoWSD(host, port) {
+    private val accessControl = LanShareAccessControl(accessToken)
     @Volatile private var lastBrowserRequestAt = 0L
     @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
@@ -137,6 +137,28 @@ internal class LanShareServer(
             .put("sender", record.sender)
         }
     )).toString()
+
+    override fun serve(session: IHTTPSession): Response {
+        val authorized = accessControl.allows(
+            session.parameters["token"]?.singleOrNull(),
+            session.headers["x-lan-token"],
+        )
+        if (!authorized) {
+            if (session.method == Method.GET && session.uri.substringBefore('?') == "/") {
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    "text/html; charset=utf-8",
+                    LanShareWebAccessPage.render(),
+                ).apply {
+                    addHeader("Cache-Control", "no-store")
+                    addHeader("Referrer-Policy", "no-referrer")
+                }
+            }
+            return newFixedLengthResponse(Response.Status.FORBIDDEN, MIME_PLAINTEXT, "需要有效的分享访问码")
+                .apply { addHeader("Cache-Control", "no-store") }
+        }
+        return super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
+    }
 
     override fun serveHttp(session: IHTTPSession): Response {
         if (session.headers["user-agent"].orEmpty().contains("Mozilla", ignoreCase = true)) {
@@ -251,7 +273,7 @@ internal class LanShareServer(
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "not found")
             }
         } catch (error: Exception) {
-            logger.record("lan-server", "request failed uri=${session.uri}", error)
+            logger.record("lan-server", "request failed path=${session.uri.substringBefore('?')}", error)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
         }
     }

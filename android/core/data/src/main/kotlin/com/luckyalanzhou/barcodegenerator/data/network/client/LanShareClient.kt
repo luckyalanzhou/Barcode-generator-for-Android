@@ -49,6 +49,7 @@ internal class LanShareClient(
             connectTimeout = 8_000
             readTimeout = 120_000
             requestMethod = "POST"
+            setRequestProperty("X-Lan-Token", session.accessToken)
             doOutput = true
             setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
             // NanoHTTPD 对 chunked 大请求会尝试构造整段字符串；固定长度可让其直接落到临时文件。
@@ -82,6 +83,7 @@ internal class LanShareClient(
             connectTimeout = 8_000
             readTimeout = 30_000
             requestMethod = "POST"
+            setRequestProperty("X-Lan-Token", session.accessToken)
             doOutput = true
             setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
             setFixedLengthStreamingMode(header.size.toLong() + body.size + footer.size)
@@ -136,6 +138,7 @@ internal class LanShareClient(
             connectTimeout = 8_000
             readTimeout = 30_000
             requestMethod = if (output) "POST" else "GET"
+            setRequestProperty("X-Lan-Token", session.accessToken)
             doOutput = output
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
         }

@@ -10,6 +10,13 @@ const connectionStatus = document.getElementById('connection-status');
 const attachmentSheet = document.getElementById('attachment-sheet');
 const attachmentButton = document.getElementById('attachment-button');
 const clientIdKey = 'lanShareClientId';
+const accessToken = new URL(location.href).searchParams.get('token') || '';
+
+function authorizedUrl(path) {
+    const url = new URL(path, location.origin);
+    url.searchParams.set('token', accessToken);
+    return url.pathname + url.search;
+}
 
 let clientId = localStorage.getItem(clientIdKey);
 if (!clientId) {
@@ -35,7 +42,7 @@ function setConnectionState(connected) {
 }
 
 function fileUrl(file) {
-    return '/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
+    return authorizedUrl('/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
 }
 
 function createFileItem(file) {
@@ -122,7 +129,7 @@ async function refreshFiles() {
     }
     refreshInFlight = true;
     try {
-        const response = await fetch('/api/files?_=' + Date.now(), { cache: 'no-store' });
+        const response = await fetch(authorizedUrl('/api/files?_=' + Date.now()), { cache: 'no-store' });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         reconcileFiles(await response.json());
     } catch (_) {
@@ -139,7 +146,7 @@ async function refreshFiles() {
 async function uploadFile(file) {
     if (!file) return;
     try {
-        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId), {
+        const response = await fetch(authorizedUrl('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId)), {
             method: 'PUT',
             headers: {
                 'content-type': file.type || 'application/octet-stream',
@@ -211,7 +218,7 @@ document.addEventListener('click', event => {
 
 async function heartbeat() {
     try {
-        const response = await fetch('/api/presence?_=' + Date.now(), { cache: 'no-store' });
+        const response = await fetch(authorizedUrl('/api/presence?_=' + Date.now()), { cache: 'no-store' });
         setConnectionState(response.ok);
     } catch (_) {
         setConnectionState(false);
@@ -221,7 +228,7 @@ async function heartbeat() {
 let socket;
 function connectSocket() {
     try {
-        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + authorizedUrl('/ws'));
         socket.onopen = () => {
             setConnectionState(true);
             socket.send('sync');
