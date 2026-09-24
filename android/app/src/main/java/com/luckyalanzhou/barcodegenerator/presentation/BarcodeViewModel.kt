@@ -37,6 +37,7 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import java.util.Locale
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
@@ -54,8 +55,6 @@ class BarcodeViewModel @Inject constructor(
     val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
     private val _favoriteSearchState = MutableStateFlow(BarcodeDataState())
     val favoriteSearchState: StateFlow<BarcodeDataState> = _favoriteSearchState.asStateFlow()
-    private val favoriteSearchQueryState = FavoriteSearchQueryState()
-    val favoriteSearchQuery: StateFlow<String> = favoriteSearchQueryState.query
     private val favoritesFacade = FavoritesFacade(
         repository = barcodeDataCoordinator.repository,
         persistence = barcodePersistence,
@@ -82,9 +81,6 @@ class BarcodeViewModel @Inject constructor(
     )
 
     private var favoriteSearchJob: Job? = null
-    private val currentFavoriteSearchQuery: String
-        get() = favoriteSearchQueryState.normalizedQuery
-
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
     private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
@@ -255,15 +251,9 @@ class BarcodeViewModel @Inject constructor(
         publishFavoriteSearchState()
     }
 
-    fun updateFavoriteSearchQuery(query: String) {
-        if (favoriteSearchQueryState.update(query)) {
-            searchFavoriteContent(currentFavoriteSearchQuery)
-        }
-    }
-
-    private fun searchFavoriteContent(query: String) {
+    fun searchFavoriteContent(query: String) {
         favoriteSearchJob?.cancel()
-        val normalizedQuery = query
+        val normalizedQuery = query.trim().lowercase(Locale.ROOT)
         favoriteSearchJob = viewModelScope.launch {
             favoritesQueryCoordinator.search(normalizedQuery)
             publishFavoriteSearchState()
@@ -414,9 +404,6 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadPersistedData() {
         favoritesLoadCoordinator.loadPersistedData()
-        if (currentFavoriteSearchQuery.isNotBlank()) {
-            searchFavoriteContent(currentFavoriteSearchQuery)
-        }
     }
 
     fun loadMoreFavoriteGroups(search: String = "") {
@@ -450,11 +437,5 @@ class BarcodeViewModel @Inject constructor(
     private fun refreshFavoritesAfterMutation() {
         favoritesQueryCoordinator.onMutation()
         publishDataState()
-        if (currentFavoriteSearchQuery.isNotBlank()) {
-            searchFavoriteContent(currentFavoriteSearchQuery)
-        } else {
-            favoritesQueryCoordinator.clearSearch()
-            publishFavoriteSearchState()
-        }
     }
 }

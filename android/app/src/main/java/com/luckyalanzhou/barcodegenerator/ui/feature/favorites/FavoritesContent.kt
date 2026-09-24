@@ -92,6 +92,7 @@ internal fun FavoritesContent(
     dark: Boolean,
     style: StyleSettings,
     onQueryChange: (String) -> Unit,
+    onSearchFavoriteContent: (String) -> Unit,
     onSyncFavoriteTree: (Set<String>) -> Unit,
     onUpdateFavoriteSearch: (Set<String>, Boolean) -> Unit,
     onRememberListPosition: (Int, Int) -> Unit,
@@ -135,6 +136,7 @@ internal fun FavoritesContent(
     }
 
     LaunchedEffect(folderPaths, displayState.groups) { onSyncFavoriteTree(folderPaths) }
+    LaunchedEffect(normalizedQuery, favoritesState) { onSearchFavoriteContent(normalizedQuery) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { onUpdateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     LaunchedEffect(listState, listPositionRestored) {

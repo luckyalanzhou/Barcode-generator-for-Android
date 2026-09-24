@@ -94,7 +94,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val favoriteData by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
                 val favoriteSearch by dependencies.viewModel.favoriteSearchState.collectAsStateWithLifecycle()
-                val favoriteQuery by dependencies.viewModel.favoriteSearchQuery.collectAsStateWithLifecycle()
+                val favoriteQuery by dependencies.favoritesViewModel.query.collectAsStateWithLifecycle()
                 val favoriteTree by dependencies.favoritesViewModel.treeState.collectAsStateWithLifecycle()
                 FavoritesContent(
                     favoritesState = favoriteData,
@@ -104,7 +104,8 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     savedListPosition = dependencies.favoritesViewModel.position(),
                     dark = dark,
                     style = settings.style,
-                    onQueryChange = dependencies.viewModel::updateFavoriteSearchQuery,
+                    onQueryChange = dependencies.favoritesViewModel::updateQuery,
+                    onSearchFavoriteContent = dependencies.viewModel::searchFavoriteContent,
                     onSyncFavoriteTree = dependencies.favoritesViewModel::syncTree,
                     onUpdateFavoriteSearch = dependencies.favoritesViewModel::updateSearch,
                     onRememberListPosition = dependencies.favoritesViewModel::rememberPosition,
