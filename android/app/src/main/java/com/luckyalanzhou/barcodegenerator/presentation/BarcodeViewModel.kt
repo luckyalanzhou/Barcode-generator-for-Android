@@ -38,12 +38,12 @@ import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
-import java.util.Locale
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val favoritesDataSession: FavoritesDataSession,
+    private val favoritesQuerySession: FavoritesQuerySession,
     private val barcodeImageCache: BarcodeImageCache,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,
@@ -54,12 +54,11 @@ class BarcodeViewModel @Inject constructor(
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
     private val routeFacade = AppRouteStateFacade(_uiState)
     val dataState: StateFlow<BarcodeDataState> = favoritesDataSession.dataState
-    val favoriteSearchState: StateFlow<BarcodeDataState> = favoritesDataSession.searchState
     private val favoritesFacade = FavoritesFacade(
-        repository = barcodeDataCoordinator.repository,
         persistence = barcodePersistence,
         scope = viewModelScope,
         session = favoritesDataSession,
+        querySession = favoritesQuerySession,
     )
     private val favoritesStateStore = favoritesFacade.store
     private val favoriteSearchStateStore = favoritesFacade.searchStore
@@ -78,7 +77,6 @@ class BarcodeViewModel @Inject constructor(
         persistItems = ::persistItems,
     )
 
-    private var favoriteSearchJob: Job? = null
     private val _events = MutableSharedFlow<BarcodeEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<BarcodeEvent> = _events.asSharedFlow()
     private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
@@ -249,18 +247,8 @@ class BarcodeViewModel @Inject constructor(
         publishFavoriteSearchState()
     }
 
-    fun searchFavoriteContent(query: String) {
-        favoriteSearchJob?.cancel()
-        val normalizedQuery = query.trim().lowercase(Locale.ROOT)
-        favoriteSearchJob = viewModelScope.launch {
-            favoritesQueryCoordinator.search(normalizedQuery)
-            publishFavoriteSearchState()
-        }
-    }
-
-    private fun publishFavoriteSearchState() {
-        favoritesFacade.publishSearchState()
-    }
+    private fun publishFavoriteSearchState() =
+        favoritesDataSession.publishSearchState(favoritesQueryCoordinator)
 
     fun openHistoryResult(batch: List<CodeItem>) {
         resultsCoordinator.showHistoryResult(batch)
@@ -400,14 +388,6 @@ class BarcodeViewModel @Inject constructor(
 
     suspend fun loadPersistedData() {
         favoritesLoadCoordinator.loadPersistedData()
-    }
-
-    fun loadMoreFavoriteGroups(search: String = "") {
-        if (search.isNotBlank()) {
-            viewModelScope.launch { favoritesLoadCoordinator.loadMoreFavoriteGroups(search) }
-            return
-        }
-        viewModelScope.launch { favoritesLoadCoordinator.loadMoreFavoriteGroups() }
     }
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary =

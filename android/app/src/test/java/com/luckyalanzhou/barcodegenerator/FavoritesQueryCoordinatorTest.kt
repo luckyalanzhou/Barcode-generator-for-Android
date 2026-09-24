@@ -11,6 +11,8 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQueryCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
 import kotlinx.coroutines.runBlocking
@@ -19,6 +21,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FavoritesQueryCoordinatorTest {
+    @Test
+    fun querySessionUsesTheSharedSearchStore() = runBlocking {
+        val dataSession = FavoritesDataSession()
+        val querySession = FavoritesQuerySession(
+            repository = FakeFavoriteRepository(groups = listOf(group(1L, "搜索结果"))),
+            dataSession = dataSession,
+        )
+
+        querySession.coordinator.search("搜索")
+        dataSession.publishSearchState(querySession.coordinator)
+
+        assertEquals(listOf(1L), dataSession.searchStore.groupsSnapshot().map { it.id })
+        assertEquals(listOf(1L), dataSession.searchState.value.groups.map { it.id })
+        assertTrue(dataSession.store.groupsSnapshot().isEmpty())
+    }
+
     @Test
     fun paginationUsesStableCursorAfterLoadedGroupIsDeleted() = runBlocking {
         val firstPage = (1L..100L).map { group(it) }

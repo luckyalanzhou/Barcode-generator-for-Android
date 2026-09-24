@@ -30,15 +30,4 @@ internal class FavoritesLoadCoordinator(
         publish(true)
         publishSearch()
     }
-
-    suspend fun loadMoreFavoriteGroups() {
-        if (query.loadMore()) publish(true)
-    }
-
-    suspend fun loadMoreFavoriteGroups(search: String) {
-        if (query.loadMore(search)) {
-            publishSearch()
-            publish(true)
-        }
-    }
 }
