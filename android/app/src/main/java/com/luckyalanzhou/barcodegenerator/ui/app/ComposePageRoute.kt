@@ -111,7 +111,22 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onRememberListPosition = dependencies.favoritesViewModel::rememberPosition,
                     onLoadMoreGroups = dependencies.favoritesViewModel::loadMoreFavoriteGroups,
                     onToggleFolder = dependencies.favoritesViewModel::toggleFolder,
-                    onOpenGroup = dependencies.viewModel::openFavoriteGroup,
+                    onOpenGroup = { group, style, isDark, density ->
+                        dependencies.viewModel.cancelFavoriteGroupRendering()
+                        dependencies.favoritesViewModel.loadFavoriteGroupContent(
+                            group = group,
+                            onLoaded = { content ->
+                                dependencies.viewModel.openFavoriteGroup(
+                                    content = content,
+                                    style = style,
+                                    dark = isDark,
+                                    density = density,
+                                    isCurrent = dependencies.favoritesViewModel::isFavoriteGroupCurrent,
+                                )
+                            },
+                            onNotice = dependencies.actions::notice,
+                        )
+                    },
                     onRenameFolder = dependencies.favoritesViewModel::renameFavoriteFolder,
                     onDeleteFolder = dependencies.favoritesViewModel::deleteFavoriteFolder,
                     onDeleteGroup = { dependencies.favoritesViewModel.deleteFavoriteGroup(it.id) },

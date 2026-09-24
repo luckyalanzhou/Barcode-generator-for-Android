@@ -4,15 +4,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDataCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import java.util.Locale
 
 /** Owns transient Favorites-page state and observes the shared barcode data session. */
@@ -22,6 +28,7 @@ class FavoritesViewModel @Inject constructor(
     private val querySession: FavoritesQuerySession,
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val persistence: BarcodePersistenceCoordinator,
+    private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
     private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, viewModelScope)
@@ -32,7 +39,16 @@ class FavoritesViewModel @Inject constructor(
         publish = dataSession::publishDataState,
         publishSearch = { dataSession.publishSearchState(querySession.coordinator) },
     )
+    private val groupContent = FavoriteGroupContentCoordinator(
+        loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
+        regularStore = dataSession.store,
+        searchStore = dataSession.searchStore,
+        publishDataState = dataSession::publishDataState,
+        publishSearchState = { dataSession.publishSearchState(querySession.coordinator) },
+    )
     private var searchJob: Job? = null
+    private var groupLoadJob: Job? = null
+    private var groupLoadRequest = 0L
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
     val searchState: StateFlow<BarcodeDataState> = dataSession.searchState
@@ -147,6 +163,60 @@ class FavoritesViewModel @Inject constructor(
         publishAfterMutation()
         return true
     }
+
+    internal fun loadFavoriteGroupContent(
+        group: FavoriteGroup,
+        onLoaded: (FavoriteGroupContentLoadResult.Loaded) -> Unit,
+        onNotice: (String) -> Unit,
+    ) {
+        groupLoadJob?.cancel()
+        val request = ++groupLoadRequest
+        groupLoadJob = viewModelScope.launch {
+            try {
+                DebugLog.record("favorites", "open start groupId=${group.id}")
+                val result = withContext(Dispatchers.IO) { groupContent.load(group.id) }
+                if (request != groupLoadRequest) return@launch
+                when (result) {
+                    is FavoriteGroupContentLoadResult.Loaded -> {
+                        groupContent.cache(result)
+                        onLoaded(result)
+                    }
+                    is FavoriteGroupContentLoadResult.Rejected -> when (result.failure) {
+                        FavoriteGroupContentLoadFailure.GROUP_NOT_CACHED -> {
+                            DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
+                            onNotice("收藏文件已变化，请刷新收藏列表后重试")
+                        }
+                        FavoriteGroupContentLoadFailure.GROUP_NOT_FOUND -> {
+                            DebugLog.record("favorites", "open failed groupId=${group.id} reason=group_missing_in_room")
+                            onNotice("收藏文件已不存在，请刷新收藏列表")
+                        }
+                        FavoriteGroupContentLoadFailure.GROUP_CHANGED ->
+                            DebugLog.record("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read")
+                        FavoriteGroupContentLoadFailure.INVALID_CONTENT -> {
+                            DebugLog.record(
+                                "favorites",
+                                "open integrity failure groupId=${group.id} linked=${result.linkedCount} loaded=${result.loadedCount} invalid=${result.invalidCount}",
+                            )
+                            onNotice("收藏文件数据不完整，已阻止打开空结果；请先导出备份并联系支持")
+                        }
+                        FavoriteGroupContentLoadFailure.EMPTY -> {
+                            DebugLog.record("favorites", "open empty groupId=${group.id} linked=0")
+                            onNotice("该收藏文件没有条码内容，未进入结果页")
+                        }
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                appLogger.record("favorites", "open failed groupId=${group.id}", error)
+                DebugLog.record("favorites", "open failed groupId=${group.id}", error)
+                onNotice("读取收藏文件失败，数据未被修改；请重试")
+            }
+        }
+    }
+
+    internal fun isFavoriteGroupCurrent(groupId: Long, savedAt: Long): Boolean =
+        groupContent.isCurrent(groupId, savedAt)
 
     private fun publishAfterMutation() {
         querySession.coordinator.onMutation()

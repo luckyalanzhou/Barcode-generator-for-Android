@@ -32,7 +32,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsCoordinato
 import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
-import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
 
@@ -61,18 +60,10 @@ class BarcodeViewModel @Inject constructor(
     private val favoritesCoordinator = favoritesFacade.mutation
     private val favoritesQueryCoordinator = favoritesFacade.query
     private val favoritesLoadCoordinator = favoritesFacade.load
-    private val favoriteGroupContentCoordinator = FavoriteGroupContentCoordinator(
-        loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
-        regularStore = favoritesDataSession.store,
-        searchStore = favoritesDataSession.searchStore,
-        publishDataState = favoritesDataSession::publishDataState,
-        publishSearchState = { favoritesDataSession.publishSearchState(favoritesQuerySession.coordinator) },
-    )
-
     private val resultsCoordinator = ResultsCoordinator()
     val resultUiState: StateFlow<ResultUiState> = resultsCoordinator.state
-    private var favoriteOpenJob: Job? = null
-    private var favoriteOpenRequest = 0L
+    private var favoriteRenderJob: Job? = null
+    private var favoriteRenderRequest = 0L
 
     private val generationCoordinator = GenerateCoordinator(
         store = favoritesStateStore,
@@ -127,102 +118,56 @@ class BarcodeViewModel @Inject constructor(
         resultsCoordinator.clearSelectedFavoriteGroup()
     }
 
-    fun openFavoriteGroup(
-        group: FavoriteGroup,
-        style: StyleSettings? = null,
-        dark: Boolean = false,
-        density: Float = 1f,
-    ) {
-        openFavoriteGroupWhenLoaded(group, AppRoute.Results, style, dark, density)
+    internal fun cancelFavoriteGroupRendering() {
+        favoriteRenderRequest++
+        favoriteRenderJob?.cancel()
     }
 
-    fun loadFavoriteGroupForEditing(group: FavoriteGroup, onLoaded: (List<CodeItem>) -> Unit) {
-        openFavoriteGroupWhenLoaded(group, AppRoute.Favorites, null, false, 1f, onLoaded)
-    }
-
-    private fun openFavoriteGroupWhenLoaded(
-        group: FavoriteGroup,
-        destination: AppRoute,
-        style: StyleSettings?,
+    internal fun openFavoriteGroup(
+        content: FavoriteGroupContentLoadResult.Loaded,
+        style: StyleSettings,
         dark: Boolean,
         density: Float,
-        onLoaded: ((List<CodeItem>) -> Unit)? = null,
+        isCurrent: (Long, Long) -> Boolean,
     ) {
-        favoriteOpenJob?.cancel()
-        val request = ++favoriteOpenRequest
-        favoriteOpenJob = viewModelScope.launch {
+        favoriteRenderJob?.cancel()
+        val request = ++favoriteRenderRequest
+        favoriteRenderJob = viewModelScope.launch {
             try {
-                DebugLog.record("favorites", "open start groupId=${group.id} destination=$destination")
-
-                // The group row, its links, and all linked barcode rows are read from Room
-                // in one transaction; the in-memory startup/page cache is never the source
-                // of result contents.
-                val loaded = withContext(Dispatchers.IO) { favoriteGroupContentCoordinator.load(group.id) }
-                if (request != favoriteOpenRequest) return@launch
-                val content = when (loaded) {
-                    is FavoriteGroupContentLoadResult.Loaded -> loaded
-                    is FavoriteGroupContentLoadResult.Rejected -> {
-                        when (loaded.failure) {
-                            FavoriteGroupContentLoadFailure.GROUP_NOT_CACHED -> {
-                                DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
-                                _events.emit(BarcodeEvent.Notice("收藏文件已变化，请刷新收藏列表后重试"))
-                            }
-                            FavoriteGroupContentLoadFailure.GROUP_NOT_FOUND -> {
-                                DebugLog.record("favorites", "open failed groupId=${group.id} reason=group_missing_in_room")
-                                _events.emit(BarcodeEvent.Notice("收藏文件已不存在，请刷新收藏列表"))
-                            }
-                            FavoriteGroupContentLoadFailure.GROUP_CHANGED ->
-                                DebugLog.record("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read")
-                            FavoriteGroupContentLoadFailure.INVALID_CONTENT -> {
-                                DebugLog.record(
-                                    "favorites",
-                                    "open integrity failure groupId=${group.id} linked=${loaded.linkedCount} loaded=${loaded.loadedCount} invalid=${loaded.invalidCount}",
-                                )
-                                _events.emit(BarcodeEvent.Notice("收藏文件数据不完整，已阻止打开空结果；请先导出备份并联系支持"))
-                            }
-                            FavoriteGroupContentLoadFailure.EMPTY -> {
-                                DebugLog.record("favorites", "open empty groupId=${group.id} linked=0")
-                                _events.emit(BarcodeEvent.Notice("该收藏文件没有条码内容，未进入结果页"))
-                            }
-                        }
-                        return@launch
+                withContext(Dispatchers.Default.limitedParallelism(4)) {
+                    coroutineScope {
+                        content.items.map { item ->
+                            async { barcodeImageRenderer.loadOrCreate(item, style, dark, density) }
+                        }.awaitAll()
                     }
                 }
-
-                favoriteGroupContentCoordinator.cache(content)
-                if (destination == AppRoute.Results && style != null) {
-                    withContext(Dispatchers.Default.limitedParallelism(4)) {
-                        coroutineScope {
-                            content.items.map { item ->
-                                async { barcodeImageRenderer.loadOrCreate(item, style, dark, density) }
-                            }.awaitAll()
-                        }
-                    }
-                }
-                if (request != favoriteOpenRequest || !favoriteGroupContentCoordinator.isCurrent(group.id, content.expectedSavedAt)) {
-                    DebugLog.record("favorites", "open discarded groupId=${group.id} reason=stale_after_render")
+                if (request != favoriteRenderRequest || !isCurrent(content.group.id, content.expectedSavedAt)) {
+                    DebugLog.record("favorites", "open discarded groupId=${content.group.id} reason=stale_after_render")
                     return@launch
                 }
                 DebugLog.record(
                     "favorites",
-                    "open complete groupId=${group.id} linkIds=${content.group.itemIds.size} loadedItems=${content.items.size}",
+                    "open complete groupId=${content.group.id} linkIds=${content.group.itemIds.size} loadedItems=${content.items.size}",
                 )
                 resultsCoordinator.showFavoriteResult(content.group, content.items)
-                onLoaded?.invoke(content.items)
-                if (destination == AppRoute.Generate) {
-                    generateEditor.updateDraft(content.items.map { it.text })
-                    generateEditor.setPendingFormat(content.items.first().format)
-                }
-                navigateTo(destination)
+                navigateTo(AppRoute.Results)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                appLogger.record("favorites", "open failed groupId=${group.id}", error)
-                DebugLog.record("favorites", "open failed groupId=${group.id}", error)
+                appLogger.record("favorites", "open failed groupId=${content.group.id}", error)
+                DebugLog.record("favorites", "open failed groupId=${content.group.id}", error)
                 _events.emit(BarcodeEvent.Notice("读取收藏文件失败，数据未被修改；请重试"))
-            } finally {
             }
         }
+    }
+
+    internal fun loadFavoriteGroupForEditing(
+        content: FavoriteGroupContentLoadResult.Loaded,
+        onLoaded: (List<CodeItem>) -> Unit,
+    ) {
+        resultsCoordinator.showFavoriteResult(content.group, content.items)
+        onLoaded(content.items)
+        navigateTo(AppRoute.Favorites)
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {

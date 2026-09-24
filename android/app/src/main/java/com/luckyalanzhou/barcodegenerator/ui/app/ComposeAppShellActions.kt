@@ -97,10 +97,17 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     }
 
     override fun editFavorite(group: FavoriteGroup) {
-        viewModel.loadFavoriteGroupForEditing(group) { batch ->
-            if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::deleteBarcodeItem, barcodeItemViewModel::updateBarcodeItem)
-            else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
-        }
+        viewModel.cancelFavoriteGroupRendering()
+        favoritesViewModel.loadFavoriteGroupContent(
+            group = group,
+            onLoaded = { content ->
+                viewModel.loadFavoriteGroupForEditing(content) { batch ->
+                    if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::deleteBarcodeItem, barcodeItemViewModel::updateBarcodeItem)
+                    else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
+                }
+            },
+            onNotice = this@composeAppShellActions::toast,
+        )
     }
 
     override fun showSubfolderEditor(parent: String) = this@composeAppShellActions.showSubfolderEditorCompose(
