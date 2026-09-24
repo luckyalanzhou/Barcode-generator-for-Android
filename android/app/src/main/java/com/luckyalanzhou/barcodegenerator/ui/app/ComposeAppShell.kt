@@ -15,6 +15,8 @@ import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -144,8 +146,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             (slideInHorizontally(tween(animation.pageEnterDurationMillis)) { it }) togetherWith
                                 (slideOutHorizontally(tween(animation.pageExitDurationMillis)) { -it / 8 }) using SizeTransform(clip = false)
                         } else if (initialState == AppRoute.Results) {
-                            (slideInHorizontally(tween(animation.pageEnterDurationMillis)) { -it / 8 }) togetherWith
-                                (slideOutHorizontally(tween(animation.pageExitDurationMillis)) { it }) using SizeTransform(clip = false)
+                            EnterTransition.None togetherWith ExitTransition.None using null
                         } else {
                             val initialTabIndex = initialState.mainTabIndex
                         val targetTabIndex = targetState.mainTabIndex
