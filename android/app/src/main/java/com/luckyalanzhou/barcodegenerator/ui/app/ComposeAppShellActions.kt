@@ -126,7 +126,20 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose(
         resultState = viewModel.resultUiState.value,
         dataState = favoritesViewModel.dataState.value,
-        onSave = viewModel::saveResultAsFavorite,
+        onSave = { itemIds, editingGroupId, targetGroupId, folder, name ->
+            val saved = favoritesViewModel.saveResultAsFavorite(
+                itemIds,
+                editingGroupId,
+                targetGroupId,
+                folder,
+                name,
+            )
+            if (saved) {
+                viewModel.clearSelectedFavoriteGroup()
+                viewModel.navigateTo(AppRoute.Favorites)
+            }
+            saved
+        },
         onCreateFolder = favoritesViewModel::createFavoriteFolder,
     )
     override fun shareResult() = this@composeAppShellActions.shareResultPage()

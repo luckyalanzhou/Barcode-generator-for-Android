@@ -101,6 +101,25 @@ class FavoritesViewModel @Inject constructor(
         publishAfterMutation()
     }
 
+    fun saveResultAsFavorite(
+        resultItemIds: List<Long>,
+        editingGroupId: Long?,
+        targetGroupId: Long?,
+        folder: String,
+        name: String,
+    ): Boolean {
+        if (!mutations.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
+        publishAfterMutation()
+        return true
+    }
+
+    fun updateFavoriteGroup(groupId: Long, name: String, folder: String): Boolean {
+        if (dataSession.store.groupsSnapshot().none { it.id == groupId }) return false
+        if (!mutations.updateGroup(groupId, name, folder)) return false
+        publishAfterMutation()
+        return true
+    }
+
     private fun publishAfterMutation() {
         querySession.coordinator.onMutation()
         dataSession.publishDataState()

@@ -68,8 +68,8 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
         val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
         fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String) {
-            onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
-            toast("已保存到 " + folder)
+            val saved = onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
+            toast(if (saved) "已保存到 $folder" else "保存失败，请重试")
         }
         ComposeGlassDialogCard(dark) {
             Text(

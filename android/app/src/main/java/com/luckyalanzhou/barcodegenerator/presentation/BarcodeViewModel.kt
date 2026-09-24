@@ -287,30 +287,6 @@ class BarcodeViewModel @Inject constructor(
         navigateTo(AppRoute.Results)
     }
 
-    fun saveResultAsFavorite(
-        resultItemIds: List<Long>,
-        editingGroupId: Long?,
-        targetGroupId: Long?,
-        folder: String,
-        name: String,
-    ): Boolean {
-        if (!favoritesCoordinator.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
-        refreshFavoritesAfterMutation()
-        resultsCoordinator.clearSelectedFavoriteGroup()
-        navigateTo(AppRoute.Favorites)
-        return true
-    }
-
-    fun updateFavoriteGroupAndPersist(groupId: Long, name: String, folder: String): Boolean {
-        if (favoritesStateStore.groupsSnapshot().none { it.id == groupId }) return false
-        if (!favoritesCoordinator.updateGroup(groupId, name, folder)) return false
-        refreshFavoritesAfterMutation()
-        resultsCoordinator.updateSelectedFavoriteGroup(
-            favoritesStateStore.groupsSnapshot().firstOrNull { group -> group.id == groupId },
-        )
-        return true
-    }
-
     fun persistAllFavorites() {
         favoritesCoordinator.persistAllFavorites()
         publishDataState()
