@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
@@ -52,7 +51,6 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import kotlinx.coroutines.flow.collect
 
 internal data class ComposeAppShellDependencies(
-    val viewModel: BarcodeViewModel,
     val navigationViewModel: AppNavigationViewModel,
     val cameraOcrViewModel: CameraOcrViewModel,
     val generateViewModel: GenerateViewModel,
@@ -74,7 +72,6 @@ internal fun MainActivity.buildComposeShell() {
             setContent {
                 ComposeAppShell(
                     dependencies = ComposeAppShellDependencies(
-                        viewModel = activity.viewModel,
                         navigationViewModel = activity.navigationViewModel,
                         cameraOcrViewModel = activity.cameraOcrViewModel,
                         generateViewModel = activity.generateViewModel,
@@ -112,7 +109,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         }
     }
     LaunchedEffect(Unit) {
-        dependencies.viewModel.persistenceFailures.collect {
+        dependencies.favoritesViewModel.persistenceFailures.collect {
             dependencies.actions.notice("数据保存失败，请稍后重试")
         }
     }

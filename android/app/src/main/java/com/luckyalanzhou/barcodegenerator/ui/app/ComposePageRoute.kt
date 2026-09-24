@@ -32,7 +32,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
         when (routePage) {
             AppRoute.Generate -> {
                 val editorState by dependencies.generateViewModel.uiState.collectAsStateWithLifecycle()
-                val barcodeData by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
+                val barcodeData by dependencies.favoritesViewModel.dataState.collectAsStateWithLifecycle()
                 val initialFormat = editorState.pendingFormat ?: editorState.formatName
                 LaunchedEffect(routePage, initialFormat) {
                     dependencies.generateViewModel.clearPendingFormat()

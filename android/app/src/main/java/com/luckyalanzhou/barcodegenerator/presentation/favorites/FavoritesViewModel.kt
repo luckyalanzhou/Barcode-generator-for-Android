@@ -8,6 +8,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -54,6 +58,25 @@ class FavoritesViewModel @Inject constructor(
     val searchState: StateFlow<BarcodeDataState> = dataSession.searchState
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
     val query: StateFlow<String> = pageState.query
+    private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    val persistenceFailures: SharedFlow<Unit> = _persistenceFailures.asSharedFlow()
+
+    init {
+        viewModelScope.launch {
+            persistence.writeFailures.collect { error ->
+                appLogger.record("persistence", "write failed", error)
+                _persistenceFailures.emit(Unit)
+                // Mutations are optimistic in memory. Restore the last durable snapshot
+                // if a queued Room write fails, so the UI cannot keep stale data.
+                runCatching { loader.loadPersistedData() }
+                    .onFailure { reloadError ->
+                        appLogger.record("persistence", "reload after write failure failed", reloadError)
+                    }
+            }
+        }
+    }
+
+    suspend fun loadPersistedData() = loader.loadPersistedData()
 
     fun searchFavoriteContent(query: String) {
         searchJob?.cancel()

@@ -19,7 +19,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppNavigationViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
-import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.applyAppearance
@@ -109,7 +108,6 @@ class MainActivity : AppCompatActivity() {
     internal var pendingResultImage: Bitmap? = null
     internal var pendingResultImageLabel: String? = null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
-    internal val viewModel: BarcodeViewModel by viewModels()
     internal val navigationViewModel: AppNavigationViewModel by viewModels()
     internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()
     internal val generateViewModel: GenerateViewModel by viewModels()
@@ -199,7 +197,7 @@ class MainActivity : AppCompatActivity() {
             }
             // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
             lifecycleScope.launch(Dispatchers.IO) {
-                runCatching { viewModel.loadPersistedData() }
+                runCatching { favoritesViewModel.loadPersistedData() }
                     .onFailure { error ->
                         Log.e("BarcodeGenerator", "Background data initialization failed", error)
                         DebugLog.record("startup", "background data initialization failed", error)
