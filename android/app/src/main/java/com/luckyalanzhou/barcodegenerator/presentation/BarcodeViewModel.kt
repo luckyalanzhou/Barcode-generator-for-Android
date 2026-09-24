@@ -287,10 +287,6 @@ class BarcodeViewModel @Inject constructor(
         navigateTo(AppRoute.Results)
     }
 
-    fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); refreshFavoritesAfterMutation() }
-
-    fun updateBarcodeItem(itemId: Long, text: String, format: String) { favoritesCoordinator.updateItem(itemId, text, format); refreshFavoritesAfterMutation() }
-
     fun saveResultAsFavorite(
         resultItemIds: List<Long>,
         editingGroupId: Long?,
@@ -321,7 +317,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     fun persistItems() {
-        favoritesCoordinator.persistItems()
+        barcodePersistence.persistItems(viewModelScope, favoritesStateStore.itemsSnapshot())
         publishDataState()
     }
 

@@ -52,33 +52,6 @@ internal class FavoritesMutationCoordinator(
         return removed
     }
 
-    fun deleteItem(itemId: Long) {
-        store.edit {
-            items.removeAll { it.id == itemId }
-            val modifiedAt = System.currentTimeMillis()
-            groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
-                val group = groups[index]
-                group.itemIds.removeAll { it == itemId }
-                groups[index] = group.copy(savedAt = modifiedAt)
-            }
-        }
-        persistAllFavorites()
-    }
-
-    fun updateItem(itemId: Long, text: String, format: String) {
-        val favorite = store.edit {
-            val item = items.firstOrNull { it.id == itemId } ?: return@edit null
-            item.text = text
-            item.format = format
-            val modifiedAt = System.currentTimeMillis()
-            groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
-                groups[index] = groups[index].copy(savedAt = modifiedAt)
-            }
-            item.favorite
-        } ?: return
-        if (favorite) persistAllFavorites() else persistItems()
-    }
-
     fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
         val savedGroupId = store.edit {
             val selectedItems = items.filter { it.id in resultItemIds }
@@ -150,5 +123,4 @@ internal class FavoritesMutationCoordinator(
         store.foldersSnapshot(),
         store.loadedGroupLinkIdsSnapshot(),
     )
-    fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())
 }
