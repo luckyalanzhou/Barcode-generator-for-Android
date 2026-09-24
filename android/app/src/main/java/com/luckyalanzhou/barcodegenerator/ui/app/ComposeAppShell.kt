@@ -142,10 +142,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     targetState = currentRoute,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     transitionSpec = {
-                        if (targetState == AppRoute.Results) {
-                            (slideInHorizontally(tween(animation.pageEnterDurationMillis)) { it }) togetherWith
-                                (slideOutHorizontally(tween(animation.pageExitDurationMillis)) { -it / 8 }) using SizeTransform(clip = false)
-                        } else if (initialState == AppRoute.Results) {
+                        if (targetState == AppRoute.Results || initialState == AppRoute.Results) {
                             EnterTransition.None togetherWith ExitTransition.None using null
                         } else {
                             val initialTabIndex = initialState.mainTabIndex
