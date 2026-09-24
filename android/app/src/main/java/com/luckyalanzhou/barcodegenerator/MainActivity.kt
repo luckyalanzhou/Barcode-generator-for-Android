@@ -19,6 +19,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppNavigationViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.applyAppearance
@@ -118,6 +119,7 @@ class MainActivity : AppCompatActivity() {
     internal val historyViewModel: HistoryViewModel by viewModels()
     internal val resultsViewModel: ResultsViewModel by viewModels()
     internal val barcodeItemViewModel: BarcodeItemViewModel by viewModels()
+    internal val libraryDataViewModel: LibraryDataViewModel by viewModels()
 
     private val externalActivityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -197,7 +199,7 @@ class MainActivity : AppCompatActivity() {
             }
             // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
             lifecycleScope.launch(Dispatchers.IO) {
-                runCatching { favoritesViewModel.loadPersistedData() }
+                runCatching { libraryDataViewModel.loadPersistedData() }
                     .onFailure { error ->
                         Log.e("BarcodeGenerator", "Background data initialization failed", error)
                         DebugLog.record("startup", "background data initialization failed", error)

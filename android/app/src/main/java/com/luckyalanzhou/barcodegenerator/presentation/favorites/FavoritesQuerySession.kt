@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.favorites
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryLoadMetadata
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import dagger.hilt.android.scopes.ActivityRetainedScoped
 import javax.inject.Inject
@@ -31,5 +32,10 @@ class FavoritesQuerySession @Inject constructor(
         mutableSearchState.value = coordinator.searchSnapshot(currentData.isReady).copy(
             folders = currentData.folders,
         )
+    }
+
+    internal fun onLibrarySnapshotLoaded(metadata: LibraryLoadMetadata) {
+        coordinator.resetPaging(metadata.lastFavoriteGroupCursor, metadata.hasMoreFavoriteGroups)
+        publishSearchState()
     }
 }

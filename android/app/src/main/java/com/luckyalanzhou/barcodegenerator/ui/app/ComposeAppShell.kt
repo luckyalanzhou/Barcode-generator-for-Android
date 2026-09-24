@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppNavigationViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -61,6 +62,7 @@ internal data class ComposeAppShellDependencies(
     val historyViewModel: HistoryViewModel,
     val resultsViewModel: ResultsViewModel,
     val barcodeItemViewModel: BarcodeItemViewModel,
+    val libraryDataViewModel: LibraryDataViewModel,
     val actions: ComposeAppShellActions,
 )
 
@@ -82,6 +84,7 @@ internal fun MainActivity.buildComposeShell() {
                         historyViewModel = activity.historyViewModel,
                         resultsViewModel = activity.resultsViewModel,
                         barcodeItemViewModel = activity.barcodeItemViewModel,
+                        libraryDataViewModel = activity.libraryDataViewModel,
                         actions = activity.composeAppShellActions(),
                     ),
                 )
@@ -109,7 +112,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         }
     }
     LaunchedEffect(Unit) {
-        dependencies.favoritesViewModel.persistenceFailures.collect {
+        dependencies.libraryDataViewModel.persistenceFailures.collect {
             dependencies.actions.notice("数据保存失败，请稍后重试")
         }
     }

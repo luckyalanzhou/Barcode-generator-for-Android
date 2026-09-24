@@ -8,9 +8,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -18,8 +15,9 @@ import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDataCoordinator
-import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
@@ -31,19 +29,12 @@ class FavoritesViewModel @Inject constructor(
     private val dataSession: LibraryDataSession,
     private val querySession: FavoritesQuerySession,
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
+    private val libraryDataCoordinator: LibraryDataCoordinator,
     private val persistence: BarcodePersistenceCoordinator,
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
     private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, viewModelScope)
-    private val loader = FavoritesLoadCoordinator(
-        persistence = persistence,
-        logger = appLogger,
-        store = dataSession.store,
-        query = querySession.coordinator,
-        publish = dataSession::publishDataState,
-        publishSearch = querySession::publishSearchState,
-    )
     private val groupContent = FavoriteGroupContentCoordinator(
         loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
         regularStore = dataSession.store,
@@ -59,25 +50,13 @@ class FavoritesViewModel @Inject constructor(
     val searchState: StateFlow<BarcodeDataState> = querySession.searchState
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
     val query: StateFlow<String> = pageState.query
-    private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
-    val persistenceFailures: SharedFlow<Unit> = _persistenceFailures.asSharedFlow()
-
     init {
         viewModelScope.launch {
-            persistence.writeFailures.collect { error ->
-                appLogger.record("persistence", "write failed", error)
-                _persistenceFailures.emit(Unit)
-                // Mutations are optimistic in memory. Restore the last durable snapshot
-                // if a queued Room write fails, so the UI cannot keep stale data.
-                runCatching { loader.loadPersistedData() }
-                    .onFailure { reloadError ->
-                        appLogger.record("persistence", "reload after write failure failed", reloadError)
-                    }
+            dataSession.loadMetadata.collect { metadata ->
+                if (metadata != null) querySession.onLibrarySnapshotLoaded(metadata)
             }
         }
     }
-
-    suspend fun loadPersistedData() = loader.loadPersistedData()
 
     fun searchFavoriteContent(query: String) {
         searchJob?.cancel()
@@ -161,7 +140,7 @@ class FavoritesViewModel @Inject constructor(
     ): Pair<Int, Int> {
         val counts = barcodeDataCoordinator.importFavorites(backup, overwriteConflicts)
         // Reload through the same paging-aware snapshot path used at startup.
-        loader.loadPersistedData()
+        libraryDataCoordinator.loadPersistedData()
         return counts
     }
 
