@@ -22,7 +22,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistence
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
-import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import java.util.Locale
 
 /** Owns transient Favorites-page state and observes the shared barcode data session. */
@@ -38,6 +37,7 @@ class FavoritesViewModel @Inject constructor(
     private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, viewModelScope)
     private val loader = FavoritesLoadCoordinator(
         persistence = persistence,
+        logger = appLogger,
         store = dataSession.store,
         query = querySession.coordinator,
         publish = dataSession::publishDataState,
@@ -196,7 +196,7 @@ class FavoritesViewModel @Inject constructor(
         val request = ++groupLoadRequest
         groupLoadJob = viewModelScope.launch {
             try {
-                DebugLog.record("favorites", "open start groupId=${group.id}")
+                appLogger.record("favorites", "open start groupId=${group.id}", null)
                 val result = withContext(Dispatchers.IO) { groupContent.load(group.id) }
                 if (request != groupLoadRequest) return@launch
                 when (result) {
@@ -206,24 +206,25 @@ class FavoritesViewModel @Inject constructor(
                     }
                     is FavoriteGroupContentLoadResult.Rejected -> when (result.failure) {
                         FavoriteGroupContentLoadFailure.GROUP_NOT_CACHED -> {
-                            DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
+                            appLogger.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded", null)
                             onNotice("收藏文件已变化，请刷新收藏列表后重试")
                         }
                         FavoriteGroupContentLoadFailure.GROUP_NOT_FOUND -> {
-                            DebugLog.record("favorites", "open failed groupId=${group.id} reason=group_missing_in_room")
+                            appLogger.record("favorites", "open failed groupId=${group.id} reason=group_missing_in_room", null)
                             onNotice("收藏文件已不存在，请刷新收藏列表")
                         }
                         FavoriteGroupContentLoadFailure.GROUP_CHANGED ->
-                            DebugLog.record("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read")
+                            appLogger.record("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read", null)
                         FavoriteGroupContentLoadFailure.INVALID_CONTENT -> {
-                            DebugLog.record(
+                            appLogger.record(
                                 "favorites",
                                 "open integrity failure groupId=${group.id} linked=${result.linkedCount} loaded=${result.loadedCount} invalid=${result.invalidCount}",
+                                null,
                             )
                             onNotice("收藏文件数据不完整，已阻止打开空结果；请先导出备份并联系支持")
                         }
                         FavoriteGroupContentLoadFailure.EMPTY -> {
-                            DebugLog.record("favorites", "open empty groupId=${group.id} linked=0")
+                            appLogger.record("favorites", "open empty groupId=${group.id} linked=0", null)
                             onNotice("该收藏文件没有条码内容，未进入结果页")
                         }
                     }
@@ -232,7 +233,6 @@ class FavoritesViewModel @Inject constructor(
                 throw error
             } catch (error: Exception) {
                 appLogger.record("favorites", "open failed groupId=${group.id}", error)
-                DebugLog.record("favorites", "open failed groupId=${group.id}", error)
                 onNotice("读取收藏文件失败，数据未被修改；请重试")
             }
         }

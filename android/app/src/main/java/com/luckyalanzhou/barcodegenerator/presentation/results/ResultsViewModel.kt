@@ -15,7 +15,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorSt
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageRenderer
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
-import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -74,12 +73,13 @@ class ResultsViewModel @Inject constructor(
                     }
                 }
                 if (request != favoriteRenderRequest || !isCurrent(content.group.id, content.expectedSavedAt)) {
-                    DebugLog.record("favorites", "open discarded groupId=${content.group.id} reason=stale_after_render")
+                    appLogger.record("favorites", "open discarded groupId=${content.group.id} reason=stale_after_render", null)
                     return@launch
                 }
-                DebugLog.record(
+                appLogger.record(
                     "favorites",
                     "open complete groupId=${content.group.id} linkIds=${content.group.itemIds.size} loadedItems=${content.items.size}",
+                    null,
                 )
                 results.showFavoriteResult(content.group, content.items)
                 onNavigateToResults()
@@ -87,7 +87,6 @@ class ResultsViewModel @Inject constructor(
                 throw error
             } catch (error: Exception) {
                 appLogger.record("favorites", "open failed groupId=${content.group.id}", error)
-                DebugLog.record("favorites", "open failed groupId=${content.group.id}", error)
                 onNotice("读取收藏文件失败，数据未被修改；请重试")
             }
         }
