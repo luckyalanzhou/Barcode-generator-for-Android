@@ -32,6 +32,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
         when (routePage) {
             AppRoute.Generate -> {
                 val editorState by dependencies.generateViewModel.uiState.collectAsStateWithLifecycle()
+                val barcodeData by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
                 val initialFormat = editorState.pendingFormat ?: editorState.formatName
                 LaunchedEffect(routePage, initialFormat) {
                     dependencies.generateViewModel.clearPendingFormat()
@@ -52,14 +53,14 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onDraftChanged = dependencies.generateViewModel::updateDraft,
                     onFormatChanged = dependencies.generateViewModel::updateFormat,
                     onGenerate = { values, format ->
-                        dependencies.generateViewModel.updateDraft(values)
-                        dependencies.generateViewModel.updateFormat(format)
-                        val result = dependencies.viewModel.generateBarcodes(format)
+                        val result = dependencies.generateViewModel.generate(values, format, barcodeData.items)
                         if (!result.isValid) {
                             val message = result.errorMessage
                             dependencies.actions.notice(
                                 if (message == "请输入内容") message else "第 ${result.errorIndex + 1} 行：$message",
                             )
+                        } else {
+                            dependencies.viewModel.commitGeneratedBarcodes(result.items)
                         }
                     },
                     onCaptureText = dependencies.actions::captureText,

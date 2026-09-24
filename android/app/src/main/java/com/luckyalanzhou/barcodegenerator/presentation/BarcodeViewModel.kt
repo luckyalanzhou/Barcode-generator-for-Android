@@ -39,14 +39,12 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
-import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
-    private val generateBarcodesUseCase: GenerateBarcodesUseCase,
     private val barcodeImageCache: BarcodeImageCache,
     private val ocrTextGateway: OcrTextGateway,
     private val barcodeDecodeGateway: BarcodeDecodeGateway,
@@ -85,9 +83,7 @@ class BarcodeViewModel @Inject constructor(
     private var favoriteOpenRequest = 0L
 
     private val generationCoordinator = GenerateCoordinator(
-        useCase = generateBarcodesUseCase,
         store = favoritesStateStore,
-        readDraft = { generateEditor.state.value.inputDraft },
         persistItems = ::persistItems,
     )
 
@@ -367,13 +363,11 @@ class BarcodeViewModel @Inject constructor(
         return cameraOcrFacade.consumePermissionRequest()
     }
 
-    fun generateBarcodes(formatName: String): GenerateBarcodesUseCase.Output {
-        val result = generationCoordinator.generate(formatName, resultsCoordinator.current())
-        result.uiState?.let {
-            resultsCoordinator.updateGeneratedResult(it)
-            navigateTo(AppRoute.Results)
-        }
-        return result.output
+    fun commitGeneratedBarcodes(items: List<CodeItem>) {
+        if (items.isEmpty()) return
+        val nextResult = generationCoordinator.commit(items, resultsCoordinator.current())
+        resultsCoordinator.updateGeneratedResult(nextResult)
+        navigateTo(AppRoute.Results)
     }
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
