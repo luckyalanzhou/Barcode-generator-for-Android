@@ -22,4 +22,13 @@ class LanShareSessionTest {
         assertNull(LanShareSession.fromShareUrl("http://example.com:18080/?token=0123456789abcdefghijAB"))
         assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/api/files?token=0123456789abcdefghijAB"))
     }
+
+    @Test
+    fun manualCodeIsHostOnlyAndDoesNotChangeQrLink() {
+        val session = LanShareSession("http://192.168.1.23:18080", "0123456789abcdefghijAB", "A7B2")
+
+        assertEquals("A7B2", session.manualCode)
+        assertEquals("http://192.168.1.23:18080/?token=0123456789abcdefghijAB", session.shareUrl)
+        assertNull(LanShareSession.fromShareUrl(session.shareUrl)?.manualCode)
+    }
 }

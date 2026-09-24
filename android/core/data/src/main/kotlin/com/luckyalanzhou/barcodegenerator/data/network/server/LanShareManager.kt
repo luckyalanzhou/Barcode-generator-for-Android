@@ -92,18 +92,24 @@ class LanShareManager(
             .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
         val ports = (18080..28080).filter { it != lastPort }.shuffled() + listOfNotNull(lastPort)
-        val accessToken = ByteArray(16).also(SecureRandom()::nextBytes)
+        val random = SecureRandom()
+        val accessToken = ByteArray(16).also(random::nextBytes)
             .let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
+        val codeAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        var manualCode: String
+        do {
+            manualCode = CharArray(4) { codeAlphabet[random.nextInt(codeAlphabet.length)] }.concatToString()
+        } while (manualCode.none(Char::isDigit) || manualCode.none(Char::isLetter))
         val running = ports.firstNotNullOfOrNull { port ->
             runCatching {
-                LanShareServer(address, port, folder, accessToken, logger).also {
+                LanShareServer(address, port, folder, accessToken, manualCode, logger).also {
                     it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 }
             }.getOrNull()
         } ?: error("无法启动局域网分享服务")
         server = running
         lastPort = running.listeningPort
-        val session = LanShareSession("http://$address:${running.listeningPort}", accessToken)
+        val session = LanShareSession("http://$address:${running.listeningPort}", accessToken, manualCode)
         logger.record("lan", "server started address=${session.baseUrl}", null)
         return session
     }

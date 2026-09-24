@@ -17,8 +17,9 @@ class LanShareServerAuthTest {
     @Test
     fun allEntryPointsRequireTokenBeforeFileAccessOrWebSocketUpgrade() {
         val token = "0123456789abcdefghijAB"
+        val code = "A7B2"
         val server = LanShareServer(
-            "127.0.0.1", 0, temporaryFolder.newFolder(), token, AppLogger { _, _, _ -> },
+            "127.0.0.1", 0, temporaryFolder.newFolder(), token, code, AppLogger { _, _, _ -> },
         )
         try {
             server.start(5_000, false)
@@ -34,6 +35,8 @@ class LanShareServerAuthTest {
             assertEquals(403, request("$base/upload", method = "PUT").first)
             assertEquals(403, request("$base/api/download/missing").first)
             assertTrue(request(base).second.contains("访问码"))
+            assertEquals(403, postCode("$base/join", "wrong").first)
+            assertEquals(303 to "/?token=$token", postCode("$base/join", "a7b2"))
             assertTrue(request("$base/?token=$token").second.contains("/api/files"))
 
             Socket("127.0.0.1", port).use { socket ->
@@ -47,6 +50,24 @@ class LanShareServerAuthTest {
             }
         } finally {
             server.stop()
+        }
+    }
+
+    private fun postCode(url: String, code: String): Pair<Int, String?> {
+        val body = "code=$code".toByteArray(Charsets.UTF_8)
+        val connection = URL(url).openConnection() as HttpURLConnection
+        return try {
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.setFixedLengthStreamingMode(body.size)
+            connection.doOutput = true
+            connection.outputStream.use { it.write(body) }
+            connection.responseCode to connection.getHeaderField("Location")
+        } finally {
+            connection.disconnect()
         }
     }
 

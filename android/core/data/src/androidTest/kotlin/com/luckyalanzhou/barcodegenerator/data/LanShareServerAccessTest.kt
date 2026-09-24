@@ -20,7 +20,7 @@ class LanShareServerAccessTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val folder = File(context.cacheDir, "lan-share-access-test-${System.nanoTime()}").apply { mkdirs() }
         val token = "0123456789abcdefghijAB"
-        val server = LanShareServer("127.0.0.1", 0, folder, token, AppLogger { _, _, _ -> })
+        val server = LanShareServer("127.0.0.1", 0, folder, token, "A7B2", AppLogger { _, _, _ -> })
         try {
             server.start(5_000, false)
             val base = "http://127.0.0.1:${server.listeningPort}"
@@ -33,12 +33,32 @@ class LanShareServerAccessTest {
             val entry = request(base)
             assertEquals(200, entry.first)
             assertTrue(entry.second.contains("访问码"))
+            assertEquals(403, postCode("$base/join", "wrong").first)
+            assertEquals(303 to "/?token=$token", postCode("$base/join", "a7b2"))
             val share = request("$base/?token=$token")
             assertEquals(200, share.first)
             assertTrue(share.second.contains("/api/files"))
         } finally {
             server.stop()
             folder.delete()
+        }
+    }
+
+    private fun postCode(url: String, code: String): Pair<Int, String?> {
+        val body = "code=$code".toByteArray(Charsets.UTF_8)
+        val connection = URL(url).openConnection() as HttpURLConnection
+        return try {
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.setFixedLengthStreamingMode(body.size)
+            connection.doOutput = true
+            connection.outputStream.use { it.write(body) }
+            connection.responseCode to connection.getHeaderField("Location")
+        } finally {
+            connection.disconnect()
         }
     }
 

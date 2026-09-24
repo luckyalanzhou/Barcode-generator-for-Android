@@ -26,10 +26,12 @@ internal class LanShareServer(
     host: String,
     port: Int,
     private val folder: File,
-    accessToken: String,
+    private val accessToken: String,
+    manualCode: String,
     private val logger: AppLogger,
 ) : NanoWSD(host, port) {
     private val accessControl = LanShareAccessControl(accessToken)
+    private val manualCodeGate = LanShareManualCodeGate(manualCode)
     @Volatile private var lastBrowserRequestAt = 0L
     @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
@@ -139,6 +141,9 @@ internal class LanShareServer(
     )).toString()
 
     override fun serve(session: IHTTPSession): Response {
+        if (session.method == Method.POST && session.uri.substringBefore('?') == "/join") {
+            return joinWithManualCode(session)
+        }
         val authorized = accessControl.allows(
             session.parameters["token"]?.singleOrNull(),
             session.headers["x-lan-token"],
@@ -158,6 +163,35 @@ internal class LanShareServer(
                 .apply { addHeader("Cache-Control", "no-store") }
         }
         return super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
+    }
+
+    private fun joinWithManualCode(session: IHTTPSession): Response {
+        val length = session.headers["content-length"]?.toLongOrNull()
+        if (length == null || length !in 1..128 ||
+            !session.headers["content-type"].orEmpty().startsWith("application/x-www-form-urlencoded", ignoreCase = true)
+        ) return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "无效的访问码请求")
+        val submitted = try {
+            session.parseBody(HashMap())
+            session.parameters["code"]?.singleOrNull()
+        } catch (_: Exception) {
+            return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "无法读取访问码")
+        }
+        return when (manualCodeGate.check(session.remoteIpAddress, submitted)) {
+            LanShareManualCodeGate.Result.ACCEPTED -> newFixedLengthResponse(
+                Response.Status.REDIRECT_SEE_OTHER, MIME_PLAINTEXT, "",
+            ).apply { addHeader("Location", "/?token=$accessToken") }
+            LanShareManualCodeGate.Result.INVALID -> newFixedLengthResponse(
+                Response.Status.FORBIDDEN, "text/html; charset=utf-8",
+                LanShareWebAccessPage.render("访问码错误，请返回后重试"),
+            )
+            LanShareManualCodeGate.Result.TOO_MANY_ATTEMPTS -> newFixedLengthResponse(
+                Response.Status.TOO_MANY_REQUESTS, "text/html; charset=utf-8",
+                LanShareWebAccessPage.render("尝试次数过多，请五分钟后重试或扫描二维码"),
+            )
+        }.apply {
+            addHeader("Cache-Control", "no-store")
+            addHeader("Referrer-Policy", "no-referrer")
+        }
     }
 
     override fun serveHttp(session: IHTTPSession): Response {

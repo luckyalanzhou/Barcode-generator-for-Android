@@ -16,9 +16,15 @@ data class LanShareFile(
 data class LanShareSession(
     val baseUrl: String,
     val accessToken: String,
+    /** Host-only short code for manual browser entry; absent on a session joined by QR. */
+    val manualCode: String? = null,
 ) {
     init {
         require(ACCESS_TOKEN.matches(accessToken)) { "无效的局域网分享访问码" }
+        require(manualCode == null || (MANUAL_CODE.matches(manualCode) &&
+            manualCode.any(Char::isDigit) && manualCode.any(Char::isLetter))) {
+            "无效的四位手动访问码"
+        }
     }
 
     /** QR and copied browser address; never log or persist this URL. */
@@ -26,6 +32,7 @@ data class LanShareSession(
 
     companion object {
         private val ACCESS_TOKEN = Regex("[A-Za-z0-9_-]{22}")
+        private val MANUAL_CODE = Regex("[A-Z0-9]{4}")
 
         fun fromShareUrl(value: String): LanShareSession? = runCatching {
             val uri = URI(value.trim())
