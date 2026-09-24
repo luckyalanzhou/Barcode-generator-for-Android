@@ -18,6 +18,8 @@ class LibraryDataViewModel @Inject constructor(
     persistence: BarcodePersistenceCoordinator,
     private val logger: AppLogger,
 ) : ViewModel() {
+    private var startupFallbackNoticeConsumed = false
+
     private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val persistenceFailures: SharedFlow<Unit> = _persistenceFailures.asSharedFlow()
 
@@ -36,4 +38,11 @@ class LibraryDataViewModel @Inject constructor(
     }
 
     suspend fun loadPersistedData() = coordinator.loadPersistedData()
+
+    /** Coalesces settings and library load failures into one startup notice. */
+    fun consumeStartupFallbackNotice(): Boolean {
+        if (startupFallbackNoticeConsumed) return false
+        startupFallbackNoticeConsumed = true
+        return true
+    }
 }

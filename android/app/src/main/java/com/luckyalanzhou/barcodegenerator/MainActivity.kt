@@ -194,8 +194,8 @@ class MainActivity : AppCompatActivity() {
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
                 DebugLog.record("startup", "UI initialization failed", error)
             }
-            settingsError?.let {
-                window.decorView.post { showIos26NoticeDialog("数据加载失败，已使用默认页面启动") }
+            if (settingsError != null) {
+                window.decorView.post { showStartupFallbackNoticeOnce() }
             }
             // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
             lifecycleScope.launch(Dispatchers.IO) {
@@ -204,9 +204,7 @@ class MainActivity : AppCompatActivity() {
                         Log.e("BarcodeGenerator", "Background data initialization failed", error)
                         DebugLog.record("startup", "background data initialization failed", error)
                         withContext(Dispatchers.Main) {
-                            if (!isFinishing && !isDestroyed) {
-                                showIos26NoticeDialog("数据加载失败，已使用默认页面启动")
-                            }
+                            showStartupFallbackNoticeOnce()
                         }
                     }
             }
@@ -217,6 +215,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun showStartupFallbackNoticeOnce() {
+        if (isFinishing || isDestroyed || !libraryDataViewModel.consumeStartupFallbackNotice()) return
+        showIos26NoticeDialog("数据加载失败，已使用默认页面启动")
     }
 
     override fun onPostResume() {
