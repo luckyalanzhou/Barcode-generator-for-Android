@@ -13,6 +13,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -70,22 +71,63 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
 internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, dataState: com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState, onMove: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        val folders = dataState.folders.filter { it.isNotBlank() }
-        if (folders.isEmpty()) {
+        val folderPaths = (dataState.folders + dataState.groups.map { it.folder })
+            .filter { it.isNotBlank() }
+            .distinct()
+        val roots = favoriteFolderRoots(folderPaths)
+        if (roots.isEmpty()) {
             LaunchedEffect(Unit) {
                 dismiss()
                 showIos26NoticeDialogCompose("请先创建文件夹")
             }
             return@showComposeDialog
         }
-        var selected by remember { mutableStateOf(group.folder.takeIf { it in folders } ?: folders.first()) }
+        var selectedRoot by remember {
+            mutableStateOf(group.folder.substringBefore('/').takeIf { it in roots } ?: roots.first())
+        }
+        var selectedChild by remember {
+            mutableStateOf(group.folder.substringAfter('/', "").takeIf {
+                it in favoriteFolderChildren(folderPaths, selectedRoot)
+            }.orEmpty())
+        }
+        val childOptions = favoriteFolderChildren(folderPaths, selectedRoot)
+        val targetFolder = favoriteMoveDestination(selectedRoot, selectedChild)
         ComposeGlassDialogCard(dark) {
             Text("移动收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            ComposeChoiceField(selected, folders, dark, onSelected = { selected = it })
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("① 一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp)
+                ComposeChoiceField(
+                    value = selectedRoot,
+                    options = roots,
+                    dark = dark,
+                    onSelected = { root ->
+                        selectedRoot = root
+                        selectedChild = ""
+                    },
+                )
+                Text("② 二级文件夹（可选）", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp)
+                ComposeChoiceField(
+                    value = selectedChild.ifBlank { FAVORITE_ROOT_ONLY_OPTION },
+                    options = listOf(FAVORITE_ROOT_ONLY_OPTION) + childOptions,
+                    dark = dark,
+                    enabled = true,
+                    onSelected = { child ->
+                        selectedChild = child.takeUnless { it == FAVORITE_ROOT_ONLY_OPTION }.orEmpty()
+                    },
+                )
+                Text(
+                    "目标位置：$targetFolder",
+                    color = LocalAppColorScheme.current.text.secondary,
+                    fontSize = 13.sp,
+                )
+            }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("移动", dark, {
-                    onMove(group.id, selected)
+                    onMove(group.id, targetFolder)
                     dismiss()
                     onNavigateFavorites()
                 }, modifier = Modifier.padding(start = 20.dp))
