@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -48,6 +49,7 @@ import kotlinx.coroutines.flow.collect
 
 internal data class ComposeAppShellDependencies(
     val viewModel: BarcodeViewModel,
+    val cameraOcrViewModel: CameraOcrViewModel,
     val generateViewModel: GenerateViewModel,
     val settingsViewModel: SettingsViewModel,
     val lanShareViewModel: LanShareViewModel,
@@ -65,6 +67,7 @@ internal fun MainActivity.buildComposeShell() {
                 ComposeAppShell(
                     dependencies = ComposeAppShellDependencies(
                         viewModel = activity.viewModel,
+                        cameraOcrViewModel = activity.cameraOcrViewModel,
                         generateViewModel = activity.generateViewModel,
                         settingsViewModel = activity.settingsViewModel,
                         lanShareViewModel = activity.lanShareViewModel,

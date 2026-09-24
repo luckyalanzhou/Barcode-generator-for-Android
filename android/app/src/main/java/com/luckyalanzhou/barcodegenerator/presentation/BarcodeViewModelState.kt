@@ -86,6 +86,5 @@ sealed interface UpdateCheckResult {
 }
 
 sealed interface BarcodeEvent {
-    data class RecognizedText(val lines: List<String>) : BarcodeEvent
     data class Notice(val message: String) : BarcodeEvent
 }

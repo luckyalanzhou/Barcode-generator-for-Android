@@ -1,8 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation
 
 import android.graphics.Bitmap
-import android.net.Uri
-import java.io.File
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,19 +33,15 @@ import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsCoordinato
 import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
-import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
-import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val barcodeImageCache: BarcodeImageCache,
-    private val ocrTextGateway: OcrTextGateway,
-    private val barcodeDecodeGateway: BarcodeDecodeGateway,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,
 ) : ViewModel() {
@@ -87,8 +81,6 @@ class BarcodeViewModel @Inject constructor(
         persistItems = ::persistItems,
     )
 
-    private val cameraOcrFacade = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway)
-    val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcrFacade.cameraState
     private var favoriteSearchJob: Job? = null
     private val currentFavoriteSearchQuery: String
         get() = favoriteSearchQueryState.normalizedQuery
@@ -331,38 +323,6 @@ class BarcodeViewModel @Inject constructor(
         return true
     }
 
-    fun prepareCameraRequest(requestCode: Int) {
-        cameraOcrFacade.prepareCameraRequest(requestCode)
-    }
-
-    fun setCameraOutput(uri: Uri?, file: File?) {
-        cameraOcrFacade.setCameraOutput(uri, file)
-    }
-
-    fun markCameraCaptureStarted(nowMillis: Long = System.currentTimeMillis()) {
-        cameraOcrFacade.markCameraCaptureStarted(nowMillis)
-    }
-
-    fun clearCameraOutput(): CameraCaptureState {
-        return cameraOcrFacade.clearCameraOutput()
-    }
-
-    fun beginExternalActivityRequest(requestCode: Int) {
-        cameraOcrFacade.beginExternalActivityRequest(requestCode)
-    }
-
-    fun consumeExternalActivityRequest(): Int {
-        return cameraOcrFacade.consumeExternalActivityRequest()
-    }
-
-    fun beginPermissionRequest(requestCode: Int) {
-        cameraOcrFacade.beginPermissionRequest(requestCode)
-    }
-
-    fun consumePermissionRequest(): Int {
-        return cameraOcrFacade.consumePermissionRequest()
-    }
-
     fun commitGeneratedBarcodes(items: List<CodeItem>) {
         if (items.isEmpty()) return
         val nextResult = generationCoordinator.commit(items, resultsCoordinator.current())
@@ -370,18 +330,6 @@ class BarcodeViewModel @Inject constructor(
         navigateTo(AppRoute.Results)
     }
 
-    fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
-        viewModelScope.launch {
-            val normalized = cameraOcrFacade.recognizeText(bitmap, confusionMask)
-            if (normalized.isEmpty()) _events.emit(BarcodeEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
-            else {
-                _events.emit(BarcodeEvent.RecognizedText(normalized))
-                _events.emit(BarcodeEvent.Notice("文字识别成功，已按行添加到输入框"))
-            }
-        }
-    }
-
-    suspend fun decodeBarcode(bitmap: Bitmap): String? = cameraOcrFacade.decodeBarcode(bitmap)
     fun renameFavoriteFolder(path: String, renamedPath: String) {
         favoritesCoordinator.renameFolder(path, renamedPath)
         refreshFavoritesAfterMutation()

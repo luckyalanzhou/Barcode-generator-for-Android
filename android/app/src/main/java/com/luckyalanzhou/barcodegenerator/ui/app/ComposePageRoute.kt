@@ -18,6 +18,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeEvent
+import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
 import kotlinx.coroutines.launch
 
 /** 页面渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
@@ -41,8 +42,15 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 LaunchedEffect(dependencies.viewModel) {
                     dependencies.viewModel.events.collect { event ->
                         when (event) {
-                            is BarcodeEvent.RecognizedText -> dependencies.generateViewModel.updateDraft(event.lines)
                             is BarcodeEvent.Notice -> dependencies.actions.notice(event.message)
+                        }
+                    }
+                }
+                LaunchedEffect(dependencies.cameraOcrViewModel) {
+                    dependencies.cameraOcrViewModel.events.collect { event ->
+                        when (event) {
+                            is CameraOcrEvent.RecognizedText -> dependencies.generateViewModel.updateDraft(event.lines)
+                            is CameraOcrEvent.Notice -> dependencies.actions.notice(event.message)
                         }
                     }
                 }

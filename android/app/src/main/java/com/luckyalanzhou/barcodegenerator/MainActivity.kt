@@ -16,6 +16,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewMode
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.applyAppearance
 import com.luckyalanzhou.barcodegenerator.ui.app.buildComposeShell
@@ -105,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     internal var pendingResultImageLabel: String? = null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val viewModel: BarcodeViewModel by viewModels()
+    internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()
     internal val generateViewModel: GenerateViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
     internal val lanShareViewModel: LanShareViewModel by viewModels()
@@ -114,12 +116,12 @@ class MainActivity : AppCompatActivity() {
     private val externalActivityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        handleExternalActivityResult(viewModel.consumeExternalActivityRequest(), result.resultCode, result.data)
+        handleExternalActivityResult(cameraOcrViewModel.consumeExternalActivityRequest(), result.resultCode, result.data)
     }
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
-        handlePermissionResult(viewModel.consumePermissionRequest(), result.values.all { it })
+        handlePermissionResult(cameraOcrViewModel.consumePermissionRequest(), result.values.all { it })
     }
     companion object {
         const val REQUEST_CAMERA_PERMISSION = 42
@@ -250,17 +252,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun requestAppPermissions(permissions: Array<String>, requestCode: Int) {
-        viewModel.beginPermissionRequest(requestCode)
+        cameraOcrViewModel.beginPermissionRequest(requestCode)
         permissionLauncher.launch(permissions)
     }
 
     private fun handlePermissionResult(requestCode: Int, granted: Boolean) {
         if (requestCode == 42) {
             if (granted) {
-                when (viewModel.cameraCaptureState.value.requestCode) {
+                when (cameraOcrViewModel.cameraCaptureState.value.requestCode) {
                     REQUEST_LAN_SHARE_CAPTURE -> openLanShareCamera()
                     REQUEST_TEXT_CAMERA -> launchCamera(REQUEST_TEXT_CAMERA)
-                    else -> launchCamera(viewModel.cameraCaptureState.value.requestCode)
+                    else -> launchCamera(cameraOcrViewModel.cameraCaptureState.value.requestCode)
                 }
             } else {
                 toast("需要相机权限才能拍照识别")
@@ -273,7 +275,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun launchExternalActivity(intent: Intent, requestCode: Int) {
-        viewModel.beginExternalActivityRequest(requestCode)
+        cameraOcrViewModel.beginExternalActivityRequest(requestCode)
         externalActivityLauncher.launch(intent)
     }
 
@@ -301,12 +303,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (requestCode == REQUEST_LAN_SHARE_CAPTURE) {
-            val captureState = viewModel.cameraCaptureState.value
+            val captureState = cameraOcrViewModel.cameraCaptureState.value
             val captureUri = if (resultCode == RESULT_OK) {
                 captureState.outputUri?.takeIf { captureState.outputFile?.length()?.let { size -> size > 0L } == true }
                     ?: findRecentLanCameraMedia()
             } else null
-            val captureFile = viewModel.clearCameraOutput().outputFile
+            val captureFile = cameraOcrViewModel.clearCameraOutput().outputFile
             if (captureUri != null) selectLanShareAttachment(captureUri, captureFile, autoUpload = true)
             else captureFile?.delete()
             return
@@ -321,10 +323,10 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (resultCode != RESULT_OK) {
-            viewModel.clearCameraOutput().outputFile?.delete()
+            cameraOcrViewModel.clearCameraOutput().outputFile?.delete()
             return
         }
-        val cameraState = viewModel.cameraCaptureState.value
+        val cameraState = cameraOcrViewModel.cameraCaptureState.value
         val cameraFile = cameraState.outputFile
         val bitmap = when (requestCode) {
             43, 45, 51 -> cameraState.outputUri?.let { uri ->
@@ -336,15 +338,15 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         if (bitmap == null) {
-            viewModel.clearCameraOutput().outputFile?.delete()
+            cameraOcrViewModel.clearCameraOutput().outputFile?.delete()
             return
         }
         val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, cameraFile) else bitmap
-        viewModel.clearCameraOutput()
+        cameraOcrViewModel.clearCameraOutput()
         cameraFile?.delete()
         when (requestCode) {
             43, 44 -> lifecycleScope.launch {
-                val decoded = viewModel.decodeBarcode(bitmap)
+                val decoded = cameraOcrViewModel.decodeBarcode(bitmap)
                 // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
                 if (decoded != null) {
                     generateViewModel.updateDraft(listOf(decoded))
@@ -355,7 +357,7 @@ class MainActivity : AppCompatActivity() {
                 bitmap.recycle()
             }
             51 -> lifecycleScope.launch {
-                val decoded = viewModel.decodeBarcode(bitmap)
+                val decoded = cameraOcrViewModel.decodeBarcode(bitmap)
                 if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
                 bitmap.recycle()
             }
