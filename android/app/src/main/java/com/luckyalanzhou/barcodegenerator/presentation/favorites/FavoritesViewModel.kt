@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDataCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
+import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import java.util.Locale
 
 /** Owns transient Favorites-page state and observes the shared barcode data session. */
@@ -17,10 +20,18 @@ import java.util.Locale
 class FavoritesViewModel @Inject constructor(
     private val dataSession: FavoritesDataSession,
     private val querySession: FavoritesQuerySession,
+    private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val persistence: BarcodePersistenceCoordinator,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
     private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, viewModelScope)
+    private val loader = FavoritesLoadCoordinator(
+        persistence = persistence,
+        store = dataSession.store,
+        query = querySession.coordinator,
+        publish = dataSession::publishDataState,
+        publishSearch = { dataSession.publishSearchState(querySession.coordinator) },
+    )
     private var searchJob: Job? = null
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
@@ -100,6 +111,23 @@ class FavoritesViewModel @Inject constructor(
         mutations.clearFavoritesAndPersist()
         publishAfterMutation()
     }
+
+    suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary =
+        barcodeDataCoordinator.inspectFavoriteImport(backup)
+
+    suspend fun importFavorites(
+        backup: InterchangeBackup,
+        overwriteConflicts: Boolean = false,
+    ): Pair<Int, Int> {
+        val counts = barcodeDataCoordinator.importFavorites(backup, overwriteConflicts)
+        // Reload through the same paging-aware snapshot path used at startup.
+        loader.loadPersistedData()
+        return counts
+    }
+
+    suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()
+
+    fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
 
     fun saveResultAsFavorite(
         resultItemIds: List<Long>,

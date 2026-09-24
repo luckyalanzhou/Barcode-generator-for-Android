@@ -56,7 +56,7 @@ private fun ComposeDialogChoice(text: String, dark: Boolean, onClick: () -> Unit
 
 internal fun MainActivity.confirmImportFavoritesCompose(uri: android.net.Uri, backup: InterchangeBackup) {
     lifecycleScope.launch(Dispatchers.IO) {
-        val conflicts = viewModel.inspectFavoriteImport(backup)
+        val conflicts = favoritesViewModel.inspectFavoriteImport(backup)
         withContext(Dispatchers.Main) {
             if (conflicts.hasConflicts) {
                 showFavoriteImportConflictDialog(backup, conflicts)

@@ -33,8 +33,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.*
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
-import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
 
@@ -300,21 +298,6 @@ class BarcodeViewModel @Inject constructor(
     suspend fun loadPersistedData() {
         favoritesLoadCoordinator.loadPersistedData()
     }
-
-    suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary =
-        barcodeDataCoordinator.inspectFavoriteImport(backup)
-
-    suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int> {
-        val counts = barcodeDataCoordinator.importFavorites(backup, overwriteConflicts)
-        // Reuse the startup snapshot path so import does not load every group
-        // into memory or disable cursor paging after the refresh.
-        loadPersistedData()
-        return counts
-    }
-
-    suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()
-
-    fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
 
     private fun refreshFavoritesAfterMutation() {
         favoritesQueryCoordinator.onMutation()

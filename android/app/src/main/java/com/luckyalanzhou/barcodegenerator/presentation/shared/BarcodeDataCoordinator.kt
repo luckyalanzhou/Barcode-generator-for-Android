@@ -8,7 +8,7 @@ import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import javax.inject.Inject
 
-/** BarcodeViewModel 的数据边界，集中管理 Repository、迁移和备份服务。 */
+/** 各功能 ViewModel 共用的数据边界，集中管理 Repository、迁移和备份服务。 */
 class BarcodeDataCoordinator @Inject constructor(
     internal val repository: BarcodeRepository,
     private val backupRepository: FavoritesBackupRepository,

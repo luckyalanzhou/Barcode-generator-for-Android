@@ -37,7 +37,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
         val exportFile = File(cacheDir, name)
         val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
         val result = runCatching {
-            val bytes = viewModel.exportFavorites()
+            val bytes = favoritesViewModel.exportFavorites()
             contentResolver.openOutputStream(exportUri)?.use { it.write(bytes) }
                 ?: error("无法创建备份文件")
         }
@@ -89,7 +89,7 @@ internal fun MainActivity.restoreFavoritesImport() {
 internal fun MainActivity.exportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            val bytes = viewModel.exportFavorites()
+            val bytes = favoritesViewModel.exportFavorites()
             contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
                 ?: error("无法写入备份文件")
         }
@@ -117,7 +117,7 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
         val parsed = runCatching {
             val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: error("无法读取备份文件")
-            viewModel.restoreFavorites(bytes)
+            favoritesViewModel.restoreFavorites(bytes)
         }
         withContext(Dispatchers.Main) {
             parsed
@@ -130,7 +130,7 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
 internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, overwriteConflicts: Boolean = false) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            val counts = viewModel.importFavorites(backup, overwriteConflicts)
+            val counts = favoritesViewModel.importFavorites(backup, overwriteConflicts)
             favoritesViewModel.addCollapsed(
                 (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.toSet(),
             )
