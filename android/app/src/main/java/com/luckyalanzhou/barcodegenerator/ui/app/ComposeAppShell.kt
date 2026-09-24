@@ -117,7 +117,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             else -> listOf(initialPage)
         }
     }
-    val destination = backStackEntry?.destination?.route?.let(AppRoute::fromPage) ?: appUiState.page
+    val destinationName = backStackEntry?.destination?.route
+    val destination = destinationName?.let(AppRoute::fromPage)
     var previousDestination by remember { mutableStateOf(destination) }
 
     LaunchedEffect(navController, initialBackStack) {
@@ -129,22 +130,25 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         }
     }
     LaunchedEffect(navController) {
+        // Hold queued activity/UI navigation requests until NavHost has installed its graph.
+        navController.currentBackStackEntryFlow.first()
         dependencies.navigationViewModel.navigationRequests.collect { request ->
             navController.navigateToAppRoute(request.route, request.topLevelDestination)
         }
     }
-    LaunchedEffect(backStackEntry?.destination?.route) {
-        backStackEntry?.destination?.route?.let { pageName ->
+    LaunchedEffect(destinationName) {
+        destinationName?.let { pageName ->
             dependencies.navigationViewModel.syncNavigationStateFromUi(AppRoute.fromPage(pageName))
         }
     }
     LaunchedEffect(destination) {
-        if (previousDestination == AppRoute.LanShare && destination != AppRoute.LanShare) {
+        val activeDestination = destination ?: return@LaunchedEffect
+        if (previousDestination == AppRoute.LanShare && activeDestination != AppRoute.LanShare) {
             dependencies.actions.closeLanShare()
         }
-        previousDestination = destination
-        dependencies.actions.syncBarcodeDisplaySettings(destination == AppRoute.Results)
-        if (destination == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
+        previousDestination = activeDestination
+        dependencies.actions.syncBarcodeDisplaySettings(activeDestination == AppRoute.Results)
+        if (activeDestination == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
             dependencies.actions.ensureLanShare()
         }
     }
