@@ -26,6 +26,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.SizeTransform
+import androidx.activity.BackEventCompat
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,10 +40,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -50,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.CancellationException
 
 internal data class ComposeAppShellDependencies(
     val navigationViewModel: AppNavigationViewModel,
@@ -100,10 +108,38 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val appUiState by dependencies.navigationViewModel.uiState.collectAsStateWithLifecycle()
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
+    val resultUiState by dependencies.resultsViewModel.resultUiState.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val animation = rememberComposeAnimationConfig()
     val pageStateHolder = rememberSaveableStateHolder()
+    var backEvent by remember { mutableStateOf<BackEventCompat?>(null) }
+    var suppressResultPopTransition by remember { mutableStateOf(false) }
+
+    PredictiveBackHandler(enabled = currentRoute == AppRoute.Results) { progress ->
+        var edgeSwipeCommitted = false
+        try {
+            progress.collect { event ->
+                if (event.swipeEdge != BackEventCompat.EDGE_NONE) {
+                    edgeSwipeCommitted = true
+                    backEvent = event
+                }
+            }
+            suppressResultPopTransition = edgeSwipeCommitted
+            backEvent = null
+            dependencies.actions.navigateTo(resultUiState.returnPage)
+        } catch (error: CancellationException) {
+            backEvent = null
+            suppressResultPopTransition = false
+            throw error
+        }
+    }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != AppRoute.Results && suppressResultPopTransition) {
+            suppressResultPopTransition = false
+        }
+    }
 
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
@@ -127,9 +163,45 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
+            val activeBackEvent = backEvent
+            if (currentRoute == AppRoute.Results && activeBackEvent != null) {
+                val previewRoute = resultUiState.returnPage.takeIf {
+                    it.mainTabIndex != null && it != AppRoute.Settings
+                } ?: AppRoute.Generate
+                ResultBackPreview(
+                    dependencies = dependencies,
+                    route = previewRoute,
+                    selectedIndex = appUiState.selectedTab,
+                    dark = dark,
+                    progress = activeBackEvent.progress,
+                    swipeEdge = activeBackEvent.swipeEdge,
+                    pageStateHolder = pageStateHolder,
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        val event = activeBackEvent
+                        if (currentRoute == AppRoute.Results && event != null) {
+                            val progress = event.progress.coerceIn(0f, 1f)
+                            val direction = if (event.swipeEdge == BackEventCompat.EDGE_RIGHT) -1f else 1f
+                            val corner = (24f * progress).dp
+                            translationX = size.width * progress * direction
+                            shadowElevation = 16.dp.toPx() * progress
+                            shape = if (direction > 0f) {
+                                RoundedCornerShape(topStart = corner, bottomStart = corner)
+                            } else {
+                                RoundedCornerShape(topEnd = corner, bottomEnd = corner)
+                            }
+                            clip = progress > 0f
+                        } else {
+                            translationX = 0f
+                            shadowElevation = 0f
+                            shape = RectangleShape
+                            clip = false
+                        }
+                    }
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .padding(
@@ -142,8 +214,14 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     transitionSpec = {
                         if (targetState == AppRoute.Results) {
+                            (slideInHorizontally(tween(animation.pageEnterDurationMillis)) { it }) togetherWith
+                                (slideOutHorizontally(tween(animation.pageExitDurationMillis)) { -it / 8 }) using SizeTransform(clip = false)
+                        } else if (initialState == AppRoute.Results && suppressResultPopTransition) {
                             androidx.compose.animation.EnterTransition.None togetherWith
                                 androidx.compose.animation.ExitTransition.None
+                        } else if (initialState == AppRoute.Results) {
+                            (slideInHorizontally(tween(animation.pageEnterDurationMillis)) { -it / 8 }) togetherWith
+                                (slideOutHorizontally(tween(animation.pageExitDurationMillis)) { it }) using SizeTransform(clip = false)
                         } else {
                             val initialTabIndex = initialState.mainTabIndex
                         val targetTabIndex = targetState.mainTabIndex
@@ -200,5 +278,51 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ResultBackPreview(
+    dependencies: ComposeAppShellDependencies,
+    route: AppRoute,
+    selectedIndex: Int,
+    dark: Boolean,
+    progress: Float,
+    swipeEdge: Int,
+    pageStateHolder: androidx.compose.runtime.saveable.SaveableStateHolder,
+) {
+    val dimensions = LocalAppDimensions.current
+    val colors = LocalAppColorScheme.current
+    val direction = if (swipeEdge == BackEventCompat.EDGE_RIGHT) -1f else 1f
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(top = dimensions.pageTopPadding, bottom = dimensions.pageBottomPadding)
+            .graphicsLayer {
+                translationX = -size.width * direction * (1f - progress.coerceIn(0f, 1f)) * 0.04f
+            },
+    ) {
+        Text(
+            text = route.title,
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            color = colors.text.primary,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
+        Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = dimensions.pageHorizontalPadding)) {
+            pageStateHolder.SaveableStateProvider(route.pageName) {
+                ComposePageRenderer(dependencies, route, dark)
+            }
+        }
+        BarcodeComposeBottomTabBar(
+            selectedIndex = route.mainTabIndex ?: selectedIndex,
+            dark = dark,
+            onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
+        )
     }
 }
