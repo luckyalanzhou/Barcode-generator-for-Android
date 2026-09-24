@@ -58,10 +58,16 @@ class BarcodeViewModel @Inject constructor(
         querySession = favoritesQuerySession,
     )
     private val favoritesStateStore = favoritesFacade.store
-    private val favoriteSearchStateStore = favoritesFacade.searchStore
     private val favoritesCoordinator = favoritesFacade.mutation
     private val favoritesQueryCoordinator = favoritesFacade.query
     private val favoritesLoadCoordinator = favoritesFacade.load
+    private val favoriteGroupContentCoordinator = FavoriteGroupContentCoordinator(
+        loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
+        regularStore = favoritesDataSession.store,
+        searchStore = favoritesDataSession.searchStore,
+        publishDataState = favoritesDataSession::publishDataState,
+        publishSearchState = { favoritesDataSession.publishSearchState(favoritesQuerySession.coordinator) },
+    )
 
     private val resultsCoordinator = ResultsCoordinator()
     val resultUiState: StateFlow<ResultUiState> = resultsCoordinator.state
@@ -146,47 +152,44 @@ class BarcodeViewModel @Inject constructor(
         val request = ++favoriteOpenRequest
         favoriteOpenJob = viewModelScope.launch {
             try {
-                val cachedGroup = findCachedFavoriteGroup(group.id)
-                if (cachedGroup == null) {
-                    DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
-                    _events.emit(BarcodeEvent.Notice("收藏文件已变化，请刷新收藏列表后重试"))
-                    return@launch
-                }
-                val expectedSavedAt = cachedGroup.savedAt
                 DebugLog.record("favorites", "open start groupId=${group.id} destination=$destination")
 
                 // The group row, its links, and all linked barcode rows are read from Room
                 // in one transaction; the in-memory startup/page cache is never the source
                 // of result contents.
-                val content = withContext(Dispatchers.IO) {
-                    barcodeDataCoordinator.repository.loadFavoriteGroupContent(group.id)
-                }
+                val loaded = withContext(Dispatchers.IO) { favoriteGroupContentCoordinator.load(group.id) }
                 if (request != favoriteOpenRequest) return@launch
-                if (content == null) {
-                    DebugLog.record("favorites", "open failed groupId=${group.id} reason=group_missing_in_room")
-                    _events.emit(BarcodeEvent.Notice("收藏文件已不存在，请刷新收藏列表"))
-                    return@launch
-                }
-                val latestCachedGroup = findCachedFavoriteGroup(group.id)
-                if (latestCachedGroup == null || latestCachedGroup.savedAt != expectedSavedAt) {
-                    DebugLog.record("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read")
-                    return@launch
-                }
-                if (content.invalidItemIds.isNotEmpty()) {
-                    DebugLog.record(
-                        "favorites",
-                        "open integrity failure groupId=${group.id} linked=${content.group.itemIds.size} loaded=${content.items.size} invalid=${content.invalidItemIds.size}",
-                    )
-                    _events.emit(BarcodeEvent.Notice("收藏文件数据不完整，已阻止打开空结果；请先导出备份并联系支持"))
-                    return@launch
-                }
-                if (content.items.isEmpty()) {
-                    DebugLog.record("favorites", "open empty groupId=${group.id} linked=0")
-                    _events.emit(BarcodeEvent.Notice("该收藏文件没有条码内容，未进入结果页"))
-                    return@launch
+                val content = when (loaded) {
+                    is FavoriteGroupContentLoadResult.Loaded -> loaded
+                    is FavoriteGroupContentLoadResult.Rejected -> {
+                        when (loaded.failure) {
+                            FavoriteGroupContentLoadFailure.GROUP_NOT_CACHED -> {
+                                DebugLog.record("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
+                                _events.emit(BarcodeEvent.Notice("收藏文件已变化，请刷新收藏列表后重试"))
+                            }
+                            FavoriteGroupContentLoadFailure.GROUP_NOT_FOUND -> {
+                                DebugLog.record("favorites", "open failed groupId=${group.id} reason=group_missing_in_room")
+                                _events.emit(BarcodeEvent.Notice("收藏文件已不存在，请刷新收藏列表"))
+                            }
+                            FavoriteGroupContentLoadFailure.GROUP_CHANGED ->
+                                DebugLog.record("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read")
+                            FavoriteGroupContentLoadFailure.INVALID_CONTENT -> {
+                                DebugLog.record(
+                                    "favorites",
+                                    "open integrity failure groupId=${group.id} linked=${loaded.linkedCount} loaded=${loaded.loadedCount} invalid=${loaded.invalidCount}",
+                                )
+                                _events.emit(BarcodeEvent.Notice("收藏文件数据不完整，已阻止打开空结果；请先导出备份并联系支持"))
+                            }
+                            FavoriteGroupContentLoadFailure.EMPTY -> {
+                                DebugLog.record("favorites", "open empty groupId=${group.id} linked=0")
+                                _events.emit(BarcodeEvent.Notice("该收藏文件没有条码内容，未进入结果页"))
+                            }
+                        }
+                        return@launch
+                    }
                 }
 
-                cacheFavoriteGroupContent(content.group, content.items)
+                favoriteGroupContentCoordinator.cache(content)
                 if (destination == AppRoute.Results && style != null) {
                     withContext(Dispatchers.Default.limitedParallelism(4)) {
                         coroutineScope {
@@ -196,7 +199,7 @@ class BarcodeViewModel @Inject constructor(
                         }
                     }
                 }
-                if (request != favoriteOpenRequest || findCachedFavoriteGroup(group.id)?.savedAt != expectedSavedAt) {
+                if (request != favoriteOpenRequest || !favoriteGroupContentCoordinator.isCurrent(group.id, content.expectedSavedAt)) {
                     DebugLog.record("favorites", "open discarded groupId=${group.id} reason=stale_after_render")
                     return@launch
                 }
@@ -221,30 +224,6 @@ class BarcodeViewModel @Inject constructor(
             }
         }
     }
-
-    private fun findCachedFavoriteGroup(groupId: Long): FavoriteGroup? =
-        favoritesStateStore.groupsSnapshot().firstOrNull { it.id == groupId }
-            ?: favoriteSearchStateStore.groupsSnapshot().firstOrNull { it.id == groupId }
-
-    private fun cacheFavoriteGroupContent(group: FavoriteGroup, items: List<CodeItem>) {
-        fun FavoritesStateStore.updateIfPresent() {
-            edit {
-                val groupIndex = groups.indexOfFirst { it.id == group.id }
-                if (groupIndex >= 0) groups[groupIndex] = group.copy(itemIds = group.itemIds.toMutableList())
-                val loadedIds = items.mapTo(HashSet()) { it.id }
-                this.items.removeAll { it.id in loadedIds }
-                this.items.addAll(items.map(CodeItem::copy))
-            }
-            markGroupLinksLoaded(group.id)
-        }
-        favoritesStateStore.updateIfPresent()
-        favoriteSearchStateStore.updateIfPresent()
-        publishDataState()
-        publishFavoriteSearchState()
-    }
-
-    private fun publishFavoriteSearchState() =
-        favoritesDataSession.publishSearchState(favoritesQueryCoordinator)
 
     fun openHistoryResult(batch: List<CodeItem>) {
         resultsCoordinator.showHistoryResult(batch)
