@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
@@ -9,7 +10,7 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 
 /** 收藏、文件夹和收藏条码关系的变更协调器。查询和分页由 FavoritesQueryCoordinator 负责。 */
 internal class FavoritesMutationCoordinator(
-    private val store: FavoritesStateStore,
+    private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
     private val scope: CoroutineScope,
 ) {

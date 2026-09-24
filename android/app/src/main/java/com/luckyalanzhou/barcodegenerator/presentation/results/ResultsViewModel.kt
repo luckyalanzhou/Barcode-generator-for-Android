@@ -9,7 +9,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoriteGroupContentLoadResult
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ResultsViewModel @Inject constructor(
     imageCache: BarcodeImageCache,
-    private val dataSession: FavoritesDataSession,
+    private val dataSession: LibraryDataSession,
     private val persistence: BarcodePersistenceCoordinator,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,

@@ -1,15 +1,15 @@
 package com.luckyalanzhou.barcodegenerator
 
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class FavoritesDataSessionTest {
+class LibraryDataSessionTest {
     @Test
     fun publishesSnapshotFromSharedStoreAndKeepsReadiness() {
-        val session = FavoritesDataSession()
+        val session = LibraryDataSession()
         assertFalse(session.dataState.value.isReady)
 
         session.store.edit { folders += "项目/子目录" }

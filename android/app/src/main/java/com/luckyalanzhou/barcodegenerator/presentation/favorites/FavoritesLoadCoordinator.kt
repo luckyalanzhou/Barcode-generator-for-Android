@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
@@ -11,7 +12,7 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 internal class FavoritesLoadCoordinator(
     private val persistence: BarcodePersistenceCoordinator,
     private val logger: AppLogger,
-    private val store: FavoritesStateStore,
+    private val store: LibraryStateStore,
     private val query: FavoritesQueryCoordinator,
     private val publish: (Boolean) -> Unit,
     private val publishSearch: () -> Unit,

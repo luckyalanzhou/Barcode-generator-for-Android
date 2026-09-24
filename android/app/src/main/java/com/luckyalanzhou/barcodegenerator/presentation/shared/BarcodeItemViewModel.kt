@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -10,7 +9,7 @@ import javax.inject.Inject
 /** Owns barcode-item mutations shared by the Favorites and History features. */
 @HiltViewModel
 class BarcodeItemViewModel @Inject constructor(
-    private val dataSession: FavoritesDataSession,
+    private val dataSession: LibraryDataSession,
     querySession: FavoritesQuerySession,
     persistence: BarcodePersistenceCoordinator,
 ) : ViewModel() {

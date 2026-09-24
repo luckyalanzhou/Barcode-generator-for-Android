@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.history
 
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
@@ -11,7 +11,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
  * The ViewModel remains the public state/event boundary and supplies persistence.
  */
 internal class HistoryCoordinator(
-    private val store: FavoritesStateStore,
+    private val store: LibraryStateStore,
     private val persistItems: (List<CodeItem>) -> Unit,
 ) {
     fun deleteBatch(batch: List<CodeItem>) {

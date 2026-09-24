@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 /** Owns history-only actions and publishes snapshots from the shared barcode data session. */
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
-    private val dataSession: FavoritesDataSession,
+    private val dataSession: LibraryDataSession,
     persistence: BarcodePersistenceCoordinator,
 ) : ViewModel() {
     private val coordinator = HistoryCoordinator(dataSession.store) { items ->

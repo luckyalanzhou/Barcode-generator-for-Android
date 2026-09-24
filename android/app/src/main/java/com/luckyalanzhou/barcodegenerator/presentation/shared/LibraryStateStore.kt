@@ -1,17 +1,11 @@
-package com.luckyalanzhou.barcodegenerator.presentation.favorites
-
-import com.luckyalanzhou.barcodegenerator.presentation.*
+package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 
-/**
- * 收藏与历史的唯一内存状态容器。
- *
- * Coordinator 只能通过这组集合读取和修改；FavoritesDataSession 负责发布 Compose 快照，
- * 后续接入 Room Flow 时只需要替换这里的装载入口，不改变页面接口。
- */
-internal class FavoritesStateStore {
+/** Shared in-memory library snapshot used by favorites, history, generation, and item editing. */
+internal class LibraryStateStore {
     private val lock = Any()
     private val items = mutableListOf<CodeItem>()
     private val groups = mutableListOf<FavoriteGroup>()

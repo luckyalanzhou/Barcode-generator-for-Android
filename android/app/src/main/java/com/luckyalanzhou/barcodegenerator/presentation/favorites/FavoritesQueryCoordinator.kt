@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.favorites
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
@@ -16,8 +17,8 @@ private const val FAVORITE_SEARCH_PAGE_SIZE = 50
 /** 收藏列表的查询边界：分页、搜索和延迟加载，不处理收藏变更。 */
 internal class FavoritesQueryCoordinator(
     private val repository: BarcodeRepository,
-    private val store: FavoritesStateStore,
-    private val searchStore: FavoritesStateStore = store,
+    private val store: LibraryStateStore,
+    private val searchStore: LibraryStateStore = store,
 ) {
     private var cursor: FavoriteGroupPageCursor? = null
     private var hasMore = false

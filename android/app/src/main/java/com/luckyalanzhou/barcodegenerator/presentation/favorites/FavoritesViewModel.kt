@@ -19,6 +19,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDataCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
@@ -27,7 +28,7 @@ import java.util.Locale
 /** Owns transient Favorites-page state and observes the shared barcode data session. */
 @HiltViewModel
 class FavoritesViewModel @Inject constructor(
-    private val dataSession: FavoritesDataSession,
+    private val dataSession: LibraryDataSession,
     private val querySession: FavoritesQuerySession,
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
     private val persistence: BarcodePersistenceCoordinator,
@@ -41,21 +42,21 @@ class FavoritesViewModel @Inject constructor(
         store = dataSession.store,
         query = querySession.coordinator,
         publish = dataSession::publishDataState,
-        publishSearch = { dataSession.publishSearchState(querySession.coordinator) },
+        publishSearch = querySession::publishSearchState,
     )
     private val groupContent = FavoriteGroupContentCoordinator(
         loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
         regularStore = dataSession.store,
-        searchStore = dataSession.searchStore,
+        searchStore = querySession.searchStore,
         publishDataState = dataSession::publishDataState,
-        publishSearchState = { dataSession.publishSearchState(querySession.coordinator) },
+        publishSearchState = querySession::publishSearchState,
     )
     private var searchJob: Job? = null
     private var groupLoadJob: Job? = null
     private var groupLoadRequest = 0L
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
-    val searchState: StateFlow<BarcodeDataState> = dataSession.searchState
+    val searchState: StateFlow<BarcodeDataState> = querySession.searchState
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
     val query: StateFlow<String> = pageState.query
     private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
@@ -83,7 +84,7 @@ class FavoritesViewModel @Inject constructor(
         val normalizedQuery = query.trim().lowercase(Locale.ROOT)
         searchJob = viewModelScope.launch {
             querySession.coordinator.search(normalizedQuery)
-            dataSession.publishSearchState(querySession.coordinator)
+            querySession.publishSearchState()
         }
     }
 
@@ -91,7 +92,7 @@ class FavoritesViewModel @Inject constructor(
         viewModelScope.launch {
             if (search.isNotBlank()) {
                 if (querySession.coordinator.loadMore(search)) {
-                    dataSession.publishSearchState(querySession.coordinator)
+                    querySession.publishSearchState()
                     dataSession.publishDataState()
                 }
             } else if (querySession.coordinator.loadMore()) {

@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemMutationCoordinator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,7 +12,7 @@ import org.junit.Test
 class BarcodeItemMutationCoordinatorTest {
     @Test
     fun deletingItemRemovesAllGroupLinksAndPersistsFavoriteSnapshot() {
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         val removed = CodeItem(1, "removed", "CODE_128", 1L, favorite = true, folder = "Work", inHistory = true)
         val retained = CodeItem(2, "retained", "CODE_128", 2L, favorite = true, folder = "Work", inHistory = true)
         store.replace(
@@ -43,7 +43,7 @@ class BarcodeItemMutationCoordinatorTest {
     fun updatesFavoriteAndHistoryItemsThroughTheirCorrectPersistencePaths() {
         val favorite = CodeItem(1, "favorite", "CODE_128", 1L, favorite = true, inHistory = true)
         val history = CodeItem(2, "history", "CODE_128", 2L, favorite = false, inHistory = true)
-        val store = FavoritesStateStore().apply {
+        val store = LibraryStateStore().apply {
             replace(
                 listOf(favorite, history),
                 listOf(FavoriteGroup(10, "", "Favorite", 10L, mutableListOf(favorite.id))),

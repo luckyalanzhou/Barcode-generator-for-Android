@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -10,10 +10,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class FavoritesStateStoreTest {
+class LibraryStateStoreTest {
     @Test
     fun unloadedGroupsAreNotMarkedAsAuthoritativeLinkSnapshots() {
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         val group = FavoriteGroup(7L, "一级", "文件", 7L, mutableListOf())
 
         store.replace(emptyList(), listOf(group), listOf("一级"))
@@ -25,7 +25,7 @@ class FavoritesStateStoreTest {
 
     @Test
     fun clearingFavoritesAlsoClearsFolderHierarchyAndLoadedLinks() {
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         val favorite = CodeItem(1L, "FAVORITE", "Code 128-B", favorite = true, folder = "一级/二级")
         val history = CodeItem(2L, "HISTORY", "Code 128-B", inHistory = true)
         val group = FavoriteGroup(7L, "一级/二级", "文件", 7L, mutableListOf(favorite.id))
@@ -44,7 +44,7 @@ class FavoritesStateStoreTest {
 
     @Test
     fun concurrentSnapshotsAndEditsRemainConsistent() = runBlocking {
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         val writers = (1L..8L).map { writer ->
             async(Dispatchers.Default) {
                 repeat(100) { index ->

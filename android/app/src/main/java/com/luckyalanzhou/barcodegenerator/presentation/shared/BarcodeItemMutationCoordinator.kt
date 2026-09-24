@@ -1,10 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
 
 /** Coordinates barcode-item edits that can affect both favorite groups and history. */
 internal class BarcodeItemMutationCoordinator(
-    private val store: FavoritesStateStore,
+    private val store: LibraryStateStore,
     private val persistAllFavorites: () -> Unit,
     private val persistItems: () -> Unit,
 ) {

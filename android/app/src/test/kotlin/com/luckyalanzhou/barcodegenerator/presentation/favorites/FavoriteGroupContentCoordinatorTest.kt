@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
+
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
@@ -62,7 +64,7 @@ class FavoriteGroupContentCoordinatorTest {
     @Test
     fun changedGroupIsDiscardedAfterRepositoryRead() = runBlocking {
         val regularStore = storeWithGroup()
-        val searchStore = FavoritesStateStore()
+        val searchStore = LibraryStateStore()
         val coordinator = coordinator(
             regularStore = regularStore,
             searchStore = searchStore,
@@ -80,8 +82,8 @@ class FavoriteGroupContentCoordinatorTest {
     }
 
     private fun coordinator(
-        regularStore: FavoritesStateStore,
-        searchStore: FavoritesStateStore,
+        regularStore: LibraryStateStore,
+        searchStore: LibraryStateStore,
         loadContent: suspend (Long) -> FavoriteGroupContent?,
     ) = FavoriteGroupContentCoordinator(
         loadContent = loadContent,
@@ -91,7 +93,7 @@ class FavoriteGroupContentCoordinatorTest {
         publishSearchState = {},
     )
 
-    private fun storeWithGroup(): FavoritesStateStore = FavoritesStateStore().also { store ->
+    private fun storeWithGroup(): LibraryStateStore = LibraryStateStore().also { store ->
         store.edit { groups += group(7L) }
     }
 

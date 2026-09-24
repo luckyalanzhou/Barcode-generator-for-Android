@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute
 import org.junit.Assert.assertEquals
@@ -16,7 +16,7 @@ class GenerateCoordinatorTest {
         val existing = CodeItem(1L, "existing", "Code 128-B", 1L)
         val generated = CodeItem(2L, "new", "Code 128-B", 2L)
         val selectedGroup = FavoriteGroup(9L, "folder", "group", 9L, mutableListOf())
-        val store = FavoritesStateStore().apply { edit { items += existing } }
+        val store = LibraryStateStore().apply { edit { items += existing } }
         var persistCount = 0
         val coordinator = GenerateCoordinator(store) { persistCount++ }
 

@@ -11,10 +11,10 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQueryCoordinator
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -23,17 +23,17 @@ import org.junit.Test
 class FavoritesQueryCoordinatorTest {
     @Test
     fun querySessionUsesTheSharedSearchStore() = runBlocking {
-        val dataSession = FavoritesDataSession()
+        val dataSession = LibraryDataSession()
         val querySession = FavoritesQuerySession(
             repository = FakeFavoriteRepository(groups = listOf(group(1L, "搜索结果"))),
             dataSession = dataSession,
         )
 
         querySession.coordinator.search("搜索")
-        dataSession.publishSearchState(querySession.coordinator)
+        querySession.publishSearchState()
 
-        assertEquals(listOf(1L), dataSession.searchStore.groupsSnapshot().map { it.id })
-        assertEquals(listOf(1L), dataSession.searchState.value.groups.map { it.id })
+        assertEquals(listOf(1L), querySession.searchStore.groupsSnapshot().map { it.id })
+        assertEquals(listOf(1L), querySession.searchState.value.groups.map { it.id })
         assertTrue(dataSession.store.groupsSnapshot().isEmpty())
     }
 
@@ -45,7 +45,7 @@ class FavoritesQueryCoordinatorTest {
             firstPage = firstPage,
             secondPage = secondPage,
         )
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         store.edit { groups.addAll(firstPage) }
         val coordinator = FavoritesQueryCoordinator(repository, store)
         coordinator.resetPaging(FavoriteGroupPageCursor(firstPage.last().savedAt, firstPage.last().id), true)
@@ -61,7 +61,7 @@ class FavoritesQueryCoordinatorTest {
 
     @Test
     fun searchAddsOnlyMissingGroupsAndItems() = runBlocking {
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         store.edit {
             groups.add(group(1L, "命中"))
             items.add(CodeItem(1L, "旧内容", "Code 128-B"))
@@ -80,7 +80,7 @@ class FavoritesQueryCoordinatorTest {
 
     @Test
     fun contentSearchKeepsMatchedGroupItemRelations() = runBlocking {
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         val repository = FakeFavoriteRepository(
             groups = listOf(group(2L, "不靠名称命中").also { it.itemIds += 2L }),
             items = listOf(CodeItem(2L, "搜索内容", "Code 128-B")),
@@ -97,7 +97,7 @@ class FavoritesQueryCoordinatorTest {
         val repository = FakeFavoriteRepository(
             groups = (1L..101L).map { group(it, "搜索结果$it") },
         )
-        val store = FavoritesStateStore()
+        val store = LibraryStateStore()
         val coordinator = FavoritesQueryCoordinator(repository, store)
 
         coordinator.search("搜索")
@@ -115,9 +115,9 @@ class FavoritesQueryCoordinatorTest {
 
     @Test
     fun searchResultsDoNotPolluteRegularFavoriteStore() = runBlocking {
-        val regularStore = FavoritesStateStore()
+        val regularStore = LibraryStateStore()
         regularStore.edit { groups += group(99L, "普通收藏") }
-        val searchStore = FavoritesStateStore()
+        val searchStore = LibraryStateStore()
         val repository = FakeFavoriteRepository(
             groups = listOf(group(1L, "搜索结果")),
         )

@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.generate
 
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesStateStore
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
@@ -9,7 +9,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRout
 
 /** Commits generated items to the shared barcode session and prepares the result snapshot. */
 internal class GenerateCoordinator(
-    private val store: FavoritesStateStore,
+    private val store: LibraryStateStore,
     private val persistItems: () -> Unit,
 ) {
     fun commit(generated: List<CodeItem>, currentResult: ResultUiState): ResultUiState {

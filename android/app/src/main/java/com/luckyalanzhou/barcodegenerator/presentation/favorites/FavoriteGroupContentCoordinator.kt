@@ -2,13 +2,14 @@ package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
 
 /** Reads authoritative group contents and keeps regular/search snapshots in sync. */
 internal class FavoriteGroupContentCoordinator(
     private val loadContent: suspend (Long) -> FavoriteGroupContent?,
-    private val regularStore: FavoritesStateStore,
-    private val searchStore: FavoritesStateStore,
+    private val regularStore: LibraryStateStore,
+    private val searchStore: LibraryStateStore,
     private val publishDataState: () -> Unit,
     private val publishSearchState: () -> Unit,
 ) {
@@ -45,7 +46,7 @@ internal class FavoriteGroupContentCoordinator(
     }
 
     fun cache(loaded: FavoriteGroupContentLoadResult.Loaded) {
-        fun FavoritesStateStore.updateIfPresent() {
+        fun LibraryStateStore.updateIfPresent() {
             edit {
                 val groupIndex = groups.indexOfFirst { it.id == loaded.group.id }
                 if (groupIndex >= 0) {
