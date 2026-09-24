@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Keep user library data, but never restore transient LAN attachments or diagnostics. -->
+    <exclude domain="file" path="lan-share/" />
+    <exclude domain="file" path="debug-logs/" />
+    <exclude domain="file" path="debug.log" />
+</full-backup-content>
