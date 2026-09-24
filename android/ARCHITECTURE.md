@@ -5,25 +5,27 @@
 ## 模块依赖
 
 ```text
-core:domain  <-  core:data  <-  app
-core:ui      <-  app
+:app ───────────────> :core:domain
+  └────────────────> :core:data ─────────> :core:domain
 ```
 
 允许的依赖方向：
 
 | 模块 | 可以依赖 | 禁止依赖 |
 | --- | --- | --- |
-| `core:domain` | Kotlin、ZXing 等纯 Kotlin 库 | Android、Compose、Room、DataStore、Activity、app |
-| `core:data` | `core:domain`、Room、DataStore、文件 API | Compose、Activity、ViewModel |
-| `core:ui` | Compose Runtime、Compose UI、动画库 | app ViewModel、Repository、Room、Activity |
-| `app` | Domain、Data、UI、Android SDK、Hilt | 让 Composable 直接访问 DAO 或文件系统 |
+| `:core:domain` | Kotlin/JVM、Coroutines、ZXing 等纯 Kotlin 库 | Android、Compose、Room、DataStore、Activity、`:app` |
+| `:core:data` | `:core:domain`、Android SDK、Room、DataStore、文件和网络 API | Compose、`:app`、ViewModel |
+| `:app` | `:core:domain`、`:core:data`、Android SDK、Compose、Hilt | 让 Composable 直接访问 DAO、Repository 实现或文件系统 |
+
+当前只有以上三个 Gradle 模块。Compose UI 与 presentation 代码位于 `:app` 模块的不同包中；`ui` 是代码层次，不是独立的 `:core:ui` 模块。
 
 ## 层职责
 
-- Domain：领域模型、Repository 接口和纯业务用例。
-- Data：Room、DataStore、文件、网络数据源及 Repository 实现；负责 Entity/Domain Mapper。
-- App：ViewModel、平台能力桥接、依赖注入和应用级协调。
-- UI：Compose 页面、UI 状态渲染、导航和一次性事件消费。
+- `:core:domain`：领域模型、Repository/平台能力接口和不依赖 Android 的业务规则。
+- `:core:data`：Room、DataStore、文件、网络数据源及领域接口实现；负责 Entity/Domain Mapper 和持久化迁移。
+- `:app` 的 `presentation` 包：ViewModel、页面状态和应用级业务协调。
+- `:app` 的 `ui` 包：Compose 页面、状态渲染、导航和一次性事件消费；通过 ViewModel/回调连接 presentation，不直接操作数据源。
+- `:app` 的 DI 与平台桥接：组合各模块实现，并接入 Activity、权限、文件选择器等 Android 能力。
 
 ## 状态与事件
 
