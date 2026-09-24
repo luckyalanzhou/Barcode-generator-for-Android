@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator
 
+import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.ImagePayload
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
@@ -41,5 +42,6 @@ class CameraOcrViewModelTest {
         object : BarcodeDecodeGateway {
             override suspend fun decode(image: ImagePayload): String? = null
         },
+        SavedStateHandle(),
     )
 }

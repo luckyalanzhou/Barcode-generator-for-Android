@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.update
  * Owns the result-page snapshot and the transitions that prepare it.
  * Navigation itself remains outside this coordinator; callers decide where to go.
  */
-internal class ResultsCoordinator {
-    private val _state = MutableStateFlow(ResultUiState())
+internal class ResultsCoordinator(initial: ResultUiState = ResultUiState()) {
+    private val _state = MutableStateFlow(initial)
     val state: StateFlow<ResultUiState> = _state.asStateFlow()
 
     fun current(): ResultUiState = _state.value
@@ -42,6 +42,8 @@ internal class ResultsCoordinator {
                 items = items,
                 showingHistoryResult = false,
                 returnPage = AppRoute.Favorites,
+                isRestoring = false,
+                restoreFailed = false,
             )
         }
     }
@@ -52,6 +54,8 @@ internal class ResultsCoordinator {
                 items = items.sortedBy(CodeItem::id),
                 showingHistoryResult = true,
                 returnPage = AppRoute.History,
+                isRestoring = false,
+                restoreFailed = false,
             )
         }
     }

@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.MainActivity
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.content.Intent
+import java.io.File
 import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -64,17 +65,27 @@ internal fun MainActivity.shareResultPage() {
             Text("分享结果", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             DialogAction("保存为图片", dark, { saveBitmap(result.bitmap, result.label); dismiss() }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
             DialogAction("保存到文件", dark, {
-                pendingResultImage = result.bitmap
-                pendingResultImageLabel = result.label
-                dismiss()
-                launchExternalActivity(
-                    Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                        type = "image/png"
-                        putExtra(Intent.EXTRA_TITLE, result.label.replace(Regex("[^A-Za-z0-9._-]+"), "_") + ".png")
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                    },
-                    MainActivity.REQUEST_RESULT_IMAGE_FILE,
-                )
+                val imageFile = runCatching {
+                    File.createTempFile("result-export-", ".png", cacheDir).also { file ->
+                        file.outputStream().use { output ->
+                            check(result.bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+                        }
+                    }
+                }.getOrNull()
+                if (imageFile == null) {
+                    toast("准备文件失败，请重试")
+                } else {
+                    pendingResultImageFile = imageFile
+                    dismiss()
+                    launchExternalActivity(
+                        Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            type = "image/png"
+                            putExtra(Intent.EXTRA_TITLE, result.label.replace(Regex("[^A-Za-z0-9._-]+"), "_") + ".png")
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                        },
+                        MainActivity.REQUEST_RESULT_IMAGE_FILE,
+                    )
+                }
             }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
             DialogAction("发送给其他应用", dark, { shareBitmap(result.bitmap, result.label); dismiss() }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
         }

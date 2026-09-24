@@ -35,7 +35,6 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.selectLanShareAtta
 import com.luckyalanzhou.barcodegenerator.ui.app.showIos26NoticeDialog
 import com.luckyalanzhou.barcodegenerator.ui.app.syncSystemBars
 import com.luckyalanzhou.barcodegenerator.ui.app.toast
-import com.luckyalanzhou.barcodegenerator.ui.app.writeBitmapToUri
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.confirmImportFavorites
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.exportFavorites
@@ -106,8 +105,7 @@ class MainActivity : AppCompatActivity() {
         barcodePreviousBrightness = -1f
     }
     internal var composeShellReady: Boolean = false
-    internal var pendingResultImage: Bitmap? = null
-    internal var pendingResultImageLabel: String? = null
+    internal var pendingResultImageFile: File? = null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val navigationViewModel: AppNavigationViewModel by viewModels()
     internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()
@@ -150,6 +148,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        pendingResultImageFile = state?.getString("pending_result_image_file")?.let(::File)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = handleAppBackPressed()
         })
@@ -240,6 +239,7 @@ class MainActivity : AppCompatActivity() {
         outState.putString("page", navigationViewModel.uiState.value.page.pageName)
         outState.putString("settings_return_page", navigationViewModel.uiState.value.settingsReturnPage.pageName)
         outState.putBoolean("startup_update_check_started", updateViewModel.uiState.value.startupCheckStarted)
+        pendingResultImageFile?.let { outState.putString("pending_result_image_file", it.absolutePath) }
         super.onSaveInstanceState(outState)
     }
 
@@ -292,14 +292,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleExternalActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_RESULT_IMAGE_FILE) {
-            val bitmap = pendingResultImage
-            val label = pendingResultImageLabel
-            pendingResultImage = null
-            pendingResultImageLabel = null
-            if (resultCode == RESULT_OK && bitmap != null && data?.data != null) {
-                if (writeBitmapToUri(bitmap, data.data!!)) toast("已保存到文件")
+            val imageFile = pendingResultImageFile
+            pendingResultImageFile = null
+            if (resultCode == RESULT_OK && imageFile?.isFile == true && data?.data != null) {
+                val written = runCatching {
+                    contentResolver.openOutputStream(data.data!!)?.use { output ->
+                        imageFile.inputStream().use { input -> input.copyTo(output) }
+                    } ?: error("无法打开目标文件")
+                }.isSuccess
+                if (written) toast("已保存到文件")
                 else toast("保存到文件失败")
             }
+            imageFile?.delete()
             return
         }
         if (requestCode == REQUEST_LAN_SHARE_UPLOAD || requestCode == REQUEST_LAN_SHARE_DOWNLOAD) {

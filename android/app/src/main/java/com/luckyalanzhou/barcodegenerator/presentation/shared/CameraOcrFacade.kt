@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.ImagePayload
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
@@ -14,8 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
 internal class CameraOcrFacade(
     private val ocrTextGateway: OcrTextGateway,
     private val barcodeDecodeGateway: BarcodeDecodeGateway,
+    savedState: SavedStateHandle,
 ) {
-    private val camera = CameraRequestCoordinator()
+    private val camera = CameraRequestCoordinator(savedState)
     val cameraState: StateFlow<CameraCaptureState> = camera.state
 
     fun prepareCameraRequest(requestCode: Int) = camera.prepare(requestCode)

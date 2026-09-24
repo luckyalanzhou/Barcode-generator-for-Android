@@ -69,7 +69,16 @@ internal fun ResultsContent(
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("生成结果", color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
-            Text("暂无生成结果", color = secondary, fontSize = 17.sp, modifier = Modifier.padding(vertical = 40.dp))
+            Text(
+                when {
+                    resultState.isRestoring -> "正在恢复上次结果…"
+                    resultState.restoreFailed -> "上次结果已不可用，请返回重新打开"
+                    else -> "暂无生成结果"
+                },
+                color = secondary,
+                fontSize = 17.sp,
+                modifier = Modifier.padding(vertical = 40.dp),
+            )
         }
         return
     }

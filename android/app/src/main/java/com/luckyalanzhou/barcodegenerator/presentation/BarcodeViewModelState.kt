@@ -31,6 +31,8 @@ data class ResultUiState(
     val showingHistoryResult: Boolean = false,
     val returnPage: AppRoute = AppRoute.Generate,
     val selectedFavoriteGroup: FavoriteGroup? = null,
+    val isRestoring: Boolean = false,
+    val restoreFailed: Boolean = false,
 )
 
 data class FavoriteTreeUiState(

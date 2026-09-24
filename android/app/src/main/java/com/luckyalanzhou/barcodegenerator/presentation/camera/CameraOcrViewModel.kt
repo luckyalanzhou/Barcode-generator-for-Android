@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.camera
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
@@ -21,8 +22,9 @@ import kotlinx.coroutines.launch
 class CameraOcrViewModel @Inject constructor(
     ocrTextGateway: OcrTextGateway,
     barcodeDecodeGateway: BarcodeDecodeGateway,
+    savedState: SavedStateHandle,
 ) : ViewModel() {
-    private val cameraOcr = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway)
+    private val cameraOcr = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway, savedState)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcr.cameraState
 
     private val _events = MutableSharedFlow<CameraOcrEvent>(extraBufferCapacity = 4)
