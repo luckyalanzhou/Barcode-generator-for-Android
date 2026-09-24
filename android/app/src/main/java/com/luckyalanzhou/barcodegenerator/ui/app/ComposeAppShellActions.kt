@@ -26,7 +26,6 @@ internal interface ComposeAppShellActions {
     fun navigateTo(route: AppRoute)
     fun selectTab(index: Int, fromSwipe: Boolean)
     fun syncBarcodeDisplaySettings(isResults: Boolean)
-    fun closeLanShare()
     fun ensureLanShare()
     fun showUpdateDialog(update: UpdateUiState)
     fun captureText()
@@ -69,15 +68,10 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
             navigationViewModel.updateSettingsReturnPage(returnPage)
         }
         if (index == 0) resultsViewModel.prepareMainGenerateTab()
-        navigationViewModel.navigateTo(
-            route = routes[index],
-            fromTabSwipe = fromSwipe,
-            topLevelDestination = index != 3,
-        )
+        navigationViewModel.navigateTo(routes[index], fromSwipe)
     }
 
     override fun syncBarcodeDisplaySettings(isResults: Boolean) = this@composeAppShellActions.syncBarcodeDisplaySettings(isResults)
-    override fun closeLanShare() = this@composeAppShellActions.closeLanShare()
     override fun ensureLanShare() = this@composeAppShellActions.enterLanShare()
 
     override fun showUpdateDialog(update: UpdateUiState) {

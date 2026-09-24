@@ -101,7 +101,6 @@ dependencies {
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
     implementation(libs.activity.compose)
-    implementation(libs.navigation.compose)
     implementation(libs.compose.ui)
     implementation(libs.compose.animation.core)
     implementation(libs.compose.ui.tooling.preview)
