@@ -37,11 +37,13 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesDataSession
 import java.util.Locale
 
 @HiltViewModel
 class BarcodeViewModel @Inject constructor(
     private val barcodeDataCoordinator: BarcodeDataCoordinator,
+    private val favoritesDataSession: FavoritesDataSession,
     private val barcodeImageCache: BarcodeImageCache,
     private val appLogger: AppLogger,
     private val generateEditor: GenerateEditorStateHolder,
@@ -51,23 +53,19 @@ class BarcodeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
     private val routeFacade = AppRouteStateFacade(_uiState)
-    private val _dataState = MutableStateFlow(BarcodeDataState())
-    val dataState: StateFlow<BarcodeDataState> = _dataState.asStateFlow()
-    private val _favoriteSearchState = MutableStateFlow(BarcodeDataState())
-    val favoriteSearchState: StateFlow<BarcodeDataState> = _favoriteSearchState.asStateFlow()
+    val dataState: StateFlow<BarcodeDataState> = favoritesDataSession.dataState
+    val favoriteSearchState: StateFlow<BarcodeDataState> = favoritesDataSession.searchState
     private val favoritesFacade = FavoritesFacade(
         repository = barcodeDataCoordinator.repository,
         persistence = barcodePersistence,
         scope = viewModelScope,
-        dataState = _dataState,
-        searchState = _favoriteSearchState,
+        session = favoritesDataSession,
     )
     private val favoritesStateStore = favoritesFacade.store
     private val favoriteSearchStateStore = favoritesFacade.searchStore
     private val favoritesCoordinator = favoritesFacade.mutation
     private val favoritesQueryCoordinator = favoritesFacade.query
     private val historyCoordinator = favoritesFacade.history
-    private val dataStateCoordinator = favoritesFacade.dataStateCoordinator
     private val favoritesLoadCoordinator = favoritesFacade.load
 
     private val resultsCoordinator = ResultsCoordinator()
@@ -102,8 +100,8 @@ class BarcodeViewModel @Inject constructor(
     }
 
     /** 发布只读快照，页面不会直接观察可变集合。 */
-    fun publishDataState(isReady: Boolean = _dataState.value.isReady) {
-        dataStateCoordinator.publish(isReady)
+    fun publishDataState(isReady: Boolean = dataState.value.isReady) {
+        favoritesDataSession.publishDataState(isReady)
     }
 
     fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
@@ -261,9 +259,7 @@ class BarcodeViewModel @Inject constructor(
     }
 
     private fun publishFavoriteSearchState() {
-        _favoriteSearchState.value = favoritesQueryCoordinator.searchSnapshot(_dataState.value.isReady).copy(
-            folders = _dataState.value.folders,
-        )
+        favoritesFacade.publishSearchState()
     }
 
     fun openHistoryResult(batch: List<CodeItem>) {

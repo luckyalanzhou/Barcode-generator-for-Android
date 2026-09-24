@@ -4,13 +4,18 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 
-/** Owns transient Favorites-page state; barcode and folder data remain in BarcodeViewModel. */
+/** Owns transient Favorites-page state and observes the shared barcode data session. */
 @HiltViewModel
-class FavoritesViewModel @Inject constructor() : ViewModel() {
+class FavoritesViewModel @Inject constructor(
+    private val dataSession: FavoritesDataSession,
+) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
 
+    val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
+    val searchState: StateFlow<BarcodeDataState> = dataSession.searchState
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
     val query: StateFlow<String> = pageState.query
 

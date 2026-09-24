@@ -92,8 +92,8 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             AppRoute.Favorites -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
-                val favoriteData by dependencies.viewModel.dataState.collectAsStateWithLifecycle()
-                val favoriteSearch by dependencies.viewModel.favoriteSearchState.collectAsStateWithLifecycle()
+                val favoriteData by dependencies.favoritesViewModel.dataState.collectAsStateWithLifecycle()
+                val favoriteSearch by dependencies.favoritesViewModel.searchState.collectAsStateWithLifecycle()
                 val favoriteQuery by dependencies.favoritesViewModel.query.collectAsStateWithLifecycle()
                 val favoriteTree by dependencies.favoritesViewModel.treeState.collectAsStateWithLifecycle()
                 FavoritesContent(
