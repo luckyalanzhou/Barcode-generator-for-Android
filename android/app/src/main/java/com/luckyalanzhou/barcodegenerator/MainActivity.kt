@@ -45,7 +45,6 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.recognizeText
 import android.util.Log
 import android.view.MotionEvent
 import androidx.activity.viewModels
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
@@ -150,9 +149,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() = handleAppBackPressed()
-        })
         DebugLog.initialize(applicationContext)
         DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
@@ -241,16 +237,6 @@ class MainActivity : AppCompatActivity() {
         outState.putString("settings_return_page", navigationViewModel.uiState.value.settingsReturnPage.pageName)
         outState.putBoolean("startup_update_check_started", updateViewModel.uiState.value.startupCheckStarted)
         super.onSaveInstanceState(outState)
-    }
-
-    /** 统一的现代返回回调，保持原有页面返回路径。 */
-    private fun handleAppBackPressed() {
-        when (navigationViewModel.uiState.value.page) {
-            AppRoute.Settings -> navigationViewModel.navigateTo(navigationViewModel.uiState.value.settingsReturnPage)
-            AppRoute.LanShare -> { closeLanShare(); navigationViewModel.navigateTo(AppRoute.Settings) }
-            AppRoute.Results -> navigationViewModel.navigateTo(resultsViewModel.resultUiState.value.returnPage)
-            else -> finish()
-        }
     }
 
     override fun onDestroy() {
