@@ -14,7 +14,7 @@ jobs:
     if: github.ref_name == 'beta'
     name: Assemble signed beta release APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: android
@@ -55,6 +55,8 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+      - name: Verify tests and beta release lint
+        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
       - name: Calculate beta version
         id: app-version
         env:
@@ -150,6 +152,8 @@ jobs:
             channel: beta
             versionName: ${{ steps.app-version.outputs.version }}
             versionCode: ${{ steps.app-version.outputs.version_code }}
+            commit: ${{ github.sha }}
+            workflowRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
             sha256: ${{ steps.beta-apk.outputs.sha256 }}
           overwrite_files: true
           files: android/app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${{ steps.app-version.outputs.version }}.apk

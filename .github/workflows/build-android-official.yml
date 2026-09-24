@@ -24,7 +24,7 @@ jobs:
     if: github.ref_name == 'main'
     name: Assemble signed release APK
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: android
@@ -62,6 +62,8 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+      - name: Verify tests and official release lint
+        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :app:testOfficialDebugUnitTest :app:lintOfficialRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
       - name: Read app version
         id: app-version
         run: |
