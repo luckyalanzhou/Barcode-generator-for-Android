@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -18,14 +17,13 @@ class BarcodeItemViewModel @Inject constructor(
         store = store,
         persistAllFavorites = {
             persistence.persistAllFavorites(
-                viewModelScope,
                 store.itemsSnapshot(),
                 store.groupsSnapshot(),
                 store.foldersSnapshot(),
                 store.loadedGroupLinkIdsSnapshot(),
             )
         },
-        persistItems = { persistence.persistItems(viewModelScope, store.itemsSnapshot()) },
+        persistItems = { persistence.persistItems(store.itemsSnapshot()) },
     )
     private val queryCoordinator = querySession.coordinator
 

@@ -5,14 +5,12 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
-import kotlinx.coroutines.CoroutineScope
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 
 /** 收藏、文件夹和收藏条码关系的变更协调器。查询和分页由 FavoritesQueryCoordinator 负责。 */
 internal class FavoritesMutationCoordinator(
     private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
-    private val scope: CoroutineScope,
 ) {
     fun renameFolder(path: String, renamedPath: String) {
         store.edit {
@@ -90,8 +88,8 @@ internal class FavoritesMutationCoordinator(
         return true
     }
 
-    fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(scope, path, renamedPath) }
-    fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(scope, path) }
+    fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(path, renamedPath) }
+    fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(path) }
     fun renameGroupAndPersist(groupId: Long, name: String) {
         store.edit {
             val index = groups.indexOfFirst { it.id == groupId }
@@ -110,15 +108,14 @@ internal class FavoritesMutationCoordinator(
         persistAllFavorites()
     }
     fun deleteGroupAndPersist(groupId: Long) {
-        if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(scope, listOf(groupId))
+        if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(listOf(groupId))
     }
     fun clearFavoritesAndPersist() {
         store.clearFavorites()
-        persistence.clearAllFavoriteGroups(scope)
+        persistence.clearAllFavoriteGroups()
         persistAllFavorites()
     }
     fun persistAllFavorites() = persistence.persistAllFavorites(
-        scope,
         store.itemsSnapshot(),
         store.groupsSnapshot(),
         store.foldersSnapshot(),

@@ -194,7 +194,7 @@ class ResultsViewModel @Inject constructor(
     ): Bitmap? = imageRenderer.create(text, format, style, dark, density, withBackground)
 
     private fun persistGeneratedItems() {
-        persistence.persistItems(viewModelScope, dataSession.store.itemsSnapshot())
+        persistence.persistItems(dataSession.store.itemsSnapshot())
         dataSession.publishDataState()
     }
 }

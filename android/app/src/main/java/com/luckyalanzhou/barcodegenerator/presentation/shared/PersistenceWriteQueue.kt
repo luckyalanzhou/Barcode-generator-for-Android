@@ -4,8 +4,6 @@ package com.luckyalanzhou.barcodegenerator.presentation.shared
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 
 /**
@@ -13,18 +11,16 @@ import kotlinx.coroutines.async
  * unrelated ViewModel work. Every queued operation returns an observable result.
  */
 internal class PersistenceWriteQueue(
+    private val writeScope: CoroutineScope,
 ) {
     private val lock = Any()
     private var tail: Deferred<Result<Unit>>? = null
 
-    fun enqueue(scope: CoroutineScope, write: suspend () -> Unit): Deferred<Result<Unit>> {
+    fun enqueue(write: suspend () -> Unit): Deferred<Result<Unit>> {
         val next: Deferred<Result<Unit>>
         synchronized(lock) {
             val previous = tail
-            val parent = scope.coroutineContext[Job]
-            next = scope.async(
-                Dispatchers.IO + SupervisorJob(parent),
-            ) {
+            next = writeScope.async(Dispatchers.IO) {
                 // A failed write must not prevent later snapshots from being attempted.
                 previous?.await()
                 runCatching { write() }

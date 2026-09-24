@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.history
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
@@ -17,7 +16,7 @@ class HistoryViewModel @Inject constructor(
     persistence: BarcodePersistenceCoordinator,
 ) : ViewModel() {
     private val coordinator = HistoryCoordinator(dataSession.store) { items ->
-        persistence.persistItems(viewModelScope, items)
+        persistence.persistItems(items)
     }
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState

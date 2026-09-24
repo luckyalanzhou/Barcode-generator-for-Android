@@ -34,7 +34,7 @@ class FavoritesViewModel @Inject constructor(
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
-    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, viewModelScope)
+    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence)
     private val groupContent = FavoriteGroupContentCoordinator(
         loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
         regularStore = dataSession.store,
@@ -96,7 +96,7 @@ class FavoritesViewModel @Inject constructor(
             true
         }
         if (!added) return false
-        persistence.persistFavoriteFolders(viewModelScope, dataSession.store.foldersSnapshot())
+        persistence.persistFavoriteFolders(dataSession.store.foldersSnapshot())
         publishAfterMutation()
         return true
     }
