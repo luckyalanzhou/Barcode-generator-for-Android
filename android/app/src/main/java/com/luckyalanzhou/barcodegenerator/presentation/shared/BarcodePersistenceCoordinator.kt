@@ -14,9 +14,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /** 条码、历史与收藏的持久化协调器，隔离 ViewModel 与具体数据源。 */
-class BarcodePersistenceCoordinator(
+@Singleton
+class BarcodePersistenceCoordinator @Inject constructor(
     private val barcodeRepository: BarcodeRepository,
     private val legacyBarcodeDataMigrator: BarcodeDataMigration,
 ) {

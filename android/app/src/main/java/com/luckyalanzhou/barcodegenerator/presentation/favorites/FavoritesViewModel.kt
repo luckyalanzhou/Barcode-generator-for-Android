@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import java.util.Locale
 
 /** Owns transient Favorites-page state and observes the shared barcode data session. */
@@ -16,8 +17,10 @@ import java.util.Locale
 class FavoritesViewModel @Inject constructor(
     private val dataSession: FavoritesDataSession,
     private val querySession: FavoritesQuerySession,
+    private val persistence: BarcodePersistenceCoordinator,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
+    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, viewModelScope)
     private var searchJob: Job? = null
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
@@ -55,4 +58,51 @@ class FavoritesViewModel @Inject constructor(
         pageState.updateSearch(expandedPaths, searching)
     fun position(): Pair<Int, Int> = pageState.position()
     fun rememberPosition(index: Int, offset: Int) = pageState.rememberPosition(index, offset)
+
+    fun createFavoriteFolder(path: String): Boolean {
+        val added = dataSession.store.edit {
+            if (path.isBlank() || path in folders) return@edit false
+            folders.add(path)
+            true
+        }
+        if (!added) return false
+        persistence.persistFavoriteFolders(viewModelScope, dataSession.store.foldersSnapshot())
+        publishAfterMutation()
+        return true
+    }
+
+    fun renameFavoriteFolder(path: String, renamedPath: String) {
+        mutations.renameFolderAndPersist(path, renamedPath)
+        publishAfterMutation()
+    }
+
+    fun deleteFavoriteFolder(path: String) {
+        mutations.deleteFolderAndPersist(path)
+        publishAfterMutation()
+    }
+
+    fun renameFavoriteGroup(groupId: Long, name: String) {
+        mutations.renameGroupAndPersist(groupId, name)
+        publishAfterMutation()
+    }
+
+    fun moveFavoriteGroup(groupId: Long, folder: String) {
+        mutations.moveGroupAndPersist(groupId, folder)
+        publishAfterMutation()
+    }
+
+    fun deleteFavoriteGroup(groupId: Long) {
+        mutations.deleteGroupAndPersist(groupId)
+        publishAfterMutation()
+    }
+
+    fun clearFavorites() {
+        mutations.clearFavoritesAndPersist()
+        publishAfterMutation()
+    }
+
+    private fun publishAfterMutation() {
+        querySession.coordinator.onMutation()
+        dataSession.publishDataState()
+    }
 }

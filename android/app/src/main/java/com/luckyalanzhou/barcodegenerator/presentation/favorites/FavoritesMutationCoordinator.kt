@@ -151,5 +151,4 @@ internal class FavoritesMutationCoordinator(
         store.loadedGroupLinkIdsSnapshot(),
     )
     fun persistItems() = persistence.persistItems(scope, store.itemsSnapshot())
-    fun persistFolders() = persistence.persistFavoriteFolders(scope, store.foldersSnapshot())
 }

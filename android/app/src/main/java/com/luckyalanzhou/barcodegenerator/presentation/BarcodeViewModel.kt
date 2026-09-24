@@ -286,17 +286,6 @@ class BarcodeViewModel @Inject constructor(
         return barcodeImageRenderer.create(text, format, style, dark, density, withBackground)
     }
 
-    fun createFavoriteFolder(path: String): Boolean {
-        val added = favoritesStateStore.edit {
-            if (path.isBlank() || path in folders) return@edit false
-            folders.add(path)
-            true
-        }
-        if (!added) return false
-        persistFavoriteFolders()
-        return true
-    }
-
     fun commitGeneratedBarcodes(items: List<CodeItem>) {
         if (items.isEmpty()) return
         val nextResult = generationCoordinator.commit(items, resultsCoordinator.current())
@@ -304,48 +293,9 @@ class BarcodeViewModel @Inject constructor(
         navigateTo(AppRoute.Results)
     }
 
-    fun renameFavoriteFolder(path: String, renamedPath: String) {
-        favoritesCoordinator.renameFolder(path, renamedPath)
-        refreshFavoritesAfterMutation()
-    }
-
-    fun deleteFavoriteFolder(path: String) { favoritesCoordinator.deleteFolderAndPersist(path); refreshFavoritesAfterMutation() }
-
-    fun deleteFavoriteGroup(groupId: Long) { favoritesCoordinator.deleteGroupAndPersist(groupId); refreshFavoritesAfterMutation() }
-
     fun deleteBarcodeItem(itemId: Long) { favoritesCoordinator.deleteItem(itemId); refreshFavoritesAfterMutation() }
 
     fun updateBarcodeItem(itemId: Long, text: String, format: String) { favoritesCoordinator.updateItem(itemId, text, format); refreshFavoritesAfterMutation() }
-
-    fun renameFavoriteFolderAndPersist(path: String, renamedPath: String) {
-        favoritesCoordinator.renameFolderAndPersist(path, renamedPath)
-        refreshFavoritesAfterMutation()
-    }
-
-    fun deleteFavoriteFolderAndPersist(path: String) {
-        favoritesCoordinator.deleteFolderAndPersist(path)
-        refreshFavoritesAfterMutation()
-    }
-
-    fun renameFavoriteGroupAndPersist(groupId: Long, name: String) {
-        favoritesCoordinator.renameGroupAndPersist(groupId, name)
-        refreshFavoritesAfterMutation()
-    }
-
-    fun moveFavoriteGroupAndPersist(groupId: Long, folder: String) {
-        favoritesCoordinator.moveGroupAndPersist(groupId, folder)
-        refreshFavoritesAfterMutation()
-    }
-
-    fun deleteFavoriteGroupAndPersist(groupId: Long) {
-        favoritesCoordinator.deleteGroupAndPersist(groupId)
-        refreshFavoritesAfterMutation()
-    }
-
-    fun clearFavoritesAndPersist() {
-        favoritesCoordinator.clearFavoritesAndPersist()
-        refreshFavoritesAfterMutation()
-    }
 
     fun clearHistoryAndPersist() {
         historyCoordinator.clearHistory()
@@ -404,11 +354,6 @@ class BarcodeViewModel @Inject constructor(
     suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()
 
     fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
-
-    fun persistFavoriteFolders() {
-        favoritesCoordinator.persistFolders()
-        publishDataState()
-    }
 
     private fun refreshFavoritesAfterMutation() {
         favoritesQueryCoordinator.onMutation()

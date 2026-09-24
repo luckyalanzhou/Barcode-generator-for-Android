@@ -104,30 +104,30 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     }
 
     override fun showSubfolderEditor(parent: String) = this@composeAppShellActions.showSubfolderEditorCompose(
-        dataState = viewModel.dataState.value,
+        dataState = favoritesViewModel.dataState.value,
         parent = parent,
-        onCreateFolder = { viewModel.createFavoriteFolder(it) },
+        onCreateFolder = { favoritesViewModel.createFavoriteFolder(it) },
     )
     override fun showFolderEditor(initial: String, onSaved: (String) -> Unit) =
-        this@composeAppShellActions.showFolderEditorCompose(viewModel.dataState.value, initial, onSaved = onSaved)
+        this@composeAppShellActions.showFolderEditorCompose(favoritesViewModel.dataState.value, initial, onSaved = onSaved)
     override fun showMoveDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteMoveDialogCompose(
         group = group,
-        dataState = viewModel.dataState.value,
-        onMove = viewModel::moveFavoriteGroupAndPersist,
+        dataState = favoritesViewModel.dataState.value,
+        onMove = favoritesViewModel::moveFavoriteGroup,
         onNavigateFavorites = { viewModel.navigateTo(AppRoute.Favorites) },
     )
     override fun showRenameDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteRenameDialogCompose(
         group = group,
-        onRename = viewModel::renameFavoriteGroupAndPersist,
+        onRename = favoritesViewModel::renameFavoriteGroup,
         onNavigateFavorites = { viewModel.navigateTo(AppRoute.Favorites) },
     )
     override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
         this@composeAppShellActions.showComposeConfirmDialogImpl(title, message, positive, onConfirm)
     override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose(
         resultState = viewModel.resultUiState.value,
-        dataState = viewModel.dataState.value,
+        dataState = favoritesViewModel.dataState.value,
         onSave = viewModel::saveResultAsFavorite,
-        onCreateFolder = viewModel::createFavoriteFolder,
+        onCreateFolder = favoritesViewModel::createFavoriteFolder,
     )
     override fun shareResult() = this@composeAppShellActions.shareResultPage()
     override fun applyAppearance() = this@composeAppShellActions.applyAppearance()

@@ -112,15 +112,15 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onLoadMoreGroups = dependencies.favoritesViewModel::loadMoreFavoriteGroups,
                     onToggleFolder = dependencies.favoritesViewModel::toggleFolder,
                     onOpenGroup = dependencies.viewModel::openFavoriteGroup,
-                    onRenameFolder = dependencies.viewModel::renameFavoriteFolderAndPersist,
-                    onDeleteFolder = dependencies.viewModel::deleteFavoriteFolderAndPersist,
-                    onDeleteGroup = { dependencies.viewModel.deleteFavoriteGroupAndPersist(it.id) },
+                    onRenameFolder = dependencies.favoritesViewModel::renameFavoriteFolder,
+                    onDeleteFolder = dependencies.favoritesViewModel::deleteFavoriteFolder,
+                    onDeleteGroup = { dependencies.favoritesViewModel.deleteFavoriteGroup(it.id) },
                     onClearAll = {
                         dependencies.actions.confirm(
                             "清空所有收藏",
                             "将清空应用内收藏和文件夹层级。此操作无法撤销。",
                             "确定",
-                        ) { dependencies.viewModel.clearFavoritesAndPersist() }
+                        ) { dependencies.favoritesViewModel.clearFavorites() }
                     },
                     onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
                     onShowFolderEditor = dependencies.actions::showFolderEditor,

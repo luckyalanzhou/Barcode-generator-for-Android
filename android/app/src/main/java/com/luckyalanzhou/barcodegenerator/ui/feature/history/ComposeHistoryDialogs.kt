@@ -52,6 +52,6 @@ internal fun MainActivity.confirmClearCompose(favoritesOnly: Boolean) {
         message = "确定删除全部收藏吗？",
         positive = "删除",
     ) {
-        viewModel.clearFavoritesAndPersist()
+        favoritesViewModel.clearFavorites()
     }
 }
