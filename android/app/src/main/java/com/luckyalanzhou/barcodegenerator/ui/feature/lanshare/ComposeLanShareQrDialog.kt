@@ -7,7 +7,6 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
-import com.luckyalanzhou.barcodegenerator.icons.ContentCopyIcon
 import android.graphics.Bitmap
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
@@ -20,13 +19,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,8 +33,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -83,17 +79,56 @@ internal fun ComposeLanShareQrDialog(
                 Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(qrSize).background(Color(background)), contentScale = ContentScale.FillBounds)
-                        Row(Modifier.width(qrSize).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(session.shareUrl, color = secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                            IconButton(onClick = { onCopyAddress(session.shareUrl) }, modifier = Modifier.size(48.dp)) { Icon(ContentCopyIcon, "复制完整分享链接", tint = primary) }
-                        }
-                        Text("手动连接：打开 ${session.baseUrl} 并输入访问码", color = secondary, fontSize = 12.sp, textAlign = TextAlign.Center)
-                        session.manualCode?.let { code ->
-                            SelectionContainer {
-                                Text(code, color = primary, fontSize = 22.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
-                            }
+                        LanShareQrManualInfo(
+                            baseUrl = session.baseUrl,
+                            manualCode = session.manualCode,
+                            primary = primary,
+                            secondary = secondary,
+                            modifier = Modifier.width(qrSize).padding(top = 12.dp),
+                        )
+                        Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
+                            DialogAction("复制完整链接", dark, { onCopyAddress(session.shareUrl) })
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanShareQrManualInfo(
+    baseUrl: String,
+    manualCode: String?,
+    primary: Color,
+    secondary: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .background(LocalAppColorScheme.current.controls.button, RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("手动连接", color = secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("地址", color = secondary, fontSize = 12.sp, modifier = Modifier.width(44.dp))
+            SelectionContainer(modifier = Modifier.weight(1f)) {
+                Text(
+                    baseUrl,
+                    color = primary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        manualCode?.let { code ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("访问码", color = secondary, fontSize = 12.sp, modifier = Modifier.width(44.dp))
+                SelectionContainer {
+                    Text(code, color = primary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 3.sp)
                 }
             }
         }
@@ -125,15 +160,13 @@ internal fun MainActivity.showLanShareQrDialogCompose() {
         val bitmap = remember(session.shareUrl, dark) { createLanShareQrBitmap(session.shareUrl, foreground, qrBackground) }
         ComposeGlassDialogCard(dark) {
             Image(bitmap = bitmap.asImageBitmap(), contentDescription = "局域网分享二维码", modifier = Modifier.fillMaxWidth().background(Color(qrBackground)), contentScale = ContentScale.FillWidth)
-            SelectionContainer {
-                Text(session.shareUrl, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = secondary, fontSize = 13.sp, textAlign = TextAlign.Center)
-            }
-            Text("手动连接：打开 ${session.baseUrl} 并输入访问码", modifier = Modifier.fillMaxWidth().padding(top = 8.dp), color = secondary, fontSize = 12.sp, textAlign = TextAlign.Center)
-            session.manualCode?.let { code ->
-                SelectionContainer {
-                    Text(code, modifier = Modifier.fillMaxWidth().padding(top = 4.dp), color = primary, fontSize = 22.sp, textAlign = TextAlign.Center)
-                }
-            }
+            LanShareQrManualInfo(
+                baseUrl = session.baseUrl,
+                manualCode = session.manualCode,
+                primary = primary,
+                secondary = secondary,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("复制完整链接", dark, { composeAppShellActions().copyLanShareAddress(session.shareUrl) })
                 DialogAction("关闭", dark, {
