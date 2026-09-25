@@ -58,7 +58,7 @@ class AndroidApkDownloadGateway(
                         done += count
                         if (total != null) {
                             val progress = (done * 100 / total).toInt().coerceIn(0, 100)
-                            onProgress(progress, false, "已下载 ${progress}%")
+                            onProgress(progress, false, "正在下载")
                         } else {
                             onProgress(0, true, "正在下载… ${done / 1024} KB")
                         }
