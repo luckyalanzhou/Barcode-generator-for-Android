@@ -14,7 +14,7 @@ import java.util.zip.CRC32
 
 private const val FAVORITES_DIRECTORY = "favorites"
 private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
-private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32 * 1024 * 1024
+private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32L * 1024 * 1024
 private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
 
 object FavoritesTransferManager {
@@ -65,7 +65,7 @@ object FavoritesTransferManager {
     private fun extractBackupZip(bytes: ByteArray): InterchangeBackup {
         ZipInputStream(bytes.inputStream()).use { zip ->
             var entries = 0
-            var uncompressed = 0
+            var uncompressed = 0L
             val favorites = mutableListOf<InterchangeFavorite>()
             val folders = linkedSetOf<String>()
             var hasFavoritesRoot = false
@@ -80,15 +80,38 @@ object FavoritesTransferManager {
                         if (parts.first.isNotBlank()) folders += parts.first
                         if (folder.isNotBlank()) folders += folder
                     }
+                    uncompressed += copyEntryLimited(
+                        zip,
+                        MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed,
+                        output = null,
+                        limitMessage = "收藏备份解压后内容超过 32 MB 限制",
+                    )
                 } else if (relativePath != null && !entry.isDirectory && relativePath.endsWith(".json", ignoreCase = true)) {
                     hasFavoritesRoot = true
-                    val content = readLimited(zip, MAX_BACKUP_FAVORITE_JSON_BYTES)
-                    uncompressed += content.size
-                    require(uncompressed <= MAX_BACKUP_UNCOMPRESSED_BYTES) { "收藏备份解压后内容超过 32 MB 限制" }
+                    val remainingBytes = MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed
+                    val entryLimit = minOf(MAX_BACKUP_FAVORITE_JSON_BYTES.toLong(), remainingBytes)
+                    val limitMessage = if (remainingBytes <= MAX_BACKUP_FAVORITE_JSON_BYTES) {
+                        "收藏备份解压后内容超过 32 MB 限制"
+                    } else {
+                        "单个收藏文件超过 1 MB 限制"
+                    }
+                    val content = ByteArrayOutputStream().use { output ->
+                        uncompressed += copyEntryLimited(zip, entryLimit, output, limitMessage)
+                        output.toByteArray()
+                    }
                     val favorite = parseFavoriteJson(content.toString(Charsets.UTF_8))
                     favorites += favorite
                     if (favorite.rootFolder.isNotBlank()) folders += favorite.rootFolder
                     if (favorite.folder.isNotBlank()) folders += favorite.folder
+                } else {
+                    // ZIP 中不导入的文件和目录也必须计入解压预算；closeEntry() 会继续
+                    // 解压并跳过剩余内容，因此不能把它当作有界的快速跳过操作。
+                    uncompressed += copyEntryLimited(
+                        zip,
+                        MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed,
+                        output = null,
+                        limitMessage = "收藏备份解压后内容超过 32 MB 限制",
+                    )
                 }
                 zip.closeEntry()
             }
@@ -130,18 +153,22 @@ object FavoritesTransferManager {
         return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts)
     }
 
-    private fun readLimited(input: java.io.InputStream, limit: Int): ByteArray {
-        val output = ByteArrayOutputStream()
+    private fun copyEntryLimited(
+        input: java.io.InputStream,
+        limit: Long,
+        output: OutputStream?,
+        limitMessage: String,
+    ): Long {
         val buffer = ByteArray(16 * 1024)
-        var total = 0
+        var total = 0L
         while (true) {
             val count = input.read(buffer)
             if (count < 0) break
-            total += count
-            require(total <= limit) { "备份文件超过 ${limit / 1024 / 1024} MB 限制" }
-            output.write(buffer, 0, count)
+            total += count.toLong()
+            require(total <= limit) { limitMessage }
+            output?.write(buffer, 0, count)
         }
-        return output.toByteArray()
+        return total
     }
 
     fun appendEntities(backup: InterchangeBackup, existingItems: List<CodeItemEntity>, existingGroups: List<FavoriteGroupEntity>, existingLinks: List<FavoriteGroupItemEntity>): TransferEntities {

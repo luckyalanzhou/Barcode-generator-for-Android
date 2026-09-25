@@ -2,6 +2,9 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -98,11 +101,39 @@ class FavoritesTransferManagerTest {
         }
     }
 
+    @Test
+    fun restoreRejectsExpandedSizeOverLimitAcrossIgnoredFilesAndDirectories() {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            writeRepeatedEntry(zip, "unrelated/first.bin", 16 * 1024 * 1024)
+            writeRepeatedEntry(zip, "unrelated/second/", 16 * 1024 * 1024 + 1)
+        }
+
+        try {
+            FavoritesTransferManager.restore(output.toByteArray())
+            error("expected oversized ignored ZIP entries to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message.orEmpty().contains("32 MB"))
+        }
+    }
+
 
     @Test
     fun favoritePathSupportsWrappedCrossPlatformZipRoot() {
         assertEquals("一级/文件.json", FavoritesTransferManager.favoriteRelativePath("backup-root/favorites/一级/文件.json"))
         assertEquals("一级/文件.json", FavoritesTransferManager.favoriteRelativePath("favorites/一级/文件.json"))
         assertEquals(null, FavoritesTransferManager.favoriteRelativePath("other/一级/文件.json"))
+    }
+
+    private fun writeRepeatedEntry(zip: ZipOutputStream, name: String, size: Int) {
+        zip.putNextEntry(ZipEntry(name))
+        val block = ByteArray(16 * 1024) { 'x'.code.toByte() }
+        var remaining = size
+        while (remaining > 0) {
+            val count = minOf(block.size, remaining)
+            zip.write(block, 0, count)
+            remaining -= count
+        }
+        zip.closeEntry()
     }
 }
