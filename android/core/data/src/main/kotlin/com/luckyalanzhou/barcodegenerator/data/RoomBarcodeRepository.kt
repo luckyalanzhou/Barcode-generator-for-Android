@@ -129,23 +129,21 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     }
 
     override suspend fun renameFavoriteFolder(path: String, renamedPath: String) {
-        val prefix = "$path/%"
         database.withTransaction {
-            dao.renameGroupsFolder(path, prefix, renamedPath)
-            dao.renameFolders(path, prefix, renamedPath)
+            dao.renameGroupsFolder(path, renamedPath)
+            dao.renameFolders(path, renamedPath)
         }
     }
 
     override suspend fun deleteFavoriteFolder(path: String) {
-        val prefix = "$path/%"
         database.withTransaction {
-            val groupIds = dao.loadGroupIdsByFolder(path, prefix)
+            val groupIds = dao.loadGroupIdsByFolder(path)
             if (groupIds.isNotEmpty()) {
                 dao.clearFavoriteFlagsForGroups(groupIds)
                 dao.deleteGroupItems(groupIds)
             }
-            dao.deleteGroupsByFolder(path, prefix)
-            dao.deleteFoldersByPath(path, prefix)
+            dao.deleteGroupsByFolder(path)
+            dao.deleteFoldersByPath(path)
         }
     }
 

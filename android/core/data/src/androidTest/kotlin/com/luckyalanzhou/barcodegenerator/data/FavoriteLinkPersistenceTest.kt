@@ -9,11 +9,47 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class FavoriteLinkPersistenceTest {
+    @Test
+    fun deletingWildcardNamedFolderDoesNotDeleteOtherFoldersOrFavoriteLinks() = runBlocking {
+        withFolderRepository(
+            listOf("%", "%/child", "other/child", "A_B/child", "A1B/child"),
+        ) { database, repository ->
+            repository.deleteFavoriteFolder("%")
+
+            assertEquals(listOf(3L, 4L, 5L), repository.loadGroups().sortedBy { it.id }.map { it.id })
+            assertEquals(listOf(3L, 4L, 5L), repository.loadGroupItems().map { it.groupId }.sorted())
+            assertEquals(listOf("A1B/child", "other/child", "A_B/child"), database.barcodeDao().loadFolders().map { it.name })
+            val itemsById = repository.loadItems().associateBy { it.id }
+            assertTrue(itemsById.filterKeys { it in 1L..2L }.values.none { it.favorite })
+            assertTrue(itemsById.filterKeys { it in 3L..5L }.values.all { it.favorite })
+        }
+    }
+
+    @Test
+    fun renamingFolderUsesExactCaseAndLiteralWildcardCharacters() = runBlocking {
+        withFolderRepository(
+            listOf("A_B", "A_B/child", "A1B/child", "Work/child", "work/child"),
+        ) { database, repository ->
+            repository.renameFavoriteFolder("A_B", "renamed")
+            repository.renameFavoriteFolder("Work", "WorkRenamed")
+
+            assertEquals(
+                listOf("renamed", "renamed/child", "A1B/child", "WorkRenamed/child", "work/child"),
+                repository.loadGroups().sortedBy { it.id }.map { it.folder },
+            )
+            assertEquals(
+                listOf("A1B/child", "WorkRenamed/child", "renamed", "renamed/child", "work/child"),
+                database.barcodeDao().loadFolders().map { it.name },
+            )
+        }
+    }
+
     @Test
     fun savingExistingFavoriteItemPreservesItsGroupLink() = runBlocking {
         withSeededRepository { database, repository ->
@@ -59,13 +95,39 @@ class FavoriteLinkPersistenceTest {
         }
     }
 
-    private fun favoriteItem(text: String) = CodeItem(
-        id = 1L,
+    private suspend fun withFolderRepository(
+        folders: List<String>,
+        test: suspend (BarcodeDatabase, RoomBarcodeRepository) -> Unit,
+    ) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = Room.inMemoryDatabaseBuilder(context, BarcodeDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = database.barcodeDao()
+            val groups = folders.mapIndexed { index, folder ->
+                val id = index + 1L
+                FavoriteGroupEntity(id, folder, "group-$id", id)
+            }
+            dao.upsertItems(groups.map { group ->
+                favoriteItem(id = group.id, folder = group.folder).toEntity()
+            })
+            dao.upsertGroups(groups)
+            dao.saveGroupItems(groups.map { FavoriteGroupItemEntity(it.id, it.id) })
+            dao.saveFolders(folders.distinct().map(::FavoriteFolderEntity))
+            test(database, RoomBarcodeRepository(database))
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun favoriteItem(id: Long = 1L, text: String = "original barcode", folder: String = "folder") = CodeItem(
+        id = id,
         text = text,
         format = "Code 128-B",
         createdAt = 100L,
         favorite = true,
-        folder = "folder",
+        folder = folder,
         inHistory = true,
     )
 }

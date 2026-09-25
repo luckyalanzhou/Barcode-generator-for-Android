@@ -116,9 +116,12 @@ interface BarcodeDao {
     @Query("DELETE FROM favorite_groups") suspend fun clearGroups()
     @Query("DELETE FROM favorite_groups WHERE id NOT IN (:retainedIds)") suspend fun deleteGroupsExcept(retainedIds: List<Long>)
     @Query("DELETE FROM favorite_groups WHERE id IN (:ids)") suspend fun deleteGroups(ids: List<Long>)
-    @Query("SELECT id FROM favorite_groups WHERE folder = :path OR folder LIKE :prefix") suspend fun loadGroupIdsByFolder(path: String, prefix: String): List<Long>
-    @Query("UPDATE favorite_groups SET folder = CASE WHEN folder = :path THEN :renamedPath ELSE :renamedPath || substr(folder, length(:path) + 1) END WHERE folder = :path OR folder LIKE :prefix") suspend fun renameGroupsFolder(path: String, prefix: String, renamedPath: String)
-    @Query("DELETE FROM favorite_groups WHERE folder = :path OR folder LIKE :prefix") suspend fun deleteGroupsByFolder(path: String, prefix: String)
+    @Query("SELECT id FROM favorite_groups WHERE folder = :path OR substr(folder, 1, length(:path) + 1) = (:path || '/') COLLATE BINARY")
+    suspend fun loadGroupIdsByFolder(path: String): List<Long>
+    @Query("UPDATE favorite_groups SET folder = CASE WHEN folder = :path THEN :renamedPath ELSE :renamedPath || substr(folder, length(:path) + 1) END WHERE folder = :path OR substr(folder, 1, length(:path) + 1) = (:path || '/') COLLATE BINARY")
+    suspend fun renameGroupsFolder(path: String, renamedPath: String)
+    @Query("DELETE FROM favorite_groups WHERE folder = :path OR substr(folder, 1, length(:path) + 1) = (:path || '/') COLLATE BINARY")
+    suspend fun deleteGroupsByFolder(path: String)
     @Query("SELECT * FROM favorite_group_items") suspend fun loadGroupItems(): List<FavoriteGroupItemEntity>
     @Query("SELECT * FROM favorite_group_items WHERE groupId IN (:groupIds)") suspend fun loadGroupItemsByGroupIds(groupIds: List<Long>): List<FavoriteGroupItemEntity>
     @Query("SELECT itemId FROM favorite_group_items WHERE groupId = :groupId ORDER BY itemId") suspend fun loadGroupItemIds(groupId: Long): List<Long>
@@ -131,8 +134,10 @@ interface BarcodeDao {
     @Query("SELECT * FROM favorite_folders ORDER BY name") suspend fun loadFolders(): List<FavoriteFolderEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveFolders(folders: List<FavoriteFolderEntity>)
     @Query("DELETE FROM favorite_folders") suspend fun clearFolders()
-    @Query("UPDATE favorite_folders SET name = CASE WHEN name = :path THEN :renamedPath ELSE :renamedPath || substr(name, length(:path) + 1) END WHERE name = :path OR name LIKE :prefix") suspend fun renameFolders(path: String, prefix: String, renamedPath: String)
-    @Query("DELETE FROM favorite_folders WHERE name = :path OR name LIKE :prefix") suspend fun deleteFoldersByPath(path: String, prefix: String)
+    @Query("UPDATE favorite_folders SET name = CASE WHEN name = :path THEN :renamedPath ELSE :renamedPath || substr(name, length(:path) + 1) END WHERE name = :path OR substr(name, 1, length(:path) + 1) = (:path || '/') COLLATE BINARY")
+    suspend fun renameFolders(path: String, renamedPath: String)
+    @Query("DELETE FROM favorite_folders WHERE name = :path OR substr(name, 1, length(:path) + 1) = (:path || '/') COLLATE BINARY")
+    suspend fun deleteFoldersByPath(path: String)
 }
 
 @Database(
