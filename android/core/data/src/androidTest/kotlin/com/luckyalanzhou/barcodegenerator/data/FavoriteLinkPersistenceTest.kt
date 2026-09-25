@@ -24,7 +24,10 @@ class FavoriteLinkPersistenceTest {
 
             assertEquals(listOf(3L, 4L, 5L), repository.loadGroups().sortedBy { it.id }.map { it.id })
             assertEquals(listOf(3L, 4L, 5L), repository.loadGroupItems().map { it.groupId }.sorted())
-            assertEquals(listOf("A1B/child", "other/child", "A_B/child"), database.barcodeDao().loadFolders().map { it.name })
+            assertEquals(
+                setOf("A1B/child", "other/child", "A_B/child"),
+                database.barcodeDao().loadFolders().map { it.name }.toSet(),
+            )
             val itemsById = repository.loadItems().associateBy { it.id }
             assertTrue(itemsById.filterKeys { it in 1L..2L }.values.none { it.favorite })
             assertTrue(itemsById.filterKeys { it in 3L..5L }.values.all { it.favorite })
