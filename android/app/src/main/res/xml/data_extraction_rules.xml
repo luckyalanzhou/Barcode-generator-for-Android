@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="file" path="barcode-data/" />
         <exclude domain="file" path="lan-share/" />
         <exclude domain="file" path="debug-logs/" />
         <exclude domain="file" path="debug.log" />
     </cloud-backup>
     <device-transfer>
+        <exclude domain="file" path="barcode-data/" />
         <exclude domain="file" path="lan-share/" />
         <exclude domain="file" path="debug-logs/" />
         <exclude domain="file" path="debug.log" />
