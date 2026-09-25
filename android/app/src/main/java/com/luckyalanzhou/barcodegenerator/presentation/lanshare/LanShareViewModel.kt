@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
+import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -244,14 +245,15 @@ class LanShareViewModel @Inject constructor(
     }
 
     private suspend fun fetchPreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, java.io.File> {
-        val previewFolder = java.io.File(appContext.cacheDir, "lan-share-preview").apply { mkdirs() }
-        val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
-        previewFolder.listFiles().orEmpty().filter { it.name !in imageIds }.forEach { it.delete() }
+        val previewFolder = java.io.File(appContext.cacheDir, "lan-share-preview").apply { mkdirs() }.canonicalFile
+        val imageKeys = files.filter { isLanShareImageName(it.name) }.map { lanSharePreviewCacheKey(it.id) }.toSet()
+        previewFolder.listFiles().orEmpty().filter { it.name !in imageKeys }.forEach { it.delete() }
         var cachedBytes = previewFolder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
         return buildMap {
             files.filter { isLanShareImageName(it.name) && lanShareGateway.localFile(it.id) == null }.forEach { file ->
                 currentCoroutineContext().ensureActive()
-                val preview = java.io.File(previewFolder, file.id)
+                val preview = java.io.File(previewFolder, lanSharePreviewCacheKey(file.id)).canonicalFile
+                require(preview.parentFile == previewFolder) { "图片预览路径无效" }
                 if (!preview.isFile && file.size <= 16L * 1024L * 1024L &&
                     cachedBytes + file.size <= 64L * 1024L * 1024L
                 ) {
