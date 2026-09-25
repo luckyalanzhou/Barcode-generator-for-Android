@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,43 +17,105 @@ private const val FAVORITES_DIRECTORY = "favorites"
 private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
 private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32L * 1024 * 1024
 private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
+private const val ZIP_LOCAL_HEADER_BYTES = 30L
+private const val ZIP_CENTRAL_DIRECTORY_HEADER_BYTES = 46L
+private const val ZIP_END_OF_CENTRAL_DIRECTORY_BYTES = 22L
 
 object FavoritesTransferManager {
-    fun export(output: OutputStream, groups: List<FavoriteGroupEntity>, links: List<FavoriteGroupItemEntity>, items: List<CodeItemEntity>, folders: List<FavoriteFolderEntity>) {
-        val bytes = ByteArrayOutputStream().use { buffer ->
-            val itemById = items.associateBy { it.id }
-            val linksByGroup = links.groupBy { it.groupId }
-            PortableZipWriter(buffer).use { zip ->
-                // ZIP 只保留目录和每个收藏文件；不再写入包含全部收藏的聚合 JSON。
-                val writtenDirectories = mutableSetOf<String>()
-                val writtenFavoritePaths = mutableSetOf<String>()
-                ensureZipDirectories(zip, FAVORITES_DIRECTORY, writtenDirectories)
-                folders.map { it.name }.filter { it.isNotBlank() }.forEach { folder ->
-                    val parts = splitFolder(folder)
-                    val path = listOf(FAVORITES_DIRECTORY, parts.first, parts.second).filter { it.isNotBlank() }.joinToString("/")
-                    ensureZipDirectories(zip, path, writtenDirectories)
-                }
-                groups.forEach { group ->
-                    val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
-                        .filter { it.text.isNotBlank() }
-                    require(groupItems.isNotEmpty()) { "收藏“${group.name}”没有有效内容，无法导出" }
-                    val types = groupItems.map { toTransferType(it.format) }.distinct()
-                    val parts = splitFolder(group.folder)
-                    val favorite = InterchangeFavorite(
-                        id = group.id.toString(), name = group.name, rootFolder = parts.first, subFolder = parts.second,
-                        type = types.firstOrNull() ?: "code128", time = group.savedAt, texts = groupItems.map { it.text }
-                    )
-                    val path = favoriteZipPath(favorite, writtenFavoritePaths)
-                    val directory = path.substringBeforeLast('/')
-                    ensureZipDirectories(zip, directory, writtenDirectories)
-                    writeZipEntry(zip, path, favoriteJson(favorite).toString().toByteArray(Charsets.UTF_8))
-                }
+    fun export(output: OutputStream, snapshot: BarcodeSnapshot) {
+        val entries = buildExportEntries(snapshot)
+        validateExport(entries)
+        PortableZipWriter(output).use { zip ->
+            entries.forEach { entry ->
+                val bytes = entry.favorite?.let(::favoriteBytes) ?: ByteArray(0)
+                zip.writeEntry(entry.path, bytes)
             }
-            buffer.toByteArray()
         }
-        // 导出完成后使用同一套标准 ZIP/JSON 解析器回读，确保其他端可以解压和导入。
-        restore(bytes)
-        output.write(bytes)
+    }
+
+    private data class ExportEntry(val path: String, val favorite: InterchangeFavorite?)
+
+    private fun buildExportEntries(snapshot: BarcodeSnapshot): List<ExportEntry> {
+        val itemById = snapshot.items.associateBy { it.id }
+        val linksByGroup = snapshot.links.groupBy { it.groupId }
+        val entries = mutableListOf<ExportEntry>()
+        val writtenDirectories = linkedSetOf<String>()
+        val writtenFavoritePaths = mutableSetOf<String>()
+
+        fun ensureDirectories(directory: String) {
+            var path = ""
+            directory.split('/').filter { it.isNotBlank() }.forEach { part ->
+                path = if (path.isBlank()) part else "$path/$part"
+                if (writtenDirectories.add(path)) entries += ExportEntry("$path/", null)
+            }
+        }
+
+        ensureDirectories(FAVORITES_DIRECTORY)
+        snapshot.folders.filter { it.isNotBlank() }.forEach { folder ->
+            val parts = splitFolder(folder)
+            ensureDirectories(listOf(FAVORITES_DIRECTORY, parts.first, parts.second).filter { it.isNotBlank() }.joinToString("/"))
+        }
+        snapshot.groups.forEach { group ->
+            val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
+                .filter { it.text.isNotBlank() }
+            require(groupItems.isNotEmpty()) { "收藏“${group.name}”没有有效内容，无法导出" }
+            require(group.name.isNotBlank()) { "收藏文件缺少文件名" }
+            val types = groupItems.map { toTransferType(it.format) }.distinct()
+            val parts = splitFolder(group.folder)
+            val favorite = InterchangeFavorite(
+                id = group.id.toString(), name = group.name, rootFolder = parts.first, subFolder = parts.second,
+                type = types.firstOrNull() ?: "code128", time = group.savedAt, texts = groupItems.map { it.text },
+            )
+            val path = favoriteZipPath(favorite, writtenFavoritePaths)
+            ensureDirectories(path.substringBeforeLast('/'))
+            entries += ExportEntry(path, favorite)
+        }
+        return entries
+    }
+
+    /** Validate every entry before writing any bytes so size/format failures cannot leave a partial export. */
+    private fun validateExport(entries: List<ExportEntry>) {
+        require(entries.size <= MAX_BACKUP_ZIP_ENTRIES) { "收藏备份包含过多文件，最多支持 $MAX_BACKUP_ZIP_ENTRIES 项" }
+        var uncompressedBytes = 0L
+        var archiveBytes = ZIP_END_OF_CENTRAL_DIRECTORY_BYTES
+        entries.forEach { entry ->
+            require(entry.path.length <= 65_535) { "收藏文件路径过长，无法导出" }
+            val nameBytes = entry.path.toByteArray(Charsets.UTF_8)
+            require(nameBytes.size <= 65_535) { "收藏文件路径过长，无法导出" }
+            val dataBytes = entry.favorite?.let(::favoriteBytes) ?: ByteArray(0)
+            require(dataBytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES) { "收藏文件“${entry.favorite?.name}”超过 1 MB 限制" }
+            uncompressedBytes += dataBytes.size.toLong()
+            require(uncompressedBytes <= MAX_BACKUP_UNCOMPRESSED_BYTES) { "收藏备份解压后内容超过 32 MB 限制" }
+            archiveBytes += ZIP_LOCAL_HEADER_BYTES + nameBytes.size + dataBytes.size +
+                ZIP_CENTRAL_DIRECTORY_HEADER_BYTES + nameBytes.size
+            require(archiveBytes <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong()) { "收藏备份超过 64 MB 限制" }
+        }
+    }
+
+    private fun favoriteBytes(favorite: InterchangeFavorite): ByteArray {
+        require(minimumFavoriteJsonLength(favorite) <= MAX_BACKUP_FAVORITE_JSON_BYTES) {
+            "收藏文件“${favorite.name}”超过 1 MB 限制"
+        }
+        return favoriteJson(favorite).toByteArray(Charsets.UTF_8).also { bytes ->
+            require(bytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES) { "收藏文件“${favorite.name}”超过 1 MB 限制" }
+        }
+    }
+
+    /** A lower bound that rejects huge text before allocating its serialized JSON or UTF-8 buffer. */
+    private fun minimumFavoriteJsonLength(favorite: InterchangeFavorite): Long {
+        val valueLengths = listOf(
+            favorite.id?.length?.toLong() ?: 4L,
+            favorite.name.length.toLong(),
+            favorite.rootFolder.length.toLong(),
+            favorite.subFolder.length.toLong(),
+            favorite.folder.length.toLong(),
+            favorite.type.length.toLong(),
+            favorite.type.length.toLong(),
+        ).sum()
+        val textLengths = favorite.texts.sumOf { it.length.toLong() }
+        val textQuotesAndSeparators = 3L * favorite.texts.size
+        val baseLength = (if (favorite.id == null) 105L else 107L) + favorite.time.toString().length
+        return valueLengths + textLengths + textQuotesAndSeparators + baseLength
     }
 
     fun restore(bytes: ByteArray): InterchangeBackup {
@@ -210,9 +273,48 @@ object FavoritesTransferManager {
         parts.forEach { require(it != "." && it != ".." && !it.contains(Char(92))) { "文件夹“$folder”格式无效" } }
         return (parts.getOrNull(0) ?: "") to (parts.getOrNull(1) ?: "")
     }
-    private fun favoriteJson(favorite: InterchangeFavorite) = JSONObject().apply {
-        put("id", favorite.id); put("name", favorite.name); put("rootFolder", favorite.rootFolder); put("subFolder", favorite.subFolder)
-        put("folder", favorite.folder); put("type", favorite.type); put("barcodeType", favorite.type); put("time", favorite.time); put("texts", JSONArray(favorite.texts))
+    /** Pure Kotlin JSON encoding keeps export independent from Android's test-only org.json stubs. */
+    private fun favoriteJson(favorite: InterchangeFavorite): String = buildString {
+        append('{')
+        appendJsonField("id", favorite.id)
+        append(','); appendJsonField("name", favorite.name)
+        append(','); appendJsonField("rootFolder", favorite.rootFolder)
+        append(','); appendJsonField("subFolder", favorite.subFolder)
+        append(','); appendJsonField("folder", favorite.folder)
+        append(','); appendJsonField("type", favorite.type)
+        append(','); appendJsonField("barcodeType", favorite.type)
+        append(",\"time\":"); append(favorite.time)
+        append(",\"texts\":[")
+        favorite.texts.forEachIndexed { index, text ->
+            if (index > 0) append(',')
+            appendJsonString(text)
+        }
+        append("]}")
+    }
+
+    private fun StringBuilder.appendJsonField(name: String, value: String?) {
+        appendJsonString(name)
+        append(':')
+        if (value == null) append("null") else appendJsonString(value)
+    }
+
+    private fun StringBuilder.appendJsonString(value: String) {
+        append('"')
+        value.forEach { character ->
+            when (character) {
+                '"' -> append("\\\"")
+                '\\' -> append("\\\\")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> if (character.code < 0x20) {
+                    append("\\u").append(character.code.toString(16).padStart(4, '0'))
+                } else append(character)
+            }
+        }
+        append('"')
     }
     fun favoriteZipPath(favorite: InterchangeFavorite): String = favoriteZipPath(favorite, mutableSetOf())
 
@@ -242,15 +344,6 @@ object FavoritesTransferManager {
         .trim()
         .trimEnd('.')
         .ifBlank { "未命名收藏" }
-    private fun ensureZipDirectories(zip: PortableZipWriter, directory: String, written: MutableSet<String>) {
-        var path = ""
-        directory.split('/').filter { it.isNotBlank() }.forEach { part ->
-            path = if (path.isBlank()) part else "$path/$part"
-            if (written.add(path)) writeZipEntry(zip, "$path/", ByteArray(0))
-        }
-    }
-
-    private fun writeZipEntry(zip: PortableZipWriter, path: String, bytes: ByteArray) = zip.writeEntry(path, bytes)
     private fun toTransferType(format: String): String = when (format.trim().lowercase()) {
         "qr", "qr code" -> "qr"; "code128", "code 128-b" -> "code128"; "code39", "code 39" -> "code39"; "ean13", "ean-13" -> "ean13"; "ean8", "ean-8" -> "ean8"; "upca", "upc-a" -> "upca"; "itf14", "itf-14", "itf" -> "itf14"; "codabar" -> "codabar"; else -> error("不支持的条码格式：$format")
     }

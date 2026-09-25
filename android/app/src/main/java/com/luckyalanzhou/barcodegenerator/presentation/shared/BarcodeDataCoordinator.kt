@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
+import java.io.OutputStream
 import javax.inject.Inject
 
 /** 各功能 ViewModel 共用的数据边界，集中管理 Repository、迁移和备份服务。 */
@@ -22,7 +23,7 @@ class BarcodeDataCoordinator @Inject constructor(
         val result = backupRepository.import(backup, overwriteConflicts)
         return result
     }
-    suspend fun exportFavorites() = backupRepository.export()
+    suspend fun exportFavorites(output: OutputStream) = backupRepository.export(output)
     fun restoreFavorites(bytes: ByteArray) = backupRepository.restore(bytes)
 
 }

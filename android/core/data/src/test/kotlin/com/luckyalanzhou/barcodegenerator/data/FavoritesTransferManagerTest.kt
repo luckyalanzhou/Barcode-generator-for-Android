@@ -2,8 +2,14 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
 import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -102,6 +108,74 @@ class FavoritesTransferManagerTest {
     }
 
     @Test
+    fun exportWritesReadableZipWithoutClosingCallerOutput() {
+        val output = CloseAwareOutputStream()
+        val snapshot = BarcodeSnapshot(
+            items = listOf(
+                CodeItem(5L, "  A B  ", "Code 128-B", createdAt = 12L),
+                CodeItem(6L, "q\"\\\n\u0001", "Code 128-B", createdAt = 13L),
+            ),
+            groups = listOf(FavoriteGroup(7L, "一级/二级", "收藏", 11L, mutableListOf())),
+            links = listOf(FavoriteGroupItem(7L, 5L), FavoriteGroupItem(7L, 6L)),
+            folders = listOf("一级", "一级/二级"),
+        )
+
+        FavoritesTransferManager.export(output, snapshot)
+        val zip = ZipInputStream(ByteArrayInputStream(output.toByteArray()))
+        var entry = zip.nextEntry
+        var json: String? = null
+        while (entry != null) {
+            if (entry.name.endsWith(".json")) json = zip.readBytes().decodeToString()
+            zip.closeEntry()
+            entry = zip.nextEntry
+        }
+
+        assertTrue(json.orEmpty().contains("\"folder\":\"一级/二级\""))
+        assertTrue(json.orEmpty().contains("\"texts\":[\"  A B  \","))
+        assertTrue(json.orEmpty().contains("\"q\\\"\\\\\\n\\u0001\""))
+        assertEquals(false, output.closed)
+    }
+
+    @Test
+    fun oversizedFavoriteIsRejectedBeforeWritingAnyBytes() {
+        val output = ByteArrayOutputStream()
+        val snapshot = BarcodeSnapshot(
+            items = listOf(CodeItem(5L, "x".repeat(1024 * 1024), "Code 128-B")),
+            groups = listOf(FavoriteGroup(7L, "", "收藏", 11L, mutableListOf())),
+            links = listOf(FavoriteGroupItem(7L, 5L)),
+            folders = emptyList(),
+        )
+
+        try {
+            FavoritesTransferManager.export(output, snapshot)
+            error("expected oversized favorite to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message.orEmpty().contains("1 MB"))
+            assertEquals(0, output.size())
+        }
+    }
+
+    @Test
+    fun excessiveEntryCountIsRejectedBeforeWritingAnyBytes() {
+        val output = ByteArrayOutputStream()
+        val ids = 1L..2_048L
+        val snapshot = BarcodeSnapshot(
+            items = ids.map { CodeItem(it, "value-$it", "Code 128-B") },
+            groups = ids.map { FavoriteGroup(it, "", "group-$it", it, mutableListOf()) },
+            links = ids.map { FavoriteGroupItem(it, it) },
+            folders = emptyList(),
+        )
+
+        try {
+            FavoritesTransferManager.export(output, snapshot)
+            error("expected excessive ZIP entry count to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message.orEmpty().contains("2048"))
+            assertEquals(0, output.size())
+        }
+    }
+
+    @Test
     fun restoreRejectsExpandedSizeOverLimitAcrossIgnoredFilesAndDirectories() {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
@@ -135,5 +209,15 @@ class FavoritesTransferManagerTest {
             remaining -= count
         }
         zip.closeEntry()
+    }
+
+    private class CloseAwareOutputStream : ByteArrayOutputStream() {
+        var closed = false
+            private set
+
+        override fun close() {
+            closed = true
+            super.close()
+        }
     }
 }

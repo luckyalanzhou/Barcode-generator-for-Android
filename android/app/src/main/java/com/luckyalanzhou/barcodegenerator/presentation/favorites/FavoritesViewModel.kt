@@ -22,6 +22,7 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import java.util.Locale
+import java.io.OutputStream
 
 /** Owns transient Favorites-page state and observes the shared barcode data session. */
 @HiltViewModel
@@ -145,7 +146,7 @@ class FavoritesViewModel @Inject constructor(
         return counts
     }
 
-    suspend fun exportFavorites(): ByteArray = barcodeDataCoordinator.exportFavorites()
+    suspend fun exportFavorites(output: OutputStream) = barcodeDataCoordinator.exportFavorites(output)
 
     fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
 

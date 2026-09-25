@@ -36,14 +36,12 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
     val name = timestampedBackupFileName()
     lifecycleScope.launch(Dispatchers.IO) {
         val exportFile = File(cacheDir, name)
-        val exportUri = FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
         val result = runCatching {
-            val bytes = favoritesViewModel.exportFavorites()
-            contentResolver.openOutputStream(exportUri)?.use { it.write(bytes) }
-                ?: error("无法创建备份文件")
+            exportFile.outputStream().use { output -> favoritesViewModel.exportFavorites(output) }
+            FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
         }
         withContext(Dispatchers.Main) {
-            result.onSuccess {
+            result.onSuccess { exportUri ->
                 val share = Intent(Intent.ACTION_SEND).apply {
                     type = "application/zip"
                     putExtra(Intent.EXTRA_STREAM, exportUri)
@@ -52,7 +50,10 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
                     clipData = ClipData.newRawUri("收藏备份", exportUri)
                 }
                 startActivity(Intent.createChooser(share, "导出收藏到"))
-            }.onFailure { toast(formatFavoritesExportError(it)) }
+            }.onFailure {
+                exportFile.delete()
+                toast(formatFavoritesExportError(it))
+            }
         }
     }
 }
@@ -90,9 +91,15 @@ internal fun MainActivity.restoreFavoritesImport() {
 internal fun MainActivity.exportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
-            val bytes = favoritesViewModel.exportFavorites()
-            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                ?: error("无法写入备份文件")
+            val temporary = File.createTempFile("favorites-export-", ".zip", cacheDir)
+            try {
+                temporary.outputStream().use { output -> favoritesViewModel.exportFavorites(output) }
+                contentResolver.openOutputStream(uri)?.use { output ->
+                    temporary.inputStream().use { input -> input.copyTo(output) }
+                } ?: error("无法写入备份文件")
+            } finally {
+                temporary.delete()
+            }
         }
         withContext(Dispatchers.Main) {
             result

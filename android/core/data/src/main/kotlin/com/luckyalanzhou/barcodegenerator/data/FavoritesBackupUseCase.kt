@@ -6,19 +6,15 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportPlanner
 
-import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 
 /** 收藏备份用例：协调 ZIP 格式与 Repository，UI 不再直接访问 DAO 或事务。 */
 class FavoritesBackupUseCase(
     private val repository: BarcodeRepository,
     private val importPlanner: FavoritesImportPlanner = FavoritesImportPlanner(),
 ) : FavoritesBackupRepository {
-    override suspend fun export(): ByteArray {
-        val entities = repository.loadSnapshot().toTransferEntities()
-        return ByteArrayOutputStream().use { output ->
-            FavoritesTransferManager.export(output, entities.groups, entities.links, entities.items, entities.folders)
-            output.toByteArray()
-        }
+    override suspend fun export(output: OutputStream) {
+        FavoritesTransferManager.export(output, repository.loadSnapshot())
     }
 
     override fun restore(bytes: ByteArray): InterchangeBackup = FavoritesTransferManager.restore(bytes)
