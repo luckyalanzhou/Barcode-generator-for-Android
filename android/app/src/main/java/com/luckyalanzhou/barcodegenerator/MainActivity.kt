@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.content.FileProvider
 import androidx.core.os.BundleCompat
+import java.util.concurrent.atomic.AtomicReference
 import androidx.core.view.WindowCompat
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
@@ -355,32 +356,58 @@ class MainActivity : AppCompatActivity() {
         } else {
             BARCODE_RECOGNITION_MAX_EDGE
         }
-        val bitmap = sourceUri?.let { decodeRecognitionBitmap(it, maxImageEdge) }
-            ?: if (isCameraRequest) data?.extras?.let { BundleCompat.getParcelable(it, "data", Bitmap::class.java) } else null
-        if (bitmap == null) {
-            cameraOcrViewModel.clearCameraOutput().outputFile?.delete()
-            return
-        }
         cameraOcrViewModel.clearCameraOutput()
-        cameraFile?.delete()
-        when (requestCode) {
-            43, 44 -> lifecycleScope.launch {
-                val decoded = cameraOcrViewModel.decodeBarcode(bitmap)
-                // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
-                if (decoded != null) {
-                    generateViewModel.updateDraft(listOf(decoded))
-                    toast("条码识别成功")
-                } else {
-                    toast("未识别到条码，请更换清晰图片")
+        val cameraThumbnail = if (isCameraRequest) {
+            data?.extras?.let { BundleCompat.getParcelable(it, "data", Bitmap::class.java) }
+        } else {
+            null
+        }
+        val pendingBitmap = AtomicReference<Bitmap?>(cameraThumbnail)
+        lifecycleScope.launch {
+            try {
+                val bitmap = withContext(Dispatchers.IO) {
+                    val decodedBitmap = sourceUri?.let { decodeRecognitionBitmap(it, maxImageEdge) }
+                    val selectedBitmap = decodedBitmap ?: cameraThumbnail
+                    if (decodedBitmap != null && cameraThumbnail != null && decodedBitmap !== cameraThumbnail) {
+                        pendingBitmap.compareAndSet(cameraThumbnail, null)
+                        if (!cameraThumbnail.isRecycled) cameraThumbnail.recycle()
+                    }
+                    selectedBitmap?.also(pendingBitmap::set)
+                } ?: return@launch
+                when (requestCode) {
+                    43, 44 -> {
+                        val decoded = try {
+                            cameraOcrViewModel.decodeBarcode(bitmap)
+                        } finally {
+                            pendingBitmap.compareAndSet(bitmap, null)
+                            if (!bitmap.isRecycled) bitmap.recycle()
+                        }
+                        // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
+                        if (decoded != null) {
+                            generateViewModel.updateDraft(listOf(decoded))
+                            toast("条码识别成功")
+                        } else {
+                            toast("未识别到条码，请更换清晰图片")
+                        }
+                    }
+                    51 -> {
+                        val decoded = try {
+                            cameraOcrViewModel.decodeBarcode(bitmap)
+                        } finally {
+                            pendingBitmap.compareAndSet(bitmap, null)
+                            if (!bitmap.isRecycled) bitmap.recycle()
+                        }
+                        if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
+                    }
+                    45, 46 -> {
+                        pendingBitmap.compareAndSet(bitmap, null)
+                        recognizeText(bitmap)
+                    }
                 }
-                bitmap.recycle()
+            } finally {
+                pendingBitmap.getAndSet(null)?.let { if (!it.isRecycled) it.recycle() }
+                cameraFile?.delete()
             }
-            51 -> lifecycleScope.launch {
-                val decoded = cameraOcrViewModel.decodeBarcode(bitmap)
-                if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
-                bitmap.recycle()
-            }
-            45, 46 -> recognizeText(bitmap)
         }
     }
 

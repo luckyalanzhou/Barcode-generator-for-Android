@@ -26,14 +26,19 @@ internal fun MainActivity.decodeRecognitionBitmap(uri: Uri, maxEdge: Int): Bitma
             ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
         }
     }.getOrNull() ?: ExifInterface.ORIENTATION_NORMAL
-    val transform = exifBitmapTransform(orientation)
-    if (transform.rotationDegrees == 0 && !transform.flipHorizontally) return@runCatching decoded
+    try {
+        val transform = exifBitmapTransform(orientation)
+        if (transform.rotationDegrees == 0 && !transform.flipHorizontally) return@runCatching decoded
 
-    val matrix = Matrix().apply {
-        if (transform.rotationDegrees != 0) postRotate(transform.rotationDegrees.toFloat())
-        if (transform.flipHorizontally) postScale(-1f, 1f)
-    }
-    Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true).also { oriented ->
-        if (oriented !== decoded) decoded.recycle()
+        val matrix = Matrix().apply {
+            if (transform.rotationDegrees != 0) postRotate(transform.rotationDegrees.toFloat())
+            if (transform.flipHorizontally) postScale(-1f, 1f)
+        }
+        Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true).also { oriented ->
+            if (oriented !== decoded) decoded.recycle()
+        }
+    } catch (error: Throwable) {
+        decoded.recycle()
+        throw error
     }
 }.getOrNull()

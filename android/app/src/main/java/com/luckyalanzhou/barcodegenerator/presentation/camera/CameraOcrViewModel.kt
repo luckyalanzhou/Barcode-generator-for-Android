@@ -41,15 +41,20 @@ class CameraOcrViewModel @Inject constructor(
     fun consumePermissionRequest(): Int = cameraOcr.consumePermissionRequest()
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
-        viewModelScope.launch {
-            val lines = cameraOcr.recognizeText(bitmap, confusionMask)
-            if (lines.isEmpty()) {
-                _events.emit(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
-            } else {
-                _events.emit(CameraOcrEvent.RecognizedText(lines))
-                _events.emit(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
+        val job = viewModelScope.launch {
+            try {
+                val lines = cameraOcr.recognizeText(bitmap, confusionMask)
+                if (lines.isEmpty()) {
+                    _events.emit(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
+                } else {
+                    _events.emit(CameraOcrEvent.RecognizedText(lines))
+                    _events.emit(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
+                }
+            } finally {
+                if (!bitmap.isRecycled) bitmap.recycle()
             }
         }
+        job.invokeOnCompletion { if (!bitmap.isRecycled) bitmap.recycle() }
     }
 
     suspend fun decodeBarcode(bitmap: Bitmap): String? = cameraOcr.decodeBarcode(bitmap)
