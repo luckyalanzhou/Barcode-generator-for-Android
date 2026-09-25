@@ -102,8 +102,7 @@ class FavoritesViewModel @Inject constructor(
     }
 
     fun renameFavoriteFolder(path: String, renamedPath: String) {
-        mutations.renameFolderAndPersist(path, renamedPath)
-        publishAfterMutation()
+        if (mutations.renameFolderAndPersist(path, renamedPath)) publishAfterMutation()
     }
 
     fun deleteFavoriteFolder(path: String) {

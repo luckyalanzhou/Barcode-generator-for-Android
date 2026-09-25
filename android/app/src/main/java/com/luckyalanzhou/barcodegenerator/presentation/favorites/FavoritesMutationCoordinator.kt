@@ -12,7 +12,9 @@ internal class FavoritesMutationCoordinator(
     private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
 ) {
-    fun renameFolder(path: String, renamedPath: String) {
+    fun renameFolder(path: String, renamedPath: String): Boolean {
+        val knownPaths = store.foldersSnapshot() + store.groupsSnapshot().map { it.folder }
+        if (!isSafeFavoriteFolderRename(path, renamedPath, knownPaths)) return false
         store.edit {
             val modifiedAt = System.currentTimeMillis()
             groups.indices.filter { groups[it].folder == path || groups[it].folder.startsWith("$path/") }
@@ -26,6 +28,7 @@ internal class FavoritesMutationCoordinator(
                 folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
             }
         }
+        return true
     }
 
     fun deleteFolder(path: String) {
@@ -88,7 +91,11 @@ internal class FavoritesMutationCoordinator(
         return true
     }
 
-    fun renameFolderAndPersist(path: String, renamedPath: String) { renameFolder(path, renamedPath); persistence.renameFavoriteFolder(path, renamedPath) }
+    fun renameFolderAndPersist(path: String, renamedPath: String): Boolean {
+        if (!renameFolder(path, renamedPath)) return false
+        persistence.renameFavoriteFolder(path, renamedPath)
+        return true
+    }
     fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(path) }
     fun renameGroupAndPersist(groupId: Long, name: String) {
         store.edit {

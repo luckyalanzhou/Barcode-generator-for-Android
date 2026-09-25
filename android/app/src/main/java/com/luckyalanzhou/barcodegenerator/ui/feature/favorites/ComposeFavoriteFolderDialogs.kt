@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.isSafeFavoriteFolderRename
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.isValidFavoriteFolderName
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
 internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Unit) {
@@ -58,7 +60,10 @@ internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, i
                     val targetPath = listOf(parent, name).filter { it.isNotBlank() }.joinToString("/")
                     when {
                         name.isBlank() -> toast("请输入文件夹名称")
+                        !isValidFavoriteFolderName(name) -> toast("文件夹名称不能包含斜杠")
                         !isValidFavoriteFolderPath(targetPath) -> toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
+                        initial.isNotBlank() && !isSafeFavoriteFolderRename(initial, targetPath, dataState.folders) ->
+                            toast("重命名后文件夹层级不合法")
                         dataState.folders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
                         else -> { onSaved(name); dismiss() }
                     }
