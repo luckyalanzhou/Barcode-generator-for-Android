@@ -200,7 +200,7 @@ private fun LanShareConnectionStatus(connected: Boolean) {
             imageVector = if (connected) CircleFilledIcon else CircleIcon,
             contentDescription = if (connected) "已连接" else "等待连接",
             tint = statusColor,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(16.dp),
         )
         Spacer(Modifier.width(5.dp))
         Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = statusColor, fontSize = 15.sp)
