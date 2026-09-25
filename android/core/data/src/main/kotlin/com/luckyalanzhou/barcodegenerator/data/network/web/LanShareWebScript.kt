@@ -62,28 +62,29 @@ function createFileItem(file) {
         item.appendChild(preview);
     }
 
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.name || '附件';
-    link.textContent = file.name || '未命名';
-    item.appendChild(link);
+    const imageFile = isImageName(file.name);
+    const name = document.createElement(imageFile ? 'a' : 'span');
+    name.className = 'file-name';
+    name.textContent = file.name || '未命名';
+    if (imageFile) {
+        name.href = url;
+        name.download = file.name || '附件';
+    }
+    item.appendChild(name);
 
     const size = document.createElement('small');
     size.textContent = formatSize(file.size);
     item.appendChild(size);
 
-    if (!isImageName(file.name)) {
+    if (!imageFile) {
         const download = document.createElement('a');
         download.href = url;
         download.download = file.name || '附件';
         download.className = 'download';
+        download.setAttribute('aria-label', '下载 ' + (file.name || '附件'));
         download.textContent = '下载';
         item.appendChild(download);
     }
-
-    item.addEventListener('click', event => {
-        if (!event.target.closest('a')) link.click();
-    });
     return item;
 }
 
@@ -103,13 +104,21 @@ function reconcileFiles(list) {
         if (oldItem) {
             item.className = file.sender === 'browser:' + clientId ? 'mine' : 'peer';
             if (isImageName(file.name)) item.classList.add('image-item');
-            const link = item.querySelector('a');
+            const name = item.querySelector('.file-name');
+            const download = item.querySelector('.download');
             const size = item.querySelector('small');
             const url = fileUrl(file);
-            if (link) {
-                link.href = url;
-                link.download = file.name || '附件';
-                link.textContent = file.name || '未命名';
+            if (name) {
+                name.textContent = file.name || '未命名';
+                if (name.tagName === 'A') {
+                    name.href = url;
+                    name.download = file.name || '附件';
+                }
+            }
+            if (download) {
+                download.href = url;
+                download.download = file.name || '附件';
+                download.setAttribute('aria-label', '下载 ' + (file.name || '附件'));
             }
             if (size) size.textContent = formatSize(file.size);
             const preview = item.querySelector('img');

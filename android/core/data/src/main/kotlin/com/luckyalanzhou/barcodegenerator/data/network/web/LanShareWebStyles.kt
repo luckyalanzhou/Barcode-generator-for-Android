@@ -26,5 +26,16 @@ main{width:100%;max-width:none;min-height:calc(100vh - var(--web-header-height))
 @media (max-width:599px){.bar{height:62px;padding:0 16px;font-size:20px}.connection-status{font-size:12px}main{min-height:calc(100vh - 62px);padding-bottom:88px}.bottom{padding:10px 12px max(10px,env(safe-area-inset-bottom))}.message-input{height:48px;border-radius:24px;font-size:16px;padding:0 16px}.file-picker{height:48px;width:36px;flex-basis:36px;font-size:30px}.send-button{height:48px;width:68px;flex-basis:68px;border-radius:24px;font-size:16px}}
 @media (min-width:600px) and (max-width:1199px){.bar{height:70px;padding:0 28px;font-size:22px}main{min-height:calc(100vh - 70px)}.bottom{padding:14px 28px max(14px,env(safe-area-inset-bottom))}.send-button{width:80px;flex-basis:80px}}
 @media (min-width:1200px){.bar{height:74px;padding:0 24px;font-size:24px}main{min-height:calc(100vh - 74px)}.bottom{padding:14px 32px max(14px,env(safe-area-inset-bottom))}}
+</style>
+<style>
+/* Non-image downloads use an explicit button; image names remain direct download links. */
+.file-name{display:block;min-width:0;overflow:hidden;color:var(--link);white-space:nowrap;text-overflow:ellipsis;overflow-wrap:anywhere}
+li:not(.image-item) .file-name{grid-area:name}
+li:not(.image-item) a.download{grid-area:download;min-width:0;overflow:visible;text-overflow:clip}
+li.mine .file-name{color:#fff}
+li a.download{color:var(--accent)}
+li.mine a.download{color:#fff}
+.image-item .file-name{width:100%;text-align:center}
+.image-item a.download{width:auto;text-align:center}
 </style></head>"""
 }
