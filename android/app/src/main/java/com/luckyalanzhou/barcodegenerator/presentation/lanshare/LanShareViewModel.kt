@@ -58,6 +58,7 @@ class LanShareViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LanShareUiState())
     val uiState: StateFlow<LanShareUiState> = _uiState.asStateFlow()
+    private val refreshGuard = LanShareRefreshGuard(_uiState)
     private val _events = Channel<LanShareEvent>(Channel.BUFFERED)
     val events: Flow<LanShareEvent> = _events.receiveAsFlow()
     private var refreshJob: Job? = null
@@ -70,6 +71,7 @@ class LanShareViewModel @Inject constructor(
     fun localFile(id: String): java.io.File? = lanShareGateway.localFile(id)
 
     fun startHostSession(): LanShareSession {
+        invalidateRoomRefresh()
         val session = lanShareGateway.start()
         _uiState.update {
             it.copy(
@@ -79,15 +81,26 @@ class LanShareViewModel @Inject constructor(
                 browserConnected = false,
                 files = lanShareGateway.localFiles(),
                 ownFileIds = emptySet(),
+                previewFiles = emptyMap(),
             )
         }
         return session
     }
 
     fun joinSession(session: LanShareSession) {
-        stopAutoRefresh()
+        invalidateRoomRefresh()
         lanShareGateway.stop()
-        _uiState.update { it.copy(session = session, isHost = false, qrVisible = false, browserConnected = false) }
+        _uiState.update {
+            it.copy(
+                session = session,
+                isHost = false,
+                qrVisible = false,
+                browserConnected = false,
+                files = emptyList(),
+                ownFileIds = emptySet(),
+                previewFiles = emptyMap(),
+            )
+        }
     }
 
     fun joinSessionFromAddress(value: String): Boolean {
@@ -103,7 +116,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun restartHostSession(): LanShareSession {
-        stopAutoRefresh()
+        invalidateRoomRefresh()
         val session = lanShareGateway.restart()
         _uiState.update {
             it.copy(
@@ -112,6 +125,8 @@ class LanShareViewModel @Inject constructor(
                 qrVisible = true,
                 browserConnected = false,
                 files = lanShareGateway.localFiles(),
+                ownFileIds = emptySet(),
+                previewFiles = emptyMap(),
             )
         }
         startAutoRefresh(session)
@@ -119,7 +134,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun closeSession() {
-        stopAutoRefresh()
+        invalidateRoomRefresh()
         lanShareGateway.stop(clearSharedFiles = true)
         _uiState.update {
             it.copy(
@@ -142,10 +157,6 @@ class LanShareViewModel @Inject constructor(
         _uiState.update { it.copy(ownFileIds = emptySet()) }
     }
 
-    fun addOwnFileId(id: String) {
-        _uiState.update { it.copy(ownFileIds = it.ownFileIds + id) }
-    }
-
     fun clearPreviewFiles() {
         _uiState.update { it.copy(previewFiles = emptyMap()) }
     }
@@ -159,24 +170,34 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun refreshFiles(session: LanShareSession, showError: Boolean = true) {
+        if (!refreshGuard.isCurrent(session, refreshGuard.currentGeneration())) return
         if (refreshJob?.isActive == true) return
+        val ticket = refreshGuard.currentGeneration()
         refreshJob = viewModelScope.launch(Dispatchers.IO) {
             val result = runCatching { lanShareGateway.list(session) }
-            _uiState.update { it.copy(browserConnected = lanShareGateway.browserConnected()) }
+            currentCoroutineContext().ensureActive()
+            if (!refreshGuard.isCurrent(session, ticket)) return@launch
+            refreshGuard.update(session, ticket) {
+                it.copy(browserConnected = lanShareGateway.browserConnected())
+            }
             result.onSuccess { files ->
+                if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
                 val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
-                _uiState.update {
+                refreshGuard.update(session, ticket) {
                     it.copy(
                         files = files,
                         previewFiles = it.previewFiles.filterKeys { key -> key in imageIds },
                     )
                 }
                 val previews = fetchPreviews(session, files)
-                if (_uiState.value.session == session && previews.isNotEmpty()) {
-                    _uiState.update { it.copy(previewFiles = it.previewFiles + previews) }
+                currentCoroutineContext().ensureActive()
+                if (previews.isNotEmpty()) {
+                    refreshGuard.update(session, ticket) { it.copy(previewFiles = it.previewFiles + previews) }
                 }
             }.onFailure {
-                if (showError) _events.trySend(LanShareEvent.Error("无法连接到分享房间"))
+                if (showError && refreshGuard.isCurrent(session, ticket)) {
+                    _events.trySend(LanShareEvent.Error("无法连接到分享房间"))
+                }
             }
         }
     }
@@ -197,15 +218,25 @@ class LanShareViewModel @Inject constructor(
         autoRefreshJob = null
     }
 
+    private fun invalidateRoomRefresh() {
+        refreshGuard.invalidate()
+        refreshJob?.cancel()
+        refreshJob = null
+        stopAutoRefresh()
+    }
+
     fun uploadFile(session: LanShareSession, uri: android.net.Uri, temporaryFile: java.io.File? = null) {
+        val ticket = refreshGuard.currentGeneration()
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                if (!refreshGuard.isCurrent(session, ticket)) return@launch
                 val id = lanShareGateway.upload(session, createUploadSource(uri))
-                addOwnFileId(id)
+                if (!refreshGuard.isCurrent(session, ticket)) return@launch
+                addOwnFileId(session, ticket, id)
                 refreshFiles(session, showError = false)
-                _events.send(LanShareEvent.Notice("上传成功"))
+                if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Notice("上传成功"))
             } catch (_: Exception) {
-                _events.send(LanShareEvent.Error("上传失败"))
+                if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("上传失败"))
             } finally {
                 temporaryFile?.delete()
             }
@@ -213,16 +244,25 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun uploadText(session: LanShareSession, text: String) {
+        val ticket = refreshGuard.currentGeneration()
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                if (!refreshGuard.isCurrent(session, ticket)) return@launch
                 val id = lanShareGateway.uploadText(session, text)
-                addOwnFileId(id)
+                if (!refreshGuard.isCurrent(session, ticket)) return@launch
+                addOwnFileId(session, ticket, id)
                 refreshFiles(session, showError = false)
-                _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
+                if (refreshGuard.isCurrent(session, ticket)) {
+                    _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
+                }
             } catch (_: Exception) {
-                _events.send(LanShareEvent.Error("发送失败"))
+                if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("发送失败"))
             }
         }
+    }
+
+    private fun addOwnFileId(session: LanShareSession, ticket: Long, id: String) {
+        refreshGuard.update(session, ticket) { it.copy(ownFileIds = it.ownFileIds + id) }
     }
 
     fun downloadFile(session: LanShareSession, id: String, destination: android.net.Uri) {
@@ -246,13 +286,15 @@ class LanShareViewModel @Inject constructor(
 
     private suspend fun fetchPreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, java.io.File> {
         val previewFolder = java.io.File(appContext.cacheDir, "lan-share-preview").apply { mkdirs() }.canonicalFile
-        val imageKeys = files.filter { isLanShareImageName(it.name) }.map { lanSharePreviewCacheKey(it.id) }.toSet()
+        val imageKeys = files.filter { isLanShareImageName(it.name) }
+            .map { previewCacheKey(session, it.id) }
+            .toSet()
         previewFolder.listFiles().orEmpty().filter { it.name !in imageKeys }.forEach { it.delete() }
         var cachedBytes = previewFolder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
         return buildMap {
             files.filter { isLanShareImageName(it.name) && lanShareGateway.localFile(it.id) == null }.forEach { file ->
                 currentCoroutineContext().ensureActive()
-                val preview = java.io.File(previewFolder, lanSharePreviewCacheKey(file.id)).canonicalFile
+                val preview = java.io.File(previewFolder, previewCacheKey(session, file.id)).canonicalFile
                 require(preview.parentFile == previewFolder) { "图片预览路径无效" }
                 if (!preview.isFile && file.size <= 16L * 1024L * 1024L &&
                     cachedBytes + file.size <= 64L * 1024L * 1024L
@@ -264,6 +306,9 @@ class LanShareViewModel @Inject constructor(
             }
         }
     }
+
+    private fun previewCacheKey(session: LanShareSession, fileId: String): String =
+        lanSharePreviewCacheKey("${session.baseUrl}\u0000${session.accessToken}\u0000$fileId")
 
     private fun createUploadSource(uri: Uri): LanShareUploadSource {
         val name = appContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
