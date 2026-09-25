@@ -98,6 +98,7 @@ androidComponents {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
+    implementation(project(":core:lan-share"))
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
     implementation(libs.activity.compose)

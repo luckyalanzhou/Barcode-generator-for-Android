@@ -6,7 +6,8 @@
 
 ```text
 :app ───────────────> :core:domain
-  └────────────────> :core:data ─────────> :core:domain
+  ├────────────────> :core:data ─────────> :core:domain
+  └────────────────> :core:lan-share ────> :core:domain
 ```
 
 允许的依赖方向：
@@ -15,14 +16,16 @@
 | --- | --- | --- |
 | `:core:domain` | Kotlin/JVM、Coroutines、ZXing 等纯 Kotlin 库 | Android、Compose、Room、DataStore、Activity、`:app` |
 | `:core:data` | `:core:domain`、Android SDK、Room、DataStore、文件和网络 API | Compose、`:app`、ViewModel |
-| `:app` | `:core:domain`、`:core:data`、Android SDK、Compose、Hilt | 让 Composable 直接访问 DAO、Repository 实现或文件系统 |
+| `:core:lan-share` | `:core:domain`、Android SDK、NanoHTTPD/WebSocket | Compose、`:app`、`:core:data`、ViewModel |
+| `:app` | `:core:domain`、`:core:data`、`:core:lan-share`、Android SDK、Compose、Hilt | 让 Composable 直接访问 DAO、Repository 实现或文件系统 |
 
-当前只有以上三个 Gradle 模块。Compose UI 与 presentation 代码位于 `:app` 模块的不同包中；`ui` 是代码层次，不是独立的 `:core:ui` 模块。
+当前共有以上四个 Gradle 模块。Compose UI 与 presentation 代码位于 `:app` 模块的不同包中；`ui` 是代码层次，不是独立的 `:core:ui` 模块。`:core:lan-share` 是 Android Library，会随 `:app` 一起打包进 APK，不需要单独安装。
 
 ## 层职责
 
 - `:core:domain`：领域模型、Repository/平台能力接口和不依赖 Android 的业务规则。
-- `:core:data`：Room、DataStore、文件、网络数据源及领域接口实现；负责 Entity/Domain Mapper 和持久化迁移。
+- `:core:data`：Room、DataStore、文件数据源及 Repository 实现；负责 Entity/Domain Mapper 和持久化迁移。
+- `:core:lan-share`：局域网 HTTP 服务端/客户端、token 与手动访问码校验、文件协议和内嵌浏览器页面；依赖 `:core:domain` 的 `LanShareGateway` 契约。模块拆分不改变现有 HTTP、端口/token 或浏览器加入行为。
 - `:app` 的 `presentation` 包：ViewModel、页面状态和应用级业务协调。
 - `:app` 的 `ui` 包：Compose 页面、状态渲染、页面切换和一次性事件消费；通过 ViewModel/回调连接 presentation，不直接操作数据源。
 - `:app` 的 DI 与平台桥接：组合各模块实现，并接入 Activity、权限、文件选择器等 Android 能力。
@@ -57,7 +60,7 @@
 ## 构建验证
 
 - `beta` 与 `main` 的 APK 发布工作流均为手动触发。签名前先运行领域、数据、应用层单元测试和对应 Release lint。
-- 数据库迁移及收藏关联的设备仪器化测试位于 `:core:data`；云端手动构建门禁目前不运行设备测试，发布前仍需真机验证启动、进程重建及外部 Activity 回调。
+- 数据库迁移及收藏关联的设备仪器化测试位于 `:core:data`；局域网服务的设备仪器化测试位于 `:core:lan-share`。云端手动构建门禁目前不运行设备测试。
 
 ## 兼容性
 

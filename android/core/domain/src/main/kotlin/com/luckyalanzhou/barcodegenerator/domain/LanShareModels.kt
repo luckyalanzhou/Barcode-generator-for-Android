@@ -64,7 +64,7 @@ data class LanShareUploadSource(
     val openStream: () -> InputStream?,
 )
 
-/** LAN Share boundary used by the app layer; the HTTP implementation stays in Data. */
+/** LAN Share boundary used by the app layer; the HTTP implementation lives in :core:lan-share. */
 interface LanShareGateway {
     fun isOnLocalNetwork(): Boolean
     fun isRouterLanHost(host: String?): Boolean

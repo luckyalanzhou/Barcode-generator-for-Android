@@ -63,7 +63,7 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Verify tests and official release lint
-        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :app:testOfficialDebugUnitTest :app:lintOfficialRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
+        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testOfficialDebugUnitTest :app:lintOfficialRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
       - name: Read app version
         id: app-version
         run: |

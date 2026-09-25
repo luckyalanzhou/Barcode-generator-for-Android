@@ -56,7 +56,7 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Verify tests and beta release lint
-        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
+        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
       - name: Calculate beta version
         id: app-version
         env:

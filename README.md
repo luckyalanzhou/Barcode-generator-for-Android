@@ -27,18 +27,20 @@ Beta 是测试渠道版本，不建议作为唯一的生产环境应用使用。
 
 ## 架构
 
-项目由三个 Gradle 模块组成，依赖方向如下：
+项目由四个 Gradle 模块组成，依赖方向如下：
 
 ```text
 :app ───────────────> :core:domain
-  └────────────────> :core:data ─────────> :core:domain
+  ├────────────────> :core:data ─────────> :core:domain
+  └────────────────> :core:lan-share ────> :core:domain
 ```
 
 | 模块 | 职责 |
 | --- | --- |
 | `:app` | Compose 界面、ViewModel、页面状态和流程协调、Hilt 依赖装配，以及相机、文件选择器等 Android 系统桥接 |
 | `:core:domain` | 领域模型、条码校验、用例、Repository/平台接口；不依赖 Android、Compose 或 Room |
-| `:core:data` | Repository 实现、Room、DataStore、文件与网络适配，以及 ZXing、ML Kit 和 APK 更新相关的平台实现 |
+| `:core:data` | Repository 实现、Room、DataStore、文件适配，以及 ZXing、ML Kit 和 APK 更新相关的平台实现 |
+| `:core:lan-share` | 嵌入 APK 的局域网 HTTP 服务、客户端、传输协议和浏览器页面；实现 Domain 中的 `LanShareGateway` |
 
 主要调用链为 `Compose UI → ViewModel/Coordinator → Domain 用例与接口 → Data 实现`。Composable 不直接访问 DAO、文件系统或网络。
 
@@ -80,10 +82,10 @@ APK 输出目录：`android/app/build/outputs/apk/beta/release/`。本地版本�
 
 ```powershell
 Set-Location .\android
-.\gradlew.bat :core:domain:test :core:data:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
+.\gradlew.bat :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
 ```
 
-数据库迁移、收藏关联和局域网服务的仪器化测试位于 `android/core/data/src/androidTest/`，需要 Android 模拟器或连接的测试设备；Beta 发布工作流当前不运行这组仪器化测试。
+数据库迁移与收藏关联的仪器化测试位于 `android/core/data/src/androidTest/`；局域网服务仪器化测试位于 `android/core/lan-share/src/androidTest/`。这些测试需要 Android 模拟器或连接的测试设备；Beta 发布工作流不运行仪器化测试。
 
 ## 仓库目录
 
