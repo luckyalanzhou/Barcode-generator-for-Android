@@ -8,8 +8,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.toast
 import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
-import android.graphics.*
-import android.net.Uri
+import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -20,15 +19,12 @@ import kotlinx.coroutines.withContext
 import android.text.*
 import android.view.*
 import androidx.core.content.FileProvider
-import androidx.core.graphics.scale
-import androidx.exifinterface.media.ExifInterface
 import org.json.*
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.*
-import kotlin.math.roundToInt
 
 internal fun MainActivity.scanWithCamera() {
         val activity = this
@@ -77,36 +73,6 @@ internal fun MainActivity.pickBarcodeImage() { launchExternalActivity(Intent(Int
 
 
 internal fun MainActivity.pickTextImage() { launchExternalActivity(Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*"; addCategory(Intent.CATEGORY_OPENABLE) }, 46) }
-
-
-/**
- * 拍摄电脑屏幕时相机经常把方向写在 EXIF 中，且原图可能大到让 OCR 处理变慢。
- * 先按 EXIF 校正，再限制最长边，保证屏幕文字以正确方向和稳定尺寸交给 ML Kit。
- */
-internal fun MainActivity.prepareTextBitmap(bitmap: Bitmap, sourceFile: File?): Bitmap {
-    var prepared = bitmap
-    val orientation = sourceFile?.let {
-        runCatching { ExifInterface(it.absolutePath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
-            .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-    } ?: ExifInterface.ORIENTATION_NORMAL
-    val rotation = when (orientation) {
-        ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 90f
-        ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-        ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 270f
-        else -> 0f
-    }
-    if (rotation != 0f) {
-        prepared = runCatching {
-            Bitmap.createBitmap(prepared, 0, 0, prepared.width, prepared.height, Matrix().apply { postRotate(rotation) }, true)
-        }.getOrDefault(prepared)
-    }
-    val longest = maxOf(prepared.width, prepared.height)
-    if (longest > 2400) {
-        val scale = 2400f / longest.toFloat()
-        prepared = prepared.scale((prepared.width * scale).roundToInt(), (prepared.height * scale).roundToInt(), true)
-    }
-    return prepared
-}
 
 
 internal fun MainActivity.recognizeText(bitmap: Bitmap) {

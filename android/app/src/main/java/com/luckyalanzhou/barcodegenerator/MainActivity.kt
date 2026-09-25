@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -39,7 +38,9 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.confirmImportFavorites
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.exportFavorites
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.launchCamera
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.prepareTextBitmap
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.BARCODE_RECOGNITION_MAX_EDGE
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.OCR_RECOGNITION_MAX_EDGE
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.decodeRecognitionBitmap
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.recognizeText
 import android.util.Log
 import android.view.MotionEvent
@@ -343,20 +344,23 @@ class MainActivity : AppCompatActivity() {
         }
         val cameraState = cameraOcrViewModel.cameraCaptureState.value
         val cameraFile = cameraState.outputFile
-        val bitmap = when (requestCode) {
-            43, 45, 51 -> cameraState.outputUri?.let { uri ->
-                runCatching { contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
-            } ?: data?.extras?.let { BundleCompat.getParcelable(it, "data", Bitmap::class.java) }
-            44, 46 -> data?.data?.let { uri ->
-                runCatching { contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
-            }
+        val isCameraRequest = requestCode == 43 || requestCode == 45 || requestCode == 51
+        val sourceUri = when {
+            isCameraRequest -> cameraState.outputUri
+            requestCode == 44 || requestCode == 46 -> data?.data
             else -> null
         }
+        val maxImageEdge = if (requestCode == 45 || requestCode == 46) {
+            OCR_RECOGNITION_MAX_EDGE
+        } else {
+            BARCODE_RECOGNITION_MAX_EDGE
+        }
+        val bitmap = sourceUri?.let { decodeRecognitionBitmap(it, maxImageEdge) }
+            ?: if (isCameraRequest) data?.extras?.let { BundleCompat.getParcelable(it, "data", Bitmap::class.java) } else null
         if (bitmap == null) {
             cameraOcrViewModel.clearCameraOutput().outputFile?.delete()
             return
         }
-        val textBitmap = if (requestCode == 45 || requestCode == 46) prepareTextBitmap(bitmap, cameraFile) else bitmap
         cameraOcrViewModel.clearCameraOutput()
         cameraFile?.delete()
         when (requestCode) {
@@ -376,7 +380,7 @@ class MainActivity : AppCompatActivity() {
                 if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
                 bitmap.recycle()
             }
-            45, 46 -> recognizeText(textBitmap)
+            45, 46 -> recognizeText(bitmap)
         }
     }
 
