@@ -47,6 +47,8 @@ data class StartupBarcodeSnapshot(
     val links: List<FavoriteGroupItem>,
     val folders: List<String>,
     val hasMoreGroups: Boolean,
+    /** All favorite identities, without links, for collision checks independent of UI paging. */
+    val identityGroups: List<FavoriteGroup> = groups,
 )
 
 /** 从旧版 SharedPreferences 提取出的纯 Kotlin 迁移输入。 */

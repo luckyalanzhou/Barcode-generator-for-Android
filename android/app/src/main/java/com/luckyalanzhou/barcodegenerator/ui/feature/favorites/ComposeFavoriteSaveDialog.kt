@@ -69,7 +69,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
         fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String) {
             val saved = onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
-            toast(if (saved) "已保存到 $folder" else "保存失败，请重试")
+            toast(if (saved) "已保存到 $folder" else "该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
         }
         ComposeGlassDialogCard(dark) {
             Text(

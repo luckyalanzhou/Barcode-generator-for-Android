@@ -81,7 +81,12 @@ private fun MainActivity.showFavoriteImportConflictDialog(
         ComposeGlassDialogCard(dark) {
             Text("发现同名内容", color = colors.text.primary, fontSize = 18.sp)
             Text(
-                "发现 ${conflicts.fileKeys.size} 个同路径同名收藏文件。请选择如何处理这些文件；同名文件夹下的其他文件仍会直接导入。",
+                buildString {
+                    append("发现 ${conflicts.fileKeys.size} 个同路径同名收藏文件。请选择如何处理这些文件；同名文件夹下的其他文件仍会直接导入。")
+                    if (conflicts.duplicateBackupKeys.isNotEmpty()) {
+                        append("备份文件自身包含 ${conflicts.duplicateBackupKeys.size} 组重名记录；跳过冲突会跳过这些记录，覆盖导入会保留每组最后一条。")
+                    }
+                },
                 color = colors.text.secondary,
                 fontSize = 15.sp,
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),

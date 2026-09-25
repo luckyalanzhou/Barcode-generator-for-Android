@@ -239,6 +239,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             links = emptyList(),
             folders = dao.loadFolders().map { it.name },
             hasMoreGroups = startupGroups.size > 100,
+            identityGroups = dao.loadGroups().map {
+                FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf())
+            },
         )
     }
 

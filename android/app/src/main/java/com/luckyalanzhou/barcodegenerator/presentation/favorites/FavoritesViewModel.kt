@@ -110,14 +110,16 @@ class FavoritesViewModel @Inject constructor(
         publishAfterMutation()
     }
 
-    fun renameFavoriteGroup(groupId: Long, name: String) {
-        mutations.renameGroupAndPersist(groupId, name)
+    fun renameFavoriteGroup(groupId: Long, name: String): Boolean {
+        if (!mutations.renameGroupAndPersist(groupId, name)) return false
         publishAfterMutation()
+        return true
     }
 
-    fun moveFavoriteGroup(groupId: Long, folder: String) {
-        mutations.moveGroupAndPersist(groupId, folder)
+    fun moveFavoriteGroup(groupId: Long, folder: String): Boolean {
+        if (!mutations.moveGroupAndPersist(groupId, folder)) return false
         publishAfterMutation()
+        return true
     }
 
     fun deleteFavoriteGroup(groupId: Long) {

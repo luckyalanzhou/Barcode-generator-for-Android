@@ -25,9 +25,7 @@ class FavoritesBackupUseCase(
 
     override suspend fun inspectImport(backup: InterchangeBackup): FavoritesImportConflictSummary {
         val existing = repository.loadSnapshot()
-        return FavoritesImportConflictSummary(
-            fileKeys = importPlanner.inspectConflicts(existing.groups, backup.favorites),
-        )
+        return importPlanner.inspectConflicts(existing.groups, backup.favorites)
     }
 
     override suspend fun import(backup: InterchangeBackup, overwriteConflicts: Boolean): Pair<Int, Int> {

@@ -16,6 +16,7 @@ data class InterchangeBackup(val favorites: List<InterchangeFavorite>, val folde
 
 data class FavoritesImportConflictSummary(
     val fileKeys: List<String>,
+    val duplicateBackupKeys: List<String> = emptyList(),
 ) {
     val hasConflicts: Boolean get() = fileKeys.isNotEmpty()
 }

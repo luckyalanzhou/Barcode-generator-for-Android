@@ -43,6 +43,19 @@ class LibraryStateStoreTest {
     }
 
     @Test
+    fun identityIndexIncludesUnloadedFavoritePagesAndNormalizesFileKeys() {
+        val visible = FavoriteGroup(7L, "一级", "可见", 7L, mutableListOf())
+        val unloaded = FavoriteGroup(900L, "一级/二级", "隐藏文件", 900L, mutableListOf())
+        val store = LibraryStateStore()
+
+        store.replace(emptyList(), listOf(visible), listOf("一级", "一级/二级"), listOf(visible, unloaded))
+
+        assertEquals(true, store.hasFavoriteIdentity("一级/二级/", " 隐藏文件 "))
+        assertEquals(false, store.hasFavoriteIdentity("一级/二级", "隐藏文件", setOf(unloaded.id)))
+        assertEquals(900L, store.maxFavoriteGroupId())
+    }
+
+    @Test
     fun concurrentSnapshotsAndEditsRemainConsistent() = runBlocking {
         val store = LibraryStateStore()
         val writers = (1L..8L).map { writer ->

@@ -15,11 +15,12 @@ class FavoritesImportPlannerTest {
             favorite("重复冲突", "一级/", " 文件 "),
         )
 
-        assertEquals(listOf("一级\u0000文件"), planner.inspectConflicts(existing, incoming))
+        assertEquals(listOf("一级\u0000文件"), planner.inspectConflicts(existing, incoming).fileKeys)
+        assertEquals(listOf("一级\u0000文件"), planner.inspectConflicts(existing, incoming).duplicateBackupKeys)
     }
 
     @Test
-    fun nonOverwriteImportSkipsConflictsAndKeepsLastDuplicateInOriginalOrder() {
+    fun nonOverwriteImportSkipsExistingAndAmbiguousBackupDuplicates() {
         val incoming = listOf(
             favorite("A-old", "", "A"),
             favorite("B", "", "B"),
@@ -31,7 +32,18 @@ class FavoritesImportPlannerTest {
         val plan = planner.plan(existing, incoming, overwriteConflicts = false)
 
         assertTrue(plan.replacedGroupIds.isEmpty())
-        assertEquals(listOf("B", "A-new"), plan.favoritesToImport.map { it.texts.single() })
+        assertEquals(listOf("B"), plan.favoritesToImport.map { it.texts.single() })
+        assertEquals(listOf("folder\u0000taken", "\u0000A"), plan.conflictingFileKeys)
+    }
+
+    @Test
+    fun conflictInspectionReportsDuplicateNamesInsideBackup() {
+        val incoming = listOf(favorite("old", "一级", "文件"), favorite("new", "一级", "文件"))
+
+        val conflicts = planner.inspectConflicts(emptyList(), incoming)
+
+        assertEquals(listOf("一级\u0000文件"), conflicts.fileKeys)
+        assertEquals(listOf("一级\u0000文件"), conflicts.duplicateBackupKeys)
     }
 
     @Test
@@ -47,6 +59,16 @@ class FavoritesImportPlannerTest {
         assertEquals(setOf(8L, 9L), plan.replacedGroupIds)
         assertEquals(listOf("new"), plan.favoritesToImport.map { it.texts.single() })
         assertTrue(plan.conflictingFileKeys.isNotEmpty())
+    }
+
+    @Test
+    fun overwritePlanKeepsLastDuplicateFromBackupAfterExplicitChoice() {
+        val incoming = listOf(favorite("old", "一级", "文件"), favorite("new", "一级", "文件"))
+
+        val plan = planner.plan(emptyList(), incoming, overwriteConflicts = true)
+
+        assertEquals(listOf("new"), plan.favoritesToImport.map { it.texts.single() })
+        assertEquals(listOf("一级\u0000文件"), plan.conflictingFileKeys)
     }
 
     private fun favorite(text: String, root: String, name: String) =

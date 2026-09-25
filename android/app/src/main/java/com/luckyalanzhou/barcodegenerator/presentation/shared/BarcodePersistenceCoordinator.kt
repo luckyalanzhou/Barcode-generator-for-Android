@@ -30,6 +30,7 @@ class BarcodePersistenceCoordinator @Inject constructor(
         val groups: List<FavoriteGroup>,
         val folders: List<String>,
         val hasMoreGroups: Boolean,
+        val identityGroups: List<FavoriteGroup>,
     )
 
     // The process-owned scope outlives any screen ViewModel; leaving a page must not cancel a queued write.
@@ -112,7 +113,7 @@ class BarcodePersistenceCoordinator @Inject constructor(
             .distinct()
             .sorted()
         val loadedItems = snapshot.items.map { it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "") }
-        return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups)
+        return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups, snapshot.identityGroups)
     }
 
     suspend fun awaitPendingWrites() = writeQueue.awaitIdle()

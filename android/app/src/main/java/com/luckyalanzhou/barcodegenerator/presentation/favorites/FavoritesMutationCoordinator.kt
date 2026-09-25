@@ -13,8 +13,9 @@ internal class FavoritesMutationCoordinator(
     private val persistence: BarcodePersistenceCoordinator,
 ) {
     fun renameFolder(path: String, renamedPath: String): Boolean {
-        val knownPaths = store.foldersSnapshot() + store.groupsSnapshot().map { it.folder }
+        val knownPaths = store.foldersSnapshot() + store.favoriteIdentityFolderPathsSnapshot()
         if (!isSafeFavoriteFolderRename(path, renamedPath, knownPaths)) return false
+        if (createsFavoriteIdentityCollision(path, renamedPath)) return false
         store.edit {
             val modifiedAt = System.currentTimeMillis()
             groups.indices.filter { groups[it].folder == path || groups[it].folder.startsWith("$path/") }
@@ -28,6 +29,7 @@ internal class FavoritesMutationCoordinator(
                 folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
             }
         }
+        store.renameFavoriteIdentityFolders(path, renamedPath)
         return true
     }
 
@@ -40,6 +42,7 @@ internal class FavoritesMutationCoordinator(
             groups.removeAll { it.folder == path || it.folder.startsWith("$path/") }
             folders.removeAll { it == path || it.startsWith("$path/") }
         }
+        store.removeFavoriteIdentitiesInFolder(path)
     }
 
     fun deleteGroup(groupId: Long): Boolean {
@@ -51,22 +54,32 @@ internal class FavoritesMutationCoordinator(
             if (group.folder !in folders) folders.add(group.folder)
             true
         }
+        if (removed) store.removeFavoriteIdentity(groupId)
         return removed
     }
 
     fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
+        val selectedItems = store.itemsSnapshot().filter { it.id in resultItemIds }
+        if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return false
+        val excludedIds = setOfNotNull(editingGroupId, targetGroupId).toSet()
+        if (store.hasFavoriteIdentity(folder, name, excludedIds)) return false
+        val allocatedGroupId = targetGroupId ?: (store.maxFavoriteGroupId() + 1L)
         val savedGroupId = store.edit {
             val selectedItems = items.filter { it.id in resultItemIds }
-            if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return@edit null
+            if (selectedItems.isEmpty()) return@edit null
             if (editingGroupId != null && editingGroupId != targetGroupId) groups.removeAll { it.id == editingGroupId }
             selectedItems.forEach { it.favorite = true; it.folder = folder }
             if (folder !in folders) folders.add(folder)
-            val groupId = targetGroupId ?: ((groups.maxOfOrNull { it.id } ?: 0L) + 1L)
+            val groupId = allocatedGroupId
             val updatedGroup = FavoriteGroup(groupId, folder, name, System.currentTimeMillis(), selectedItems.map { it.id }.toMutableList())
             val targetIndex = groups.indexOfFirst { it.id == groupId }
             if (targetIndex >= 0) groups[targetIndex] = updatedGroup else groups.add(0, updatedGroup)
             items.filter { it.favorite && groups.none { group -> it.id in group.itemIds } }.forEach { it.favorite = false }
             groupId
+        }
+        if (savedGroupId != null) {
+            if (editingGroupId != null && editingGroupId != savedGroupId) store.removeFavoriteIdentity(editingGroupId)
+            store.setFavoriteIdentity(savedGroupId, folder, name)
         }
         savedGroupId?.let(store::markGroupLinksChanged)
         persistAllFavorites()
@@ -74,6 +87,7 @@ internal class FavoritesMutationCoordinator(
     }
 
     fun updateGroup(groupId: Long, name: String, folder: String): Boolean {
+        if (store.hasFavoriteIdentity(folder, name, setOf(groupId))) return false
         val updated = store.edit {
             val index = groups.indexOfFirst { it.id == groupId }
             if (index < 0) return@edit false
@@ -87,6 +101,7 @@ internal class FavoritesMutationCoordinator(
             true
         }
         if (!updated) return false
+        store.setFavoriteIdentity(groupId, folder, name)
         persistAllFavorites()
         return true
     }
@@ -97,22 +112,30 @@ internal class FavoritesMutationCoordinator(
         return true
     }
     fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(path) }
-    fun renameGroupAndPersist(groupId: Long, name: String) {
+    fun renameGroupAndPersist(groupId: Long, name: String): Boolean {
+        val identity = store.favoriteIdentity(groupId) ?: return false
+        if (store.hasFavoriteIdentity(identity.folder, name, setOf(groupId))) return false
         store.edit {
             val index = groups.indexOfFirst { it.id == groupId }
-            if (index >= 0) groups[index] = groups[index].copy(name = name, savedAt = System.currentTimeMillis())
+            if (index < 0) return@edit
+            groups[index] = groups[index].copy(name = name, savedAt = System.currentTimeMillis())
         }
+        store.setFavoriteIdentity(groupId, identity.folder, name)
         persistAllFavorites()
+        return true
     }
-    fun moveGroupAndPersist(groupId: Long, folder: String) {
+    fun moveGroupAndPersist(groupId: Long, folder: String): Boolean {
+        val identity = store.favoriteIdentity(groupId) ?: return false
+        if (store.hasFavoriteIdentity(folder, identity.name, setOf(groupId))) return false
         store.edit {
             val index = groups.indexOfFirst { it.id == groupId }
-            if (index >= 0) {
-                groups[index] = groups[index].copy(folder = folder, savedAt = System.currentTimeMillis())
-                if (folder.isNotBlank() && folder !in folders) folders.add(folder)
-            }
+            if (index < 0) return@edit
+            groups[index] = groups[index].copy(folder = folder, savedAt = System.currentTimeMillis())
+            if (folder.isNotBlank() && folder !in folders) folders.add(folder)
         }
+        store.setFavoriteIdentity(groupId, folder, identity.name)
         persistAllFavorites()
+        return true
     }
     fun deleteGroupAndPersist(groupId: Long) {
         if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(listOf(groupId))
@@ -128,4 +151,16 @@ internal class FavoritesMutationCoordinator(
         store.foldersSnapshot(),
         store.loadedGroupLinkIdsSnapshot(),
     )
+
+    private fun createsFavoriteIdentityCollision(path: String, renamedPath: String): Boolean {
+        val before = store.favoriteIdentitiesSnapshot()
+        val after = before.mapValues { (_, identity) ->
+            if (identity.folder == path || identity.folder.startsWith("$path/")) {
+                identity.copy(folder = if (identity.folder == path) renamedPath else renamedPath + identity.folder.removePrefix(path))
+            } else identity
+        }
+        return after.entries.groupBy({ it.value }, { it.key }).values.any { ids ->
+            ids.size > 1 && ids.mapNotNull(before::get).distinct().size > 1
+        }
+    }
 }

@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, onRename: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
+internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, onRename: (Long, String) -> Boolean, onNavigateFavorites: () -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(group.name) }
@@ -58,9 +58,12 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
                     val name = value.trim()
                     if (name.isBlank()) toast("请输入收藏文件名")
                     else {
-                        onRename(group.id, name)
-                        dismiss()
-                        onNavigateFavorites()
+                        if (onRename(group.id, name)) {
+                            dismiss()
+                            onNavigateFavorites()
+                        } else {
+                            toast("该文件夹下已有同名收藏，请更换名称")
+                        }
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }
@@ -68,7 +71,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
     }
 }
 
-internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, dataState: com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState, onMove: (Long, String) -> Unit, onNavigateFavorites: () -> Unit) {
+internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, dataState: com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState, onMove: (Long, String) -> Boolean, onNavigateFavorites: () -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val folderPaths = (dataState.folders + dataState.groups.map { it.folder })
@@ -127,9 +130,12 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)
                 DialogAction("移动", dark, {
-                    onMove(group.id, targetFolder)
-                    dismiss()
-                    onNavigateFavorites()
+                    if (onMove(group.id, targetFolder)) {
+                        dismiss()
+                        onNavigateFavorites()
+                    } else {
+                        toast("目标文件夹下已有同名收藏，请先重命名或更换文件夹")
+                    }
                 }, modifier = Modifier.padding(start = 20.dp))
             }
         }
@@ -181,6 +187,7 @@ internal fun MainActivity.showGroupEditorCompose(
                     else if (!isValidFavoriteFolderPath(cleanFolder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
                     else {
                         if (onUpdate(group.id, cleanName, cleanFolder)) dismiss()
+                        else toast("该文件夹下已有同名收藏，请更换名称或文件夹")
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }

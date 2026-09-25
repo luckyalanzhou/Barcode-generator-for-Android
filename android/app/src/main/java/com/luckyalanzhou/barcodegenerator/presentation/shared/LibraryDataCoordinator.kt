@@ -24,7 +24,7 @@ class LibraryDataCoordinator @Inject constructor(
             "snapshot loaded groups=${loaded.groups.size} items=${loaded.items.size} folders=${loaded.folders.size} hasMore=${loaded.hasMoreGroups}",
             null,
         )
-        session.store.replace(loaded.items, loaded.groups, loaded.folders)
+        session.store.replace(loaded.items, loaded.groups, loaded.folders, loaded.identityGroups)
         val cursor = loaded.groups.lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) }
         session.publishLoadedSnapshot(cursor, loaded.hasMoreGroups)
         session.publishDataState(isReady = true)
