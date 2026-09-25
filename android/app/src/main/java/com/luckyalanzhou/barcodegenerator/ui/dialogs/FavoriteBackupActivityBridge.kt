@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
+import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
 import com.luckyalanzhou.barcodegenerator.ui.app.composeAppShellActions
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.confirmImportFavoritesCompose
 import com.luckyalanzhou.barcodegenerator.ui.app.showComposeDialog
@@ -115,7 +116,13 @@ private fun formatFavoritesExportError(error: Throwable): String {
 internal fun MainActivity.confirmImportFavorites(uri: Uri) {
     lifecycleScope.launch(Dispatchers.IO) {
         val parsed = runCatching {
-            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            val declaredSize = runCatching {
+                contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+            }.getOrNull() ?: -1L
+            require(declaredSize < 0L || declaredSize <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong()) {
+                "备份文件超过 64 MB 限制"
+            }
+            val bytes = contentResolver.openInputStream(uri)?.use { input -> readFavoritesBackupBounded(input) }
                 ?: error("无法读取备份文件")
             favoritesViewModel.restoreFavorites(bytes)
         }

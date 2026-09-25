@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
+import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,7 +13,6 @@ import java.util.zip.ZipInputStream
 import java.util.zip.CRC32
 
 private const val FAVORITES_DIRECTORY = "favorites"
-private const val MAX_BACKUP_INPUT_BYTES = 64 * 1024 * 1024
 private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
 private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32 * 1024 * 1024
 private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
@@ -56,7 +56,7 @@ object FavoritesTransferManager {
     }
 
     fun restore(bytes: ByteArray): InterchangeBackup {
-        require(bytes.size <= MAX_BACKUP_INPUT_BYTES) { "备份文件超过 64 MB 限制" }
+        require(bytes.size <= MAX_FAVORITES_BACKUP_INPUT_BYTES) { "备份文件超过 64 MB 限制" }
         require(bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) { "仅支持逐收藏文件 ZIP 备份" }
         return extractBackupZip(bytes)
     }
