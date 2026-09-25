@@ -133,6 +133,9 @@ internal fun LanShareContent(
             item(key = "connection", contentType = "connection") {
                 LanShareConnectionStatus(lanState.browserConnected)
             }
+            item(key = "security-notice", contentType = "security-notice") {
+                LanShareSecurityNotice(Modifier.fillMaxWidth().padding(horizontal = 8.dp))
+            }
             items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
                 LanShareMessageBubble(localFile, lanState, file, dark, primary, secondary, onSaveFile)
             }

@@ -86,6 +86,7 @@ internal fun ComposeLanShareQrDialog(
                             secondary = secondary,
                             modifier = Modifier.width(qrSize).padding(top = 12.dp),
                         )
+                        LanShareSecurityNotice(Modifier.width(qrSize).padding(top = 10.dp))
                         Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
                             DialogAction("复制完整链接", dark, { onCopyAddress(session.shareUrl) })
                         }
@@ -94,6 +95,20 @@ internal fun ComposeLanShareQrDialog(
             }
         }
     }
+}
+
+@Composable
+internal fun LanShareSecurityNotice(modifier: Modifier = Modifier) {
+    val colors = LocalAppColorScheme.current
+    Text(
+        text = "安全提醒：局域网分享使用未加密 HTTP，同一 Wi-Fi 内他人可能读取访问码和传输内容。请只在可信网络使用，勿公开转发二维码/链接，用后关闭房间。",
+        color = colors.text.destructive,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        modifier = modifier
+            .background(colors.controls.button, RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+    )
 }
 
 @Composable
@@ -167,6 +182,7 @@ internal fun MainActivity.showLanShareQrDialogCompose() {
                 secondary = secondary,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             )
+            LanShareSecurityNotice(Modifier.fillMaxWidth().padding(top = 10.dp))
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("复制完整链接", dark, { composeAppShellActions().copyLanShareAddress(session.shareUrl) })
                 DialogAction("关闭", dark, {
