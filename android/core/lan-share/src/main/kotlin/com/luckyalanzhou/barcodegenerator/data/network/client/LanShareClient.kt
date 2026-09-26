@@ -4,8 +4,8 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.multipartFileName
 
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
@@ -42,62 +42,50 @@ internal class LanShareClient(
         val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
         require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
-        val boundary = "----BarcodeShare${System.currentTimeMillis()}"
-        val header = "--$boundary\r\nContent-Disposition: form-data; name=\"attachment\"; filename=\"${multipartFileName(name)}\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray()
-        val footer = "\r\n--$boundary--\r\n".toByteArray()
-        val connection = (URL(session.baseUrl + "/api/upload").openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8_000
-            readTimeout = 120_000
-            requestMethod = "POST"
-            setRequestProperty("X-Lan-Token", session.accessToken)
-            doOutput = true
-            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            // NanoHTTPD 对 chunked 大请求会尝试构造整段字符串；固定长度可让其直接落到临时文件。
-            setFixedLengthStreamingMode(header.size.toLong() + size + footer.size)
-        }
-        try {
-            var copiedBytes = 0L
-            connection.outputStream.buffered().use { output ->
-                output.write(header)
-                source.openStream()?.use { copiedBytes = it.copyTo(output, 16 * 1024) }
-                    ?: error("无法读取附件")
-                output.write(footer)
-            }
-            require(copiedBytes == size) { "附件读取不完整：$copiedBytes/$size 字节" }
-            if (connection.responseCode !in 200..299) error("上传失败：${connection.responseCode}")
-            return connection.inputStream.bufferedReader().use { it.readText().trim() }.also {
-                logger.record("lan", "file uploaded name=$name size=$size", null)
-            }.ifBlank { error("上传完成但未收到文件标识") }
-        } finally {
-            connection.disconnect()
+        return uploadRaw(session, name, size) { source.openStream() }.also {
+            logger.record("lan", "file uploaded name=$name size=$size", null)
         }
     }
 
     fun uploadText(session: LanShareSession, text: String): String {
         val name = text.trim().take(100).ifBlank { "消息" }
         val body = text.toByteArray(Charsets.UTF_8)
-        val boundary = "----BarcodeShare${System.currentTimeMillis()}"
-        val header = "--$boundary\r\nContent-Disposition: form-data; name=\"attachment\"; filename=\"${multipartFileName(name)}\"\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n".toByteArray()
-        val footer = "\r\n--$boundary--\r\n".toByteArray()
-        val connection = (URL(session.baseUrl + "/api/upload").openConnection() as HttpURLConnection).apply {
+        return uploadRaw(session, name, body.size.toLong()) { body.inputStream() }.also {
+            logger.record("lan", "text sent length=${body.size}", null)
+        }
+    }
+
+    private fun uploadRaw(
+        session: LanShareSession,
+        name: String,
+        size: Long,
+        openStream: () -> java.io.InputStream?,
+    ): String {
+        require(size in 1..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
+        val url = URL(session.baseUrl + "/upload?name=${Uri.encode(name)}&client=app")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
-            readTimeout = 30_000
-            requestMethod = "POST"
+            readTimeout = 120_000
+            requestMethod = "PUT"
             setRequestProperty("X-Lan-Token", session.accessToken)
+            setRequestProperty("X-File-Size", size.toString())
+            setRequestProperty("Content-Type", "application/octet-stream")
             doOutput = true
-            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            setFixedLengthStreamingMode(header.size.toLong() + body.size + footer.size)
+            setFixedLengthStreamingMode(size)
         }
         try {
-            connection.outputStream.buffered().use { output ->
-                output.write(header)
-                output.write(body)
-                output.write(footer)
+            val copiedBytes = openStream()?.use { input ->
+                connection.outputStream.buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
+                    input.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE)
+                }
+            } ?: error("无法读取附件")
+            require(copiedBytes == size) { "附件读取不完整：$copiedBytes/$size 字节" }
+            if (connection.responseCode !in 200..299) {
+                val reason = connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText().trim() }.orEmpty()
+                error("上传失败：${connection.responseCode}${reason.takeIf(String::isNotBlank)?.let { "：$it" }.orEmpty()}")
             }
-            if (connection.responseCode !in 200..299) error("发送失败：${connection.responseCode}")
-            return connection.inputStream.bufferedReader().use { it.readText().trim() }.also {
-                logger.record("lan", "text sent length=${body.size}", null)
-            }.ifBlank { error("发送完成但未收到文件标识") }
+            return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText().trim() }
+                .ifBlank { error("上传完成但未收到文件标识") }
         } finally {
             connection.disconnect()
         }
@@ -108,7 +96,9 @@ internal class LanShareClient(
             destination.parentFile?.mkdirs()
             val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
             try {
-                temporary.outputStream().use { output -> connection.inputStream.use { it.copyTo(output) } }
+                temporary.outputStream().use { output ->
+                    connection.inputStream.use { it.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE) }
+                }
                 if (destination.exists()) destination.delete()
                 require(temporary.renameTo(destination)) { "无法保存下载文件" }
                 logger.record("lan", "file downloaded id=$id bytes=${destination.length()}", null)

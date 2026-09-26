@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data.network.server
 
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.isCommittedSharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.mimeTypeForName
@@ -12,13 +13,15 @@ import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCa
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebAccessPage
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
-import android.net.Uri
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URLDecoder
 import java.util.concurrent.CopyOnWriteArraySet
@@ -42,54 +45,150 @@ internal class LanShareServer(
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
 
-    private fun uploadLimitError(size: Long): String? = when {
-        size > LanShareLimits.MAX_FILE_BYTES -> "单个文件不能超过 5 GB"
-        folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() } > LanShareLimits.MAX_ROOM_BYTES - size -> "房间文件总大小不能超过 100 GB"
-        else -> null
+    private data class UploadBody(val expectedBytes: Long, val isChunked: Boolean)
+
+    /** Accept a fixed-length request or a correctly declared HTTP/1.1 chunked body. */
+    private fun uploadBody(session: IHTTPSession): UploadBody? {
+        val rawContentLength = session.headers["content-length"]
+        val contentLength = rawContentLength?.toLongOrNull()
+        if (rawContentLength != null && contentLength == null) return null
+
+        val rawFileSize = session.headers["x-file-size"]
+        val fileSize = rawFileSize?.toLongOrNull()
+        if (rawFileSize != null && fileSize == null) return null
+
+        val transferEncoding = session.headers["transfer-encoding"]
+            ?.split(',')
+            ?.map { it.trim().lowercase() }
+            ?.filter(String::isNotEmpty)
+        val isChunked = transferEncoding != null
+        if (isChunked && transferEncoding != listOf("chunked")) return null
+        if (isChunked && contentLength != null) return null
+        if (contentLength != null && fileSize != null && contentLength != fileSize) return null
+
+        val expectedBytes = contentLength ?: fileSize ?: return null
+        if (isChunked && fileSize == null) return null
+        return UploadBody(expectedBytes, isChunked)
     }
 
-    private fun reserveUploadCapacity(session: IHTTPSession, multipart: Boolean): Long? = synchronized(uploadLock) {
-        // 在写入 NanoHTTPD 的临时文件前必须有长度；否则分块请求可先耗尽磁盘，
-        // 使 5 GB / 100 GB 限制在写入后才生效。
-        val declared = declaredUploadBytes(session)
-            ?: return null
-        val allowed = LanShareLimits.MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
-        if (declared !in 1..allowed) return null
+    /** Capacity reservation is brief; file/network I/O happens outside this lock. */
+    private fun reserveUploadCapacity(size: Long): Boolean = synchronized(uploadLock) {
         val stored = folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() }
-        if (stored > LanShareLimits.MAX_ROOM_BYTES - reservedUploadBytes - declared) return null
-        reservedUploadBytes += declared
-        declared
+        if (stored > LanShareLimits.MAX_ROOM_BYTES ||
+            reservedUploadBytes > LanShareLimits.MAX_ROOM_BYTES - stored ||
+            size > LanShareLimits.MAX_ROOM_BYTES - stored - reservedUploadBytes
+        ) {
+            false
+        } else {
+            reservedUploadBytes += size
+            true
+        }
     }
-
-    private fun uploadCapacityError(session: IHTTPSession, multipart: Boolean): String? {
-        val declared = declaredUploadBytes(session)
-            ?: return "上传请求缺少文件大小"
-        val allowed = LanShareLimits.MAX_FILE_BYTES + if (multipart) 128L * 1024L else 0L
-        if (declared !in 1..allowed) return "单个文件不能超过 5 GB"
-        return null
-    }
-
-    /** 浏览器不能设置受保护的 Content-Length；网页 PUT 同时声明精确文件大小。 */
-    private fun declaredUploadBytes(session: IHTTPSession): Long? =
-        session.headers["content-length"]?.toLongOrNull()
-            ?: session.headers["x-file-size"]?.toLongOrNull()
 
     private fun releaseUploadCapacity(bytes: Long) = synchronized(uploadLock) {
         reservedUploadBytes = (reservedUploadBytes - bytes).coerceAtLeast(0L)
     }
 
-    /** 先写同目录临时文件，完整复制后再改名，避免半截 ZIP/图片进入分享记录。 */
-    private fun commitUpload(source: File, target: File) {
-        val temporary = File(folder, ".${target.name}.${System.nanoTime()}.part")
+    /** Persist directly to one same-directory staging file, then atomically publish it. */
+    private fun receiveUpload(session: IHTTPSession, body: UploadBody, target: File, reservation: Long) {
+        var reservationHeld = true
+        var temporary: File? = null
         try {
-            val copied = source.inputStream().use { input ->
-                temporary.outputStream().use { output -> input.copyTo(output, 16 * 1024) }
+            val stagingFile = File.createTempFile(".lan-upload-", ".part", folder)
+            temporary = stagingFile
+            val receivedBytes = BufferedOutputStream(
+                FileOutputStream(stagingFile),
+                LAN_SHARE_STREAM_BUFFER_SIZE,
+            ).use { output ->
+                if (body.isChunked) {
+                    copyChunkedBody(session.inputStream, output, body.expectedBytes)
+                } else {
+                    copyFixedLengthBody(session.inputStream, output, body.expectedBytes)
+                }
             }
-            require(copied == source.length()) { "上传内容读取不完整：$copied/${source.length()} 字节" }
-            require(temporary.renameTo(target)) { "无法保存上传文件" }
+            require(receivedBytes == body.expectedBytes && stagingFile.length() == body.expectedBytes) {
+                "上传内容大小不匹配：$receivedBytes/${body.expectedBytes} 字节"
+            }
+            synchronized(uploadLock) {
+                check(!target.exists()) { "目标文件已存在" }
+                check(stagingFile.renameTo(target)) { "无法保存上传文件" }
+                reservedUploadBytes = (reservedUploadBytes - reservation).coerceAtLeast(0L)
+                reservationHeld = false
+            }
+            notifyFilesChanged(target)
         } finally {
-            temporary.delete()
+            temporary?.delete()
+            if (reservationHeld) releaseUploadCapacity(reservation)
         }
+    }
+
+    private fun copyFixedLengthBody(input: java.io.InputStream, output: BufferedOutputStream, expectedBytes: Long): Long {
+        val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
+        var copied = 0L
+        while (copied < expectedBytes) {
+            val read = input.read(buffer, 0, minOf(buffer.size.toLong(), expectedBytes - copied).toInt())
+            if (read < 0) throw IOException("上传内容提前结束：$copied/$expectedBytes 字节")
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            copied += read
+        }
+        return copied
+    }
+
+    private fun copyChunkedBody(input: java.io.InputStream, output: BufferedOutputStream, expectedBytes: Long): Long {
+        val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
+        var copied = 0L
+        var trailerBytes = 0
+        while (true) {
+            val chunkLine = readHttpLine(input)
+            val chunkSizeText = chunkLine.substringBefore(';').trim()
+            val chunkSize = chunkSizeText.takeIf {
+                it.isNotEmpty() && it.all { value ->
+                    value in '0'..'9' || value in 'a'..'f' || value in 'A'..'F'
+                }
+            }
+                ?.toLongOrNull(16) ?: throw IOException("无效的分块上传长度")
+            if (chunkSize == 0L) {
+                while (true) {
+                    val trailer = readHttpLine(input)
+                    trailerBytes += trailer.length + 2
+                    if (trailerBytes > MAX_CHUNK_TRAILER_BYTES) throw IOException("上传请求尾部过长")
+                    if (trailer.isEmpty()) break
+                }
+                break
+            }
+            if (chunkSize > expectedBytes - copied) throw IOException("上传内容超过声明大小")
+
+            var remaining = chunkSize
+            while (remaining > 0L) {
+                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                if (read < 0) throw IOException("分块上传内容提前结束")
+                if (read == 0) continue
+                output.write(buffer, 0, read)
+                copied += read
+                remaining -= read
+            }
+            if (input.read() != '\r'.code || input.read() != '\n'.code) {
+                throw IOException("分块上传格式无效")
+            }
+        }
+        if (copied != expectedBytes) throw IOException("上传内容大小不匹配：$copied/$expectedBytes 字节")
+        return copied
+    }
+
+    private fun readHttpLine(input: java.io.InputStream): String {
+        val line = ByteArrayOutputStream()
+        while (line.size() <= MAX_CHUNK_LINE_BYTES) {
+            val value = input.read()
+            if (value < 0) throw IOException("分块上传意外结束")
+            if (value == '\r'.code) {
+                if (input.read() != '\n'.code) throw IOException("分块上传行结束符无效")
+                return line.toString(Charsets.US_ASCII.name())
+            }
+            if (value == '\n'.code || value > 0x7f) throw IOException("分块上传行格式无效")
+            line.write(value)
+        }
+        throw IOException("分块上传行过长")
     }
 
     fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
@@ -117,6 +216,7 @@ internal class LanShareServer(
 
     private fun notifyFilesChanged(file: File? = null) {
         fileVersion++
+        if (webSockets.isEmpty()) return
         val event = JSONObject().put("type", "files").put("version", fileVersion).toString()
         val eventWithFile = file?.let { uploaded ->
             val record = toLanShareFile(uploaded, "peer")
@@ -237,62 +337,26 @@ internal class LanShareServer(
                     LanShareWebTemplates.page()
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 
-                session.method == Method.POST && requestPath == "/api/upload" -> {
-                    uploadCapacityError(session, multipart = true)?.let {
-                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it)
-                    }
-                    val reservation = reserveUploadCapacity(session, multipart = true)
-                        ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
-                    try {
-                        val bodies = HashMap<String, String>()
-                        session.parseBody(bodies)
-                        val source = bodies["attachment"]?.let(::File)
-                            ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到附件")
-                        val name = safeFileName(session.parameters["attachment"]?.firstOrNull().orEmpty().substringAfterLast('/'))
-                        val target = File(folder, "app_${System.nanoTime()}_$name")
-                        val error = synchronized(uploadLock) {
-                            uploadLimitError(source.length()) ?: run {
-                                commitUpload(source, target)
-                                notifyFilesChanged(target)
-                                null
-                            }
-                        }
-                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name)
-                        else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
-                    } finally {
-                        releaseUploadCapacity(reservation)
-                    }
-                }
-
                 session.method == Method.PUT && requestPath == "/upload" -> {
-                    uploadCapacityError(session, multipart = false)?.let {
-                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, it)
+                    val body = uploadBody(session)
+                        ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "上传请求长度无效")
+                    if (body.expectedBytes !in 1..LanShareLimits.MAX_FILE_BYTES) {
+                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "单个文件不能超过 5 GB")
                     }
-                    val reservation = reserveUploadCapacity(session, multipart = false)
-                        ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
-                    try {
-                        val submittedName = Uri.decode(session.parameters["name"]?.firstOrNull().orEmpty()).ifBlank { "附件" }
-                        val clientId = safeBrowserClientId(session.parameters["client"]?.firstOrNull().orEmpty())
-                        val name = safeFileName(submittedName)
-                        val targetPrefix = System.nanoTime()
-                        val files = HashMap<String, String>()
-                        session.parseBody(files)
-                        val temporaryFile = files["content"]
-                            ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "未读取到上传内容")
-                        val target = File(folder, "web_${targetPrefix}_${clientId}_$name")
-                        val source = File(temporaryFile)
-                        val error = synchronized(uploadLock) {
-                            uploadLimitError(source.length()) ?: run {
-                                commitUpload(source, target)
-                                notifyFilesChanged(target)
-                                null
-                            }
-                        }
-                        if (error == null) newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name)
-                        else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, error)
-                    } finally {
-                        releaseUploadCapacity(reservation)
+                    val submittedName = session.parameters["name"]?.firstOrNull().orEmpty().ifBlank { "附件" }
+                    val client = session.parameters["client"]?.firstOrNull().orEmpty()
+                    val name = safeFileName(submittedName)
+                    val targetPrefix = System.nanoTime()
+                    val target = if (client == APP_UPLOAD_CLIENT) {
+                        File(folder, "app_${targetPrefix}_$name")
+                    } else {
+                        File(folder, "web_${targetPrefix}_${safeBrowserClientId(client)}_$name")
                     }
+                    if (!reserveUploadCapacity(body.expectedBytes)) {
+                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
+                    }
+                    receiveUpload(session, body, target, body.expectedBytes)
+                    newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name)
                 }
 
                 session.method == Method.GET && requestPath.startsWith("/api/preview/") -> {
@@ -335,6 +399,12 @@ internal class LanShareServer(
             logger.record("lan-server", "request failed path=${session.uri.substringBefore('?')}", error)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
         }
+    }
+
+    private companion object {
+        const val MAX_CHUNK_LINE_BYTES = 8 * 1024
+        const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
+        const val APP_UPLOAD_CLIENT = "app"
     }
 
     private fun decodePathSegment(value: String): String = runCatching {
