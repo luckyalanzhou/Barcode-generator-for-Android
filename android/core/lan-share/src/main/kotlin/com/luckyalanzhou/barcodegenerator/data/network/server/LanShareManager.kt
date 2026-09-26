@@ -39,6 +39,7 @@ class LanShareManager(
     }
 
     private val folder = File(context.filesDir, "lan-share").apply { mkdirs() }
+    private val webPreviewFolder = File(context.cacheDir, "lan-share-web-preview")
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
     private val client by lazy { LanShareClient(this::isRouterLanHost, logger) }
@@ -102,7 +103,10 @@ class LanShareManager(
         } while (manualCode.none(Char::isDigit) || manualCode.none(Char::isLetter))
         val running = ports.firstNotNullOfOrNull { port ->
             runCatching {
-                LanShareServer(address, port, folder, accessToken, manualCode, logger).also {
+                LanShareServer(
+                    address, port, folder, accessToken, manualCode, logger,
+                    webPreviewFolder,
+                ).also {
                     it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 }
             }.getOrNull()
@@ -126,7 +130,10 @@ class LanShareManager(
 
     override fun localFiles() = listFiles(folder, "app")
     override fun localFile(id: String): File? = sharedFile(folder, id)
-    private fun clearFiles() { folder.listFiles().orEmpty().forEach { it.delete() } }
+    private fun clearFiles() {
+        folder.listFiles().orEmpty().forEach { it.delete() }
+        webPreviewFolder.deleteRecursively()
+    }
 
     override fun list(session: LanShareSession) = client.list(session)
     override fun upload(session: LanShareSession, source: LanShareUploadSource): String = client.upload(session, source)

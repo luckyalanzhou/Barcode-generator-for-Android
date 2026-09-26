@@ -8,6 +8,7 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeBrowserClien
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeFileName
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
+import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCache
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebAccessPage
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -19,6 +20,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
+import java.net.URLDecoder
 import java.util.concurrent.CopyOnWriteArraySet
 
 /** 浏览器端服务：HTTP 文件接口和 WebSocket 实时文件事件。 */
@@ -29,12 +31,14 @@ internal class LanShareServer(
     private val accessToken: String,
     manualCode: String,
     private val logger: AppLogger,
+    previewCacheFolder: File = File(folder.parentFile, ".lan-share-web-preview"),
 ) : NanoWSD(host, port) {
     private val accessControl = LanShareAccessControl(accessToken)
     private val manualCodeGate = LanShareManualCodeGate(manualCode)
     @Volatile private var lastBrowserRequestAt = 0L
     @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
+    private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
 
@@ -291,8 +295,29 @@ internal class LanShareServer(
                     }
                 }
 
+                session.method == Method.GET && requestPath.startsWith("/api/preview/") -> {
+                    val file = sharedFile(folder, decodePathSegment(requestPath.substringAfterLast('/')))
+                    if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
+                    else {
+                        val preview = webImagePreviewCache.getOrCreate(file)
+                        if (preview == null) {
+                            newFixedLengthResponse(
+                                Response.Status.NOT_ACCEPTABLE,
+                                MIME_PLAINTEXT,
+                                "此图片格式暂不支持网页预览，请点击文件名下载原图",
+                            )
+                        } else {
+                            newFixedLengthResponse(Response.Status.OK, "image/jpeg", FileInputStream(preview), preview.length()).apply {
+                                addHeader("Content-Length", preview.length().toString())
+                                addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
+                                addHeader("X-Content-Type-Options", "nosniff")
+                            }
+                        }
+                    }
+                }
+
                 session.method == Method.GET && requestPath.startsWith("/api/download/") -> {
-                    val file = sharedFile(folder, Uri.decode(requestPath.substringAfterLast('/')))
+                    val file = sharedFile(folder, decodePathSegment(requestPath.substringAfterLast('/')))
                     if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
                     else newFixedLengthResponse(Response.Status.OK, mimeTypeForName(file.name), FileInputStream(file), file.length()).apply {
                         addHeader("Content-Length", file.length().toString())
@@ -311,4 +336,8 @@ internal class LanShareServer(
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
         }
     }
+
+    private fun decodePathSegment(value: String): String = runCatching {
+        URLDecoder.decode(value.replace("+", "%2B"), Charsets.UTF_8.name())
+    }.getOrDefault(value)
 }

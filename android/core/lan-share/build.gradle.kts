@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.nanohttpd)
     implementation(libs.nanohttpd.websocket)
     implementation(libs.tiff.renderer)
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
 

@@ -34,6 +34,8 @@ class LanShareServerAuthTest {
             assertEquals(200, request("$base/api/presence", token).first)
             assertEquals(403, request("$base/upload", method = "PUT").first)
             assertEquals(403, request("$base/api/download/missing").first)
+            assertEquals(403, request("$base/api/preview/missing").first)
+            assertEquals(404, request("$base/api/preview/missing?token=$token").first)
             assertTrue(request(base).second.contains("访问码"))
             assertEquals(403, postCode("$base/join", "wrong").first)
             assertEquals(303 to "/?token=$token", postCode("$base/join", "a7b2"))

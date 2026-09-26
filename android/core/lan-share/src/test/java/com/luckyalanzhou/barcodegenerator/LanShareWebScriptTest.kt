@@ -64,4 +64,15 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("preview.addEventListener('error'"))
         assertTrue(script.contains("item.classList.remove('image-item')"))
     }
+
+    @Test
+    fun browserRequestsServerDecodedPreviewForTiffAndHeicButKeepsOriginalDownloadLink() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("function needsServerPreview(name)"))
+        assertTrue(script.contains("/\\.(heic|heif|tif|tiff)$/i"))
+        assertTrue(script.contains("const route = needsServerPreview(file.name) ? '/api/preview/' : '/api/download/';"))
+        assertTrue(script.contains("preview.src = previewUrl(file)"))
+        assertTrue(script.contains("name.href = url"))
+    }
 }
