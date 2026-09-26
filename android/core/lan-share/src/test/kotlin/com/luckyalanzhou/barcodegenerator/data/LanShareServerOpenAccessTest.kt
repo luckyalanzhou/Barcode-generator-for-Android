@@ -1,0 +1,62 @@
+package com.luckyalanzhou.barcodegenerator.data
+
+import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import java.net.HttpURLConnection
+import java.net.Socket
+import java.net.URL
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+
+class LanShareServerOpenAccessTest {
+    @get:Rule val temporaryFolder = TemporaryFolder()
+
+    @Test
+    fun httpAndWebSocketEntryPointsWorkWithoutCredentials() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+        )
+        try {
+            server.start(5_000, false)
+            val port = server.listeningPort
+            val base = "http://127.0.0.1:$port"
+
+            assertEquals(200, request("$base/api/presence").first)
+            assertEquals(200, request("$base/api/presence?token=anything").first)
+            assertEquals(200, request(base).first)
+            assertTrue(request(base).second.contains("id=\"files\""))
+            assertEquals(404, request("$base/join").first)
+            assertEquals(404, request("$base/api/download/missing").first)
+            assertEquals(404, request("$base/api/preview/missing").first)
+
+            Socket("127.0.0.1", port).use { socket ->
+                socket.soTimeout = 5_000
+                socket.getOutputStream().write((
+                    "GET /ws HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nUpgrade: websocket\r\n" +
+                        "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+                        "Sec-WebSocket-Version: 13\r\n\r\n"
+                    ).toByteArray(Charsets.US_ASCII))
+                assertTrue(socket.getInputStream().bufferedReader().readLine().contains(" 101 "))
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    private fun request(url: String): Pair<Int, String> {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        return try {
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            val status = connection.responseCode
+            val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            status to body
+        } finally {
+            connection.disconnect()
+        }
+    }
+}

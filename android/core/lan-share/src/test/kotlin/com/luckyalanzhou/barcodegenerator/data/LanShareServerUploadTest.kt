@@ -80,8 +80,6 @@ class LanShareServerUploadTest {
         "127.0.0.1",
         0,
         folder,
-        ACCESS_TOKEN,
-        "A7B2",
         AppLogger { _, _, _ -> },
     )
 
@@ -99,7 +97,6 @@ class LanShareServerUploadTest {
             connection.connectTimeout = 5_000
             connection.readTimeout = 10_000
             connection.requestMethod = "PUT"
-            connection.setRequestProperty("X-Lan-Token", ACCESS_TOKEN)
             connection.setRequestProperty("X-File-Size", declaredSize.toString())
             connection.setRequestProperty("Content-Type", "application/octet-stream")
             connection.doOutput = true
@@ -113,9 +110,5 @@ class LanShareServerUploadTest {
         } finally {
             connection.disconnect()
         }
-    }
-
-    private companion object {
-        const val ACCESS_TOKEN = "0123456789abcdefghijAB"
     }
 }

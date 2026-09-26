@@ -11,8 +11,8 @@ import org.junit.Test
 class LanShareRefreshGuardTest {
     @Test
     fun ignoresDelayedRefreshAfterSwitchingRooms() {
-        val first = session("0123456789abcdefghijAB")
-        val second = session("0123456789abcdefghijAC")
+        val first = session("http://192.168.1.2:8080")
+        val second = session("http://192.168.1.3:8080")
         val state = MutableStateFlow(LanShareUiState(session = first))
         val guard = LanShareRefreshGuard(state)
         val delayedTicket = guard.currentGeneration()
@@ -28,7 +28,7 @@ class LanShareRefreshGuardTest {
 
     @Test
     fun invalidationRejectsDelayedRefreshEvenWhenTheSameRoomIsRejoined() {
-        val room = session("0123456789abcdefghijAB")
+        val room = session()
         val state = MutableStateFlow(LanShareUiState(session = room))
         val guard = LanShareRefreshGuard(state)
         val delayedTicket = guard.currentGeneration()
@@ -43,7 +43,7 @@ class LanShareRefreshGuardTest {
 
     @Test
     fun ignoresDelayedRefreshAfterRoomIsClosed() {
-        val room = session("0123456789abcdefghijAB")
+        val room = session()
         val state = MutableStateFlow(LanShareUiState(session = room))
         val guard = LanShareRefreshGuard(state)
         val delayedTicket = guard.currentGeneration()
@@ -55,7 +55,7 @@ class LanShareRefreshGuardTest {
         assertEquals(LanShareUiState(), state.value)
     }
 
-    private fun session(token: String) = LanShareSession("http://192.168.1.2:8080", token)
+    private fun session(baseUrl: String = "http://192.168.1.2:8080") = LanShareSession(baseUrl)
 
     private fun file(id: String) = LanShareFile(id, "$id.txt", 1L, 1L)
 }

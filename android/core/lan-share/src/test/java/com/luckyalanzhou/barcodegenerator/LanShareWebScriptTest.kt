@@ -87,7 +87,11 @@ class LanShareWebScriptTest {
     fun browserUsesBoundedServerPreviewsAndKeepsOriginalForDownloadAndFullScreen() {
         val script = LanShareWebScript.render()
 
-        assertTrue(script.contains("return authorizedUrl('/api/preview/' + encodeURIComponent(file.id)"))
+        assertTrue(script.contains("return '/api/preview/' + encodeURIComponent(file.id)"))
+        assertTrue(!script.contains("authorizedUrl"))
+        assertTrue(!script.contains("accessToken"))
+        assertTrue(!script.contains("X-Lan-Token"))
+        assertTrue(!script.contains("token="))
         assertTrue(script.contains("preview.dataset.fullSrc = url"))
         assertTrue(script.contains("imageViewerImage.src = image.dataset.fullSrc || image.currentSrc || image.src"))
         assertTrue(script.contains("preview.src = previewUrl(file)"))

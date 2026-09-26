@@ -67,7 +67,6 @@ internal class LanShareClient(
             connectTimeout = 8_000
             readTimeout = 120_000
             requestMethod = "PUT"
-            setRequestProperty("X-Lan-Token", session.accessToken)
             setRequestProperty("X-File-Size", size.toString())
             setRequestProperty("Content-Type", "application/octet-stream")
             doOutput = true
@@ -139,7 +138,6 @@ internal class LanShareClient(
             connectTimeout = 8_000
             readTimeout = readTimeoutMs
             requestMethod = if (output) "POST" else "GET"
-            setRequestProperty("X-Lan-Token", session.accessToken)
             doOutput = output
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
         }

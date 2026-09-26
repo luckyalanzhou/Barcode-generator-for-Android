@@ -109,7 +109,7 @@ class LanShareViewModel @Inject constructor(
     fun joinSessionFromAddress(value: String): Boolean {
         val session = LanShareSession.fromShareUrl(value)
         if (session == null || !lanShareGateway.isRouterLanHost(session.baseUrl.toUri().host)) {
-            _events.trySend(LanShareEvent.Error("分享地址无效或缺少访问码，请扫描新二维码"))
+            _events.trySend(LanShareEvent.Error("分享地址无效，请检查地址或扫描二维码"))
             return false
         }
         joinSession(session)
@@ -315,7 +315,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     private fun previewCacheKey(session: LanShareSession, fileId: String): String =
-        lanSharePreviewCacheKey("thumbnail-v2\u0000${session.baseUrl}\u0000${session.accessToken}\u0000$fileId")
+        lanSharePreviewCacheKey("thumbnail-v2\u0000${session.baseUrl}\u0000$fileId")
 
     private fun createUploadSource(uri: Uri): LanShareUploadSource {
         val name = appContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->

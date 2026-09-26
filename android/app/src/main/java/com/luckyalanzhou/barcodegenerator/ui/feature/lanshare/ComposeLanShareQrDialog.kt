@@ -81,14 +81,13 @@ internal fun ComposeLanShareQrDialog(
                         Image(bitmap.asImageBitmap(), "局域网分享二维码", modifier = Modifier.size(qrSize).background(Color(background)), contentScale = ContentScale.FillBounds)
                         LanShareQrManualInfo(
                             baseUrl = session.baseUrl,
-                            manualCode = session.manualCode,
                             primary = primary,
                             secondary = secondary,
                             modifier = Modifier.width(qrSize).padding(top = 12.dp),
                         )
                         LanShareSecurityNotice(Modifier.width(qrSize).padding(top = 10.dp))
                         Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
-                            DialogAction("复制完整链接", dark, { onCopyAddress(session.shareUrl) })
+                            DialogAction("复制连接地址", dark, { onCopyAddress(session.shareUrl) })
                         }
                     }
                 }
@@ -101,7 +100,7 @@ internal fun ComposeLanShareQrDialog(
 internal fun LanShareSecurityNotice(modifier: Modifier = Modifier) {
     val colors = LocalAppColorScheme.current
     Text(
-        text = "安全提醒：局域网分享使用未加密 HTTP，同一 Wi-Fi 内他人可能读取访问码和传输内容。请只在可信网络使用，勿公开转发二维码/链接，用后关闭房间。",
+        text = "安全提醒：局域网分享不设访问验证且使用未加密 HTTP。局域网内任何知道此地址的设备都可访问共享内容，请仅在可信网络使用，结束后关闭分享。",
         color = colors.text.destructive,
         fontSize = 12.sp,
         lineHeight = 16.sp,
@@ -114,7 +113,6 @@ internal fun LanShareSecurityNotice(modifier: Modifier = Modifier) {
 @Composable
 private fun LanShareQrManualInfo(
     baseUrl: String,
-    manualCode: String?,
     primary: Color,
     secondary: Color,
     modifier: Modifier = Modifier,
@@ -125,7 +123,7 @@ private fun LanShareQrManualInfo(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("手动连接", color = secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text("浏览器连接地址", color = secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("地址", color = secondary, fontSize = 12.sp, modifier = Modifier.width(44.dp))
             SelectionContainer(modifier = Modifier.weight(1f)) {
@@ -137,14 +135,6 @@ private fun LanShareQrManualInfo(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-            }
-        }
-        manualCode?.let { code ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("访问码", color = secondary, fontSize = 12.sp, modifier = Modifier.width(44.dp))
-                SelectionContainer {
-                    Text(code, color = primary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 3.sp)
-                }
             }
         }
     }
@@ -177,14 +167,13 @@ internal fun MainActivity.showLanShareQrDialogCompose() {
             Image(bitmap = bitmap.asImageBitmap(), contentDescription = "局域网分享二维码", modifier = Modifier.fillMaxWidth().background(Color(qrBackground)), contentScale = ContentScale.FillWidth)
             LanShareQrManualInfo(
                 baseUrl = session.baseUrl,
-                manualCode = session.manualCode,
                 primary = primary,
                 secondary = secondary,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             )
             LanShareSecurityNotice(Modifier.fillMaxWidth().padding(top = 10.dp))
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("复制完整链接", dark, { composeAppShellActions().copyLanShareAddress(session.shareUrl) })
+                DialogAction("复制连接地址", dark, { composeAppShellActions().copyLanShareAddress(session.shareUrl) })
                 DialogAction("关闭", dark, {
                     lanShareViewModel.setQrVisible(false)
                     dismiss()

@@ -15,25 +15,11 @@ data class LanShareFile(
 
 data class LanShareSession(
     val baseUrl: String,
-    val accessToken: String,
-    /** Host-only short code for manual browser entry; absent on a session joined by QR. */
-    val manualCode: String? = null,
 ) {
-    init {
-        require(ACCESS_TOKEN.matches(accessToken)) { "无效的局域网分享访问码" }
-        require(manualCode == null || (MANUAL_CODE.matches(manualCode) &&
-            manualCode.any(Char::isDigit) && manualCode.any(Char::isLetter))) {
-            "无效的四位手动访问码"
-        }
-    }
-
-    /** QR and copied browser address; never log or persist this URL. */
-    val shareUrl: String get() = "$baseUrl/?token=$accessToken"
+    /** QR and copied address for direct access from the local network. */
+    val shareUrl: String get() = baseUrl
 
     companion object {
-        private val ACCESS_TOKEN = Regex("[A-Za-z0-9_-]{22}")
-        private val MANUAL_CODE = Regex("[A-Z0-9]{4}")
-
         fun fromShareUrl(value: String): LanShareSession? = runCatching {
             val uri = URI(value.trim())
             val host = uri.host ?: return@runCatching null
@@ -42,12 +28,9 @@ data class LanShareSession(
             }
             if (!uri.scheme.equals("http", ignoreCase = true) || !isIpv4 ||
                 uri.port !in 1..65535 || uri.userInfo != null || uri.fragment != null ||
-                uri.rawPath !in listOf("", "/")
+                uri.rawPath !in listOf("", "/") || uri.rawQuery != null
             ) return@runCatching null
-            val token = uri.rawQuery?.takeIf { it.startsWith("token=") }
-                ?.removePrefix("token=")?.takeIf(ACCESS_TOKEN::matches)
-                ?: return@runCatching null
-            LanShareSession("http://$host:${uri.port}", token)
+            LanShareSession("http://$host:${uri.port}")
         }.getOrNull()
     }
 }

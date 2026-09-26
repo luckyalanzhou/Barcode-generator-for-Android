@@ -17,17 +17,10 @@ const imageViewerClose = document.getElementById('image-viewer-close');
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
-const accessToken = new URL(location.href).searchParams.get('token') || '';
 const HEARTBEAT_TIMEOUT_MS = 5000;
 const CONNECTION_FAILURE_GRACE_MS = 10000;
 let heartbeatInFlight = false;
 let lastConnectionSuccessAt = 0;
-
-function authorizedUrl(path) {
-    const url = new URL(path, location.origin);
-    url.searchParams.set('token', accessToken);
-    return url.pathname + url.search;
-}
 
 function readClientIdCookie() {
     const cookiePrefix = encodeURIComponent(clientIdKey) + '=';
@@ -96,11 +89,11 @@ function markConnectionFailure() {
 }
 
 function fileUrl(file) {
-    return authorizedUrl('/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
+    return '/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
 }
 
 function previewUrl(file) {
-    return authorizedUrl('/api/preview/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
+    return '/api/preview/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
 }
 
 function createFileItem(file) {
@@ -315,7 +308,7 @@ async function refreshFiles() {
     }
     refreshInFlight = true;
     try {
-        const response = await fetch(authorizedUrl('/api/files?_=' + Date.now()), { cache: 'no-store' });
+        const response = await fetch('/api/files?_=' + Date.now(), { cache: 'no-store' });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         reconcileFiles(await response.json());
     } catch (_) {
@@ -333,7 +326,7 @@ async function refreshFiles() {
 async function uploadFile(file) {
     if (!file) return;
     try {
-        const response = await fetch(authorizedUrl('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId)), {
+        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId), {
             method: 'PUT',
             headers: {
                 'content-type': file.type || 'application/octet-stream',
@@ -418,7 +411,7 @@ async function heartbeat() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT_MS);
     try {
-        const response = await fetch(authorizedUrl('/api/presence?_=' + Date.now()), {
+        const response = await fetch('/api/presence?_=' + Date.now(), {
             cache: 'no-store',
             signal: controller.signal
         });
@@ -436,7 +429,7 @@ async function heartbeat() {
 let socket;
 function connectSocket() {
     try {
-        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + authorizedUrl('/ws'));
+        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
         socket.onopen = () => {
             socket.send('sync');
         };

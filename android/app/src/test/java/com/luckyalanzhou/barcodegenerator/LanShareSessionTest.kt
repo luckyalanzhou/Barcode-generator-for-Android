@@ -7,28 +7,23 @@ import org.junit.Test
 
 class LanShareSessionTest {
     @Test
-    fun shareUrlCarriesSessionToken() {
-        val session = LanShareSession("http://192.168.1.23:18080", "0123456789abcdefghijAB")
+    fun shareUrlIsTheDirectSessionAddress() {
+        val session = LanShareSession("http://192.168.1.23:18080")
 
-        assertEquals("http://192.168.1.23:18080/?token=0123456789abcdefghijAB", session.shareUrl)
+        assertEquals("http://192.168.1.23:18080", session.shareUrl)
         assertEquals(session, LanShareSession.fromShareUrl(session.shareUrl))
     }
 
     @Test
-    fun bareOrMalformedAddressesCannotJoin() {
-        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080"))
-        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/?token=short"))
-        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/?token=0123456789abcdefghijAB&other=1"))
-        assertNull(LanShareSession.fromShareUrl("http://example.com:18080/?token=0123456789abcdefghijAB"))
-        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/api/files?token=0123456789abcdefghijAB"))
-    }
-
-    @Test
-    fun manualCodeIsHostOnlyAndDoesNotChangeQrLink() {
-        val session = LanShareSession("http://192.168.1.23:18080", "0123456789abcdefghijAB", "A7B2")
-
-        assertEquals("A7B2", session.manualCode)
-        assertEquals("http://192.168.1.23:18080/?token=0123456789abcdefghijAB", session.shareUrl)
-        assertNull(LanShareSession.fromShareUrl(session.shareUrl)?.manualCode)
+    fun acceptsRootAddressesAndRejectsNonLanOrNonRootAddresses() {
+        assertEquals(
+            "http://192.168.1.23:18080",
+            LanShareSession.fromShareUrl("http://192.168.1.23:18080/")?.baseUrl,
+        )
+        assertNull(LanShareSession.fromShareUrl("http://example.com:18080"))
+        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/api/files"))
+        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/?token=legacy"))
+        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/#fragment"))
+        assertNull(LanShareSession.fromShareUrl("https://192.168.1.23:18080"))
     }
 }
