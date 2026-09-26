@@ -30,6 +30,18 @@ class LanShareWebScriptTest {
     }
 
     @Test
+    fun browserUploadRemembersItsServerFileIdAndSendsTheOriginalFile() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("const ownFileIdsKey = 'lanShareOwnFileIds:' + clientId"))
+        assertTrue(script.contains("function rememberOwnFile(id)"))
+        assertTrue(script.contains("ownFileIds.has(file.id)"))
+        assertTrue(script.contains("body: file"))
+        assertTrue(script.contains("'x-file-size': String(file.size)"))
+        assertTrue(script.contains("rememberOwnFile((await response.text()).trim())"))
+    }
+
+    @Test
     fun browserImagesOpenWheelZoomPreviewWithoutChangingNameDownload() {
         val page = LanShareWebTemplates.page()
 

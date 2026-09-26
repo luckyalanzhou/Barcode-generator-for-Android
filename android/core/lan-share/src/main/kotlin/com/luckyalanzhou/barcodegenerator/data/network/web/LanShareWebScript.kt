@@ -45,13 +45,31 @@ localStorage.setItem(clientIdKey, clientId);
 // stable when the app restarts its LAN server on a different port and retains previous files.
 document.cookie = encodeURIComponent(clientIdKey) + '=' + encodeURIComponent(clientId) + '; Path=/; Max-Age=31536000; SameSite=Lax';
 
+const ownFileIdsKey = 'lanShareOwnFileIds:' + clientId;
+const ownFileIds = new Set();
+try {
+    const storedOwnFileIds = JSON.parse(localStorage.getItem(ownFileIdsKey) || '[]');
+    if (Array.isArray(storedOwnFileIds)) {
+        storedOwnFileIds.filter(id => typeof id === 'string').slice(-256).forEach(id => ownFileIds.add(id));
+    }
+} catch (_) {}
+
+function rememberOwnFile(id) {
+    if (!id) return;
+    ownFileIds.add(id);
+    while (ownFileIds.size > 256) ownFileIds.delete(ownFileIds.values().next().value);
+    try {
+        localStorage.setItem(ownFileIdsKey, JSON.stringify(Array.from(ownFileIds)));
+    } catch (_) {}
+}
+
 function isImageName(name) {
     return /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name || '');
 }
 
 function isOwnFile(file) {
     // Older browser uploads have no client ID, so the server can only label them "browser".
-    return file.sender === 'browser:' + clientId || file.sender === 'browser';
+    return ownFileIds.has(file.id) || file.sender === 'browser:' + clientId || file.sender === 'browser';
 }
 
 function formatSize(bytes) {
@@ -306,6 +324,9 @@ async function uploadFile(file) {
             const reason = await response.text();
             throw new Error(reason || ('HTTP ' + response.status));
         }
+        // The server returns the stored file ID. Keep that authoritative identity locally so
+        // this browser's new upload stays on the right even if sender metadata is stale/missing.
+        rememberOwnFile((await response.text()).trim());
         if (messageInput) messageInput.value = '';
         await refreshFiles();
     } catch (error) {
