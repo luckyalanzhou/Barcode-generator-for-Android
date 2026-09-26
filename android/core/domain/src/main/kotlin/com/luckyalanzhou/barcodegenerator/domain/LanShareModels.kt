@@ -52,10 +52,8 @@ data class LanShareSession(
     }
 }
 
-/** Keep preview downloads bounded while accommodating full-resolution phone photos. */
+/** Bound generated preview payloads; source photos are decoded and resized on the host. */
 const val LAN_SHARE_PREVIEW_MAX_FILE_BYTES = 64L * 1024L * 1024L
-/** TIFF pages are often uncompressed or lightly compressed; permit larger remote thumbnails. */
-const val LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES = 256L * 1024L * 1024L
 const val LAN_SHARE_PREVIEW_CACHE_MAX_BYTES = 256L * 1024L * 1024L
 
 /** File types that can be rendered as LAN Share previews. */

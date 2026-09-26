@@ -371,7 +371,8 @@ internal class LanShareServer(
                                 "此图片格式暂不支持网页预览，请点击文件名下载原图",
                             )
                         } else {
-                            newFixedLengthResponse(Response.Status.OK, "image/jpeg", FileInputStream(preview), preview.length()).apply {
+                            val previewMimeType = if (preview == file) mimeTypeForName(file.name) else "image/jpeg"
+                            newFixedLengthResponse(Response.Status.OK, previewMimeType, FileInputStream(preview), preview.length()).apply {
                                 addHeader("Content-Length", preview.length().toString())
                                 addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
                                 addHeader("X-Content-Type-Options", "nosniff")

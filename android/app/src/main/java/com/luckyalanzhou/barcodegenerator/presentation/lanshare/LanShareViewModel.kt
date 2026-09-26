@@ -4,13 +4,12 @@ package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiffName
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
-import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -276,7 +275,7 @@ class LanShareViewModel @Inject constructor(
                 try {
                     lanShareGateway.downloadToFile(session, id, temporary)
                     appContext.contentResolver.openOutputStream(destination)?.use { output ->
-                        temporary.inputStream().use { it.copyTo(output) }
+                        temporary.inputStream().use { it.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE) }
                     } ?: error("无法写入文件")
                 } finally {
                     temporary.delete()
@@ -300,24 +299,23 @@ class LanShareViewModel @Inject constructor(
                 currentCoroutineContext().ensureActive()
                 val preview = java.io.File(previewFolder, previewCacheKey(session, file.id)).canonicalFile
                 require(preview.parentFile == previewFolder) { "图片预览路径无效" }
-                val maxPreviewBytes = if (isLanShareTiffName(file.name)) {
-                    LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES
-                } else {
-                    LAN_SHARE_PREVIEW_MAX_FILE_BYTES
-                }
-                if (!preview.isFile && file.size <= maxPreviewBytes &&
-                    cachedBytes + file.size <= LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
-                ) {
+                val remainingCacheBytes = (LAN_SHARE_PREVIEW_CACHE_MAX_BYTES - cachedBytes).coerceAtLeast(0L)
+                val maxPreviewBytes = minOf(LAN_SHARE_PREVIEW_MAX_FILE_BYTES, remainingCacheBytes)
+                if (!preview.isFile && maxPreviewBytes > 0L) {
                     runCatching { lanShareGateway.downloadPreview(session, file.id, preview, maxPreviewBytes) }
-                    cachedBytes += preview.length()
+                    if (preview.isFile && preview.length() in 1..maxPreviewBytes) {
+                        cachedBytes += preview.length()
+                    } else {
+                        preview.delete()
+                    }
                 }
-                if (preview.isFile) put(file.id, preview)
+                if (preview.isFile && preview.length() > 0L) put(file.id, preview)
             }
         }
     }
 
     private fun previewCacheKey(session: LanShareSession, fileId: String): String =
-        lanSharePreviewCacheKey("${session.baseUrl}\u0000${session.accessToken}\u0000$fileId")
+        lanSharePreviewCacheKey("thumbnail-v2\u0000${session.baseUrl}\u0000${session.accessToken}\u0000$fileId")
 
     private fun createUploadSource(uri: Uri): LanShareUploadSource {
         val name = appContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->

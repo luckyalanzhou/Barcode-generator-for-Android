@@ -108,7 +108,7 @@ internal class LanShareClient(
         }
 
     fun downloadPreview(session: LanShareSession, id: String, destination: File, maxBytes: Long) =
-        request(session, "/api/download/${Uri.encode(id)}", readTimeoutMs = 120_000) { connection ->
+        request(session, "/api/preview/${Uri.encode(id)}", readTimeoutMs = 120_000) { connection ->
             val declaredSize = connection.getHeaderFieldLong("Content-Length", -1L)
             require(maxBytes >= 0L) { "图片预览大小限制无效" }
             require(declaredSize < 0L || declaredSize <= maxBytes) {
@@ -117,7 +117,7 @@ internal class LanShareClient(
             destination.parentFile?.mkdirs()
             val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
             try {
-                temporary.outputStream().use { output ->
+                temporary.outputStream().buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
                     connection.inputStream.use { copyLanSharePreview(it, output, maxBytes) }
                 }
                 if (destination.exists()) destination.delete()

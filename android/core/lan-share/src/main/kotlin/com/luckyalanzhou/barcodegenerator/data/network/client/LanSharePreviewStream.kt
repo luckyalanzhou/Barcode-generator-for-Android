@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data.network.client
 
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -12,7 +13,7 @@ internal fun copyLanSharePreview(
     maxBytes: Long = MAX_LAN_SHARE_PREVIEW_BYTES,
 ): Long {
     require(maxBytes >= 0L) { "图片预览大小限制无效" }
-    val buffer = ByteArray(16 * 1024)
+    val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
     var total = 0L
     while (true) {
         val read = input.read(buffer)

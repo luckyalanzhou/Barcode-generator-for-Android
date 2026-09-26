@@ -59,10 +59,11 @@ internal fun LanShareMessageBubble(
     val themeColors = LocalAppColorScheme.current
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
-    val previewFile = (localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
+    val localImageFile = localFile(file.id)
+    val previewFile = (localImageFile ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val previewState = produceState<Bitmap?>(null, file.id, previewFile?.absolutePath, previewFile?.lastModified()) {
         val source = previewFile ?: return@produceState
-        value = if (isLanShareTiffName(file.name)) {
+        value = if (localImageFile != null && isLanShareTiffName(file.name)) {
             LanShareTiffPreviewDecoder.decode(source, LAN_SHARE_PREVIEW_MAX_DECODE_EDGE)
         } else {
             withContext(Dispatchers.IO) { decodeLanSharePreview(source) }

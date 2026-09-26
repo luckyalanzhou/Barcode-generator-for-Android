@@ -66,12 +66,12 @@ class LanShareWebScriptTest {
     }
 
     @Test
-    fun browserRequestsServerDecodedPreviewForTiffAndHeicButKeepsOriginalDownloadLink() {
+    fun browserUsesBoundedServerPreviewsAndKeepsOriginalForDownloadAndFullScreen() {
         val script = LanShareWebScript.render()
 
-        assertTrue(script.contains("function needsServerPreview(name)"))
-        assertTrue(script.contains("/\\.(heic|heif|tif|tiff)$/i"))
-        assertTrue(script.contains("const route = needsServerPreview(file.name) ? '/api/preview/' : '/api/download/';"))
+        assertTrue(script.contains("return authorizedUrl('/api/preview/' + encodeURIComponent(file.id)"))
+        assertTrue(script.contains("preview.dataset.fullSrc = url"))
+        assertTrue(script.contains("imageViewerImage.src = image.dataset.fullSrc || image.currentSrc || image.src"))
         assertTrue(script.contains("preview.src = previewUrl(file)"))
         assertTrue(script.contains("name.href = url"))
     }

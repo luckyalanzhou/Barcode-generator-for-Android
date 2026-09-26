@@ -5,7 +5,10 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.graphics.Matrix
 import android.os.Build
+import androidx.exifinterface.media.ExifInterface
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiffName
 import java.io.File
 import java.io.FileOutputStream
@@ -13,12 +16,14 @@ import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
-/** Creates small, browser-safe derivatives for TIFF/HEIF web previews without touching originals. */
+/** Creates bounded, browser-safe derivatives for image previews without touching originals. */
 internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
     private val cacheLock = Any()
 
     fun getOrCreate(source: File): File? {
-        if (!source.isFile || !isTranscodableImage(source.name)) return null
+        if (!source.isFile || !isLanShareImageName(source.name)) return null
+        // Preserve animation; static JPEG derivatives are for other formats only.
+        if (source.extension.equals("gif", ignoreCase = true)) return source
 
         val key = cacheKey(source)
         val cached = File(cacheFolder, "$key.preview.jpg")
@@ -56,7 +61,7 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
                 LanShareTiffPreviewDecoder.decode(source, MAX_PREVIEW_EDGE)
             }
         } else {
-            decodeHeif(source)
+            decodeRaster(source)
         }
     } catch (_: LinkageError) {
         null
@@ -66,7 +71,7 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
         null
     }
 
-    private fun decodeHeif(source: File): Bitmap? {
+    private fun decodeRaster(source: File): Bitmap? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val decoded = runCatching {
                 ImageDecoder.decodeBitmap(ImageDecoder.createSource(source)) { decoder, info, _ ->
@@ -97,11 +102,39 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
         while (maxOf(bounds.outWidth, bounds.outHeight).toLong() > MAX_PREVIEW_EDGE.toLong() * sampleSize) {
             sampleSize *= 2
         }
-        BitmapFactory.decodeFile(
+        val decoded = BitmapFactory.decodeFile(
             source.absolutePath,
             BitmapFactory.Options().apply { inSampleSize = sampleSize },
-        )
+        ) ?: return@runCatching null
+        applyExifOrientation(source, decoded)
     }.getOrNull()
+
+    /** ImageDecoder auto-orients on API 28+; apply the EXIF transform for older devices. */
+    private fun applyExifOrientation(source: File, bitmap: Bitmap): Bitmap {
+        val orientation = runCatching {
+            ExifInterface(source).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+        val transform = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> transform.setScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> transform.setRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> transform.setScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                transform.setRotate(90f)
+                transform.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_90 -> transform.setRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                transform.setRotate(270f)
+                transform.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_270 -> transform.setRotate(270f)
+            else -> return bitmap
+        }
+        val oriented = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, transform, true)
+        if (oriented !== bitmap) bitmap.recycle()
+        return oriented
+    }
 
     private fun writeJpegPreview(bitmap: Bitmap, destination: File): Boolean {
         val flattened = if (bitmap.hasAlpha()) {
@@ -139,21 +172,18 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
     }
 
     private fun cacheKey(source: File): String {
-        val identity = "${source.canonicalPath}\u0000${source.length()}\u0000${source.lastModified()}"
+        val identity = "preview-v2\u0000${source.canonicalPath}\u0000${source.length()}\u0000${source.lastModified()}"
         return MessageDigest.getInstance("SHA-256")
             .digest(identity.toByteArray(Charsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
     }
-
-    private fun isTranscodableImage(name: String): Boolean =
-        isLanShareTiffName(name) || name.substringAfterLast('.', "").lowercase() in setOf("heic", "heif")
 
     private fun Bitmap.recycleIfNeeded() {
         if (!isRecycled) recycle()
     }
 
     private companion object {
-        const val MAX_PREVIEW_EDGE = 2_048
+        const val MAX_PREVIEW_EDGE = 4_096
         const val MAX_CACHE_BYTES = 128L * 1024L * 1024L
         const val CACHE_SUFFIX = ".preview.jpg"
         const val JPEG_QUALITY = 88

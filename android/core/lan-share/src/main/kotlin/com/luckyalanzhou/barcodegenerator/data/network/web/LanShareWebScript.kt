@@ -67,10 +67,6 @@ function isImageName(name) {
     return /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|avif|tif|tiff)$/i.test(name || '');
 }
 
-function needsServerPreview(name) {
-    return /\.(heic|heif|tif|tiff)$/i.test(name || '');
-}
-
 function isOwnFile(file) {
     // Older browser uploads have no client ID, so the server can only label them "browser".
     return ownFileIds.has(file.id) || file.sender === 'browser:' + clientId || file.sender === 'browser';
@@ -94,8 +90,7 @@ function fileUrl(file) {
 }
 
 function previewUrl(file) {
-    const route = needsServerPreview(file.name) ? '/api/preview/' : '/api/download/';
-    return authorizedUrl(route + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
+    return authorizedUrl('/api/preview/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
 }
 
 function createFileItem(file) {
@@ -113,6 +108,7 @@ function createFileItem(file) {
         preview.tabIndex = 0;
         preview.setAttribute('role', 'button');
         preview.setAttribute('aria-label', '预览图片：' + (file.name || '图片'));
+        preview.dataset.fullSrc = url;
         preview.addEventListener('error', () => {
             preview.remove();
             item.classList.remove('image-item');
@@ -193,7 +189,7 @@ fileList.addEventListener('click', event => {
     if (!image) return;
     event.preventDefault();
     previewOrigin = image;
-    imageViewerImage.src = image.currentSrc || image.src;
+    imageViewerImage.src = image.dataset.fullSrc || image.currentSrc || image.src;
     imageViewerImage.alt = image.alt || '图片预览';
     imageViewerTitle.textContent = image.alt || '图片预览';
     resetPreviewTransform();
@@ -292,6 +288,7 @@ function reconcileFiles(list) {
             if (size) size.textContent = formatSize(file.size);
             const preview = item.querySelector('img');
             const imageUrl = previewUrl(file);
+            if (preview) preview.dataset.fullSrc = url;
             if (preview && preview.src !== new URL(imageUrl, location.href).href) preview.src = imageUrl;
         }
         fileList.appendChild(item);

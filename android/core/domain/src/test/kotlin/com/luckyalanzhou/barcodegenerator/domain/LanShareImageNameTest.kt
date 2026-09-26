@@ -14,8 +14,7 @@ class LanShareImageNameTest {
     }
 
     @Test
-    fun tiffRemotePreviewLimitIsLargerThanOtherImagePreviews() {
-        assertTrue(LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES > LAN_SHARE_PREVIEW_MAX_FILE_BYTES)
-        assertTrue(LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES <= LAN_SHARE_PREVIEW_CACHE_MAX_BYTES)
+    fun previewPayloadLimitFitsWithinPreviewCache() {
+        assertTrue(LAN_SHARE_PREVIEW_MAX_FILE_BYTES <= LAN_SHARE_PREVIEW_CACHE_MAX_BYTES)
     }
 }
