@@ -14,7 +14,6 @@ const imageViewerStage = document.getElementById('image-viewer-stage');
 const imageViewerImage = document.getElementById('image-viewer-image');
 const imageViewerTitle = document.getElementById('image-viewer-title');
 const imageViewerClose = document.getElementById('image-viewer-close');
-const imageViewerReset = document.getElementById('image-viewer-reset');
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
@@ -159,7 +158,6 @@ fileList.addEventListener('click', event => {
 });
 
 imageViewerClose.addEventListener('click', closeImageViewer);
-imageViewerReset.addEventListener('click', resetPreviewTransform);
 imageViewer.addEventListener('click', event => {
     if (event.target === imageViewer || event.target === imageViewerStage) closeImageViewer();
 });

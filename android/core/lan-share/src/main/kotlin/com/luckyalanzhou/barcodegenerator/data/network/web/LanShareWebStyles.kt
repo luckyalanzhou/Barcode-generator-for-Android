@@ -44,7 +44,6 @@ body.preview-open{overflow:hidden}
 .image-viewer{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.94);color:#fff;overscroll-behavior:contain}
 .image-viewer-toolbar{position:absolute;top:max(12px,env(safe-area-inset-top));left:16px;right:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
 .image-viewer-toolbar span{min-width:0;overflow:hidden;color:rgba(255,255,255,.88);white-space:nowrap;text-overflow:ellipsis}
-.image-viewer-toolbar>div{display:flex;gap:8px;flex:none}
 .image-viewer-toolbar button{min-width:42px;height:42px;padding:0 12px;border:1px solid rgba(255,255,255,.24);border-radius:21px;background:rgba(255,255,255,.12);color:#fff;font:inherit;cursor:pointer}
 .image-viewer-toolbar #image-viewer-close{width:42px;padding:0;font-size:26px;line-height:1}
 .image-viewer-stage{display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden}

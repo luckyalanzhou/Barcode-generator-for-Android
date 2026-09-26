@@ -25,6 +25,7 @@ class LanShareWebScriptTest {
         val page = LanShareWebTemplates.page()
 
         assertTrue(page.contains("id=\"image-viewer\""))
+        assertTrue(!page.contains("image-viewer-reset"))
         assertTrue(page.contains("aria-modal=\"true\""))
         assertTrue(page.contains("event.target.closest('img.media-preview')"))
         assertTrue(page.contains("preview.setAttribute('role', 'button')"))
