@@ -18,6 +18,10 @@ const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
 const accessToken = new URL(location.href).searchParams.get('token') || '';
+const HEARTBEAT_TIMEOUT_MS = 5000;
+const CONNECTION_FAILURE_GRACE_MS = 10000;
+let heartbeatInFlight = false;
+let lastConnectionSuccessAt = 0;
 
 function authorizedUrl(path) {
     const url = new URL(path, location.origin);
@@ -83,6 +87,12 @@ function formatSize(bytes) {
 function setConnectionState(connected) {
     connectionStatus.textContent = connected ? '● 已连接到设备' : '○ 正在连接设备...';
     connectionStatus.classList.toggle('connected', connected);
+}
+
+function markConnectionFailure() {
+    if (lastConnectionSuccessAt === 0 || Date.now() - lastConnectionSuccessAt >= CONNECTION_FAILURE_GRACE_MS) {
+        setConnectionState(false);
+    }
 }
 
 function fileUrl(file) {
@@ -309,7 +319,8 @@ async function refreshFiles() {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         reconcileFiles(await response.json());
     } catch (_) {
-        setConnectionState(false);
+        // File-list refresh is independent of reachability; only the presence heartbeat
+        // controls the connection indicator.
     } finally {
         refreshInFlight = false;
         if (refreshQueued) {
@@ -402,11 +413,23 @@ document.addEventListener('click', event => {
 });
 
 async function heartbeat() {
+    if (heartbeatInFlight) return;
+    heartbeatInFlight = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT_MS);
     try {
-        const response = await fetch(authorizedUrl('/api/presence?_=' + Date.now()), { cache: 'no-store' });
-        setConnectionState(response.ok);
+        const response = await fetch(authorizedUrl('/api/presence?_=' + Date.now()), {
+            cache: 'no-store',
+            signal: controller.signal
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        lastConnectionSuccessAt = Date.now();
+        setConnectionState(true);
     } catch (_) {
-        setConnectionState(false);
+        markConnectionFailure();
+    } finally {
+        clearTimeout(timeout);
+        heartbeatInFlight = false;
     }
 }
 
@@ -415,7 +438,6 @@ function connectSocket() {
     try {
         socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + authorizedUrl('/ws'));
         socket.onopen = () => {
-            setConnectionState(true);
             socket.send('sync');
         };
         socket.onmessage = event => {
@@ -428,10 +450,9 @@ function connectSocket() {
             }
         };
         socket.onclose = () => {
-            setConnectionState(false);
+            // Keep device reachability under the HTTP heartbeat; reconnect only the live-update channel.
             setTimeout(connectSocket, 1000);
         };
-        socket.onerror = () => setConnectionState(false);
     } catch (_) {
         setTimeout(connectSocket, 1000);
     }

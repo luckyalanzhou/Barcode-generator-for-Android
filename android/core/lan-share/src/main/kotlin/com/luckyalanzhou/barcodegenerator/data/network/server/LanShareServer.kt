@@ -38,7 +38,7 @@ internal class LanShareServer(
 ) : NanoWSD(host, port) {
     private val accessControl = LanShareAccessControl(accessToken)
     private val manualCodeGate = LanShareManualCodeGate(manualCode)
-    @Volatile private var lastBrowserRequestAt = 0L
+    private val browserPresence = LanShareBrowserPresence()
     @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
@@ -191,12 +191,12 @@ internal class LanShareServer(
         throw IOException("分块上传行过长")
     }
 
-    fun browserConnected() = System.currentTimeMillis() - lastBrowserRequestAt < 4_500L
+    fun browserConnected() = browserPresence.isConnected()
 
     override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = object : NanoWSD.WebSocket(handshake) {
         override fun onOpen() {
             webSockets.add(this)
-            lastBrowserRequestAt = System.currentTimeMillis()
+            browserPresence.markSeen()
             // 新网页刚连上时补发当前版本，填补页面初始读取与 WebSocket 建连之间的文件事件。
             runCatching { send(JSONObject().put("type", "files").put("version", fileVersion).toString()) }
         }
@@ -300,7 +300,7 @@ internal class LanShareServer(
 
     override fun serveHttp(session: IHTTPSession): Response {
         if (session.headers["user-agent"].orEmpty().contains("Mozilla", ignoreCase = true)) {
-            lastBrowserRequestAt = System.currentTimeMillis()
+            browserPresence.markSeen()
         }
         val requestPath = session.uri.substringBefore('?')
         return try {

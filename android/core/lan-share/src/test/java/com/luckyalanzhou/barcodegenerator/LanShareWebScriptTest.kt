@@ -17,6 +17,24 @@ class LanShareWebScriptTest {
     }
 
     @Test
+    fun browserConnectionIndicatorUsesSerializedPresenceWithFailureGrace() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("const HEARTBEAT_TIMEOUT_MS = 5000;"))
+        assertTrue(script.contains("const CONNECTION_FAILURE_GRACE_MS = 10000;"))
+        assertTrue(script.contains("if (heartbeatInFlight) return;"))
+        assertTrue(script.contains("signal: controller.signal"))
+        assertTrue(script.contains("Date.now() - lastConnectionSuccessAt >= CONNECTION_FAILURE_GRACE_MS"))
+
+        val refresh = script.substringAfter("async function refreshFiles()").substringBefore("async function uploadFile(file)")
+        assertTrue(!refresh.contains("setConnectionState(false)"))
+
+        val socketHandlers = script.substringAfter("let socket;").substringBefore("heartbeat();")
+        assertTrue(!socketHandlers.contains("setConnectionState(false)"))
+        assertTrue(!socketHandlers.contains("setConnectionState(true)"))
+    }
+
+    @Test
     fun browserPageTreatsLegacyBrowserUploadsAsOwnMessages() {
         val script = LanShareWebScript.render()
 
