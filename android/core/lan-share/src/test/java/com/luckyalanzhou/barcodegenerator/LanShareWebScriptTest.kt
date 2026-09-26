@@ -75,4 +75,16 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("preview.src = previewUrl(file)"))
         assertTrue(script.contains("name.href = url"))
     }
+
+    @Test
+    fun browserTransferListScrollsBetweenFixedPageChromeAndUsesCompactImagePreviews() {
+        val page = LanShareWebTemplates.page()
+
+        assertTrue(page.contains("height:100dvh;overflow:hidden"))
+        assertTrue(page.contains("overflow-y:auto;overscroll-behavior-y:contain"))
+        assertTrue(page.contains(".bar{position:relative;z-index:4;flex:0 0 var(--web-header-height)}"))
+        assertTrue(page.contains(".bottom{position:relative;inset:auto;flex:0 0 auto}"))
+        assertTrue(page.contains(".media-preview{max-height:220px}"))
+        assertTrue(page.contains(".media-preview{max-height:320px}"))
+    }
 }

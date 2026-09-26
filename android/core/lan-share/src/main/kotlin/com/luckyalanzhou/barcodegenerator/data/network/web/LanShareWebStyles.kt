@@ -23,9 +23,20 @@ main{width:100%;max-width:none;min-height:calc(100vh - var(--web-header-height))
 .file-picker{width:44px;height:56px;flex-basis:44px;border:0;border-radius:0;background:transparent;color:var(--accent);font-size:34px;font-weight:500;line-height:1;padding:0}
 .message-input{height:56px;border-radius:28px;border-color:var(--line);background:transparent;font-size:18px;padding:0 22px}
 .send-button{width:88px;height:56px;flex-basis:88px;border:0;border-radius:28px;background:var(--accent);font-size:18px;font-weight:700}
-@media (max-width:599px){.bar{height:62px;padding:0 16px;font-size:20px}.connection-status{font-size:12px}main{min-height:calc(100vh - 62px);padding-bottom:88px}.bottom{padding:10px 12px max(10px,env(safe-area-inset-bottom))}.message-input{height:48px;border-radius:24px;font-size:16px;padding:0 16px}.file-picker{height:48px;width:36px;flex-basis:36px;font-size:30px}.send-button{height:48px;width:68px;flex-basis:68px;border-radius:24px;font-size:16px}}
-@media (min-width:600px) and (max-width:1199px){.bar{height:70px;padding:0 28px;font-size:22px}main{min-height:calc(100vh - 70px)}.bottom{padding:14px 28px max(14px,env(safe-area-inset-bottom))}.send-button{width:80px;flex-basis:80px}}
+@media (max-width:599px){:root{--web-header-height:62px}.bar{height:62px;padding:0 16px;font-size:20px}.connection-status{font-size:12px}main{min-height:calc(100vh - 62px);padding-bottom:88px}.bottom{padding:10px 12px max(10px,env(safe-area-inset-bottom))}.message-input{height:48px;border-radius:24px;font-size:16px;padding:0 16px}.file-picker{height:48px;width:36px;flex-basis:36px;font-size:30px}.send-button{height:48px;width:68px;flex-basis:68px;border-radius:24px;font-size:16px}}
+@media (min-width:600px) and (max-width:1199px){:root{--web-header-height:70px}.bar{height:70px;padding:0 28px;font-size:22px}main{min-height:calc(100vh - 70px)}.bottom{padding:14px 28px max(14px,env(safe-area-inset-bottom))}.send-button{width:80px;flex-basis:80px}}
 @media (min-width:1200px){.bar{height:74px;padding:0 24px;font-size:24px}main{min-height:calc(100vh - 74px)}.bottom{padding:14px 32px max(14px,env(safe-area-inset-bottom))}}
+/* Keep the page chrome stationary and confine vertical scrolling to the transfer list. */
+html,body{height:100%;height:100dvh;overflow:hidden}
+body{display:flex;flex-direction:column}
+.bar{position:relative;z-index:4;flex:0 0 var(--web-header-height)}
+main{flex:1 1 auto;height:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;padding:0 0 16px}
+.bottom{position:relative;inset:auto;flex:0 0 auto}
+/* Keep image bubbles readable without letting high-resolution photos dominate the conversation. */
+.image-item{max-width:min(72vw,320px)}
+.media-preview{max-height:220px}
+@media (min-width:600px) and (max-width:1199px){.image-item{max-width:min(44vw,380px)}.media-preview{max-height:280px}}
+@media (min-width:1200px){.image-item{max-width:min(34vw,420px)}.media-preview{max-height:320px}}
 </style>
 <style>
 /* Non-image downloads use an explicit button; image names remain direct download links. */
