@@ -85,7 +85,7 @@ Set-Location .\android
 .\gradlew.bat :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
 ```
 
-数据库迁移与收藏关联的仪器化测试位于 `android/core/data/src/androidTest/`；局域网服务仪器化测试位于 `android/core/lan-share/src/androidTest/`。这些测试需要 Android 模拟器或连接的测试设备；Beta 发布工作流不运行仪器化测试。
+仓库不再配置 Android instrumentation 测试或模拟器工作流。数据库、局域网服务等依赖 Android 运行环境的行为由维护者在真机上手动验证；持续集成保留 JVM 单元测试、lint 和 Beta APK 构建。
 
 ## 仓库目录
 
