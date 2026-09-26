@@ -9,7 +9,6 @@ import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
-import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
@@ -73,8 +72,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.selection.SelectionContainer
-import kotlin.math.roundToInt
 
 @Composable
 internal fun LanShareContent(
@@ -82,7 +79,6 @@ internal fun LanShareContent(
     message: String,
     dark: Boolean,
     onMessageChange: (String) -> Unit,
-    onRestartHost: () -> LanShareSession,
     onSetQrVisible: (Boolean) -> Unit,
     onSend: (String) -> Unit,
     localFile: (String) -> java.io.File?,
@@ -90,7 +86,6 @@ internal fun LanShareContent(
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
     onSaveFile: (LanShareFile) -> Unit,
-    onNotice: (String) -> Unit,
     onCopyAddress: (String) -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
@@ -99,7 +94,7 @@ internal fun LanShareContent(
     val panel = themeColors.surfaces.surface
     val inputPanel = themeColors.surfaces.inputPanel
     val accent = themeColors.controls.progress
-    var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
+    val qrOpen = lanState.qrVisible
     var imagePreview by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
     var attachmentMenu by remember { mutableStateOf(false) }
     val session = lanState.session
@@ -113,10 +108,8 @@ internal fun LanShareContent(
     val background = themeColors.surfaces.background
     val toggleQr: () -> Unit = {
         if (!qrOpen && lanState.isHost) {
-            runCatching { onRestartHost(); qrOpen = true }
-                .onFailure { onNotice(it.message ?: "无法刷新分享端口") }
+            onSetQrVisible(true)
         } else if (qrOpen) {
-            qrOpen = false
             onSetQrVisible(false)
         }
     }
@@ -133,9 +126,6 @@ internal fun LanShareContent(
             }
             item(key = "connection", contentType = "connection") {
                 LanShareConnectionStatus(lanState.browserConnected)
-            }
-            item(key = "security-notice", contentType = "security-notice") {
-                LanShareSecurityNotice(Modifier.fillMaxWidth().padding(horizontal = 8.dp))
             }
             items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
                 LanShareMessageBubble(
@@ -173,7 +163,7 @@ internal fun LanShareContent(
             dark = dark,
             primary = primary,
             secondary = secondary,
-            onDismiss = { qrOpen = false },
+            onDismiss = { onSetQrVisible(false) },
         )
     }
 

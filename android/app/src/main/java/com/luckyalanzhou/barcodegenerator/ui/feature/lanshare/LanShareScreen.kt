@@ -41,7 +41,6 @@ internal fun LanShareScreen(
         message = message,
         dark = dark,
         onMessageChange = { message = it },
-        onRestartHost = viewModel::restartHostSession,
         onSetQrVisible = viewModel::setQrVisible,
         onSend = { text ->
             val state = viewModel.uiState.value
@@ -58,7 +57,6 @@ internal fun LanShareScreen(
         onOpenGallery = onOpenGallery,
         onOpenFiles = onOpenFiles,
         onSaveFile = onSaveFile,
-        onNotice = onNotice,
         onCopyAddress = onCopyAddress,
     )
 }

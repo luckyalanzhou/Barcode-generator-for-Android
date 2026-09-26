@@ -60,7 +60,6 @@ interface LanShareGateway {
     fun isRouterLanHost(host: String?): Boolean
     fun localFile(id: String): File?
     fun start(): LanShareSession
-    fun restart(): LanShareSession
     fun stop(clearSharedFiles: Boolean = false)
     fun browserConnected(): Boolean
     fun localFiles(): List<LanShareFile>

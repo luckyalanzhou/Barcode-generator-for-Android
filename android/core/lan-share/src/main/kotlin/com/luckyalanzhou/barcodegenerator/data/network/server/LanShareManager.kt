@@ -90,24 +90,21 @@ class LanShareManager(
             .mapNotNull { it.address as? Inet4Address }
             .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
-        val ports = (18080..28080).filter { it != lastPort }.shuffled() + listOfNotNull(lastPort)
-        val running = ports.firstNotNullOfOrNull { port ->
-            runCatching {
-                LanShareServer(
-                    address, port, folder, logger, webPreviewFolder,
-                ).also {
-                    it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
-                }
-            }.getOrNull()
-        } ?: error("无法启动局域网分享服务")
+        val port = (18080..28080).filter { it != lastPort }.random()
+        val running = LanShareServer(address, port, folder, logger, webPreviewFolder).also {
+            try {
+                it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            } catch (error: Exception) {
+                runCatching { it.stop() }
+                throw IllegalStateException("无法在随机端口 $port 启动局域网分享服务", error)
+            }
+        }
         server = running
         lastPort = running.listeningPort
         val session = LanShareSession("http://$address:${running.listeningPort}")
         logger.record("lan", "server started address=${session.baseUrl}", null)
         return session
     }
-
-    override fun restart(): LanShareSession = start(clearSharedFiles = false)
 
     override fun browserConnected() = server?.browserConnected() == true
 

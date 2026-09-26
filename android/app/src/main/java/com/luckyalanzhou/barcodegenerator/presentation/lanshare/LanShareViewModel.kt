@@ -118,24 +118,6 @@ class LanShareViewModel @Inject constructor(
         return true
     }
 
-    fun restartHostSession(): LanShareSession {
-        invalidateRoomRefresh()
-        val session = lanShareGateway.restart()
-        _uiState.update {
-            it.copy(
-                session = session,
-                isHost = true,
-                qrVisible = true,
-                browserConnected = false,
-                files = lanShareGateway.localFiles(),
-                ownFileIds = emptySet(),
-                previewFiles = emptyMap(),
-            )
-        }
-        startAutoRefresh(session)
-        return session
-    }
-
     fun closeSession() {
         invalidateRoomRefresh()
         lanShareGateway.stop(clearSharedFiles = true)
