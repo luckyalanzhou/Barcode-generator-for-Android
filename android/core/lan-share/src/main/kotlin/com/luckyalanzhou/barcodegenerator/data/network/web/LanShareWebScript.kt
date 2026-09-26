@@ -30,6 +30,11 @@ function isImageName(name) {
     return /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name || '');
 }
 
+function isOwnFile(file) {
+    // Older browser uploads have no client ID, so the server can only label them "browser".
+    return file.sender === 'browser:' + clientId || file.sender === 'browser';
+}
+
 function formatSize(bytes) {
     const value = Number(bytes) || 0;
     if (value >= 1024 * 1024 * 1024) return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
@@ -51,7 +56,7 @@ function createFileItem(file) {
     const item = document.createElement('li');
     const url = fileUrl(file);
     item.dataset.fileId = file.id;
-    item.className = file.sender === 'browser:' + clientId ? 'mine' : 'peer';
+    item.className = isOwnFile(file) ? 'mine' : 'peer';
 
     if (isImageName(file.name)) {
         const preview = document.createElement('img');
@@ -104,7 +109,7 @@ function reconcileFiles(list) {
         const oldItem = current.get(file.id);
         const item = oldItem || createFileItem(file);
         if (oldItem) {
-            item.className = file.sender === 'browser:' + clientId ? 'mine' : 'peer';
+            item.className = isOwnFile(file) ? 'mine' : 'peer';
             if (isImageName(file.name)) item.classList.add('image-item');
             const name = item.querySelector('.file-name');
             const download = item.querySelector('.download');
