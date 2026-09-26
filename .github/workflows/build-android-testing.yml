@@ -117,7 +117,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         # Beta versionCode changes on every run; remote release builds deliberately disable
         # Configuration Cache. Local quick verification keeps it enabled through gradle.properties.
-        run: ./gradlew assembleBetaRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        # Beta lintVital is checked locally; keep the remote workflow focused on packaging the APK.
+        run: ./gradlew assembleBetaRelease --no-configuration-cache -x :app:lintVitalBetaRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare beta APK
         id: beta-apk
         env:

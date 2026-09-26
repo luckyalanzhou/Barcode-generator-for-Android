@@ -95,7 +95,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleOfficialRelease --no-configuration-cache -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        # The workflow already runs official release lint above; skip only assemble's duplicate vital lint.
+        run: ./gradlew assembleOfficialRelease --no-configuration-cache -x :app:lintVitalOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare release APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
