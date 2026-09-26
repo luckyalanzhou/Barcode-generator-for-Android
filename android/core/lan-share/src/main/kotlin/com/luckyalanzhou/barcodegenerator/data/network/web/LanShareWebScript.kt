@@ -64,7 +64,7 @@ function rememberOwnFile(id) {
 }
 
 function isImageName(name) {
-    return /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name || '');
+    return /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|avif|tif|tiff)$/i.test(name || '');
 }
 
 function isOwnFile(file) {
@@ -97,14 +97,17 @@ function createFileItem(file) {
 
     if (isImageName(file.name)) {
         const preview = document.createElement('img');
-        preview.src = url;
         preview.className = 'media-preview';
-        preview.alt = file.name || '图片';
+        preview.alt = '';
         preview.loading = 'lazy';
         preview.decoding = 'async';
         preview.tabIndex = 0;
         preview.setAttribute('role', 'button');
-        preview.setAttribute('aria-label', '预览图片：' + preview.alt);
+        preview.setAttribute('aria-label', '预览图片：' + (file.name || '图片'));
+        preview.addEventListener('error', () => {
+            preview.remove();
+            item.classList.remove('image-item');
+        }, { once: true });
         preview.addEventListener('keydown', event => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
@@ -112,6 +115,7 @@ function createFileItem(file) {
         });
         item.classList.add('image-item');
         item.appendChild(preview);
+        preview.src = url;
     }
 
     const imageFile = isImageName(file.name);

@@ -55,4 +55,13 @@ class LanShareWebScriptTest {
         assertTrue(page.contains("function clampPreviewOffsets(baseWidth, baseHeight)"))
         assertTrue(page.contains("name.download = file.name || '附件'"))
     }
+
+    @Test
+    fun browserRecognizesCommonImageTypesAndHidesUnsupportedBrokenPreview() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("bmp|heic|heif|avif|tif|tiff"))
+        assertTrue(script.contains("preview.addEventListener('error'"))
+        assertTrue(script.contains("item.classList.remove('image-item')"))
+    }
 }

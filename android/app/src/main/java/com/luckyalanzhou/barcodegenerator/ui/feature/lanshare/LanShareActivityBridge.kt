@@ -11,6 +11,7 @@ import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
@@ -184,8 +185,24 @@ internal fun MainActivity.saveLanShareFile(file: LanShareFile) {
     )
 }
 
-/** 相机照片常把方向保存在 EXIF；BitmapFactory 不会自动应用，预览前校正方向。 */
-internal fun decodeLanSharePreview(file: File): Bitmap? = runCatching {
+/** 优先走新系统解码器（HEIF/AVIF 等）；输出长边限为 4096，原文件保持不变。 */
+private fun decodeLanShareWithImageDecoder(file: File): Bitmap? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+    return runCatching {
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
+            val width = info.size.width
+            val height = info.size.height
+            val longestEdge = maxOf(width, height)
+            if (width > 0 && height > 0 && longestEdge > LAN_SHARE_PREVIEW_MAX_DECODE_EDGE) {
+                val scale = LAN_SHARE_PREVIEW_MAX_DECODE_EDGE.toFloat() / longestEdge
+                decoder.setTargetSize((width * scale).toInt().coerceAtLeast(1), (height * scale).toInt().coerceAtLeast(1))
+            }
+        }
+    }.getOrNull()
+}
+
+/** 老系统使用 BitmapFactory；相机照片的 EXIF 方向在此路径手动校正。 */
+internal fun decodeLanSharePreview(file: File): Bitmap? = decodeLanShareWithImageDecoder(file) ?: runCatching {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.absolutePath, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null

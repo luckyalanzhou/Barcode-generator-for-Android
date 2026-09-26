@@ -25,8 +25,11 @@ internal fun mimeTypeForName(name: String) = when (name.substringAfterLast('.', 
     "png" -> "image/png"
     "gif" -> "image/gif"
     "webp" -> "image/webp"
+    "bmp" -> "image/bmp"
     "heic" -> "image/heic"
     "heif" -> "image/heif"
+    "avif" -> "image/avif"
+    "tif", "tiff" -> "image/tiff"
     "mp4" -> "video/mp4"
     else -> "application/octet-stream"
 }
