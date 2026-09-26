@@ -7,6 +7,8 @@ import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
+import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
+import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -296,8 +298,8 @@ class LanShareViewModel @Inject constructor(
                 currentCoroutineContext().ensureActive()
                 val preview = java.io.File(previewFolder, previewCacheKey(session, file.id)).canonicalFile
                 require(preview.parentFile == previewFolder) { "图片预览路径无效" }
-                if (!preview.isFile && file.size <= 16L * 1024L * 1024L &&
-                    cachedBytes + file.size <= 64L * 1024L * 1024L
+                if (!preview.isFile && file.size <= LAN_SHARE_PREVIEW_MAX_FILE_BYTES &&
+                    cachedBytes + file.size <= LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
                 ) {
                     runCatching { lanShareGateway.downloadPreview(session, file.id, preview) }
                     cachedBytes += preview.length()

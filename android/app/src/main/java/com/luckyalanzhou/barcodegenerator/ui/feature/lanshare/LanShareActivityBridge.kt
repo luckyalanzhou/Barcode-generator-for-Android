@@ -185,8 +185,17 @@ internal fun MainActivity.saveLanShareFile(file: LanShareFile) {
 }
 
 /** 相机照片常把方向保存在 EXIF；BitmapFactory 不会自动应用，预览前校正方向。 */
-internal fun decodeLanSharePreview(file: File): Bitmap? {
-    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+internal fun decodeLanSharePreview(file: File): Bitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
+
+    val bitmap = BitmapFactory.decodeFile(
+        file.absolutePath,
+        BitmapFactory.Options().apply {
+            inSampleSize = lanSharePreviewSampleSize(bounds.outWidth, bounds.outHeight)
+        },
+    ) ?: return@runCatching null
     val orientation = runCatching {
         ExifInterface(file.absolutePath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
     }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
@@ -196,11 +205,10 @@ internal fun decodeLanSharePreview(file: File): Bitmap? {
         ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 270f
         else -> 0f
     }
-    if (rotation == 0f) return bitmap
-    return runCatching {
+    if (rotation == 0f) bitmap else runCatching {
         Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(rotation) }, true)
     }.getOrDefault(bitmap)
-}
+}.getOrNull()
 
 internal fun formatLanShareSize(bytes: Long): String =
     if (bytes >= 1024L * 1024L) {

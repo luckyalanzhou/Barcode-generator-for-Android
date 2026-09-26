@@ -1,23 +1,53 @@
 package com.luckyalanzhou.barcodegenerator.data.network.client
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LanSharePreviewStreamTest {
     @Test
     fun acceptsPayloadAtPreviewLimit() {
-        val input = ByteArrayInputStream(ByteArray(MAX_LAN_SHARE_PREVIEW_BYTES.toInt()))
-        val output = ByteArrayOutputStream()
+        val input = SizedInputStream(MAX_LAN_SHARE_PREVIEW_BYTES)
+        val output = CountingOutputStream()
 
         assertEquals(MAX_LAN_SHARE_PREVIEW_BYTES, copyLanSharePreview(input, output))
-        assertEquals(MAX_LAN_SHARE_PREVIEW_BYTES.toInt(), output.size())
+        assertEquals(MAX_LAN_SHARE_PREVIEW_BYTES, output.bytesWritten)
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun rejectsPayloadOverPreviewLimit() {
-        val input = ByteArrayInputStream(ByteArray(MAX_LAN_SHARE_PREVIEW_BYTES.toInt() + 1))
-        copyLanSharePreview(input, ByteArrayOutputStream())
+        copyLanSharePreview(SizedInputStream(MAX_LAN_SHARE_PREVIEW_BYTES + 1L), CountingOutputStream())
+    }
+
+    private class SizedInputStream(totalBytes: Long) : InputStream() {
+        private var remaining = totalBytes
+
+        override fun read(): Int = if (remaining == 0L) -1 else {
+            remaining--
+            0
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (length == 0) return 0
+            val count = minOf(length.toLong(), remaining).toInt()
+            if (count == 0) return -1
+            buffer.fill(0, offset, offset + count)
+            remaining -= count
+            return count
+        }
+    }
+
+    private class CountingOutputStream : OutputStream() {
+        var bytesWritten = 0L
+            private set
+
+        override fun write(value: Int) {
+            bytesWritten++
+        }
+
+        override fun write(buffer: ByteArray, offset: Int, length: Int) {
+            bytesWritten += length
+        }
     }
 }

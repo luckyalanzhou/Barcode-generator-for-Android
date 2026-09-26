@@ -52,6 +52,10 @@ data class LanShareSession(
     }
 }
 
+/** Keep preview downloads bounded while accommodating full-resolution phone photos. */
+const val LAN_SHARE_PREVIEW_MAX_FILE_BYTES = 64L * 1024L * 1024L
+const val LAN_SHARE_PREVIEW_CACHE_MAX_BYTES = 256L * 1024L * 1024L
+
 /** File types that can be rendered as LAN Share previews. */
 fun isLanShareImageName(name: String): Boolean =
     name.substringAfterLast('.', "").lowercase() in

@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data.network.client
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
+import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.multipartFileName
@@ -118,10 +119,10 @@ internal class LanShareClient(
         }
 
     fun downloadPreview(session: LanShareSession, id: String, destination: File) =
-        request(session, "/api/download/${Uri.encode(id)}") { connection ->
+        request(session, "/api/download/${Uri.encode(id)}", readTimeoutMs = 120_000) { connection ->
             val declaredSize = connection.getHeaderFieldLong("Content-Length", -1L)
-            require(declaredSize < 0L || declaredSize <= MAX_LAN_SHARE_PREVIEW_BYTES) {
-                "图片预览超过 16 MB 限制"
+            require(declaredSize < 0L || declaredSize <= LAN_SHARE_PREVIEW_MAX_FILE_BYTES) {
+                "图片预览超过 64 MB 限制"
             }
             destination.parentFile?.mkdirs()
             val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
@@ -136,11 +137,17 @@ internal class LanShareClient(
             }
         }
 
-    private fun <T> request(session: LanShareSession, path: String, output: Boolean = false, block: (HttpURLConnection) -> T): T {
+    private fun <T> request(
+        session: LanShareSession,
+        path: String,
+        output: Boolean = false,
+        readTimeoutMs: Int = 30_000,
+        block: (HttpURLConnection) -> T,
+    ): T {
         require(isRouterLanHost(Uri.parse(session.baseUrl).host)) { "分享地址不在当前路由器网关子网内" }
         val connection = (URL(session.baseUrl + path).openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
-            readTimeout = 30_000
+            readTimeout = readTimeoutMs
             requestMethod = if (output) "POST" else "GET"
             setRequestProperty("X-Lan-Token", session.accessToken)
             doOutput = output
