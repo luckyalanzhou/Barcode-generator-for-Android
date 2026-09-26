@@ -1,33 +1,54 @@
-# 条码生成器 Android
+<div align="center">
 
-一款使用 Kotlin 和 Jetpack Compose 开发的 Android 条码工具，支持批量生成、识别、历史与收藏管理，以及手机和浏览器之间的局域网文件传输。
+# 条码生成器 · Android
 
-主界面包含生成、历史记录、收藏和设置四个主要页面。
+<p>快速生成、识别和整理条码，也可在手机与浏览器之间通过局域网传输文件。</p>
 
-## Beta 版本
+<p>
+  <a href="https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9"><strong>下载最新 Beta APK</strong></a>
+  &nbsp;·&nbsp;
+  <a href="android/ARCHITECTURE.md">查看架构说明</a>
+</p>
 
-- Beta 分支：`beta`
-- `versionName`：`9.9.9`；Beta 工作流每次发布递增 `versionCode`
-- 应用 ID：`com.luckyalanzhou.barcodegenerator.test`（与正式版分开安装）
-- 最低系统版本：Android 8.0（API 26）
-- 最新 Beta Release：[下载页面](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9)
-- APK 文件名：`BarcodeGeneratorBeta9.9.9.apk`
+<p>
+  <a href="https://github.com/luckyalanzhou/Barcode-generator-for-Android/actions/workflows/build-android-testing.yml?query=branch%3Abeta"><img alt="Beta APK workflow" src="https://img.shields.io/github/actions/workflow/status/luckyalanzhou/Barcode-generator-for-Android/build-android-testing.yml?branch=beta&label=Beta%20build&logo=github"></a>
+  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white">
+</p>
 
-Beta 是测试渠道版本，不建议作为唯一的生产环境应用使用。每次 Beta 工作流成功发布时，会更新上述 Release 的 APK，并使用递增的 `versionCode`。
+</div>
 
-## 功能
+## 项目简介
 
-- **生成条码**：支持 Code 128-B、QR Code、Code 39、EAN-13、EAN-8、UPC-A、ITF-14 和 Codabar；可按行批量输入，并校验格式及数字条码校验位。
-- **调整外观**：设置条码宽度、高度、间距、文字大小、文字位置、是否显示内容与格式，以及配色方案。
-- **相机与图片识别**：识别条码内容；使用中文 OCR 提取图片文字，可配置常见字符混淆纠正。
-- **历史记录**：查看、重新生成、复制、分享和删除历史条码。
-- **收藏管理**：将条码保存到收藏，按文件夹整理、搜索、移动、重命名或删除；支持收藏数据导入和导出。
-- **局域网传输**：在同一局域网内通过浏览器与手机互传文字、图片及文件，并可使用二维码或手动访问码加入会话。
-- **应用设置**：支持浅色/深色外观、恢复条码默认设置、应用内更新检查；Beta 版本另提供诊断日志导出。
+一款以 Jetpack Compose 构建的 Android 条码工具。生成与识别在设备上完成；历史、收藏和样式保存在本机。需要跨设备传文件时，可开启局域网分享，让手机和普通浏览器互相发送文字、图片及附件。
 
-## 架构
+| Beta 信息 | 详情 |
+| --- | --- |
+| 发布渠道 | `beta` 分支；与正式版分开安装 |
+| 应用 ID | `com.luckyalanzhou.barcodegenerator.test` |
+| Android 版本 | Android 8.0（API 26）及以上 |
+| 版本号 | `versionName` 固定为 `9.9.9`，Beta Release 持续递增 `versionCode` |
+| 下载 | [最新 Beta Release](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9) |
 
-项目由四个 Gradle 模块组成，依赖方向如下：
+## 功能亮点
+
+| 功能 | 说明 |
+| --- | --- |
+| **生成条码** | QR Code、Code 128-B、Code 39、EAN-13、EAN-8、UPC-A、ITF-14、Codabar；支持逐行批量输入和格式校验。 |
+| **识别内容** | 使用相机或图片识别条码；图片文字可通过中文 OCR 提取，并可配置常见字符混淆纠正。 |
+| **历史记录** | 浏览历史条码，重新生成、复制、分享或删除。 |
+| **收藏整理** | 将条码保存到收藏夹，按文件夹整理和搜索；支持移动、重命名、导入与导出。 |
+| **局域网传输** | 手机与浏览器互传文字、图片和文件；使用二维码链接或手动访问码加入会话。 |
+| **样式与设置** | 调整条码尺寸、间距、文字和配色；支持浅色/深色外观、应用更新检查。Beta 版可导出诊断日志。 |
+
+## 主要页面
+
+- **生成**：选择格式、输入内容并生成条码，可一次处理多行内容。
+- **历史**：集中查看并复用最近生成的条码。
+- **收藏**：管理常用条码与文件夹，也可备份和恢复收藏数据。
+- **设置**：调整生成样式、外观和应用选项。
+
+## 项目架构
 
 ```text
 :app ───────────────> :core:domain
@@ -37,68 +58,52 @@ Beta 是测试渠道版本，不建议作为唯一的生产环境应用使用。
 
 | 模块 | 职责 |
 | --- | --- |
-| `:app` | Compose 界面、ViewModel、页面状态和流程协调、Hilt 依赖装配，以及相机、文件选择器等 Android 系统桥接 |
-| `:core:domain` | 领域模型、条码校验、用例、Repository/平台接口；不依赖 Android、Compose 或 Room |
-| `:core:data` | Repository 实现、Room、DataStore、文件适配，以及 ZXing、ML Kit 和 APK 更新相关的平台实现 |
-| `:core:lan-share` | 嵌入 APK 的局域网 HTTP 服务、客户端、传输协议和浏览器页面；实现 Domain 中的 `LanShareGateway` |
+| `:app` | Compose 页面、ViewModel、页面状态与流程协调、Hilt 装配及 Android 系统交互 |
+| `:core:domain` | 领域模型、业务规则、用例和 Repository/平台接口 |
+| `:core:data` | Room、DataStore、Repository 实现、文件与平台适配、条码识别和更新能力 |
+| `:core:lan-share` | 局域网 HTTP 服务与客户端、传输协议及内嵌浏览器页面 |
 
-主要调用链为 `Compose UI → ViewModel/Coordinator → Domain 用例与接口 → Data 实现`。Composable 不直接访问 DAO、文件系统或网络。
+核心数据流：`Compose UI → ViewModel → Domain 接口/用例 → Data 实现`。局域网分享作为独立 Android Library 随应用一起打包。架构边界、状态管理和持久化说明见[架构文档](android/ARCHITECTURE.md)。
 
-页面切换由 `AppNavigationViewModel` 持有的路由状态驱动，Activity 负责保存和恢复必要的页面状态；当前没有使用 `NavController` 或 Navigation Compose 导航栈。结果页通过稳定 ID 和 `SavedStateHandle` 恢复数据，而不是把整份数据或位图放入状态保存对象。
+## 数据与连接安全
 
-### 数据与持久化
+- 历史、收藏和应用偏好保存在设备本地；局域网分享仅在用户启动会话时开放。
+- 分享会话使用随机令牌；也可以通过四位数字与大写英文字母组成的访问码加入。
+- 局域网传输采用 HTTP，不提供传输加密。请仅在可信网络中使用，并在传输结束后关闭分享会话。
 
-- Room 保存历史条码、收藏分组及条目关联，并包含数据库版本迁移。
-- DataStore 保存条码样式和应用偏好；旧版 `SharedPreferences` 数据通过迁移器兼容导入。
-- 收藏备份由用户主动导入或导出。Android 系统备份规则会排除局域网临时附件和调试日志。
-- 条码生成和收藏数据默认由应用本地数据层管理；局域网传输服务只在用户启动分享会话时运行。
-
-### 局域网分享安全提示
-
-每次分享会话都会生成随机访问令牌和四位手动访问码，停止并重新启动服务后旧凭据失效；访问码也有错误尝试限制。**局域网传输使用 HTTP，访问令牌和访问码不是加密机制。**请仅在可信网络中分享，并只把二维码或链接提供给可信设备；传输结束后关闭分享服务。
-
-## 开发与构建
+## 开发与验证
 
 ### 环境要求
 
 - JDK 17
-- Android SDK 37（`compileSdk`）；最低支持 API 26
-- 使用仓库提供的 Gradle Wrapper，无需单独安装 Gradle
+- Android SDK Platform 37
+- 仓库自带 Gradle Wrapper
 
-### 本地构建 Beta
+### 本地运行测试与 lint
 
-在 Windows PowerShell 中从仓库根目录执行：
-
-```powershell
-Set-Location .\android
-.\gradlew.bat assembleBetaRelease
-```
-
-APK 输出目录：`android/app/build/outputs/apk/beta/release/`。本地版本号来自 `android/beta-version.properties`；CI 会按 Beta Release 元数据分配递增的 `versionCode` 并签名发布。正式构建由 `main` 分支上的手动工作流执行，需提供正式版 `versionName` 和 `versionCode`。
-
-### 单元测试与 lint
-
-以下命令与 Beta 发布工作流执行的验证任务一致：
+在仓库根目录使用 Windows PowerShell：
 
 ```powershell
 Set-Location .\android
 .\gradlew.bat :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
 ```
 
-仓库不再配置 Android instrumentation 测试或模拟器工作流。数据库、局域网服务等依赖 Android 运行环境的行为由维护者在真机上手动验证；持续集成保留 JVM 单元测试、lint 和 Beta APK 构建。
+### Beta APK
 
-## 仓库目录
+Beta APK 由 `beta` 分支上的 **Build Android Beta APK** 手动工作流签名打包并发布到 [Beta Release](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9)。APK 名称为 `BarcodeGeneratorBeta9.9.9.apk`；Beta 安装包与正式版分开，可并行安装。
+
+## 仓库结构
 
 ```text
 .
-├─ .github/workflows/       # Beta 与正式版的手动构建、测试和发布工作流
+├─ .github/workflows/       # Beta 与正式版构建发布工作流
+├─ README.md
 └─ android/
-   ├─ app/                  # Android 应用、Compose UI、ViewModel、协调器和 Hilt 装配
+   ├─ app/                  # Android 应用与 Compose 界面
    ├─ core/
-   │  ├─ domain/            # 纯 Kotlin 领域模型、规则、用例和接口
-   │  └─ data/              # Room、DataStore、网络、文件与 Android 平台适配
-   ├─ ARCHITECTURE.md       # 架构边界、状态、导航、持久化及安全约束
+   │  ├─ domain/            # 领域模型、规则和接口
+   │  ├─ data/              # 数据持久化与平台实现
+   │  └─ lan-share/         # 局域网传输模块
+   ├─ ARCHITECTURE.md
    └─ beta-version.properties
 ```
-
-架构细则见 [`android/ARCHITECTURE.md`](android/ARCHITECTURE.md)。
