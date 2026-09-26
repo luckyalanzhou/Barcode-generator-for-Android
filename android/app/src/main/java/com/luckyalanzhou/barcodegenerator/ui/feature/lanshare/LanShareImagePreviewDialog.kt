@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,16 +20,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -51,17 +60,63 @@ internal fun LanShareImagePreviewDialog(
         ),
     ) {
         val dialogView = LocalView.current
+        val scale = remember(bitmap) { mutableFloatStateOf(1f) }
+        val translation = remember(bitmap) { mutableStateOf(Offset.Zero) }
+        val viewportSize = remember(bitmap) { mutableStateOf(IntSize.Zero) }
         SideEffect {
             val dialogWindow = (dialogView.parent as? DialogWindowProvider)?.window
             dialogWindow?.applyImagePreviewSystemBars()
         }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = fileName,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 8.dp, top = 64.dp, bottom = 24.dp),
-            )
+            Box(
+                modifier = Modifier.fillMaxSize()
+                    .padding(start = 8.dp, end = 8.dp, top = 64.dp, bottom = 24.dp)
+                    .onSizeChanged { viewportSize.value = it }
+            ) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = fileName,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                        .pointerInput(bitmap) {
+                            detectTransformGestures { centroid, pan, zoom, _ ->
+                                val oldScale = scale.floatValue
+                                val newScale = (oldScale * zoom).coerceIn(1f, 5f)
+                                val zoomFactor = newScale / oldScale
+                                val center = Offset(size.width / 2f, size.height / 2f)
+                                val nextTranslation =
+                                    (translation.value - (centroid - center)) * zoomFactor +
+                                        (centroid - center) + pan
+
+                                if (newScale == 1f) {
+                                    translation.value = Offset.Zero
+                                } else {
+                                    val currentSize = viewportSize.value
+                                    val fitScale = minOf(
+                                        currentSize.width.toFloat() / bitmap.width.coerceAtLeast(1),
+                                        currentSize.height.toFloat() / bitmap.height.coerceAtLeast(1),
+                                    )
+                                    val maxX = ((bitmap.width * fitScale * newScale) - currentSize.width)
+                                        .coerceAtLeast(0f) / 2f
+                                    val maxY = ((bitmap.height * fitScale * newScale) - currentSize.height)
+                                        .coerceAtLeast(0f) / 2f
+                                    translation.value = Offset(
+                                        nextTranslation.x.coerceIn(-maxX, maxX),
+                                        nextTranslation.y.coerceIn(-maxY, maxY),
+                                    )
+                                }
+                                scale.floatValue = newScale
+                            }
+                        }
+                        .graphicsLayer {
+                            scaleX = scale.floatValue
+                            scaleY = scale.floatValue
+                            translationX = translation.value.x
+                            translationY = translation.value.y
+                            transformOrigin = TransformOrigin.Center
+                        },
+                )
+            }
             Row(
                 modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding()
                     .padding(start = 16.dp, end = 16.dp, top = 10.dp),

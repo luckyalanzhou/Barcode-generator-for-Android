@@ -9,6 +9,12 @@ const messageInput = document.getElementById('message');
 const connectionStatus = document.getElementById('connection-status');
 const attachmentSheet = document.getElementById('attachment-sheet');
 const attachmentButton = document.getElementById('attachment-button');
+const imageViewer = document.getElementById('image-viewer');
+const imageViewerStage = document.getElementById('image-viewer-stage');
+const imageViewerImage = document.getElementById('image-viewer-image');
+const imageViewerTitle = document.getElementById('image-viewer-title');
+const imageViewerClose = document.getElementById('image-viewer-close');
+const imageViewerReset = document.getElementById('image-viewer-reset');
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
@@ -65,6 +71,14 @@ function createFileItem(file) {
         preview.alt = file.name || '图片';
         preview.loading = 'lazy';
         preview.decoding = 'async';
+        preview.tabIndex = 0;
+        preview.setAttribute('role', 'button');
+        preview.setAttribute('aria-label', '预览图片：' + preview.alt);
+        preview.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            preview.click();
+        });
         item.classList.add('image-item');
         item.appendChild(preview);
     }
@@ -94,6 +108,111 @@ function createFileItem(file) {
     }
     return item;
 }
+
+let previewScale = 1;
+let previewOffsetX = 0;
+let previewOffsetY = 0;
+let previewOrigin = null;
+let previewDrag = null;
+
+function applyPreviewTransform() {
+    imageViewerImage.style.transform = 'translate(' + previewOffsetX + 'px, ' + previewOffsetY + 'px) scale(' + previewScale + ')';
+    imageViewerImage.classList.toggle('zoomed', previewScale > 1);
+    imageViewerImage.classList.remove('dragging');
+}
+
+function resetPreviewTransform() {
+    previewScale = 1;
+    previewOffsetX = 0;
+    previewOffsetY = 0;
+    previewDrag = null;
+    applyPreviewTransform();
+}
+
+function clampPreviewOffsets(baseWidth, baseHeight) {
+    const maxX = Math.max(0, (baseWidth * previewScale - imageViewerStage.clientWidth) / 2);
+    const maxY = Math.max(0, (baseHeight * previewScale - imageViewerStage.clientHeight) / 2);
+    previewOffsetX = Math.max(-maxX, Math.min(maxX, previewOffsetX));
+    previewOffsetY = Math.max(-maxY, Math.min(maxY, previewOffsetY));
+}
+
+function closeImageViewer() {
+    imageViewer.hidden = true;
+    document.body.classList.remove('preview-open');
+    if (previewOrigin && previewOrigin.isConnected) previewOrigin.focus();
+    previewOrigin = null;
+    previewDrag = null;
+}
+
+fileList.addEventListener('click', event => {
+    const image = event.target.closest('img.media-preview');
+    if (!image) return;
+    event.preventDefault();
+    previewOrigin = image;
+    imageViewerImage.src = image.currentSrc || image.src;
+    imageViewerImage.alt = image.alt || '图片预览';
+    imageViewerTitle.textContent = image.alt || '图片预览';
+    resetPreviewTransform();
+    imageViewer.hidden = false;
+    document.body.classList.add('preview-open');
+    imageViewerClose.focus();
+});
+
+imageViewerClose.addEventListener('click', closeImageViewer);
+imageViewerReset.addEventListener('click', resetPreviewTransform);
+imageViewer.addEventListener('click', event => {
+    if (event.target === imageViewer || event.target === imageViewerStage) closeImageViewer();
+});
+imageViewer.addEventListener('wheel', event => {
+    if (imageViewer.hidden) return;
+    event.preventDefault();
+    const nextScale = Math.max(1, Math.min(5, previewScale * (event.deltaY < 0 ? 1.15 : 1 / 1.15)));
+    if (nextScale === previewScale) return;
+    const rect = imageViewerImage.getBoundingClientRect();
+    const factor = nextScale / previewScale;
+    const baseWidth = rect.width / previewScale;
+    const baseHeight = rect.height / previewScale;
+    previewOffsetX += (event.clientX - (rect.left + rect.width / 2)) * (1 - factor);
+    previewOffsetY += (event.clientY - (rect.top + rect.height / 2)) * (1 - factor);
+    previewScale = nextScale;
+    if (previewScale === 1) {
+        previewOffsetX = 0;
+        previewOffsetY = 0;
+    } else {
+        clampPreviewOffsets(baseWidth, baseHeight);
+    }
+    applyPreviewTransform();
+}, { passive: false });
+
+imageViewerImage.addEventListener('pointerdown', event => {
+    if (previewScale <= 1 || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    previewDrag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, offsetX: previewOffsetX, offsetY: previewOffsetY };
+    imageViewerImage.setPointerCapture(event.pointerId);
+    imageViewerImage.classList.add('dragging');
+    event.preventDefault();
+});
+imageViewerImage.addEventListener('pointermove', event => {
+    if (!previewDrag || previewDrag.pointerId !== event.pointerId) return;
+    const rect = imageViewerImage.getBoundingClientRect();
+    previewOffsetX = previewDrag.offsetX + event.clientX - previewDrag.x;
+    previewOffsetY = previewDrag.offsetY + event.clientY - previewDrag.y;
+    clampPreviewOffsets(rect.width / previewScale, rect.height / previewScale);
+    imageViewerImage.style.transform = 'translate(' + previewOffsetX + 'px, ' + previewOffsetY + 'px) scale(' + previewScale + ')';
+});
+function finishPreviewDrag(event) {
+    if (!previewDrag || previewDrag.pointerId !== event.pointerId) return;
+    previewDrag = null;
+    imageViewerImage.classList.remove('dragging');
+}
+imageViewerImage.addEventListener('pointerup', finishPreviewDrag);
+imageViewerImage.addEventListener('pointercancel', finishPreviewDrag);
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !imageViewer.hidden) {
+        event.preventDefault();
+        closeImageViewer();
+    }
+});
 
 /** 用服务端快照对齐列表，删除已不存在的记录并保持服务端顺序。 */
 function reconcileFiles(list) {
