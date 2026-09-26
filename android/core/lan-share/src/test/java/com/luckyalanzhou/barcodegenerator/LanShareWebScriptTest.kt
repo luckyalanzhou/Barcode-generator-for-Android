@@ -8,6 +8,15 @@ import org.junit.Test
 
 class LanShareWebScriptTest {
     @Test
+    fun browserClientIdentitySurvivesServerPortChanges() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("function readClientIdCookie()"))
+        assertTrue(script.contains("readClientIdCookie() || localStorage.getItem(clientIdKey)"))
+        assertTrue(script.contains("Max-Age=31536000; SameSite=Lax"))
+    }
+
+    @Test
     fun browserPageTreatsLegacyBrowserUploadsAsOwnMessages() {
         val script = LanShareWebScript.render()
 

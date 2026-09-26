@@ -25,11 +25,25 @@ function authorizedUrl(path) {
     return url.pathname + url.search;
 }
 
-let clientId = localStorage.getItem(clientIdKey);
-if (!clientId) {
-    clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem(clientIdKey, clientId);
+function readClientIdCookie() {
+    const cookiePrefix = encodeURIComponent(clientIdKey) + '=';
+    const cookie = document.cookie.split(';').map(part => part.trim()).find(part => part.startsWith(cookiePrefix));
+    if (!cookie) return '';
+    try {
+        return decodeURIComponent(cookie.slice(cookiePrefix.length));
+    } catch (_) {
+        return '';
+    }
 }
+
+let clientId = readClientIdCookie() || localStorage.getItem(clientIdKey);
+if (!/^c[a-zA-Z0-9_-]{8,63}$/.test(clientId || '')) {
+    clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+localStorage.setItem(clientIdKey, clientId);
+// Cookies are shared across ports for the same host, unlike localStorage. Keep sender identity
+// stable when the app restarts its LAN server on a different port and retains previous files.
+document.cookie = encodeURIComponent(clientIdKey) + '=' + encodeURIComponent(clientId) + '; Path=/; Max-Age=31536000; SameSite=Lax';
 
 function isImageName(name) {
     return /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name || '');
