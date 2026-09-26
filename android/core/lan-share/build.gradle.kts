@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(libs.nanohttpd)
     implementation(libs.nanohttpd.websocket)
+    implementation(libs.tiff.renderer)
 
     testImplementation(libs.junit)
 

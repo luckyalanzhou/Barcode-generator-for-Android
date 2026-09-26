@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiffName
+import com.luckyalanzhou.barcodegenerator.data.preview.LanShareTiffPreviewDecoder
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
@@ -28,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +42,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun LanShareMessageBubble(
@@ -55,7 +60,15 @@ internal fun LanShareMessageBubble(
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
     val previewFile = (localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
-    val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
+    val previewState = produceState<Bitmap?>(null, file.id, previewFile?.absolutePath, previewFile?.lastModified()) {
+        val source = previewFile ?: return@produceState
+        value = if (isLanShareTiffName(file.name)) {
+            LanShareTiffPreviewDecoder.decode(source, LAN_SHARE_PREVIEW_MAX_DECODE_EDGE)
+        } else {
+            withContext(Dispatchers.IO) { decodeLanSharePreview(source) }
+        }
+    }
+    val preview = previewState.value
     val previewSize = remember(preview?.width, preview?.height) {
         preview?.let { fitLanSharePreviewSize(it.width, it.height) }
     }

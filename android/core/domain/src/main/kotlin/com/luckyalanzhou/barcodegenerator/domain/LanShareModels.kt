@@ -59,7 +59,10 @@ const val LAN_SHARE_PREVIEW_CACHE_MAX_BYTES = 256L * 1024L * 1024L
 /** File types that can be rendered as LAN Share previews. */
 fun isLanShareImageName(name: String): Boolean =
     name.substringAfterLast('.', "").lowercase() in
-        setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif")
+        setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif", "tif", "tiff")
+
+fun isLanShareTiffName(name: String): Boolean =
+    name.substringAfterLast('.', "").lowercase() in setOf("tif", "tiff")
 
 /** Platform-neutral upload input; the app layer supplies the stream from a Uri. */
 data class LanShareUploadSource(

@@ -1,20 +1,15 @@
 package com.luckyalanzhou.barcodegenerator.domain
 
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LanShareImageNameTest {
     @Test
-    fun recognizesSystemSupportedAndroidImageTypes() {
-        listOf("photo.bmp", "photo.HEIC", "photo.heif", "photo.avif").forEach {
+    fun recognizesAndroidAndTiffPreviewTypes() {
+        listOf("photo.bmp", "photo.HEIC", "photo.heif", "photo.avif", "scan.tif", "scan.TIFF").forEach {
             assertTrue(it, isLanShareImageName(it))
         }
-    }
-
-    @Test
-    fun leavesTiffAsDownloadableAttachmentOnAndroid() {
-        assertFalse(isLanShareImageName("scan.tif"))
-        assertFalse(isLanShareImageName("scan.tiff"))
+        assertTrue(isLanShareTiffName("scan.tif"))
+        assertTrue(isLanShareTiffName("scan.TIFF"))
     }
 }
