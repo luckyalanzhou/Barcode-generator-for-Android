@@ -15,7 +15,6 @@ class BarcodeDataCoordinator @Inject constructor(
     private val backupRepository: FavoritesBackupRepository,
     val persistence: BarcodePersistenceCoordinator,
 ) {
-    suspend fun loadStartupGroupItemIds(groupId: Long) = repository.loadGroupItemIds(groupId)
     suspend fun loadItemsByIds(ids: List<Long>) = repository.loadItemsByIds(ids)
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary = backupRepository.inspectImport(backup)

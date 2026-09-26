@@ -162,13 +162,6 @@ class FavoritesViewModel @Inject constructor(
         return true
     }
 
-    fun updateFavoriteGroup(groupId: Long, name: String, folder: String): Boolean {
-        if (dataSession.store.groupsSnapshot().none { it.id == groupId }) return false
-        if (!mutations.updateGroup(groupId, name, folder)) return false
-        publishAfterMutation()
-        return true
-    }
-
     internal fun loadFavoriteGroupContent(
         group: FavoriteGroup,
         onLoaded: (FavoriteGroupContentLoadResult.Loaded) -> Unit,

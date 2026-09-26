@@ -6,36 +6,32 @@ ksp = "2.3.12"
 hilt = "2.60.1"
 composeBom = "2026.09.00"
 activity = "1.13.0"
+appcompat = "1.6.1"
 junit = "4.13.2"
 zxing = "3.5.4"
 mlkitText = "16.0.1"
 coreKtx = "1.19.0"
-documentfile = "1.1.0"
 exifinterface = "1.4.2"
 tiffRenderer = "3.0.0"
 lifecycle = "2.11.0"
 room = "2.8.5"
 datastore = "1.2.1"
 nanohttpd = "2.3.1"
-benchmark = "1.5.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 compose-ui = { module = "androidx.compose.ui:ui" }
-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
-compose-runtime = { module = "androidx.compose.runtime:runtime" }
 compose-animation-core = { module = "androidx.compose.animation:animation-core" }
 junit = { module = "junit:junit", version.ref = "junit" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitText" }
 mlkit-text-recognition-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkitText" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
-androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 tiff-renderer = { module = "io.github.lucf15:tiffrenderer", version.ref = "tiffRenderer" }
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
@@ -48,7 +44,6 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
 nanohttpd-websocket = { module = "org.nanohttpd:nanohttpd-websocket", version.ref = "nanohttpd" }
-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmark" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

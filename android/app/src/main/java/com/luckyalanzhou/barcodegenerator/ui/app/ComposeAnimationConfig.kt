@@ -26,7 +26,6 @@ data class ComposeAnimationConfig(val refreshRateHz: Int) {
     val pageExitDurationMillis: Int get() = frames(12)
     val pageFadeInDurationMillis: Int get() = frames(11)
     val pageFadeOutDurationMillis: Int get() = frames(8)
-    val iconRotationDurationMillis: Int get() = frames(13)
     val progressDurationMillis: Int get() = frames(14)
 
     private val stiffnessScale: Float

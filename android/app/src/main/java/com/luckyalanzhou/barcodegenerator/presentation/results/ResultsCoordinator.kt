@@ -64,7 +64,4 @@ internal class ResultsCoordinator(initial: ResultUiState = ResultUiState()) {
         _state.value = state
     }
 
-    fun updateSelectedFavoriteGroup(group: FavoriteGroup?) {
-        _state.update { it.copy(selectedFavoriteGroup = group) }
-    }
 }

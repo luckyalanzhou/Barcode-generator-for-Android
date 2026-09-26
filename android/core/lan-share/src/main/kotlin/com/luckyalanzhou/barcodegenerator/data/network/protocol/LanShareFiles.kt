@@ -4,8 +4,6 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 
 import java.io.File
 
-internal fun multipartFileName(value: String) = value.replace(Regex("[\r\n\"]"), "_")
-
 internal fun safeFileName(value: String) = value.replace(Regex("[\\\\/:*?\"<>|\r\n]"), "_").take(100).ifBlank { "附件" }
 
 internal fun safeBrowserClientId(value: String) = value.takeIf { it.matches(Regex("c[a-zA-Z0-9_-]{8,63}")) } ?: "clegacy"

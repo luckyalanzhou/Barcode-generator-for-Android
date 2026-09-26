@@ -116,8 +116,6 @@ class BarcodePersistenceCoordinator @Inject constructor(
         return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups, snapshot.identityGroups)
     }
 
-    suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
-
     private fun enqueue(write: suspend () -> Unit): Deferred<Result<Unit>> {
         val deferred = writeQueue.enqueue(write)
         persistenceScope.launch {

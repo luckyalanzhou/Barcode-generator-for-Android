@@ -138,22 +138,6 @@ class LanShareViewModel @Inject constructor(
         _uiState.update { it.copy(qrVisible = visible) }
     }
 
-    fun clearOwnFileIds() {
-        _uiState.update { it.copy(ownFileIds = emptySet()) }
-    }
-
-    fun clearPreviewFiles() {
-        _uiState.update { it.copy(previewFiles = emptyMap()) }
-    }
-
-    fun retainPreviewFiles(ids: Set<String>) {
-        _uiState.update { it.copy(previewFiles = it.previewFiles.filterKeys { key -> key in ids }) }
-    }
-
-    fun addPreviewFiles(files: Map<String, java.io.File>) {
-        _uiState.update { it.copy(previewFiles = it.previewFiles + files) }
-    }
-
     fun refreshFiles(session: LanShareSession, showError: Boolean = true) {
         if (!refreshGuard.isCurrent(session, refreshGuard.currentGeneration())) return
         if (refreshJob?.isActive == true) return

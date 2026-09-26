@@ -78,8 +78,6 @@ class SettingsViewModel @Inject constructor(
         publishStyleToUi()
     }
 
-    fun setScheme(value: String) = updateStyleValue { it.copy(colorScheme = value) }
-    fun setShowFormat(value: Boolean) = updateStyleValue { it.copy(showFormat = value) }
     fun setOcrMask(value: Int) = _uiState.update { it.copy(ocrMask = value) }
     fun setTextSize(value: Float) = updateStyleValue { it.copy(textSize = value) }
     fun setBarHeight(value: Float) = updateStyleValue { it.copy(barHeight = value.toInt()) }

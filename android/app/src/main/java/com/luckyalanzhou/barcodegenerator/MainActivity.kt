@@ -133,19 +133,15 @@ class MainActivity : AppCompatActivity() {
     }
     companion object {
         const val REQUEST_CAMERA_PERMISSION = 42
-        const val REQUEST_SCAN_CAMERA = 43
         const val REQUEST_TEXT_CAMERA = 45
          const val REQUEST_FAVORITES_EXPORT = 49
          const val REQUEST_FAVORITES_IMPORT = 50
-         const val REQUEST_LAN_SHARE_SCAN = 51
         const val REQUEST_LAN_SHARE_UPLOAD = 52
          const val REQUEST_LAN_SHARE_DOWNLOAD = 53
         const val REQUEST_LAN_SHARE_CAPTURE = 54
         const val REQUEST_LAN_SHARE_GALLERY_PERMISSION = 56
         const val REQUEST_LAN_SHARE_FILE_PERMISSION = 57
         const val REQUEST_RESULT_IMAGE_FILE = 58
-        const val MAX_HISTORY_ITEMS = 500
-        const val MAX_FAVORITE_GROUPS = 200
     }
 
     override fun onCreate(state: Bundle?) {
@@ -231,7 +227,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val pendingPath = updateViewModel.uiState.value.pendingInstallPath ?: return
+        if (updateViewModel.uiState.value.pendingInstallPath == null) return
         if (packageManager.canRequestPackageInstalls()) {
             updateViewModel.takePendingInstallPath()?.let { installApkCompose(File(it)) }
         }

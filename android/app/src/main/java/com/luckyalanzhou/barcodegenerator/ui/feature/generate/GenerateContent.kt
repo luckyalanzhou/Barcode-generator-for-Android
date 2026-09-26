@@ -276,15 +276,3 @@ internal fun GenerateContent(
         ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", color = generateContent, fontSize = 16.sp) }
     }
 }
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun SmallInputAction(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, iconTint: Color? = null, iconSize: androidx.compose.ui.unit.Dp = 20.dp, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
-    val themeColors = LocalAppColorScheme.current
-    Box(
-        Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, contentDescription = contentDescription, tint = if (enabled) iconTint ?: themeColors.text.secondary else themeColors.text.disabled, modifier = Modifier.size(iconSize))
-    }
-}
