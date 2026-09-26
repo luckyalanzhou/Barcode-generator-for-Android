@@ -9,6 +9,8 @@ const messageInput = document.getElementById('message');
 const connectionStatus = document.getElementById('connection-status');
 const attachmentSheet = document.getElementById('attachment-sheet');
 const attachmentButton = document.getElementById('attachment-button');
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
 const accessToken = new URL(location.href).searchParams.get('token') || '';
 
@@ -184,6 +186,12 @@ uploadForm.onsubmit = event => {
 
 attachmentButton.onclick = event => {
     event.stopPropagation();
+    // iOS Safari already presents Photos, Camera, Files, and Cancel for a file input.
+    // Open it directly to avoid stacking the web sheet over Safari's native chooser.
+    if (isIOSDevice) {
+        document.getElementById('file-picker').click();
+        return;
+    }
     attachmentSheet.classList.add('open');
     const buttonRect = attachmentButton.getBoundingClientRect();
     attachmentSheet.style.left = (buttonRect.left + 8) + 'px';
