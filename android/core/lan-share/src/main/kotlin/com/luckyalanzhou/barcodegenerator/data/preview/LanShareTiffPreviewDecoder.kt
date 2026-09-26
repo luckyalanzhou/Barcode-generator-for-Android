@@ -17,9 +17,9 @@ import kotlin.math.roundToInt
  * decoding failures fall back to the regular downloadable attachment UI.
  */
 object LanShareTiffPreviewDecoder {
-    /** Bound native full-page decode memory before asking libtiff to rasterize the first page. */
-    const val MAX_SOURCE_PIXELS_64_BIT = 64_000_000L
-    const val MAX_SOURCE_PIXELS_32_BIT = 24_000_000L
+    /** Match the decoder's documented hard limits while allowing full-resolution phone photos. */
+    const val MAX_SOURCE_PIXELS_64_BIT = 250_000_000L
+    const val MAX_SOURCE_PIXELS_32_BIT = 64_000_000L
 
     suspend fun decode(file: File, maxEdge: Int): Bitmap? {
         if (!file.isFile || maxEdge <= 0) return null

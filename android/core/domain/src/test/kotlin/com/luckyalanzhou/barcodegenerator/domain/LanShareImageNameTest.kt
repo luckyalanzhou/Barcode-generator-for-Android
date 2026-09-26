@@ -12,4 +12,10 @@ class LanShareImageNameTest {
         assertTrue(isLanShareTiffName("scan.tif"))
         assertTrue(isLanShareTiffName("scan.TIFF"))
     }
+
+    @Test
+    fun tiffRemotePreviewLimitIsLargerThanOtherImagePreviews() {
+        assertTrue(LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES > LAN_SHARE_PREVIEW_MAX_FILE_BYTES)
+        assertTrue(LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES <= LAN_SHARE_PREVIEW_CACHE_MAX_BYTES)
+    }
 }

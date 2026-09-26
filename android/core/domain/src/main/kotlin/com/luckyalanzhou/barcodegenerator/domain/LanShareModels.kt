@@ -54,6 +54,8 @@ data class LanShareSession(
 
 /** Keep preview downloads bounded while accommodating full-resolution phone photos. */
 const val LAN_SHARE_PREVIEW_MAX_FILE_BYTES = 64L * 1024L * 1024L
+/** TIFF pages are often uncompressed or lightly compressed; permit larger remote thumbnails. */
+const val LAN_SHARE_TIFF_PREVIEW_MAX_FILE_BYTES = 256L * 1024L * 1024L
 const val LAN_SHARE_PREVIEW_CACHE_MAX_BYTES = 256L * 1024L * 1024L
 
 /** File types that can be rendered as LAN Share previews. */
@@ -85,5 +87,10 @@ interface LanShareGateway {
     fun upload(session: LanShareSession, source: LanShareUploadSource): String
     fun uploadText(session: LanShareSession, text: String): String
     fun downloadToFile(session: LanShareSession, id: String, destination: File)
-    fun downloadPreview(session: LanShareSession, id: String, destination: File)
+    fun downloadPreview(
+        session: LanShareSession,
+        id: String,
+        destination: File,
+        maxBytes: Long = LAN_SHARE_PREVIEW_MAX_FILE_BYTES,
+    )
 }

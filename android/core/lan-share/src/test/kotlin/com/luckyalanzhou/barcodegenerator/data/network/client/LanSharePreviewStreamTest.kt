@@ -20,6 +20,19 @@ class LanSharePreviewStreamTest {
         copyLanSharePreview(SizedInputStream(MAX_LAN_SHARE_PREVIEW_BYTES + 1L), CountingOutputStream())
     }
 
+    @Test
+    fun acceptsLargerTiffPreviewWhenCallerRaisesTheBound() {
+        val tiffLimit = 256L * 1024L * 1024L
+        val testLimit = 24L
+        assertEquals(testLimit, copyLanSharePreview(SizedInputStream(testLimit), CountingOutputStream(), tiffLimit))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsTiffPreviewAboveItsRaisedBound() {
+        val testLimit = 24L
+        copyLanSharePreview(SizedInputStream(testLimit + 1L), CountingOutputStream(), testLimit)
+    }
+
     private class SizedInputStream(totalBytes: Long) : InputStream() {
         private var remaining = totalBytes
 

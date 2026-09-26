@@ -132,5 +132,6 @@ class LanShareManager(
     override fun upload(session: LanShareSession, source: LanShareUploadSource): String = client.upload(session, source)
     override fun uploadText(session: LanShareSession, text: String): String = client.uploadText(session, text)
     override fun downloadToFile(session: LanShareSession, id: String, destination: File) = client.downloadToFile(session, id, destination)
-    override fun downloadPreview(session: LanShareSession, id: String, destination: File) = client.downloadPreview(session, id, destination)
+    override fun downloadPreview(session: LanShareSession, id: String, destination: File, maxBytes: Long) =
+        client.downloadPreview(session, id, destination, maxBytes)
 }

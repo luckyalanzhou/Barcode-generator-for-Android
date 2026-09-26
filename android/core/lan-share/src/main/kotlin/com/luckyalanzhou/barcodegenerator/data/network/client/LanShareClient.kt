@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.data.network.client
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
-import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.multipartFileName
@@ -118,17 +117,18 @@ internal class LanShareClient(
             }
         }
 
-    fun downloadPreview(session: LanShareSession, id: String, destination: File) =
+    fun downloadPreview(session: LanShareSession, id: String, destination: File, maxBytes: Long) =
         request(session, "/api/download/${Uri.encode(id)}", readTimeoutMs = 120_000) { connection ->
             val declaredSize = connection.getHeaderFieldLong("Content-Length", -1L)
-            require(declaredSize < 0L || declaredSize <= LAN_SHARE_PREVIEW_MAX_FILE_BYTES) {
-                "图片预览超过 64 MB 限制"
+            require(maxBytes >= 0L) { "图片预览大小限制无效" }
+            require(declaredSize < 0L || declaredSize <= maxBytes) {
+                "图片预览超过 ${maxBytes / (1024L * 1024L)} MB 限制"
             }
             destination.parentFile?.mkdirs()
             val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
             try {
                 temporary.outputStream().use { output ->
-                    connection.inputStream.use { copyLanSharePreview(it, output) }
+                    connection.inputStream.use { copyLanSharePreview(it, output, maxBytes) }
                 }
                 if (destination.exists()) destination.delete()
                 require(temporary.renameTo(destination)) { "无法保存图片预览" }

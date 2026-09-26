@@ -9,12 +9,14 @@ class LanShareTiffPreviewDecoderTest {
     @Test
     fun allowsLarge64BitPhonePhotoDimensions() {
         assertTrue(LanShareTiffPreviewDecoder.isWithinPixelBudget(8000, 6000))
-        assertFalse(LanShareTiffPreviewDecoder.isWithinPixelBudget(8000, 6000, 24_000_000L))
+        assertTrue(LanShareTiffPreviewDecoder.isWithinPixelBudget(8000, 8000, LanShareTiffPreviewDecoder.MAX_SOURCE_PIXELS_32_BIT))
+        assertTrue(LanShareTiffPreviewDecoder.isWithinPixelBudget(16000, 10000))
+        assertFalse(LanShareTiffPreviewDecoder.isWithinPixelBudget(16000, 16000))
     }
 
     @Test
     fun rejectsInvalidOrExcessivelyLargeDimensionsBeforeRasterization() {
         assertFalse(LanShareTiffPreviewDecoder.isWithinPixelBudget(0, 4000))
-        assertFalse(LanShareTiffPreviewDecoder.isWithinPixelBudget(12000, 8000))
+        assertFalse(LanShareTiffPreviewDecoder.isWithinPixelBudget(16000, 16000))
     }
 }
