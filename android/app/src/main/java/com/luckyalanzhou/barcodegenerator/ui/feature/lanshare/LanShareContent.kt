@@ -105,6 +105,9 @@ internal fun LanShareContent(
     }
 
     val listState = rememberLazyListState()
+    val peerColorIndices = remember(lanState.files, lanState.ownFileIds) {
+        lanSharePeerColorIndices(lanState.files, lanState.ownFileIds)
+    }
     val background = themeColors.surfaces.background
     val toggleQr: () -> Unit = {
         if (!qrOpen && lanState.isHost) {
@@ -130,6 +133,7 @@ internal fun LanShareContent(
             items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
                 LanShareMessageBubble(
                     localFile, lanState, file, dark, primary, secondary, onSaveFile,
+                    peerColorIndex = peerColorIndices[file.sender],
                     onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
                 )
             }

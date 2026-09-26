@@ -69,6 +69,10 @@ function isOwnFile(file) {
     return ownFileIds.has(file.id) || file.sender === 'browser:' + clientId || file.sender === 'browser';
 }
 
+function isBrowserSender(sender) {
+    return sender === 'browser' || (typeof sender === 'string' && sender.startsWith('browser:'));
+}
+
 function formatSize(bytes) {
     const value = Number(bytes) || 0;
     if (value >= 1024 * 1024 * 1024) return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
@@ -259,6 +263,11 @@ document.addEventListener('keydown', event => {
 /** 用服务端快照对齐列表，删除已不存在的记录并保持服务端顺序。 */
 function reconcileFiles(list) {
     const normalized = (Array.isArray(list) ? list : []).filter(file => file && file.id);
+    const peerSenders = Array.from(new Set(normalized
+        .filter(file => !isOwnFile(file) && isBrowserSender(file.sender))
+        .map(file => file.sender))).sort();
+    const peerColorIndices = new Map(peerSenders.map((sender, index) => [sender, index % 8]));
+    const usePeerColors = peerSenders.length > 1;
     const current = new Map(Array.from(fileList.children).map(item => [item.dataset.fileId, item]));
     const activeIds = new Set(normalized.map(file => file.id));
 
@@ -294,8 +303,16 @@ function reconcileFiles(list) {
             if (preview) preview.dataset.fullSrc = url;
             if (preview && preview.src !== new URL(imageUrl, location.href).href) preview.src = imageUrl;
         }
+        setPeerBubbleColor(item, file, peerColorIndices, usePeerColors);
         fileList.appendChild(item);
     });
+}
+
+function setPeerBubbleColor(item, file, peerColorIndices, usePeerColors) {
+    delete item.dataset.peerColor;
+    if (!isOwnFile(file) && usePeerColors && isBrowserSender(file.sender)) {
+        item.dataset.peerColor = String(peerColorIndices.get(file.sender) || 0);
+    }
 }
 
 let refreshInFlight = false;

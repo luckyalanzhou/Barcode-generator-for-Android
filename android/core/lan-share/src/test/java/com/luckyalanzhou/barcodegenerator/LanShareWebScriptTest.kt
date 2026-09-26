@@ -48,6 +48,19 @@ class LanShareWebScriptTest {
     }
 
     @Test
+    fun browserPageAssignsPaletteColorsOnlyToMultipleRemoteBrowserSenders() {
+        val script = LanShareWebScript.render()
+        val page = LanShareWebTemplates.page()
+
+        assertTrue(script.contains("function isBrowserSender(sender)"))
+        assertTrue(script.contains("const usePeerColors = peerSenders.length > 1;"))
+        assertTrue(script.contains("item.dataset.peerColor = String(peerColorIndices.get(file.sender) || 0)"))
+        assertTrue(page.contains("li.peer[data-peer-color=\"0\"]"))
+        assertTrue(page.contains("li.peer[data-peer-color=\"7\"]"))
+        assertTrue(page.contains("@media(prefers-color-scheme:dark){li.peer[data-peer-color=\"0\"]"))
+    }
+
+    @Test
     fun browserUploadRemembersItsServerFileIdAndSendsTheOriginalFile() {
         val script = LanShareWebScript.render()
 

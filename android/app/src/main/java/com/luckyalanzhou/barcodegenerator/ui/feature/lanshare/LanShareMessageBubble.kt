@@ -54,6 +54,7 @@ internal fun LanShareMessageBubble(
     primary: Color,
     secondary: Color,
     onSaveFile: (LanShareFile) -> Unit,
+    peerColorIndex: Int?,
     onPreviewImage: (Bitmap) -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
@@ -73,7 +74,11 @@ internal fun LanShareMessageBubble(
     val previewSize = remember(preview?.width, preview?.height) {
         preview?.let { fitLanSharePreviewSize(it.width, it.height) }
     }
-    val bubbleColor = if (mine) themeColors.controls.progress.copy(alpha = .44f) else themeColors.surfaces.overlay
+    val bubbleColor = when {
+        mine -> themeColors.controls.progress.copy(alpha = .44f)
+        peerColorIndex != null -> lanSharePeerBubbleColor(peerColorIndex, dark)
+        else -> themeColors.surfaces.overlay
+    }
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         if (preview != null && previewSize != null) {
             Surface(
