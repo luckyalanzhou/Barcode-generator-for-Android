@@ -35,10 +35,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 
 @Composable
 internal fun LanShareMessageBubble(
@@ -49,34 +49,40 @@ internal fun LanShareMessageBubble(
     primary: Color,
     secondary: Color,
     onSaveFile: (LanShareFile) -> Unit,
+    onPreviewImage: (Bitmap) -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
     val previewFile = (localFile(file.id) ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
     val preview = remember(file.id, previewFile?.absolutePath, previewFile?.lastModified()) { previewFile?.let(::decodeLanSharePreview) }
+    val previewSize = remember(preview?.width, preview?.height) {
+        preview?.let { fitLanSharePreviewSize(it.width, it.height) }
+    }
     val bubbleColor = if (mine) themeColors.controls.progress.copy(alpha = .44f) else themeColors.surfaces.overlay
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-        if (preview != null) {
+        if (preview != null && previewSize != null) {
             Surface(
-                modifier = Modifier.widthIn(min = 120.dp, max = 280.dp).clickable { onSaveFile(file) },
+                modifier = Modifier.width((previewSize.widthDp + 16).dp),
                 shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp,
             ) {
                 Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     val bitmap = preview
-                    val scale = minOf(220f / bitmap.width.coerceAtLeast(1), 180f / bitmap.height.coerceAtLeast(1), 1f)
                     Image(
-                        bitmap.asImageBitmap(), file.name, contentScale = ContentScale.Crop,
+                        bitmap.asImageBitmap(), file.name, contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .width((bitmap.width * scale).coerceAtLeast(80f).roundToInt().dp)
-                            .height((bitmap.height * scale).coerceAtLeast(80f).roundToInt().dp),
+                            .fillMaxWidth()
+                            .height(previewSize.heightDp.dp)
+                            .clickable { onPreviewImage(bitmap) },
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
                         middleEllipsize(file.name),
                         color = if (mine) themeColors.content.sentContent else primary,
                         fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Clip,
-                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.fillMaxWidth().clickable { onSaveFile(file) },
                     )
                 }
             }

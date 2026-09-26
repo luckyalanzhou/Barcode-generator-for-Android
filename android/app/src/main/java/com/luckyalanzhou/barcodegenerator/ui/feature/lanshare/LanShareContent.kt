@@ -100,6 +100,7 @@ internal fun LanShareContent(
     val inputPanel = themeColors.surfaces.inputPanel
     val accent = themeColors.controls.progress
     var qrOpen by remember { mutableStateOf(lanState.qrVisible) }
+    var imagePreview by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
     var attachmentMenu by remember { mutableStateOf(false) }
     val session = lanState.session
 
@@ -137,7 +138,10 @@ internal fun LanShareContent(
                 LanShareSecurityNotice(Modifier.fillMaxWidth().padding(horizontal = 8.dp))
             }
             items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
-                LanShareMessageBubble(localFile, lanState, file, dark, primary, secondary, onSaveFile)
+                LanShareMessageBubble(
+                    localFile, lanState, file, dark, primary, secondary, onSaveFile,
+                    onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
+                )
             }
         }
 
@@ -170,6 +174,14 @@ internal fun LanShareContent(
             primary = primary,
             secondary = secondary,
             onDismiss = { qrOpen = false },
+        )
+    }
+
+    imagePreview?.let { (fileName, bitmap) ->
+        LanShareImagePreviewDialog(
+            fileName = fileName,
+            bitmap = bitmap,
+            onDismiss = { imagePreview = null },
         )
     }
 }
