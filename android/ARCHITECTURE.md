@@ -14,12 +14,14 @@
 
 | 模块 | 可以依赖 | 禁止依赖 |
 | --- | --- | --- |
-| `:core:domain` | Kotlin/JVM、Coroutines、ZXing 等纯 Kotlin 库 | Android、Compose、Room、DataStore、Activity、`:app` |
+| `:core:domain` | Kotlin/JVM、Coroutines | Android、Compose、Room、DataStore、Activity、ZXing、`:app` |
 | `:core:data` | `:core:domain`、Android SDK、Room、DataStore、文件和网络 API | Compose、`:app`、ViewModel |
 | `:core:lan-share` | `:core:domain`、Android SDK、NanoHTTPD/WebSocket | Compose、`:app`、`:core:data`、ViewModel |
 | `:app` | `:core:domain`、`:core:data`、`:core:lan-share`、Android SDK、Compose、Hilt | 让 Composable 直接访问 DAO、Repository 实现或文件系统 |
 
 当前共有以上四个 Gradle 模块。Compose UI 与 presentation 代码位于 `:app` 模块的不同包中；`ui` 是代码层次，不是独立的 `:core:ui` 模块。`:core:lan-share` 是 Android Library，会随 `:app` 一起打包进 APK，不需要单独安装。
+
+Android 插件与库版本由 Gradle Version Catalog 集中管理，目录为 `android/gradle/libs.versions.toml`。
 
 ## 层职责
 
@@ -28,7 +30,7 @@
 - `:core:lan-share`：局域网 HTTP 文件服务、WebSocket 会话消息、文件协议和内嵌浏览器页面；依赖 `:core:domain` 的 `LanShareGateway` 契约。
 - `:app` 的 `presentation` 包：ViewModel、页面状态和应用级业务协调。
 - `:app` 的 `ui` 包：Compose 页面、状态渲染、页面切换和一次性事件消费；通过 ViewModel/回调连接 presentation，不直接操作数据源。
-- `:app` 的 DI 与平台桥接：组合各模块实现，并接入 Activity、权限、文件选择器等 Android 能力。
+- `:app` 的 DI 与平台桥接：组合各模块实现，并接入 Activity、权限、文件选择器等 Android 能力。当前 Hilt 装配集中在单个 `AppModule`；只有在 Core 模块需要独立复用或装配规模明显增长时，再考虑拆分模块内的 DI。
 
 ## 状态与事件
 
@@ -62,8 +64,9 @@
 
 ## 构建验证
 
-- `beta` 与 `main` 的 APK 发布工作流均为手动触发。签名前先运行领域、数据、应用层单元测试和对应 Release lint。
-- 数据库迁移及收藏关联的设备仪器化测试位于 `:core:data`；局域网服务的设备仪器化测试位于 `:core:lan-share`。云端手动构建门禁目前不运行设备测试。
+- `:core:domain`、`:core:data`、`:core:lan-share` 和 `:app` 的自动化测试目前是 JVM 单元测试，位于 `src/test`。其中 `:core:lan-share` 会启动本地 HTTP 服务并用客户端验证定长/分块上传、原始字节和 `/dl/<id>` 下载；WebSocket 覆盖握手及会话状态，但不等同于真实设备上的完整双端测试。
+- 当前没有维护 Android `src/androidTest` 仪器化测试；局域网地址发现、Wi-Fi 通信、应用生命周期等设备行为由真机手动验证。
+- 发布前在本地运行相关单元测试及目标变体的 Release lint。`beta` 与 `main` 的 GitHub 手动发布工作流只负责构建、签名和发布 APK，不在远端重复运行测试或 lint。
 
 ## 兼容性
 

@@ -62,8 +62,6 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Verify tests and official release lint
-        run: ./gradlew :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testOfficialDebugUnitTest :app:lintOfficialRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
       - name: Read app version
         id: app-version
         run: |
@@ -95,7 +93,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        # The workflow already runs official release lint above; skip only assemble's duplicate vital lint.
+        # Tests and Release lint are verified locally; the remote workflow only packages the APK.
         run: ./gradlew assembleOfficialRelease --no-configuration-cache -x :app:lintVitalOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare release APK
         env:
