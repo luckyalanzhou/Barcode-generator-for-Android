@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareManager
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.mimeTypeForName
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.uploadedMimeType
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -53,5 +54,12 @@ class LanShareFileIdentityTest {
         assertEquals("image/avif", mimeTypeForName("photo.avif"))
         assertEquals("image/tiff", mimeTypeForName("scan.tif"))
         assertEquals("image/tiff", mimeTypeForName("scan.tiff"))
+    }
+
+    @Test
+    fun uploadMimeTypePrefersDeclaredTypeAndFallsBackToImageExtension() {
+        assertEquals("image/heic", uploadedMimeType("camera-photo", "image/heic"))
+        assertEquals("image/jpeg", uploadedMimeType("photo.jpg", "application/octet-stream"))
+        assertEquals("application/pdf", uploadedMimeType("report.jpg", "application/pdf"))
     }
 }

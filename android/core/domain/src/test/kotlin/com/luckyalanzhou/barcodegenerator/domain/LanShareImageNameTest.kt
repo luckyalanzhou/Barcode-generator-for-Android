@@ -14,6 +14,14 @@ class LanShareImageNameTest {
     }
 
     @Test
+    fun imageMimeTypeRecognizesExtensionlessImagesAndKeepsExtensionFallback() {
+        assertTrue(isLanShareImage("camera", "image/heic"))
+        assertTrue(isLanShareImage("camera", "image/tiff"))
+        assertTrue(isLanShareImage("photo.jpg", null))
+        assertTrue(isLanShareTiff("scan", "image/tiff"))
+    }
+
+    @Test
     fun previewPayloadLimitFitsWithinPreviewCache() {
         assertTrue(LAN_SHARE_PREVIEW_MAX_FILE_BYTES <= LAN_SHARE_PREVIEW_CACHE_MAX_BYTES)
     }

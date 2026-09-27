@@ -8,8 +8,8 @@ import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.os.Build
 import androidx.exifinterface.media.ExifInterface
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiffName
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiff
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
@@ -20,10 +20,10 @@ import kotlinx.coroutines.runBlocking
 internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
     private val cacheLock = Any()
 
-    fun getOrCreate(source: File): File? {
-        if (!source.isFile || !isLanShareImageName(source.name)) return null
+    fun getOrCreate(source: File, mimeType: String? = null): File? {
+        if (!source.isFile || !isLanShareImage(source.name, mimeType)) return null
         // Preserve animation; static JPEG derivatives are for other formats only.
-        if (source.extension.equals("gif", ignoreCase = true)) return source
+        if (source.extension.equals("gif", ignoreCase = true) || mimeType.equals("image/gif", ignoreCase = true)) return source
 
         val key = cacheKey(source)
         val cached = File(cacheFolder, "$key.preview.jpg")
@@ -35,7 +35,7 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
             if (cached.exists() && !cached.delete()) return null
             if (!cacheFolder.isDirectory && !cacheFolder.mkdirs()) return null
 
-            val bitmap = decode(source) ?: return null
+            val bitmap = decode(source, mimeType) ?: return null
             val temporary = File(cacheFolder, ".$key.${System.nanoTime()}.part")
             try {
                 if (!writeJpegPreview(bitmap, temporary) || temporary.length() <= 0L) return null
@@ -55,8 +55,8 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
         }
     }
 
-    private fun decode(source: File): Bitmap? = try {
-        if (isLanShareTiffName(source.name)) {
+    private fun decode(source: File, mimeType: String?): Bitmap? = try {
+        if (isLanShareTiff(source.name, mimeType)) {
             runBlocking(Dispatchers.IO) {
                 LanShareTiffPreviewDecoder.decode(source, MAX_PREVIEW_EDGE)
             }

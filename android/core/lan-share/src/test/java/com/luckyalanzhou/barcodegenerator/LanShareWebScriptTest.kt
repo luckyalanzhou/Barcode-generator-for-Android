@@ -74,6 +74,7 @@ class LanShareWebScriptTest {
         assertTrue(!page.contains("image-viewer-reset"))
         assertTrue(page.contains("aria-modal=\"true\""))
         assertTrue(page.contains("event.target.closest('img.media-preview')"))
+        assertTrue(page.contains("border-radius:12px;background:var(--preview-bg)"))
         assertTrue(page.contains("preview.setAttribute('role', 'button')"))
         assertTrue(page.contains("event.deltaY < 0 ? 1.15 : 1 / 1.15"))
         assertTrue(page.contains("Math.min(5, previewScale"))
@@ -86,6 +87,8 @@ class LanShareWebScriptTest {
         val script = LanShareWebScript.render()
 
         assertTrue(script.contains("bmp|heic|heif|avif|tif|tiff"))
+        assertTrue(script.contains("function isImageFile(file)"))
+        assertTrue(script.contains("mimeType ? mimeType.startsWith('image/') : isImageName(file.name)"))
         assertTrue(script.contains("preview.addEventListener('error'"))
         assertTrue(script.contains("item.classList.remove('image-item')"))
     }

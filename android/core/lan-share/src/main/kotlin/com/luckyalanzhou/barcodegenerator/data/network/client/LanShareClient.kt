@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.uploadedMimeType
 
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
@@ -25,12 +26,14 @@ internal class LanShareClient(
         JSONArray(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }).let { json ->
             (0 until json.length()).map { index ->
                 json.getJSONObject(index).let {
+                    val name = it.getString("name")
                     LanShareFile(
                         it.getString("id"),
-                        it.getString("name"),
+                        name,
                         it.getLong("size"),
                         it.getLong("modifiedAt"),
-                        it.optString("sender", "peer")
+                        it.optString("sender", "peer"),
+                        uploadedMimeType(name, it.optString("mimeType")),
                     )
                 }
             }
@@ -42,7 +45,7 @@ internal class LanShareClient(
         val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
         require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
-        return uploadRaw(session, name, size) { source.openStream() }.also {
+        return uploadRaw(session, name, size, source.mimeType) { source.openStream() }.also {
             logger.record("lan", "file uploaded name=$name size=$size", null)
         }
     }
@@ -51,6 +54,7 @@ internal class LanShareClient(
         session: LanShareSession,
         name: String,
         size: Long,
+        mimeType: String?,
         openStream: () -> java.io.InputStream?,
     ): String {
         require(size in 1..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
@@ -60,7 +64,7 @@ internal class LanShareClient(
             readTimeout = 120_000
             requestMethod = "PUT"
             setRequestProperty("X-File-Size", size.toString())
-            setRequestProperty("Content-Type", "application/octet-stream")
+            setRequestProperty("Content-Type", uploadedMimeType(name, mimeType))
             doOutput = true
             setFixedLengthStreamingMode(size)
         }

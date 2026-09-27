@@ -138,7 +138,7 @@ class LanShareManager(
         if (clearSharedFiles) clearFiles()
     }
 
-    override fun localFiles() = listFiles(folder, "app")
+    override fun localFiles() = server?.filesSnapshot("app") ?: listFiles(folder, "app")
     override fun localFile(id: String): File? = sharedFile(folder, id)
     private fun clearFiles() {
         folder.listFiles().orEmpty().forEach { it.delete() }

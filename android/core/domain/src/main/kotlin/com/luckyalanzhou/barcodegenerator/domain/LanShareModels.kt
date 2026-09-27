@@ -12,6 +12,7 @@ data class LanShareFile(
     val size: Long,
     val modifiedAt: Long,
     val sender: String = "peer",
+    val mimeType: String? = null,
 )
 
 /** Ephemeral text chat entry shared by the App host and connected browser clients. */
@@ -60,13 +61,21 @@ fun isLanShareImageName(name: String): Boolean =
     name.substringAfterLast('.', "").lowercase() in
         setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif", "tif", "tiff")
 
+fun isLanShareImage(name: String, mimeType: String? = null): Boolean =
+    mimeType?.substringBefore(';')?.trim()?.startsWith("image/", ignoreCase = true) == true ||
+        isLanShareImageName(name)
+
 fun isLanShareTiffName(name: String): Boolean =
     name.substringAfterLast('.', "").lowercase() in setOf("tif", "tiff")
+
+fun isLanShareTiff(name: String, mimeType: String? = null): Boolean =
+    isLanShareTiffName(name) || mimeType?.substringBefore(';')?.trim()?.equals("image/tiff", ignoreCase = true) == true
 
 /** Platform-neutral upload input; the app layer supplies the stream from a Uri. */
 data class LanShareUploadSource(
     val name: String,
     val size: Long,
+    val mimeType: String? = null,
     val openStream: () -> InputStream?,
 )
 

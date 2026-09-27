@@ -5,8 +5,6 @@ import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
-
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage

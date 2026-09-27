@@ -81,7 +81,7 @@ class LanShareServerUploadTest {
     }
 
     @Test
-    fun committedBrowserUploadEmitsOneFileAddedEvent() {
+    fun committedBrowserUploadPreservesDeclaredMimeTypeInRealtimeEvent() {
         val folder = temporaryFolder.newFolder()
         val events = mutableListOf<LanShareRealtimeEvent>()
         val server = LanShareServer(
@@ -90,12 +90,20 @@ class LanShareServerUploadTest {
         )
         try {
             server.start(5_000, false)
-            val uploaded = upload(server.listeningPort, byteArrayOf(1, 2, 3), "event.bin", "cbrowser123", chunked = false)
+            val uploaded = upload(
+                server.listeningPort,
+                byteArrayOf(1, 2, 3),
+                "camera-photo",
+                "cbrowser123",
+                chunked = false,
+                contentType = "image/heic",
+            )
 
             assertEquals(200, uploaded.first)
             val event = events.filterIsInstance<LanShareRealtimeEvent.FileAdded>().single()
             assertEquals(uploaded.second, event.file.id)
             assertEquals("browser:cbrowser123", event.file.sender)
+            assertEquals("image/heic", event.file.mimeType)
         } finally {
             server.stop()
         }
@@ -138,6 +146,7 @@ class LanShareServerUploadTest {
         clientId: String,
         chunked: Boolean,
         declaredSize: Long = payload.size.toLong(),
+        contentType: String = "application/octet-stream",
     ): Pair<Int, String> {
         val encodedName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.name())
         val connection = URL("http://127.0.0.1:$port/upload?name=$encodedName&client=$clientId").openConnection() as HttpURLConnection
@@ -146,7 +155,7 @@ class LanShareServerUploadTest {
             connection.readTimeout = 10_000
             connection.requestMethod = "PUT"
             connection.setRequestProperty("X-File-Size", declaredSize.toString())
-            connection.setRequestProperty("Content-Type", "application/octet-stream")
+            connection.setRequestProperty("Content-Type", contentType)
             connection.doOutput = true
             if (chunked) connection.setChunkedStreamingMode(8 * 1024)
             else connection.setFixedLengthStreamingMode(payload.size)

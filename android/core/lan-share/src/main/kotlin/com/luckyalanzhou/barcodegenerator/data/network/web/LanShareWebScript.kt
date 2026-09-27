@@ -62,6 +62,13 @@ function isImageName(name) {
     return /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|avif|tif|tiff)$/i.test(name || '');
 }
 
+function isImageFile(file) {
+    const mimeType = typeof file.mimeType === 'string'
+        ? file.mimeType.split(';', 1)[0].trim().toLowerCase()
+        : '';
+    return mimeType ? mimeType.startsWith('image/') : isImageName(file.name);
+}
+
 function isOwnFile(file) {
     // Older browser uploads have no client ID, so the server can only label them "browser".
     return ownFileIds.has(file.id) || file.sender === 'browser:' + clientId || file.sender === 'browser';
@@ -98,7 +105,7 @@ function createFileItem(file) {
     item.dataset.fileId = file.id;
     item.className = isOwnFile(file) ? 'mine' : 'peer';
 
-    if (isImageName(file.name)) {
+    if (isImageFile(file)) {
         const preview = document.createElement('img');
         preview.className = 'media-preview';
         preview.alt = '';
@@ -122,7 +129,7 @@ function createFileItem(file) {
         preview.src = previewUrl(file);
     }
 
-    const imageFile = isImageName(file.name);
+    const imageFile = isImageFile(file);
     const name = document.createElement(imageFile ? 'a' : 'span');
     name.className = 'file-name';
     name.textContent = file.name || '未命名';
@@ -339,7 +346,7 @@ function renderTimeline() {
         const item = oldItem || createFileItem(file);
         if (oldItem) {
             item.className = isOwnFile(file) ? 'mine' : 'peer';
-            if (isImageName(file.name)) item.classList.add('image-item');
+            if (isImageFile(file)) item.classList.add('image-item');
             const name = item.querySelector('.file-name');
             const download = item.querySelector('.download');
             const size = item.querySelector('small');

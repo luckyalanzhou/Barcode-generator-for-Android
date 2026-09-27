@@ -3,8 +3,8 @@ package com.luckyalanzhou.barcodegenerator.data.network.server
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.isCommittedSharedFile
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.mimeTypeForName
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.uploadedMimeType
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeBrowserClientId
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeFileName
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
@@ -27,6 +27,7 @@ import java.io.IOException
 import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.ConcurrentHashMap
 
 /** 浏览器端服务：HTTP 文件接口和 WebSocket 会话消息。 */
 internal class LanShareServer(
@@ -40,6 +41,7 @@ internal class LanShareServer(
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
     private val webSocketStateLock = Any()
     private val chatMessages = mutableListOf<LanShareMessage>()
+    private val uploadedMimeTypes = ConcurrentHashMap<String, String>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
@@ -89,7 +91,13 @@ internal class LanShareServer(
     }
 
     /** Persist directly to one same-directory staging file, then atomically publish it. */
-    private fun receiveUpload(session: IHTTPSession, body: UploadBody, target: File, reservation: Long) {
+    private fun receiveUpload(
+        session: IHTTPSession,
+        body: UploadBody,
+        target: File,
+        reservation: Long,
+        mimeType: String,
+    ) {
         var reservationHeld = true
         var temporary: File? = null
         try {
@@ -111,6 +119,7 @@ internal class LanShareServer(
             synchronized(uploadLock) {
                 check(!target.exists()) { "目标文件已存在" }
                 check(stagingFile.renameTo(target)) { "无法保存上传文件" }
+                uploadedMimeTypes[target.name] = mimeType
                 reservedUploadBytes = (reservedUploadBytes - reservation).coerceAtLeast(0L)
                 reservationHeld = false
             }
@@ -276,18 +285,28 @@ internal class LanShareServer(
         }
     }
 
+    private fun fileRecordsSnapshot(sender: String) = folder.listFiles().orEmpty()
+        .filter(::isCommittedSharedFile)
+        .sortedBy { it.lastModified() }
+        .map { file -> toLanShareFile(file, sender, uploadedMimeTypes[file.name]) }
+
+    fun filesSnapshot(sender: String) = fileRecordsSnapshot(sender)
+
+    private fun fileMimeType(file: File): String = uploadedMimeTypes[file.name] ?: mimeTypeForName(file.name)
+
     private fun notifyFilesChanged(file: File? = null) {
-        file?.let { emitRealtimeEvent(LanShareRealtimeEvent.FileAdded(toLanShareFile(it, "peer"))) }
+        file?.let { emitRealtimeEvent(LanShareRealtimeEvent.FileAdded(toLanShareFile(it, "peer", uploadedMimeTypes[it.name]))) }
         if (webSockets.isEmpty()) return
         val event = JSONObject().put("type", "files").toString()
         val eventWithFile = file?.let { uploaded ->
-            val record = toLanShareFile(uploaded, "peer")
+            val record = toLanShareFile(uploaded, "peer", uploadedMimeTypes[uploaded.name])
             JSONObject(event).put("file", JSONObject()
                 .put("id", record.id)
                 .put("name", record.name)
                 .put("size", record.size)
                 .put("modifiedAt", record.modifiedAt)
                 .put("sender", record.sender)
+                .put("mimeType", record.mimeType)
             ).toString()
         } ?: event
         webSockets.toList().forEach { socket ->
@@ -299,12 +318,13 @@ internal class LanShareServer(
     }
 
     private fun sessionSnapshotEvent(): String = JSONObject().put("type", "snapshot")
-        .put("files", JSONArray(listFiles(folder, "peer").map { record -> JSONObject()
+        .put("files", JSONArray(fileRecordsSnapshot("peer").map { record -> JSONObject()
             .put("id", record.id)
             .put("name", record.name)
             .put("size", record.size)
             .put("modifiedAt", record.modifiedAt)
             .put("sender", record.sender)
+            .put("mimeType", record.mimeType)
         }))
         .put("messages", JSONArray(messagesSnapshot().map(::messageJson)))
         .toString()
@@ -334,9 +354,10 @@ internal class LanShareServer(
                 session.method == Method.GET && requestPath == "/api/files" -> newFixedLengthResponse(
                     Response.Status.OK,
                     "application/json; charset=utf-8",
-                    JSONArray(listFiles(folder, "peer").map {
+                    JSONArray(fileRecordsSnapshot("peer").map {
                         JSONObject().put("id", it.id).put("name", it.name).put("size", it.size)
                             .put("modifiedAt", it.modifiedAt).put("sender", it.sender)
+                            .put("mimeType", it.mimeType)
                     }).toString()
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 
@@ -355,6 +376,7 @@ internal class LanShareServer(
                     val submittedName = session.parameters["name"]?.firstOrNull().orEmpty().ifBlank { "附件" }
                     val client = session.parameters["client"]?.firstOrNull().orEmpty()
                     val name = safeFileName(submittedName)
+                    val mimeType = uploadedMimeType(name, session.headers["content-type"])
                     val targetPrefix = System.nanoTime()
                     val target = if (client == APP_UPLOAD_CLIENT) {
                         File(folder, "app_${targetPrefix}_$name")
@@ -364,7 +386,7 @@ internal class LanShareServer(
                     if (!reserveUploadCapacity(body.expectedBytes)) {
                         return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
                     }
-                    receiveUpload(session, body, target, body.expectedBytes)
+                    receiveUpload(session, body, target, body.expectedBytes, mimeType)
                     newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name)
                 }
 
@@ -372,7 +394,7 @@ internal class LanShareServer(
                     val file = sharedFile(folder, decodePathSegment(requestPath.substringAfterLast('/')))
                     if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
                     else {
-                        val preview = webImagePreviewCache.getOrCreate(file)
+                        val preview = webImagePreviewCache.getOrCreate(file, fileMimeType(file))
                         if (preview == null) {
                             newFixedLengthResponse(
                                 Response.Status.NOT_ACCEPTABLE,
@@ -380,7 +402,7 @@ internal class LanShareServer(
                                 "此图片格式暂不支持网页预览，请点击文件名下载原图",
                             )
                         } else {
-                            val previewMimeType = if (preview == file) mimeTypeForName(file.name) else "image/jpeg"
+                            val previewMimeType = if (preview == file) fileMimeType(file) else "image/jpeg"
                             newFixedLengthResponse(Response.Status.OK, previewMimeType, FileInputStream(preview), preview.length()).apply {
                                 addHeader("Content-Length", preview.length().toString())
                                 addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
@@ -393,12 +415,12 @@ internal class LanShareServer(
                 session.method == Method.GET && requestPath.startsWith("/dl/") -> {
                     val file = sharedFile(folder, decodePathSegment(requestPath.substringAfterLast('/')))
                     if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
-                    else newFixedLengthResponse(Response.Status.OK, mimeTypeForName(file.name), FileInputStream(file), file.length()).apply {
+                    else newFixedLengthResponse(Response.Status.OK, fileMimeType(file), FileInputStream(file), file.length()).apply {
                         addHeader("Content-Length", file.length().toString())
                         addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
                         addHeader(
                             "Content-Disposition",
-                            "${if (mimeTypeForName(file.name).startsWith("image/")) "inline" else "attachment"}; filename=\"${toLanShareFile(file, "peer").name}\""
+                            "${if (fileMimeType(file).startsWith("image/")) "inline" else "attachment"}; filename=\"${toLanShareFile(file, "peer", fileMimeType(file)).name}\""
                         )
                     }
                 }

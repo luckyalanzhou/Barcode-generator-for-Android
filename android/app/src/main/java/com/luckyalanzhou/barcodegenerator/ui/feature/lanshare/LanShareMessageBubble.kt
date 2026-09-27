@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiffName
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiff
 import com.luckyalanzhou.barcodegenerator.data.preview.LanShareTiffPreviewDecoder
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
@@ -61,10 +61,10 @@ internal fun LanShareMessageBubble(
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
     val localImageFile = localFile(file.id)
-    val previewFile = (localImageFile ?: state.previewFiles[file.id]).takeIf { isLanShareImageName(file.name) }
+    val previewFile = (localImageFile ?: state.previewFiles[file.id]).takeIf { isLanShareImage(file.name, file.mimeType) }
     val previewState = produceState<Bitmap?>(null, file.id, previewFile?.absolutePath, previewFile?.lastModified()) {
         val source = previewFile ?: return@produceState
-        value = if (localImageFile != null && isLanShareTiffName(file.name)) {
+        value = if (localImageFile != null && isLanShareTiff(file.name, file.mimeType)) {
             LanShareTiffPreviewDecoder.decode(source, LAN_SHARE_PREVIEW_MAX_DECODE_EDGE)
         } else {
             withContext(Dispatchers.IO) { decodeLanSharePreview(source) }
@@ -102,6 +102,12 @@ internal fun LanShareMessageBubble(
                         textAlign = TextAlign.Center,
                         textDecoration = TextDecoration.Underline,
                         modifier = Modifier.fillMaxWidth().clickable { onSaveFile(file) },
+                    )
+                    Text(
+                        formatLanShareSize(file.size),
+                        color = if (mine) themeColors.content.sentContent.copy(alpha = .78f) else secondary,
+                        fontSize = 12.sp,
+                        maxLines = 1,
                     )
                 }
             }

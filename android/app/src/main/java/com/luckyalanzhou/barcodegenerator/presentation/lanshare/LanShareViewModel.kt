@@ -5,7 +5,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
@@ -158,7 +158,7 @@ class LanShareViewModel @Inject constructor(
             if (!refreshGuard.isCurrent(session, ticket)) return@launch
             result.onSuccess { (files, messages) ->
                 if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
-                val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
+                val imageIds = files.filter { isLanShareImage(it.name, it.mimeType) }.map { it.id }.toSet()
                 refreshGuard.update(session, ticket) {
                     it.copy(
                         files = files,
@@ -272,13 +272,13 @@ class LanShareViewModel @Inject constructor(
 
     private suspend fun fetchPreviews(session: LanShareSession, files: List<LanShareFile>): Map<String, java.io.File> {
         val previewFolder = java.io.File(appContext.cacheDir, "lan-share-preview").apply { mkdirs() }.canonicalFile
-        val imageKeys = files.filter { isLanShareImageName(it.name) }
+        val imageKeys = files.filter { isLanShareImage(it.name, it.mimeType) }
             .map { previewCacheKey(session, it.id) }
             .toSet()
         previewFolder.listFiles().orEmpty().filter { it.name !in imageKeys }.forEach { it.delete() }
         var cachedBytes = previewFolder.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
         return buildMap {
-            files.filter { isLanShareImageName(it.name) && lanShareGateway.localFile(it.id) == null }.forEach { file ->
+            files.filter { isLanShareImage(it.name, it.mimeType) && lanShareGateway.localFile(it.id) == null }.forEach { file ->
                 currentCoroutineContext().ensureActive()
                 val preview = java.io.File(previewFolder, previewCacheKey(session, file.id)).canonicalFile
                 require(preview.parentFile == previewFolder) { "图片预览路径无效" }
@@ -307,9 +307,11 @@ class LanShareViewModel @Inject constructor(
             } else null
         } ?: "附件"
         val size = appContext.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-        return LanShareUploadSource(name = name, size = size) {
-            appContext.contentResolver.openInputStream(uri)
-        }
+        return LanShareUploadSource(
+            name = name,
+            size = size,
+            mimeType = appContext.contentResolver.getType(uri),
+        ) { appContext.contentResolver.openInputStream(uri) }
     }
 
     fun setPendingDownloadId(id: String?) {
