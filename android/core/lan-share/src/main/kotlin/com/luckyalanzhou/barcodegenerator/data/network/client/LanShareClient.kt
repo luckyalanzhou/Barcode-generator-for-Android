@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.copyLanShareUpload
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.uploadedMimeType
 
@@ -40,12 +41,16 @@ internal class LanShareClient(
         }
     }
 
-    fun upload(session: LanShareSession, source: LanShareUploadSource): String {
+    fun upload(
+        session: LanShareSession,
+        source: LanShareUploadSource,
+        onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
+    ): String {
         val name = source.name.ifBlank { "附件" }
         val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
         require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
-        return uploadRaw(session, name, size, source.mimeType) { source.openStream() }.also {
+        return uploadRaw(session, name, size, source.mimeType, onProgress) { source.openStream() }.also {
             logger.record("lan", "file uploaded name=$name size=$size", null)
         }
     }
@@ -55,6 +60,7 @@ internal class LanShareClient(
         name: String,
         size: Long,
         mimeType: String?,
+        onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
         openStream: () -> java.io.InputStream?,
     ): String {
         require(size in 1..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
@@ -71,7 +77,7 @@ internal class LanShareClient(
         try {
             val copiedBytes = openStream()?.use { input ->
                 connection.outputStream.buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
-                    input.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE)
+                    copyLanShareUpload(input, output, size, onProgress)
                 }
             } ?: error("无法读取附件")
             require(copiedBytes == size) { "附件读取不完整：$copiedBytes/$size 字节" }

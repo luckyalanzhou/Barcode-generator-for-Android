@@ -68,5 +68,15 @@ body.preview-open{overflow:hidden}
 @media(max-width:599px){.image-viewer{padding:10px}.image-viewer-toolbar{left:12px;right:12px}#image-viewer-image{max-width:96vw;max-height:82vh}.image-viewer-hint{font-size:12px}}
 li.peer[data-peer-color="0"]{background:#e7f0ff;border-color:#c7d9fb}li.peer[data-peer-color="1"]{background:#e7f5ec;border-color:#c7e5d1}li.peer[data-peer-color="2"]{background:#fff0df;border-color:#f0d8b8}li.peer[data-peer-color="3"]{background:#f1e9fa;border-color:#d9c9ec}li.peer[data-peer-color="4"]{background:#ffe9ec;border-color:#f0cbd1}li.peer[data-peer-color="5"]{background:#e4f3f2;border-color:#c3e1df}li.peer[data-peer-color="6"]{background:#fff6d9;border-color:#ebdfab}li.peer[data-peer-color="7"]{background:#eceef2;border-color:#d4d8e0}
 @media(prefers-color-scheme:dark){li.peer[data-peer-color="0"]{background:#26384f;border-color:#405a7c}li.peer[data-peer-color="1"]{background:#293f34;border-color:#456a52}li.peer[data-peer-color="2"]{background:#493724;border-color:#765b3d}li.peer[data-peer-color="3"]{background:#3d304c;border-color:#635077}li.peer[data-peer-color="4"]{background:#492f37;border-color:#744b57}li.peer[data-peer-color="5"]{background:#263f3e;border-color:#426866}li.peer[data-peer-color="6"]{background:#474124;border-color:#70683c}li.peer[data-peer-color="7"]{background:#343840;border-color:#535965}}
+:root{--upload-track:#edf2f8;--upload-fill:rgba(10,132,255,.22);--upload-label:#172033;--upload-sub:#667085}
+@media(prefers-color-scheme:dark){:root{--upload-track:#252b34;--upload-fill:rgba(10,132,255,.46);--upload-label:#f5f5f7;--upload-sub:#c0c5ce}}
+li.upload-progress{position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-areas:"icon name download" "icon size download";width:min(72%,420px);min-width:min(220px,calc(100vw - 24px));max-width:calc(100% - 8px);background:var(--upload-track);border-color:var(--bubble-border);color:var(--upload-label)}
+li.upload-progress .upload-fill{position:absolute;z-index:0;inset:0 auto 0 0;width:var(--upload-progress,0%);background:var(--upload-fill);transition:width .12s linear;pointer-events:none}
+li.upload-progress::before{position:relative;z-index:1}
+li.upload-progress .upload-name,li.upload-progress .upload-percent{position:relative;z-index:1;min-width:0;font-size:14px}
+li.upload-progress .upload-name{grid-area:name;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+li.upload-progress .upload-size{position:relative;z-index:1;grid-area:size;color:var(--upload-sub);font-size:12px}
+li.upload-progress .upload-percent{grid-area:download;color:var(--upload-label);white-space:nowrap}
+li.mine.upload-progress small{color:var(--upload-sub)}
 </style></head>"""
 }

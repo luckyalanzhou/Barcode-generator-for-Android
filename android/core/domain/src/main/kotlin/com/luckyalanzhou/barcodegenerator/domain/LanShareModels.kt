@@ -115,7 +115,11 @@ interface LanShareGateway {
     fun sendLocalMessage(text: String): LanShareMessage
     fun observeRealtimeState(): StateFlow<LanShareRealtimeState>
     fun list(session: LanShareSession): List<LanShareFile>
-    fun upload(session: LanShareSession, source: LanShareUploadSource): String
+    fun upload(
+        session: LanShareSession,
+        source: LanShareUploadSource,
+        onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
+    ): String
     fun downloadToFile(session: LanShareSession, id: String, destination: File)
     fun downloadPreview(
         session: LanShareSession,

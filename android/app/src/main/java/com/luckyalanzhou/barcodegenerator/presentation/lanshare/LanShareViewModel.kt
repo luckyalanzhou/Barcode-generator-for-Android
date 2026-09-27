@@ -35,6 +35,18 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
+import java.util.UUID
+
+data class LanShareUploadingFile(
+    val id: String,
+    val name: String,
+    val size: Long,
+    val uploadedBytes: Long,
+    val startedAt: Long,
+) {
+    val progressPercent: Int
+        get() = if (size <= 0L) 0 else ((uploadedBytes.coerceIn(0L, size) * 100L) / size).toInt()
+}
 
 data class LanShareUiState(
     val session: LanShareSession? = null,
@@ -42,6 +54,7 @@ data class LanShareUiState(
     val qrVisible: Boolean = false,
     val browserConnected: Boolean = false,
     val files: List<LanShareFile> = emptyList(),
+    val uploadingFiles: List<LanShareUploadingFile> = emptyList(),
     val messages: List<LanShareMessage> = emptyList(),
     val ownFileIds: Set<String> = emptySet(),
     val previewFiles: Map<String, java.io.File> = emptyMap(),
@@ -198,16 +211,61 @@ class LanShareViewModel @Inject constructor(
     fun uploadFile(session: LanShareSession, uri: android.net.Uri, temporaryFile: java.io.File? = null) {
         val ticket = refreshGuard.currentGeneration()
         viewModelScope.launch(Dispatchers.IO) {
+            val uploadId = UUID.randomUUID().toString()
+            var uploadStarted = false
             try {
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
-                val id = lanShareGateway.upload(session, createUploadSource(uri))
+                val source = createUploadSource(uri)
+                val uploading = LanShareUploadingFile(
+                    id = uploadId,
+                    name = source.name,
+                    size = source.size,
+                    uploadedBytes = 0L,
+                    startedAt = System.currentTimeMillis(),
+                )
+                refreshGuard.update(session, ticket) {
+                    it.copy(uploadingFiles = it.uploadingFiles + uploading)
+                }
+                uploadStarted = true
+                var lastProgressPercent = 0
+                val id = lanShareGateway.upload(session, source) { uploadedBytes, totalBytes ->
+                    val percent = if (totalBytes <= 0L) 0 else
+                        ((uploadedBytes.coerceIn(0L, totalBytes) * 100L) / totalBytes).toInt()
+                    if (percent != lastProgressPercent) {
+                        lastProgressPercent = percent
+                        refreshGuard.update(session, ticket) { state ->
+                            state.copy(uploadingFiles = state.uploadingFiles.map { current ->
+                                if (current.id == uploadId) current.copy(uploadedBytes = uploadedBytes) else current
+                            })
+                        }
+                    }
+                }
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
-                addOwnFileId(session, ticket, id)
+                val completedFile = LanShareFile(
+                    id = id,
+                    name = source.name,
+                    size = source.size,
+                    modifiedAt = System.currentTimeMillis(),
+                    sender = "app",
+                    mimeType = source.mimeType,
+                )
+                refreshGuard.update(session, ticket) { state ->
+                    state.copy(
+                        files = (state.files.filterNot { it.id == id } + completedFile)
+                            .sortedBy(LanShareFile::modifiedAt),
+                        ownFileIds = state.ownFileIds + id,
+                    )
+                }
                 if (!_uiState.value.isHost) refreshFiles(session, showError = false)
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Notice("上传成功"))
             } catch (_: Exception) {
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("上传失败"))
             } finally {
+                if (uploadStarted) {
+                    refreshGuard.update(session, ticket) { state ->
+                        state.copy(uploadingFiles = state.uploadingFiles.filterNot { it.id == uploadId })
+                    }
+                }
                 temporaryFile?.delete()
             }
         }
@@ -237,10 +295,6 @@ class LanShareViewModel @Inject constructor(
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("发送失败"))
             }
         }
-    }
-
-    private fun addOwnFileId(session: LanShareSession, ticket: Long, id: String) {
-        refreshGuard.update(session, ticket) { it.copy(ownFileIds = it.ownFileIds + id) }
     }
 
     fun downloadFile(session: LanShareSession, id: String, destination: android.net.Uri) {

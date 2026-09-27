@@ -61,9 +61,12 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("const ownFileIdsKey = 'lanShareOwnFileIds:' + clientId"))
         assertTrue(script.contains("function rememberOwnFile(id)"))
         assertTrue(script.contains("ownFileIds.has(file.id)"))
-        assertTrue(script.contains("body: file"))
-        assertTrue(script.contains("'x-file-size': String(file.size)"))
-        assertTrue(script.contains("rememberOwnFile((await response.text()).trim())"))
+        assertTrue(script.contains("request.send(file)"))
+        assertTrue(script.contains("request.setRequestHeader('x-file-size', String(file.size))"))
+        assertTrue(script.contains("request.upload.addEventListener('progress'"))
+        assertTrue(script.contains("'&transfer=' + encodeURIComponent(transferId)"))
+        assertTrue(script.contains("rememberOwnFile(storedId)"))
+        assertTrue(script.contains("function updateUploadItem(item, upload)"))
     }
 
     @Test
@@ -118,7 +121,7 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("'/ws?client=' + encodeURIComponent(clientId)"))
         assertTrue(script.contains("reconcileMessages(payload.messages)"))
         assertTrue(script.contains("appendChatMessage(payload.message)"))
-        assertTrue(script.contains("body: file"))
+        assertTrue(script.contains("request.send(file)"))
         assertTrue(!script.contains("new File([text], '消息.txt'"))
     }
 
@@ -126,11 +129,20 @@ class LanShareWebScriptTest {
     fun browserAppliesFileUploadEventsWithoutPollingFileList() {
         val script = LanShareWebScript.render()
 
-        assertTrue(script.contains("function upsertFile(file)"))
-        assertTrue(script.contains("payload.type === 'files' && payload.file) upsertFile(payload.file)"))
+        assertTrue(script.contains("function upsertFile(file, transferId)"))
+        assertTrue(script.contains("payload.type === 'files' && payload.file) upsertFile(payload.file, payload.transferId)"))
         assertTrue(script.contains("socket.send('sync')"))
         assertTrue(!script.contains("async function refreshFiles()"))
         assertTrue(!script.contains("/api/files"))
+    }
+
+    @Test
+    fun browserUploadBubblesFillFromLeftAsTheRequestProgresses() {
+        val page = LanShareWebTemplates.page()
+
+        assertTrue(page.contains("--upload-progress"))
+        assertTrue(page.contains("transition:width .12s linear"))
+        assertTrue(page.contains("aria-valuenow"))
     }
 
     @Test

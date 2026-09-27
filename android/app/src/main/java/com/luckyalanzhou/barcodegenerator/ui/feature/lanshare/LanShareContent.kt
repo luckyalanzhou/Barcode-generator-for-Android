@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUploadingFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 
@@ -85,6 +86,11 @@ private sealed interface LanShareTimelineEntry {
         override val key: String get() = "message:${message.id}"
         override val timestamp: Long get() = message.createdAt
     }
+
+    data class UploadEntry(val upload: LanShareUploadingFile) : LanShareTimelineEntry {
+        override val key: String get() = "upload:${upload.id}"
+        override val timestamp: Long get() = upload.startedAt
+    }
 }
 
 @Composable
@@ -122,10 +128,11 @@ internal fun LanShareContent(
     val peerColorIndices = remember(lanState.files, lanState.messages, lanState.ownFileIds) {
         lanSharePeerColorIndices(lanState.files, lanState.ownFileIds, lanState.messages)
     }
-    val timeline = remember(lanState.files, lanState.messages) {
+    val timeline = remember(lanState.files, lanState.messages, lanState.uploadingFiles) {
         buildList {
             lanState.files.forEach { add(LanShareTimelineEntry.FileEntry(it)) }
             lanState.messages.forEach { add(LanShareTimelineEntry.MessageEntry(it)) }
+            lanState.uploadingFiles.forEach { add(LanShareTimelineEntry.UploadEntry(it)) }
         }.sortedWith(compareBy<LanShareTimelineEntry> { it.timestamp }.thenBy { it.key })
     }
     val background = themeColors.surfaces.background
@@ -151,7 +158,10 @@ internal fun LanShareContent(
                 LanShareConnectionStatus(lanState.browserConnected)
             }
             items(timeline, key = { it.key }, contentType = {
-                if (it is LanShareTimelineEntry.FileEntry) "file" else "message"
+                when (it) {
+                    is LanShareTimelineEntry.FileEntry, is LanShareTimelineEntry.UploadEntry -> "file"
+                    is LanShareTimelineEntry.MessageEntry -> "message"
+                }
             }) { entry ->
                 when (entry) {
                     is LanShareTimelineEntry.FileEntry -> {
@@ -161,6 +171,9 @@ internal fun LanShareContent(
                             peerColorIndex = peerColorIndices[file.sender],
                             onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
                         )
+                    }
+                    is LanShareTimelineEntry.UploadEntry -> {
+                        LanShareUploadingBubble(entry.upload)
                     }
                     is LanShareTimelineEntry.MessageEntry -> {
                         val chatMessage = entry.message

@@ -104,6 +104,7 @@ internal class LanShareServer(
         target: File,
         reservation: Long,
         mimeType: String,
+        transferId: String?,
     ) {
         var reservationHeld = true
         var temporary: File? = null
@@ -130,7 +131,7 @@ internal class LanShareServer(
                 reservedUploadBytes = (reservedUploadBytes - reservation).coerceAtLeast(0L)
                 reservationHeld = false
             }
-            notifyFilesChanged(target)
+            notifyFilesChanged(target, transferId)
         } finally {
             temporary?.delete()
             if (reservationHeld) releaseUploadCapacity(reservation)
@@ -301,20 +302,22 @@ internal class LanShareServer(
 
     private fun fileMimeType(file: File): String = uploadedMimeTypes[file.name] ?: mimeTypeForName(file.name)
 
-    private fun notifyFilesChanged(file: File? = null) {
+    private fun notifyFilesChanged(file: File? = null, transferId: String? = null) {
         file?.let { emitRealtimeEvent(LanShareRealtimeEvent.FileAdded(toLanShareFile(it, "peer", uploadedMimeTypes[it.name]))) }
         if (webSockets.isEmpty()) return
         val event = JSONObject().put("type", "files").toString()
         val eventWithFile = file?.let { uploaded ->
             val record = toLanShareFile(uploaded, "peer", uploadedMimeTypes[uploaded.name])
-            JSONObject(event).put("file", JSONObject()
+            val payload = JSONObject(event).put("file", JSONObject()
                 .put("id", record.id)
                 .put("name", record.name)
                 .put("size", record.size)
                 .put("modifiedAt", record.modifiedAt)
                 .put("sender", record.sender)
                 .put("mimeType", record.mimeType)
-            ).toString()
+            )
+            transferId?.let { payload.put("transferId", it) }
+            payload.toString()
         } ?: event
         webSockets.toList().forEach { socket ->
             runCatching {
@@ -389,6 +392,8 @@ internal class LanShareServer(
                     }
                     val submittedName = session.parameters["name"]?.firstOrNull().orEmpty().ifBlank { "附件" }
                     val client = session.parameters["client"]?.firstOrNull().orEmpty()
+                    val transferId = session.parameters["transfer"]?.firstOrNull()
+                        ?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{8,64}")) }
                     val name = safeFileName(submittedName)
                     val mimeType = uploadedMimeType(name, session.headers["content-type"])
                     val targetPrefix = System.nanoTime()
@@ -400,7 +405,7 @@ internal class LanShareServer(
                     if (!reserveUploadCapacity(body.expectedBytes)) {
                         return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
                     }
-                    receiveUpload(session, body, target, body.expectedBytes, mimeType)
+                    receiveUpload(session, body, target, body.expectedBytes, mimeType, transferId)
                     newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name)
                 }
 

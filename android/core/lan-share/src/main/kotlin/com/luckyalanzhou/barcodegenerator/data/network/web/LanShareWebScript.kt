@@ -16,6 +16,7 @@ const imageViewerTitle = document.getElementById('image-viewer-title');
 const imageViewerClose = document.getElementById('image-viewer-close');
 let fileRecords = [];
 let chatRecords = [];
+const uploadRecords = new Map();
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
@@ -265,8 +266,12 @@ function reconcileFiles(list) {
     renderTimeline();
 }
 
-function upsertFile(file) {
+function upsertFile(file, transferId) {
     if (!file || !file.id) return;
+    if (transferId && uploadRecords.has(transferId)) {
+        uploadRecords.delete(transferId);
+        rememberOwnFile(file.id);
+    }
     fileRecords = fileRecords.filter(existing => existing.id !== file.id);
     fileRecords.push(file);
     renderTimeline();
@@ -300,6 +305,39 @@ function createMessageItem(message) {
     return item;
 }
 
+function createUploadItem(upload) {
+    const item = document.createElement('li');
+    item.dataset.uploadId = upload.id;
+    item.className = 'mine upload-progress';
+    item.setAttribute('role', 'progressbar');
+    item.setAttribute('aria-valuemin', '0');
+    item.setAttribute('aria-valuemax', '100');
+    const fill = document.createElement('span');
+    fill.className = 'upload-fill';
+    fill.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span');
+    name.className = 'upload-name';
+    const size = document.createElement('small');
+    size.className = 'upload-size';
+    const percent = document.createElement('span');
+    percent.className = 'upload-percent';
+    item.append(fill, name, size, percent);
+    updateUploadItem(item, upload);
+    return item;
+}
+
+function updateUploadItem(item, upload) {
+    const total = Math.max(0, Number(upload.total) || 0);
+    const loaded = Math.max(0, Math.min(total, Number(upload.loaded) || 0));
+    const percent = total > 0 ? Math.floor(loaded * 100 / total) : 0;
+    item.style.setProperty('--upload-progress', percent + '%');
+    item.setAttribute('aria-valuenow', String(percent));
+    item.setAttribute('aria-label', '正在上传 ' + upload.name + '，' + percent + '%');
+    item.querySelector('.upload-name').textContent = upload.name || '附件';
+    item.querySelector('.upload-size').textContent = formatSize(loaded) + ' / ' + formatSize(total);
+    item.querySelector('.upload-percent').textContent = percent + '%';
+}
+
 function renderTimeline() {
     const normalized = fileRecords;
     const messages = chatRecords;
@@ -311,10 +349,12 @@ function renderTimeline() {
     const usePeerColors = peerSenders.length > 1;
     const timeline = [
         ...normalized.map(file => ({ kind: 'file', item: file, timestamp: Number(file.modifiedAt) || 0, key: 'file:' + file.id })),
-        ...messages.map(message => ({ kind: 'message', item: message, timestamp: Number(message.createdAt) || 0, key: 'message:' + message.id }))
+        ...messages.map(message => ({ kind: 'message', item: message, timestamp: Number(message.createdAt) || 0, key: 'message:' + message.id })),
+        ...Array.from(uploadRecords.values()).map(upload => ({ kind: 'upload', item: upload, timestamp: upload.startedAt, key: 'upload:' + upload.id }))
     ].sort((left, right) => left.timestamp - right.timestamp || left.key.localeCompare(right.key));
     const current = new Map(Array.from(fileList.children).map(item => {
-        const key = item.dataset.fileId ? 'file:' + item.dataset.fileId : 'message:' + item.dataset.messageId;
+        const key = item.dataset.fileId ? 'file:' + item.dataset.fileId :
+            item.dataset.messageId ? 'message:' + item.dataset.messageId : 'upload:' + item.dataset.uploadId;
         return [key, item];
     }));
     const activeKeys = new Set(timeline.map(entry => entry.key));
@@ -324,6 +364,13 @@ function renderTimeline() {
     });
 
     timeline.forEach(entry => {
+        if (entry.kind === 'upload') {
+            const oldItem = current.get(entry.key);
+            const item = oldItem || createUploadItem(entry.item);
+            if (oldItem) updateUploadItem(item, entry.item);
+            fileList.appendChild(item);
+            return;
+        }
         if (entry.kind === 'message') {
             const message = entry.item;
             const oldItem = current.get(entry.key);
@@ -383,25 +430,55 @@ function setPeerBubbleColor(item, file, peerColorIndices, usePeerColors) {
 
 async function uploadFile(file) {
     if (!file) return;
+    const transferId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    const upload = { id: transferId, name: file.name || '附件', total: file.size, loaded: 0, startedAt: Date.now() };
+    uploadRecords.set(transferId, upload);
+    renderTimeline();
     try {
-        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '附件') + '&client=' + encodeURIComponent(clientId), {
-            method: 'PUT',
-            headers: {
-                'content-type': file.type || 'application/octet-stream',
-                // Safari/部分移动浏览器使用 chunked PUT，无法由网页设置 Content-Length。
-                'x-file-size': String(file.size)
-            },
-            body: file
+        const storedId = await new Promise((resolve, reject) => {
+            const request = new XMLHttpRequest();
+            const url = '/upload?name=' + encodeURIComponent(file.name || '附件') +
+                '&client=' + encodeURIComponent(clientId) + '&transfer=' + encodeURIComponent(transferId);
+            request.open('PUT', url, true);
+            request.setRequestHeader('content-type', file.type || 'application/octet-stream');
+            // Safari/部分移动浏览器使用 chunked PUT，无法由网页设置 Content-Length。
+            request.setRequestHeader('x-file-size', String(file.size));
+            request.upload.addEventListener('progress', event => {
+                if (!uploadRecords.has(transferId)) return;
+                const total = event.lengthComputable ? event.total : file.size;
+                const progress = { ...upload, loaded: event.loaded, total };
+                uploadRecords.set(transferId, progress);
+                const item = fileList.querySelector('[data-upload-id="' + transferId + '"]');
+                if (item) updateUploadItem(item, progress);
+            });
+            request.addEventListener('load', () => {
+                if (request.status >= 200 && request.status < 300) resolve(request.responseText.trim());
+                else reject(new Error(request.responseText || ('HTTP ' + request.status)));
+            });
+            request.addEventListener('error', () => reject(new Error('网络连接失败')));
+            request.addEventListener('abort', () => reject(new Error('上传已取消')));
+            request.send(file);
         });
-        if (!response.ok) {
-            const reason = await response.text();
-            throw new Error(reason || ('HTTP ' + response.status));
-        }
         // The server returns the stored file ID. Keep that authoritative identity locally so
         // this browser's new upload stays on the right even if sender metadata is stale/missing.
-        rememberOwnFile((await response.text()).trim());
+        if (storedId) {
+            rememberOwnFile(storedId);
+            upsertFile({
+                id: storedId,
+                name: file.name || '附件',
+                size: file.size,
+                modifiedAt: Date.now(),
+                sender: 'browser:' + clientId,
+                mimeType: file.type || null
+            }, transferId);
+        } else {
+            uploadRecords.delete(transferId);
+            renderTimeline();
+        }
         if (messageInput) messageInput.value = '';
     } catch (error) {
+        uploadRecords.delete(transferId);
+        renderTimeline();
         alert('发送失败：' + (error.message || '请刷新页面后重试'));
     }
 }
@@ -489,7 +566,7 @@ function connectSocket() {
                     reconcileFiles(payload.files);
                     reconcileMessages(payload.messages);
                 } else if (payload.type === 'message') appendChatMessage(payload.message);
-                else if (payload.type === 'files' && payload.file) upsertFile(payload.file);
+                else if (payload.type === 'files' && payload.file) upsertFile(payload.file, payload.transferId);
                 else if (payload.type === 'error') alert(payload.message || '消息发送失败');
             } catch (_) {}
         };
