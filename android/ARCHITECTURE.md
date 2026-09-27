@@ -1,8 +1,8 @@
-# Android 架构约束
+# 架构原则
 
-本项目使用 Compose + MVVM + StateFlow + Hilt + Repository + UseCase 的分层架构。
+本文定义项目长期遵守的模块边界、依赖方向、状态与持久化原则、安全边界和验证策略。它是代码评审与架构变更的共同依据；具体页面行为、网络接口、容量限制和开发命令不在本文维护，分别见 [LAN Share 协议说明](core/lan-share/PROTOCOL.md) 与 [开发验证指南](DEVELOPMENT.md)。
 
-## 模块依赖
+## 模块与依赖
 
 ```text
 :app ───────────────> :core:domain
@@ -10,64 +10,52 @@
   └────────────────> :core:lan-share ────> :core:domain
 ```
 
-允许的依赖方向：
+依赖只能沿图中箭头向内流动，不得形成反向依赖或模块环：
 
-| 模块 | 可以依赖 | 禁止依赖 |
-| --- | --- | --- |
-| `:core:domain` | Kotlin/JVM、Coroutines | Android、Compose、Room、DataStore、Activity、ZXing、`:app` |
-| `:core:data` | `:core:domain`、Android SDK、Room、DataStore、文件和网络 API | Compose、`:app`、ViewModel |
-| `:core:lan-share` | `:core:domain`、Android SDK、NanoHTTPD/WebSocket | Compose、`:app`、`:core:data`、ViewModel |
-| `:app` | `:core:domain`、`:core:data`、`:core:lan-share`、Android SDK、Compose、Hilt | 让 Composable 直接访问 DAO、Repository 实现或文件系统 |
+| 模块 | 职责与依赖边界 |
+| --- | --- |
+| `:core:domain` | 定义领域模型、业务规则和能力接口；保持平台无关，不依赖 Android、Compose、持久化框架或具体条码库。 |
+| `:core:data` | 实现领域数据接口，负责本地存储、迁移和外部能力适配；不依赖 UI 或应用模块。 |
+| `:core:lan-share` | 封装局域网分享的服务、客户端及协议实现；通过领域接口与应用层协作，不依赖 UI、`:core:data` 或 `:app`。 |
+| `:app` | 组合各模块，承载应用级流程、ViewModel、Compose UI、平台交互与依赖注入。 |
 
-当前共有以上四个 Gradle 模块。Compose UI 与 presentation 代码位于 `:app` 模块的不同包中；`ui` 是代码层次，不是独立的 `:core:ui` 模块。`:core:lan-share` 是 Android Library，会随 `:app` 一起打包进 APK，不需要单独安装。
+`:core:domain` 是依赖边界的内核；模块之间只通过稳定模型和接口协作。Gradle 插件与依赖版本集中在 Version Catalog。当前 UI 与 presentation 同属 `:app`，包名划分不代表独立 Gradle 模块。
 
-Android 插件与库版本由 Gradle Version Catalog 集中管理，目录为 `android/gradle/libs.versions.toml`。
+## 分层职责
 
-## 层职责
+- **Domain** 表达业务概念、规则和能力契约，不承载 Android 生命周期或 UI 状态。
+- **Data / LAN Share** 实现契约并隔离存储、网络和平台细节；文件协议细节归 LAN Share 模块自身维护。
+- **Presentation** 编排用例、维护页面状态并暴露一次性事件；不能让页面生命周期意外取消必须完成的数据写入。
+- **UI** 根据状态渲染并将用户操作交回 presentation；不直接依赖 DAO、Repository 实现、文件系统或网络传输实现。
+- **App 装配** 是跨模块实现与 Android 系统 API 的组合边界。依赖注入绑定放在应用组合层，只有出现明确的独立复用或规模需求时才下沉到 Core 模块。
 
-- `:core:domain`：领域模型、Repository/平台能力接口和不依赖 Android 的业务规则。
-- `:core:data`：Room、DataStore、文件数据源及 Repository 实现；负责 Entity/Domain Mapper 和持久化迁移。
-- `:core:lan-share`：局域网 HTTP 文件服务、WebSocket 会话消息、文件协议和内嵌浏览器页面；依赖 `:core:domain` 的 `LanShareGateway` 契约。
-- `:app` 的 `presentation` 包：ViewModel、页面状态和应用级业务协调。
-- `:app` 的 `ui` 包：Compose 页面、状态渲染、页面切换和一次性事件消费；通过 ViewModel/回调连接 presentation，不直接操作数据源。
-- `:app` 的 DI 与平台桥接：组合各模块实现，并接入 Activity、权限、文件选择器等 Android 能力。当前 Hilt 装配集中在单个 `AppModule`；只有在 Core 模块需要独立复用或装配规模明显增长时，再考虑拆分模块内的 DI。
+## 状态、事件与导航
 
-## 状态与事件
+- 持续展示、需要被多个观察者读取的状态使用 `StateFlow` 等状态容器；状态容器不等于持久化，也不自动保证进程重建恢复。
+- 瞬时提示、系统请求及其他只应消费一次的动作使用 `Channel` 或 `SharedFlow` 等事件通道；不可把一次性事件伪装成长期状态反复消费。
+- 当前页面路由属于应用级状态，由统一的导航协调层维护；页面之间传递稳定 ID 或不可变参数，不传递 DAO、Context 或可变数据实体。
+- 进程恢复所需的轻量标识通过 Saved State 保存；可长期保留的数据进入持久化层，不将位图或大型对象塞入 Saved State。
 
-- 页面运行期间、重组或配置变化后需要继续观察的内容使用 `StateFlow`；`StateFlow` 本身不保证进程重建恢复。
-- Toast、Snackbar、导航、系统请求和下载完成等一次性行为使用 `SharedFlow` 或 `Channel`。
-- Composable 不直接访问数据库、DataStore、文件或网络。
-- 结果页使用 `SavedStateHandle` 保存条码 ID、返回来源和收藏分组 ID，进程重建后从 Repository 重载内容；外部相机/文件请求保存请求码及必要的输出路径。不要把位图或整份条码列表放入保存状态。
+## 持久化
 
-## 局域网文件传输
+- Repository / 数据模块是持久化数据的权威来源；UI 状态只负责当前交互展示。
+- 写入顺序、失败恢复和旧版本数据迁移由数据层统一负责，不能依赖某个页面 ViewModel 存活。
+- 临时传输内容与用户长期数据分开存放；临时文件不进入用户数据备份，备份规则与实际存储位置必须同步维护。
 
-- Android App 是分享房间创建端；同一局域网的加入端使用浏览器访问，不要求安装 App。
-- 文字消息通过 `/ws` WebSocket 双向广播，并在当前服务进程内暂存；App 与浏览器两端的消息都会进入最多 100 条的会话历史，服务停止后不保留聊天记录。
-- 文件内容通过 HTTP `PUT /upload` 原字节上传，文件名和发送端信息作为请求参数传递；原文件由 `GET /dl/<id>` 下载，图片预览走独立的 `GET /api/preview/<id>`，预览处理不改变下载原文件。
-- 文件暂存在 App 私有目录 `filesDir/lan-share`，不写入公共 Documents。创建新分享房间或显式结束房间时清理；不将该目录作为长期文件库。
-- 浏览器 WebSocket 断开后每 1 秒尝试重连。重连后浏览器请求当前会话快照，恢复文件列表和消息历史；浏览器不通过定时轮询更新列表。
-- 服务端将连接、文件和消息变化折叠为最新会话状态，通过 `LanShareGateway` 暴露给 App；App ViewModel 以 `StateFlow` 更新界面。慢速观察者可以跳过中间状态，但会收到最新状态，避免无限事件队列积压。
-- `:core:lan-share` 隔离 HTTP/WebSocket 实现、浏览器页面和传输缓冲细节；presentation/UI 通过领域层契约访问能力，仅 App 的 DI 装配层了解具体实现。传输协议、服务生命周期与 Compose UI 保持解耦。
+## LAN Share 安全与生命周期
 
-## 导航
+- LAN Share 是用户主动开启的临时局域网功能，创建端是 Android App，加入端可以是无需安装 App 的浏览器。
+- 当前信任模型以同一 Wi-Fi 局域网为边界：不提供身份认证或端到端加密；能访问分享地址的同网设备可参与会话。UI 必须明确提示同 Wi-Fi 访问范围。
+- 服务仅绑定当前 Wi-Fi 局域网地址，不把蜂窝、VPN 或公网作为分享入口。端口或路径只负责定位服务，不得被描述为身份验证或安全令牌。
+- 离开文件传输页面时关闭服务并清理本次会话临时文件；进入后台本身不改变会话。应用进程结束时监听随进程终止；异常杀进程不保证执行清理，因此下次会话要能清理遗留临时文件。
+- 文件名、类型和文件访问路径必须经过校验；服务只能读写当前会话允许的文件，防止目录穿越。原文件传输与图片预览处理分离，生成预览不得改写下载源文件。
 
-- 当前实现的 `NavigationRoute` 定义在 `presentation/navigation`，包含页面名、标题、Chrome 显示规则与主标签位置；`ui/app/AppRoute` 是它的类型别名。
-- `AppNavigationViewModel` 的 `StateFlow` 持有当前 `NavigationRoute`，Activity 在 `onSaveInstanceState` 保存页面名和设置页返回目标，并在重建时恢复。Compose 根据路由渲染页面，没有 `NavController` 导航栈。
-- 返回行为由 Activity/Compose UI 协调，业务 ViewModel 不持有导航栈。
-- 页面之间传递稳定 ID 或不可变参数，不传递 DAO、Context 或可变实体。
+## 验证策略
 
-## 持久化与备份
+- 各模块为领域规则、数据持久化和协议逻辑维护自动化测试；LAN Share 除单元测试外，还应覆盖本地 HTTP / WebSocket 边界的协议验证。
+- 真正依赖 Wi-Fi 路由、Android 生命周期或系统选择器的行为必须在设备上验证；本地测试通过不能替代真机确认。
+- 本地完成相关测试和目标变体静态检查后，再使用远程工作流构建 APK。远程构建的职责与验证命令见开发指南。
 
-- `BarcodePersistenceCoordinator` 是进程内单例，按顺序写入 Room；写入协程不依附于页面 ViewModel，页面销毁不应取消已入队任务。
-- 页面数据先更新内存，再排队落库；失败时通过 `writeFailures` 通知 `LibraryDataViewModel` 重载持久化快照。进程被强制结束前尚未提交的写入仍有丢失风险，不能把入队等同于事务提交成功。
-- 用户条码数据允许备份；`lan-share/` 临时附件及 Beta 诊断日志在旧版备份规则和 Android 12+ 数据提取规则中均被排除。
+## 架构文档同步
 
-## 构建验证
-
-- `:core:domain`、`:core:data`、`:core:lan-share` 和 `:app` 的自动化测试目前是 JVM 单元测试，位于 `src/test`。其中 `:core:lan-share` 会启动本地 HTTP 服务并用客户端验证定长/分块上传、原始字节和 `/dl/<id>` 下载；WebSocket 覆盖握手及会话状态，但不等同于真实设备上的完整双端测试。
-- 当前没有维护 Android `src/androidTest` 仪器化测试；局域网地址发现、Wi-Fi 通信、应用生命周期等设备行为由真机手动验证。
-- 发布前在本地运行相关单元测试及目标变体的 Release lint。`beta` 与 `main` 的 GitHub 手动发布工作流只负责构建、签名和发布 APK，不在远端重复运行测试或 lint。
-
-## 兼容性
-
-旧版 `SharedPreferences` 迁移代码属于数据兼容职责，可以保留在 Data 层；它不是新的业务状态来源。
+涉及模块归属、依赖方向、数据所有权、状态策略、持久化、LAN 信任边界或生命周期的变更，必须在同一变更中更新本文。协议字段、接口路径、容量限制、页面说明和可执行命令分别更新对应的协议、README 或开发指南，不把短期任务和频繁变化的实现参数写成架构原则。评审模板要求确认相关文档是否同步。

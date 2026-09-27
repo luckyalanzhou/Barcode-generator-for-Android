@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiff
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeState
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
@@ -12,8 +13,11 @@ import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_MAX_SESSION_MESSAGES
 import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
+import com.luckyalanzhou.barcodegenerator.data.preview.LanShareImagePreviewDecoder
+import com.luckyalanzhou.barcodegenerator.data.preview.LanShareTiffPreviewDecoder
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import java.util.UUID
@@ -57,7 +62,7 @@ data class LanShareUiState(
     val uploadingFiles: List<LanShareUploadingFile> = emptyList(),
     val messages: List<LanShareMessage> = emptyList(),
     val ownFileIds: Set<String> = emptySet(),
-    val previewFiles: Map<String, java.io.File> = emptyMap(),
+    val previewFileIds: Set<String> = emptySet(),
     val pendingDownloadId: String? = null,
     val pendingUploadUri: android.net.Uri? = null,
     val pendingUploadTempFile: java.io.File? = null,
@@ -81,6 +86,8 @@ class LanShareViewModel @Inject constructor(
     private val _events = Channel<LanShareEvent>(Channel.BUFFERED)
     val events: Flow<LanShareEvent> = _events.receiveAsFlow()
     private var refreshJob: Job? = null
+    @Volatile
+    private var previewFilesById: Map<String, java.io.File> = emptyMap()
 
     init {
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -92,10 +99,9 @@ class LanShareViewModel @Inject constructor(
 
     fun isRouterLanHost(host: String?): Boolean = lanShareGateway.isRouterLanHost(host)
 
-    fun localFile(id: String): java.io.File? = lanShareGateway.localFile(id)
-
     fun startHostSession(): LanShareSession {
         invalidateRoomRefresh()
+        previewFilesById = emptyMap()
         val session = lanShareGateway.start()
         _uiState.update {
             it.copy(
@@ -106,7 +112,7 @@ class LanShareViewModel @Inject constructor(
                 files = lanShareGateway.localFiles(),
                 messages = lanShareGateway.localMessages(),
                 ownFileIds = emptySet(),
-                previewFiles = emptyMap(),
+                previewFileIds = emptySet(),
             )
         }
         return session
@@ -115,6 +121,7 @@ class LanShareViewModel @Inject constructor(
     fun joinSession(session: LanShareSession) {
         invalidateRoomRefresh()
         lanShareGateway.stop()
+        previewFilesById = emptyMap()
         _uiState.update {
             it.copy(
                 session = session,
@@ -124,7 +131,7 @@ class LanShareViewModel @Inject constructor(
                 files = emptyList(),
                 messages = emptyList(),
                 ownFileIds = emptySet(),
-                previewFiles = emptyMap(),
+                previewFileIds = emptySet(),
             )
         }
     }
@@ -142,6 +149,7 @@ class LanShareViewModel @Inject constructor(
 
     fun closeSession() {
         invalidateRoomRefresh()
+        previewFilesById = emptyMap()
         lanShareGateway.stop(clearSharedFiles = true)
         _uiState.update {
             it.copy(
@@ -152,7 +160,7 @@ class LanShareViewModel @Inject constructor(
                 files = emptyList(),
                 messages = emptyList(),
                 ownFileIds = emptySet(),
-                previewFiles = emptyMap(),
+                previewFileIds = emptySet(),
             )
         }
     }
@@ -172,17 +180,22 @@ class LanShareViewModel @Inject constructor(
             result.onSuccess { (files, messages) ->
                 if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
                 val imageIds = files.filter { isLanShareImage(it.name, it.mimeType) }.map { it.id }.toSet()
+                previewFilesById = previewFilesById.filterKeys { it in imageIds }
                 refreshGuard.update(session, ticket) {
                     it.copy(
                         files = files,
                         messages = messages,
-                        previewFiles = it.previewFiles.filterKeys { key -> key in imageIds },
+                        previewFileIds = previewFilesById.keys,
                     )
                 }
                 val previews = fetchPreviews(session, files)
                 currentCoroutineContext().ensureActive()
                 if (previews.isNotEmpty()) {
-                    refreshGuard.update(session, ticket) { it.copy(previewFiles = it.previewFiles + previews) }
+                    if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
+                    previewFilesById = previewFilesById + previews
+                    refreshGuard.update(session, ticket) {
+                        it.copy(previewFileIds = previewFilesById.keys)
+                    }
                 }
             }.onFailure {
                 if (showError && refreshGuard.isCurrent(session, ticket)) {
@@ -205,6 +218,28 @@ class LanShareViewModel @Inject constructor(
                 files = snapshot.files,
                 messages = snapshot.messages,
             )
+        }
+    }
+
+    /** Resolves and decodes the image source off the UI thread; Compose only receives a Bitmap. */
+    suspend fun loadImagePreview(file: LanShareFile): Bitmap? {
+        if (!isLanShareImage(file.name, file.mimeType)) return null
+        val session = _uiState.value.session ?: return null
+        val ticket = refreshGuard.currentGeneration()
+        return withContext(Dispatchers.IO) {
+            if (!refreshGuard.isCurrent(session, ticket)) return@withContext null
+            val localFile = lanShareGateway.localFile(file.id)
+            val source = (localFile ?: previewFilesById[file.id])?.takeIf(java.io.File::isFile)
+                ?: return@withContext null
+            val bitmap = if (localFile != null && isLanShareTiff(file.name, file.mimeType)) {
+                LanShareTiffPreviewDecoder.decode(source, LanShareImagePreviewDecoder.MAX_DECODE_EDGE)
+            } else {
+                LanShareImagePreviewDecoder.decode(source, LanShareImagePreviewDecoder.MAX_DECODE_EDGE)
+            }
+            if (refreshGuard.isCurrent(session, ticket)) bitmap else {
+                bitmap?.recycle()
+                null
+            }
         }
     }
 

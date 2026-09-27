@@ -109,6 +109,7 @@ private fun LanShareQrManualInfo(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("浏览器连接地址", color = secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text("同 Wi-Fi 下扫码即可访问", color = secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("地址", color = secondary, fontSize = 12.sp, modifier = Modifier.width(44.dp))
             SelectionContainer(modifier = Modifier.weight(1f)) {

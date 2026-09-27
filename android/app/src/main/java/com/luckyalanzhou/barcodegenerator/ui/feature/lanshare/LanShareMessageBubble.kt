@@ -1,8 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
-import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiff
-import com.luckyalanzhou.barcodegenerator.data.preview.LanShareTiffPreviewDecoder
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
@@ -42,14 +40,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
 internal fun LanShareMessageBubble(
-    localFile: (String) -> java.io.File?,
     state: LanShareUiState,
     file: LanShareFile,
+    previewReady: Boolean,
+    loadPreview: suspend (LanShareFile) -> Bitmap?,
     dark: Boolean,
     primary: Color,
     secondary: Color,
@@ -60,15 +57,8 @@ internal fun LanShareMessageBubble(
     val themeColors = LocalAppColorScheme.current
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
     val mine = file.id in state.ownFileIds
-    val localImageFile = localFile(file.id)
-    val previewFile = (localImageFile ?: state.previewFiles[file.id]).takeIf { isLanShareImage(file.name, file.mimeType) }
-    val previewState = produceState<Bitmap?>(null, file.id, previewFile?.absolutePath, previewFile?.lastModified()) {
-        val source = previewFile ?: return@produceState
-        value = if (localImageFile != null && isLanShareTiff(file.name, file.mimeType)) {
-            LanShareTiffPreviewDecoder.decode(source, LAN_SHARE_PREVIEW_MAX_DECODE_EDGE)
-        } else {
-            withContext(Dispatchers.IO) { decodeLanSharePreview(source) }
-        }
+    val previewState = produceState<Bitmap?>(null, file.id, file.modifiedAt, previewReady) {
+        if (isLanShareImage(file.name, file.mimeType)) value = loadPreview(file)
     }
     val preview = previewState.value
     val previewSize = remember(preview?.width, preview?.height) {

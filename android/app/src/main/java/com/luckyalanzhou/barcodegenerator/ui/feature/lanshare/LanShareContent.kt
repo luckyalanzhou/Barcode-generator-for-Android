@@ -101,7 +101,7 @@ internal fun LanShareContent(
     onMessageChange: (String) -> Unit,
     onSetQrVisible: (Boolean) -> Unit,
     onSend: (String) -> Unit,
-    localFile: (String) -> java.io.File?,
+    onLoadImagePreview: suspend (LanShareFile) -> Bitmap?,
     onOpenCamera: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
@@ -167,7 +167,14 @@ internal fun LanShareContent(
                     is LanShareTimelineEntry.FileEntry -> {
                         val file = entry.file
                         LanShareMessageBubble(
-                            localFile, lanState, file, dark, primary, secondary, onSaveFile,
+                            state = lanState,
+                            file = file,
+                            previewReady = file.id in lanState.previewFileIds,
+                            loadPreview = onLoadImagePreview,
+                            dark = dark,
+                            primary = primary,
+                            secondary = secondary,
+                            onSaveFile = onSaveFile,
                             peerColorIndex = peerColorIndices[file.sender],
                             onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
                         )

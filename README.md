@@ -7,7 +7,11 @@
 <p>
   <a href="https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9"><strong>下载最新 Beta APK</strong></a>
   &nbsp;·&nbsp;
-  <a href="android/ARCHITECTURE.md">查看架构说明</a>
+  <a href="android/ARCHITECTURE.md">架构原则</a>
+  &nbsp;·&nbsp;
+  <a href="android/core/lan-share/PROTOCOL.md">LAN Share 协议</a>
+  &nbsp;·&nbsp;
+  <a href="android/DEVELOPMENT.md">开发验证</a>
 </p>
 
 <p>
@@ -38,7 +42,7 @@
 | **识别内容** | 使用相机或图片识别条码；图片文字可通过中文 OCR 提取，并可配置常见字符混淆纠正。 |
 | **历史记录** | 浏览历史条码，重新生成、复制、分享或删除。 |
 | **收藏整理** | 将条码保存到收藏夹，按文件夹整理和搜索；支持移动、重命名、导入与导出。 |
-| **局域网传输** | Android 应用与浏览器互传文字、原始图片和文件；文字消息走 WebSocket，文件通过 HTTP 上传并由 `/dl/<id>` 下载。浏览器加入端无需安装应用；图片可预览、全屏查看与缩放。 |
+| **局域网传输** | Android 应用与浏览器互传文字、原始图片和文件；文字经 WebSocket 传递，文件经 HTTP 传输。浏览器加入端无需安装应用；图片可预览、全屏查看与缩放。 |
 | **多端消息区分** | 多个浏览器加入端同时传输时，按发送端区分气泡颜色；本机发送的气泡样式保持独立。 |
 | **样式与设置** | 调整条码尺寸、间距、文字与颜色；支持浅色/深色外观、识别纠错选项和应用更新检查。Beta 版提供诊断日志导出。 |
 
@@ -65,34 +69,18 @@
 | `:core:data` | Room、DataStore、Repository 实现、收藏备份，以及条码识别、OCR 和更新的平台适配 |
 | `:core:lan-share` | 独立 Android Library；提供局域网服务与客户端、文件传输、图片预览处理及内嵌网页界面 |
 
-核心数据流：`Compose UI → ViewModel/Coordinator → Domain 接口 → Data 实现`。局域网传输通过 `:core:domain` 定义的 `LanShareGateway` 与界面解耦，并作为 Android Library 随应用打包。模块边界、状态管理和持久化说明见[架构文档](android/ARCHITECTURE.md)。
+核心数据流：`Compose UI → ViewModel/Coordinator → Domain 接口 → Data 实现`。局域网传输通过 `:core:domain` 定义的 `LanShareGateway` 与界面解耦，并作为 Android Library 随应用打包。稳定的模块边界与状态原则见[架构原则](android/ARCHITECTURE.md)；传输接口见[LAN Share 协议说明](android/core/lan-share/PROTOCOL.md)。
 
 ## 开发与验证
 
-### 环境要求
-
-- JDK 17
-- Android SDK Platform 37
-- 仓库自带 Gradle Wrapper
-
-### 本地运行测试与 lint
-
-在仓库根目录使用 Windows PowerShell：
-
-```powershell
-Set-Location .\android
-.\gradlew.bat :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache --max-workers=2
-```
-
-### Beta APK
-
-Beta APK 由 `beta` 分支上的 **Build Android Beta APK** 手动工作流签名打包，并发布到 [Beta Release](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9)。远程工作流专注于 APK 打包与发布；单元测试和 lint 在本地验证。APK 名称为 `BarcodeGeneratorBeta9.9.9.apk`，Beta 安装包与正式版使用不同应用 ID，可并行安装。
+请按[开发验证指南](android/DEVELOPMENT.md)在本地运行测试和 lint，再使用对应分支的手动工作流打包。Beta APK 可从 [Beta Release](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9) 获取；Beta 与正式版使用不同应用 ID，可并行安装。
 
 ## 仓库结构
 
 ```text
 .
 ├─ .github/workflows/       # Beta 与正式版构建发布工作流
+├─ .github/pull_request_template.md
 ├─ README.md
 └─ android/
    ├─ app/                  # Android 应用与 Compose 界面
@@ -101,5 +89,6 @@ Beta APK 由 `beta` 分支上的 **Build Android Beta APK** 手动工作流签�
    │  ├─ data/              # 数据持久化与平台实现
    │  └─ lan-share/         # 局域网传输模块
    ├─ ARCHITECTURE.md
+   ├─ DEVELOPMENT.md
    └─ beta-version.properties
 ```

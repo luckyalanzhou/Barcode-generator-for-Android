@@ -42,6 +42,7 @@ internal fun LanShareScreen(
         dark = dark,
         onMessageChange = { message = it },
         onSetQrVisible = viewModel::setQrVisible,
+        onLoadImagePreview = viewModel::loadImagePreview,
         onSend = { text ->
             val state = viewModel.uiState.value
             if (state.pendingUploadUri != null) {
@@ -52,7 +53,6 @@ internal fun LanShareScreen(
                 state.session?.let { session -> viewModel.sendText(session, value) }
             }
         },
-        localFile = viewModel::localFile,
         onOpenCamera = onOpenCamera,
         onOpenGallery = onOpenGallery,
         onOpenFiles = onOpenFiles,
