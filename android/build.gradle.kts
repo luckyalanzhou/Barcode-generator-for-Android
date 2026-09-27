@@ -7,3 +7,42 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
 }
+
+val expectedArchitectureModuleDependencies = mapOf(
+    ":app" to setOf(":core:domain", ":core:data", ":core:lan-share"),
+    ":core:domain" to emptySet(),
+    ":core:data" to setOf(":core:domain"),
+    ":core:lan-share" to setOf(":core:domain"),
+)
+
+tasks.register("verifyArchitectureModuleDependencies") {
+    group = "verification"
+    description = "Verifies production Gradle module dependencies against ARCHITECTURE.md."
+
+    doLast {
+        val actualProductionModules = subprojects
+            .filter { it.buildFile.isFile && it.path != ":architecture-tests" }
+            .map { it.path }
+            .toSet()
+        check(actualProductionModules == expectedArchitectureModuleDependencies.keys) {
+            "Production modules changed. Update ARCHITECTURE.md and the expected module list. " +
+                "Expected=${expectedArchitectureModuleDependencies.keys}, actual=$actualProductionModules"
+        }
+
+        expectedArchitectureModuleDependencies.forEach { (modulePath, expectedDependencies) ->
+            val actualDependencies = project(modulePath)
+                .configurations
+                .flatMap { configuration ->
+                    configuration.dependencies.withType(org.gradle.api.artifacts.ProjectDependency::class.java)
+                        .map { dependency -> dependency.path }
+                }
+                .filterNot { it == modulePath }
+                .toSet()
+
+            check(actualDependencies == expectedDependencies) {
+                "$modulePath has unexpected project dependencies. " +
+                    "Expected=$expectedDependencies, actual=$actualDependencies"
+            }
+        }
+    }
+}
