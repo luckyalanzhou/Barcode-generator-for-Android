@@ -31,6 +31,7 @@ html,body{height:100%;height:100dvh;overflow:hidden}
 body{display:flex;flex-direction:column}
 .bar{position:relative;z-index:4;flex:0 0 var(--web-header-height)}
 main{flex:1 1 auto;height:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;padding:0 0 16px}
+#files{padding-top:14px}
 .bottom{position:relative;inset:auto;flex:0 0 auto}
 /* Keep image bubbles readable without letting high-resolution photos dominate the conversation. */
 .image-item{max-width:min(72vw,320px)}
