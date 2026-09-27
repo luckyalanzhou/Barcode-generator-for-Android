@@ -13,7 +13,7 @@
   &nbsp;·&nbsp;
   <a href="android/DEVELOPMENT.md">开发验证</a>
   &nbsp;·&nbsp;
-  <a href="项目操作与变更追踪指南.md">项目操作与变更追踪</a>
+  <a href="项目操作与变更追踪指南.md">新手操作指南：找代码、看改动</a>
 </p>
 
 <p>
@@ -77,7 +77,7 @@
 
 请按[开发验证指南](android/DEVELOPMENT.md)在本地运行测试和 lint，再使用对应分支的手动工作流打包。Beta APK 可从 [Beta Release](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9) 获取；Beta 与正式版使用不同应用 ID，可并行安装。
 
-日常定位代码、查看修改差异和跟踪 Beta 构建，可从[项目操作与变更追踪指南](项目操作与变更追踪指南.md)开始。
+第一次参与项目，或想学习如何找代码、查看改动和检查 Beta 构建，可从[新手操作指南](项目操作与变更追踪指南.md)开始。
 
 ## 仓库结构
 
