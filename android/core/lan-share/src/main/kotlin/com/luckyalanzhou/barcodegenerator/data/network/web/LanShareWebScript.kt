@@ -19,10 +19,6 @@ let chatRecords = [];
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
-const HEARTBEAT_TIMEOUT_MS = 5000;
-const CONNECTION_FAILURE_GRACE_MS = 10000;
-let heartbeatInFlight = false;
-let lastConnectionSuccessAt = 0;
 
 function readClientIdCookie() {
     const cookiePrefix = encodeURIComponent(clientIdKey) + '=';
@@ -86,12 +82,6 @@ function formatSize(bytes) {
 function setConnectionState(connected) {
     connectionStatus.textContent = connected ? '● 已连接到设备' : '○ 正在连接设备...';
     connectionStatus.classList.toggle('connected', connected);
-}
-
-function markConnectionFailure() {
-    if (lastConnectionSuccessAt === 0 || Date.now() - lastConnectionSuccessAt >= CONNECTION_FAILURE_GRACE_MS) {
-        setConnectionState(false);
-    }
 }
 
 function fileUrl(file) {
@@ -262,9 +252,16 @@ document.addEventListener('keydown', event => {
     }
 });
 
-/** Keep HTTP file refreshes and WebSocket chat snapshots in one chronological conversation. */
+/** Keep WebSocket file and chat snapshots in one chronological conversation. */
 function reconcileFiles(list) {
     fileRecords = (Array.isArray(list) ? list : []).filter(file => file && file.id);
+    renderTimeline();
+}
+
+function upsertFile(file) {
+    if (!file || !file.id) return;
+    fileRecords = fileRecords.filter(existing => existing.id !== file.id);
+    fileRecords.push(file);
     renderTimeline();
 }
 
@@ -279,6 +276,7 @@ function appendChatMessage(message) {
     if (!message || !message.id || typeof message.text !== 'string') return;
     chatRecords = chatRecords.filter(existing => existing.id !== message.id);
     chatRecords.push(message);
+    if (chatRecords.length > 100) chatRecords.splice(0, chatRecords.length - 100);
     renderTimeline();
 }
 
@@ -376,31 +374,6 @@ function setPeerBubbleColor(item, file, peerColorIndices, usePeerColors) {
     }
 }
 
-let refreshInFlight = false;
-let refreshQueued = false;
-
-async function refreshFiles() {
-    if (refreshInFlight) {
-        refreshQueued = true;
-        return;
-    }
-    refreshInFlight = true;
-    try {
-        const response = await fetch('/api/files?_=' + Date.now(), { cache: 'no-store' });
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        reconcileFiles(await response.json());
-    } catch (_) {
-        // File-list refresh is independent of reachability; only the presence heartbeat
-        // controls the connection indicator.
-    } finally {
-        refreshInFlight = false;
-        if (refreshQueued) {
-            refreshQueued = false;
-            refreshFiles();
-        }
-    }
-}
-
 async function uploadFile(file) {
     if (!file) return;
     try {
@@ -421,7 +394,6 @@ async function uploadFile(file) {
         // this browser's new upload stays on the right even if sender metadata is stale/missing.
         rememberOwnFile((await response.text()).trim());
         if (messageInput) messageInput.value = '';
-        await refreshFiles();
     } catch (error) {
         alert('发送失败：' + (error.message || '请刷新页面后重试'));
     }
@@ -495,32 +467,12 @@ document.addEventListener('click', event => {
     }
 });
 
-async function heartbeat() {
-    if (heartbeatInFlight) return;
-    heartbeatInFlight = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT_MS);
-    try {
-        const response = await fetch('/api/presence?_=' + Date.now(), {
-            cache: 'no-store',
-            signal: controller.signal
-        });
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        lastConnectionSuccessAt = Date.now();
-        setConnectionState(true);
-    } catch (_) {
-        markConnectionFailure();
-    } finally {
-        clearTimeout(timeout);
-        heartbeatInFlight = false;
-    }
-}
-
 let socket;
 function connectSocket() {
     try {
         socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?client=' + encodeURIComponent(clientId));
         socket.onopen = () => {
+            setConnectionState(true);
             socket.send('sync');
         };
         socket.onmessage = event => {
@@ -530,25 +482,20 @@ function connectSocket() {
                     reconcileFiles(payload.files);
                     reconcileMessages(payload.messages);
                 } else if (payload.type === 'message') appendChatMessage(payload.message);
+                else if (payload.type === 'files' && payload.file) upsertFile(payload.file);
                 else if (payload.type === 'error') alert(payload.message || '消息发送失败');
-                else refreshFiles();
-            } catch (_) {
-                refreshFiles();
-            }
+            } catch (_) {}
         };
         socket.onclose = () => {
-            // Keep device reachability under the HTTP heartbeat; reconnect only the live-update channel.
+            setConnectionState(false);
             setTimeout(connectSocket, 1000);
         };
+        socket.onerror = () => setConnectionState(false);
     } catch (_) {
         setTimeout(connectSocket, 1000);
     }
 }
 
-heartbeat();
-refreshFiles();
-setInterval(heartbeat, 2000);
-setInterval(refreshFiles, 5000);
 connectSocket();
 </script>"""
 }

@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import java.net.HttpURLConnection
 import java.net.Socket
 import java.net.URL
@@ -16,16 +17,18 @@ class LanShareServerOpenAccessTest {
 
     @Test
     fun httpAndWebSocketEntryPointsWorkWithoutCredentials() {
+        val events = mutableListOf<LanShareRealtimeEvent>()
         val server = LanShareServer(
             "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+            emitRealtimeEvent = { event -> events.add(event) },
         )
         try {
             server.start(5_000, false)
             val port = server.listeningPort
             val base = "http://127.0.0.1:$port"
 
-            assertEquals(200, request("$base/api/presence").first)
-            assertEquals(200, request("$base/api/presence?token=anything").first)
+            assertEquals(404, request("$base/api/presence").first)
+            assertEquals(404, request("$base/api/events").first)
             assertEquals(200, request(base).first)
             assertTrue(request(base).second.contains("id=\"files\""))
             assertEquals(404, request("$base/join").first)
@@ -41,6 +44,7 @@ class LanShareServerOpenAccessTest {
                         "Sec-WebSocket-Version: 13\r\n\r\n"
                     ).toByteArray(Charsets.US_ASCII))
                 assertTrue(socket.getInputStream().bufferedReader().readLine().contains(" 101 "))
+                assertTrue(events.contains(LanShareRealtimeEvent.ConnectionChanged(true)))
             }
         } finally {
             server.stop()
@@ -50,7 +54,11 @@ class LanShareServerOpenAccessTest {
     @Test
     fun textMessagesStayInSessionMemoryWithoutCreatingFiles() {
         val folder = temporaryFolder.newFolder()
-        val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> })
+        val events = mutableListOf<LanShareRealtimeEvent>()
+        val server = LanShareServer(
+            "127.0.0.1", 0, folder, AppLogger { _, _, _ -> },
+            emitRealtimeEvent = { events += it },
+        )
         try {
             server.start(5_000, false)
 
@@ -64,6 +72,8 @@ class LanShareServerOpenAccessTest {
             assertEquals("app", messages[1].sender)
             assertEquals(host.id, messages.last().id)
             assertTrue(browser!!.createdAt < host.createdAt)
+            assertTrue(events.contains(LanShareRealtimeEvent.MessageAdded(browser)))
+            assertTrue(events.contains(LanShareRealtimeEvent.MessageAdded(host)))
             assertTrue(folder.listFiles().orEmpty().isEmpty())
         } finally {
             server.stop()

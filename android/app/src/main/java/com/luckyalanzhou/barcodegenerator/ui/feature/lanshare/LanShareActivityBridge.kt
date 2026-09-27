@@ -28,7 +28,7 @@ import java.util.Locale
  *
  * 可见页面、文件气泡、附件菜单和二维码弹窗由 LanShareContent、LanShareMessageBubble、
  * LanShareInputBar 和 ComposeLanShareQrDialog 负责；
- * 本文件保留局域网会话、轮询、文件传输、系统相机/图库/文件选择器。
+ * 本文件保留局域网会话、文件传输、系统相机/图库/文件选择器。
  */
 internal fun MainActivity.enterLanShare() {
     if (!lanShareViewModel.isOnLocalNetwork()) {
@@ -39,9 +39,7 @@ internal fun MainActivity.enterLanShare() {
     composeAppShellActions().navigateTo(AppRoute.LanShare)
     runCatching {
         lanShareViewModel.startHostSession()
-        lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
     }.onFailure {
-        lanShareViewModel.stopAutoRefresh()
         lanShareViewModel.closeSession()
         composeAppShellActions().navigateTo(AppRoute.Settings)
         if (it.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()

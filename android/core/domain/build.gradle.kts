@@ -10,7 +10,7 @@ java {
 }
 
 dependencies {
-    implementation(libs.kotlinx.coroutines.core)
+    api(libs.kotlinx.coroutines.core)
     implementation(libs.zxing.core)
     testImplementation(libs.junit)
 }

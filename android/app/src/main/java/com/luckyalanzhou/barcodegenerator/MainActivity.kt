@@ -184,9 +184,6 @@ class MainActivity : AppCompatActivity() {
                 // 先应用已保存的外观，再创建动态控件，避免首次进入仍显示浅色页面。
                 applyAppearance()
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                if (navigationViewModel.uiState.value.page == AppRoute.LanShare && lanShareViewModel.uiState.value.session != null) {
-                    lanShareViewModel.uiState.value.session?.let(lanShareViewModel::startAutoRefresh)
-                }
             } catch (error: Exception) {
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
                 DebugLog.record("startup", "UI initialization failed", error)

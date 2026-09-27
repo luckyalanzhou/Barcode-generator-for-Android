@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.data.network.client.LanShareClient
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
+import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
@@ -17,6 +18,10 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import java.io.File
 import java.net.Inet4Address
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 
 /** 局域网分享会话管理器：负责网络地址、端口和服务生命周期。 */
 class LanShareManager(
@@ -41,6 +46,8 @@ class LanShareManager(
     private val webPreviewFolder = File(context.cacheDir, "lan-share-web-preview")
     private var server: LanShareServer? = null
     private var lastPort: Int? = null
+    private val serverGeneration = AtomicLong(0L)
+    private val realtimeEvents = Channel<LanShareRealtimeEvent>(Channel.UNLIMITED)
     private val client by lazy { LanShareClient(this::isRouterLanHost, logger) }
 
     /** 分享服务只使用 Wi-Fi 默认网关所在子网的 IPv4 地址。 */
@@ -86,13 +93,23 @@ class LanShareManager(
         val addresses = routerIpv4Addresses()
         check(addresses.isNotEmpty()) { "Error 当前不处于局域网" }
         stop()
+        val generation = serverGeneration.incrementAndGet()
         if (clearSharedFiles) clearFiles()
         val address = addresses
             .mapNotNull { it.address as? Inet4Address }
             .firstOrNull()
             ?.hostAddress ?: error("未连接到局域网")
         val port = (18080..28080).filter { it != lastPort }.random()
-        val running = LanShareServer(address, port, folder, logger, webPreviewFolder).also {
+        val running = LanShareServer(
+            address,
+            port,
+            folder,
+            logger,
+            webPreviewFolder,
+            emitRealtimeEvent = { event ->
+                if (serverGeneration.get() == generation) realtimeEvents.trySend(event)
+            },
+        ).also {
             try {
                 it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
             } catch (error: Exception) {
@@ -112,7 +129,10 @@ class LanShareManager(
     override fun sendLocalMessage(text: String): LanShareMessage =
         checkNotNull(server) { "只有 App 创建的分享房间可以发送文字消息" }.sendLocalMessage(text)
 
+    override fun observeRealtimeEvents(): Flow<LanShareRealtimeEvent> = realtimeEvents.receiveAsFlow()
+
     override fun stop(clearSharedFiles: Boolean) {
+        serverGeneration.incrementAndGet()
         server?.stop()
         server = null
         if (clearSharedFiles) clearFiles()

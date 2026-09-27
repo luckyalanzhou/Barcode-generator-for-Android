@@ -42,7 +42,8 @@
 - Android App 是分享房间创建端；同一局域网的加入端使用浏览器访问，不要求安装 App。
 - 文字消息通过 `/ws` WebSocket 双向广播并在当前服务进程内暂存；单条消息和历史条数均有限制，停止或重建分享服务后不保留聊天记录。
 - 文件内容仍通过 HTTP `PUT /upload` 上传，原文件由 `GET /dl/<id>` 下载；图片预览走独立的 `GET /api/preview/<id>`，不改变原文件字节。
-- App 通过 `LanShareGateway` 调用模块能力，ViewModel 保存页面消息/文件状态；传输协议、服务生命周期与 Compose UI 保持隔离。
+- 上传完成并提交文件后，服务端向 WebSocket 浏览器端和 App 的实时事件流推送文件元数据；App ViewModel 用 `StateFlow` 更新消息、文件及连接状态，不轮询状态接口或文件列表。
+- WebSocket 首次连接/重连时发送完整会话快照，弥补断线期间错过的临时事件；App 通过 `LanShareGateway` 订阅事件，传输协议、服务生命周期与 Compose UI 保持隔离。
 
 ## 导航
 

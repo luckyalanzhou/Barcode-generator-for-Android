@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -74,6 +75,27 @@ class LanShareServerUploadTest {
             } finally {
                 connection.disconnect()
             }
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun committedBrowserUploadEmitsOneFileAddedEvent() {
+        val folder = temporaryFolder.newFolder()
+        val events = mutableListOf<LanShareRealtimeEvent>()
+        val server = LanShareServer(
+            "127.0.0.1", 0, folder, AppLogger { _, _, _ -> },
+            emitRealtimeEvent = { events += it },
+        )
+        try {
+            server.start(5_000, false)
+            val uploaded = upload(server.listeningPort, byteArrayOf(1, 2, 3), "event.bin", "cbrowser123", chunked = false)
+
+            assertEquals(200, uploaded.first)
+            val event = events.filterIsInstance<LanShareRealtimeEvent.FileAdded>().single()
+            assertEquals(uploaded.second, event.file.id)
+            assertEquals("browser:cbrowser123", event.file.sender)
         } finally {
             server.stop()
         }

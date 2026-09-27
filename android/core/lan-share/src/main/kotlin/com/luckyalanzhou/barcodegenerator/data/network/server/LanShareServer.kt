@@ -13,6 +13,7 @@ import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCa
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
+import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD
 import org.json.JSONArray
@@ -34,10 +35,10 @@ internal class LanShareServer(
     private val folder: File,
     private val logger: AppLogger,
     previewCacheFolder: File = File(folder.parentFile, ".lan-share-web-preview"),
+    private val emitRealtimeEvent: (LanShareRealtimeEvent) -> Unit = {},
 ) : NanoWSD(host, port) {
-    private val browserPresence = LanShareBrowserPresence()
-    @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
+    private val webSocketStateLock = Any()
     private val chatMessages = mutableListOf<LanShareMessage>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private val uploadLock = Any()
@@ -189,7 +190,7 @@ internal class LanShareServer(
         throw IOException("分块上传行过长")
     }
 
-    fun browserConnected() = browserPresence.isConnected()
+    fun browserConnected() = webSockets.isNotEmpty()
 
     fun messagesSnapshot(): List<LanShareMessage> = synchronized(chatMessages) { chatMessages.toList() }
 
@@ -219,19 +220,17 @@ internal class LanShareServer(
         if (webSockets.isNotEmpty()) {
             broadcast(JSONObject().put("type", "message").put("message", messageJson(message)).toString())
         }
+        emitRealtimeEvent(LanShareRealtimeEvent.MessageAdded(message))
         return message
     }
 
     override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = object : NanoWSD.WebSocket(handshake) {
         override fun onOpen() {
-            webSockets.add(this)
-            browserPresence.markSeen()
-            // 新网页刚连上时补发当前版本，填补页面初始读取与 WebSocket 建连之间的文件事件。
-            runCatching { send(JSONObject().put("type", "files").put("version", fileVersion).toString()) }
+            addWebSocket(this)
         }
 
         override fun onClose(code: NanoWSD.WebSocketFrame.CloseCode, reason: String, initiatedByRemote: Boolean) {
-            webSockets.remove(this)
+            removeWebSocket(this)
         }
 
         override fun onMessage(message: NanoWSD.WebSocketFrame) {
@@ -254,13 +253,33 @@ internal class LanShareServer(
         }
 
         override fun onPong(pong: NanoWSD.WebSocketFrame) = Unit
-        override fun onException(exception: IOException) { webSockets.remove(this) }
+        override fun onException(exception: IOException) { removeWebSocket(this) }
+    }
+
+    private fun addWebSocket(socket: NanoWSD.WebSocket) {
+        synchronized(webSocketStateLock) {
+            val wasConnected = webSockets.isNotEmpty()
+            webSockets.add(socket)
+            if (!wasConnected && webSockets.isNotEmpty()) {
+                emitRealtimeEvent(LanShareRealtimeEvent.ConnectionChanged(true))
+            }
+        }
+    }
+
+    private fun removeWebSocket(socket: NanoWSD.WebSocket) {
+        synchronized(webSocketStateLock) {
+            val wasConnected = webSockets.isNotEmpty()
+            webSockets.remove(socket)
+            if (wasConnected && webSockets.isEmpty()) {
+                emitRealtimeEvent(LanShareRealtimeEvent.ConnectionChanged(false))
+            }
+        }
     }
 
     private fun notifyFilesChanged(file: File? = null) {
-        fileVersion++
+        file?.let { emitRealtimeEvent(LanShareRealtimeEvent.FileAdded(toLanShareFile(it, "peer"))) }
         if (webSockets.isEmpty()) return
-        val event = JSONObject().put("type", "files").put("version", fileVersion).toString()
+        val event = JSONObject().put("type", "files").toString()
         val eventWithFile = file?.let { uploaded ->
             val record = toLanShareFile(uploaded, "peer")
             JSONObject(event).put("file", JSONObject()
@@ -272,8 +291,10 @@ internal class LanShareServer(
             ).toString()
         } ?: event
         webSockets.toList().forEach { socket ->
-            runCatching { if (socket.isOpen) socket.send(eventWithFile) }
-                .onFailure { webSockets.remove(socket) }
+            runCatching {
+                if (socket.isOpen) socket.send(eventWithFile) else removeWebSocket(socket)
+            }
+                .onFailure { removeWebSocket(socket) }
         }
     }
 
@@ -296,8 +317,10 @@ internal class LanShareServer(
 
     private fun broadcast(event: String) {
         webSockets.toList().forEach { socket ->
-            runCatching { if (socket.isOpen) socket.send(event) }
-                .onFailure { webSockets.remove(socket) }
+            runCatching {
+                if (socket.isOpen) socket.send(event) else removeWebSocket(socket)
+            }
+                .onFailure { removeWebSocket(socket) }
         }
     }
 
@@ -305,9 +328,6 @@ internal class LanShareServer(
         super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
 
     override fun serveHttp(session: IHTTPSession): Response {
-        if (session.headers["user-agent"].orEmpty().contains("Mozilla", ignoreCase = true)) {
-            browserPresence.markSeen()
-        }
         val requestPath = session.uri.substringBefore('?')
         return try {
             when {
@@ -319,23 +339,6 @@ internal class LanShareServer(
                             .put("modifiedAt", it.modifiedAt).put("sender", it.sender)
                     }).toString()
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
-
-                session.method == Method.GET && requestPath == "/api/presence" -> newFixedLengthResponse(
-                    Response.Status.OK,
-                    MIME_PLAINTEXT,
-                    "ok"
-                ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
-
-                session.method == Method.GET && requestPath == "/api/events" -> {
-                    val since = session.parameters["since"]?.firstOrNull()?.toLongOrNull() ?: 0L
-                    val deadline = System.currentTimeMillis() + 25_000L
-                    while (fileVersion <= since && System.currentTimeMillis() < deadline) Thread.sleep(120L)
-                    newFixedLengthResponse(
-                        Response.Status.OK,
-                        "application/json; charset=utf-8",
-                        JSONObject().put("version", fileVersion).toString()
-                    ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
-                }
 
                 session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(
                     Response.Status.OK,

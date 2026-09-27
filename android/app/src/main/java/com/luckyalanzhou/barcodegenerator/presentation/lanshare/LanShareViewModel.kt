@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
+import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
@@ -21,9 +22,9 @@ import javax.inject.Inject
 import android.net.Uri
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 
 data class LanShareUiState(
@@ -67,7 +68,12 @@ class LanShareViewModel @Inject constructor(
     private val _events = Channel<LanShareEvent>(Channel.BUFFERED)
     val events: Flow<LanShareEvent> = _events.receiveAsFlow()
     private var refreshJob: Job? = null
-    private var autoRefreshJob: Job? = null
+
+    init {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            lanShareGateway.observeRealtimeEvents().collect(::applyRealtimeEvent)
+        }
+    }
 
     fun isOnLocalNetwork(): Boolean = lanShareGateway.isOnLocalNetwork()
 
@@ -83,7 +89,7 @@ class LanShareViewModel @Inject constructor(
                 session = session,
                 isHost = true,
                 qrVisible = true,
-                browserConnected = false,
+                browserConnected = lanShareGateway.browserConnected(),
                 files = lanShareGateway.localFiles(),
                 messages = lanShareGateway.localMessages(),
                 ownFileIds = emptySet(),
@@ -117,7 +123,6 @@ class LanShareViewModel @Inject constructor(
             return false
         }
         joinSession(session)
-        startAutoRefresh(session)
         refreshFiles(session)
         return true
     }
@@ -151,9 +156,6 @@ class LanShareViewModel @Inject constructor(
             val result = runCatching { lanShareGateway.list(session) to lanShareGateway.localMessages() }
             currentCoroutineContext().ensureActive()
             if (!refreshGuard.isCurrent(session, ticket)) return@launch
-            refreshGuard.update(session, ticket) {
-                it.copy(browserConnected = lanShareGateway.browserConnected())
-            }
             result.onSuccess { (files, messages) ->
                 if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
                 val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
@@ -177,27 +179,28 @@ class LanShareViewModel @Inject constructor(
         }
     }
 
-    fun startAutoRefresh(session: LanShareSession) {
-        stopAutoRefresh()
-        autoRefreshJob = viewModelScope.launch {
-            while (isActive && _uiState.value.session == session) {
-                delay(1_500L)
-                if (!isActive || _uiState.value.session != session) break
-                refreshFiles(session, showError = false)
-            }
-        }
-    }
-
-    fun stopAutoRefresh() {
-        autoRefreshJob?.cancel()
-        autoRefreshJob = null
-    }
-
     private fun invalidateRoomRefresh() {
         refreshGuard.invalidate()
         refreshJob?.cancel()
         refreshJob = null
-        stopAutoRefresh()
+    }
+
+    private fun applyRealtimeEvent(event: LanShareRealtimeEvent) {
+        when (event) {
+            is LanShareRealtimeEvent.ConnectionChanged -> _uiState.update { state ->
+                if (state.isHost) state.copy(browserConnected = event.connected) else state
+            }
+            is LanShareRealtimeEvent.MessageAdded -> _uiState.update { state ->
+                if (!state.isHost) state else state.copy(messages = (state.messages + event.message)
+                    .distinctBy(LanShareMessage::id)
+                    .sortedBy(LanShareMessage::createdAt)
+                    .takeLast(MAX_SESSION_MESSAGES))
+            }
+            is LanShareRealtimeEvent.FileAdded -> _uiState.update { state ->
+                if (!state.isHost) state else state.copy(files = (state.files.filterNot { it.id == event.file.id } + event.file)
+                    .sortedBy(LanShareFile::modifiedAt))
+            }
+        }
     }
 
     fun uploadFile(session: LanShareSession, uri: android.net.Uri, temporaryFile: java.io.File? = null) {
@@ -208,7 +211,7 @@ class LanShareViewModel @Inject constructor(
                 val id = lanShareGateway.upload(session, createUploadSource(uri))
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
                 addOwnFileId(session, ticket, id)
-                refreshFiles(session, showError = false)
+                if (!_uiState.value.isHost) refreshFiles(session, showError = false)
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Notice("上传成功"))
             } catch (_: Exception) {
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("上传失败"))
@@ -227,10 +230,14 @@ class LanShareViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
-                lanShareGateway.sendLocalMessage(text)
+                val sentMessage = lanShareGateway.sendLocalMessage(text)
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
-                val messages = lanShareGateway.localMessages()
-                refreshGuard.update(session, ticket) { it.copy(messages = messages) }
+                refreshGuard.update(session, ticket) { state ->
+                    state.copy(messages = (state.messages + sentMessage)
+                        .distinctBy(LanShareMessage::id)
+                        .sortedBy(LanShareMessage::createdAt)
+                        .takeLast(MAX_SESSION_MESSAGES))
+                }
                 if (refreshGuard.isCurrent(session, ticket)) {
                     _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
                 }
@@ -324,6 +331,10 @@ class LanShareViewModel @Inject constructor(
         val uri = current.pendingUploadUri ?: return null
         setPendingUpload(null, null, null)
         return uri to current.pendingUploadTempFile
+    }
+
+    private companion object {
+        const val MAX_SESSION_MESSAGES = 100
     }
 
 }

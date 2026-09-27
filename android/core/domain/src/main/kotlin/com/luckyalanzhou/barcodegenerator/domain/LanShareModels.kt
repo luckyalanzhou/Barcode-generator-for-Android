@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.domain
 import java.io.File
 import java.io.InputStream
 import java.net.URI
+import kotlinx.coroutines.flow.Flow
 
 /** LAN Share 展示和会话模型，供 ViewModel 与 Compose 使用，不暴露网络 DTO 包。 */
 data class LanShareFile(
@@ -20,6 +21,13 @@ data class LanShareMessage(
     val sender: String,
     val createdAt: Long,
 )
+
+/** Live, in-process events emitted by the active LAN sharing server. */
+sealed interface LanShareRealtimeEvent {
+    data class ConnectionChanged(val connected: Boolean) : LanShareRealtimeEvent
+    data class MessageAdded(val message: LanShareMessage) : LanShareRealtimeEvent
+    data class FileAdded(val file: LanShareFile) : LanShareRealtimeEvent
+}
 
 data class LanShareSession(
     val baseUrl: String,
@@ -73,6 +81,7 @@ interface LanShareGateway {
     fun localFiles(): List<LanShareFile>
     fun localMessages(): List<LanShareMessage>
     fun sendLocalMessage(text: String): LanShareMessage
+    fun observeRealtimeEvents(): Flow<LanShareRealtimeEvent>
     fun list(session: LanShareSession): List<LanShareFile>
     fun upload(session: LanShareSession, source: LanShareUploadSource): String
     fun downloadToFile(session: LanShareSession, id: String, destination: File)

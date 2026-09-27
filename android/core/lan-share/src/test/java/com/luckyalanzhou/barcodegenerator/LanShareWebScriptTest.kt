@@ -17,21 +17,15 @@ class LanShareWebScriptTest {
     }
 
     @Test
-    fun browserConnectionIndicatorUsesSerializedPresenceWithFailureGrace() {
+    fun browserConnectionIndicatorUsesWebSocketLifecycleWithoutPolling() {
         val script = LanShareWebScript.render()
 
-        assertTrue(script.contains("const HEARTBEAT_TIMEOUT_MS = 5000;"))
-        assertTrue(script.contains("const CONNECTION_FAILURE_GRACE_MS = 10000;"))
-        assertTrue(script.contains("if (heartbeatInFlight) return;"))
-        assertTrue(script.contains("signal: controller.signal"))
-        assertTrue(script.contains("Date.now() - lastConnectionSuccessAt >= CONNECTION_FAILURE_GRACE_MS"))
-
-        val refresh = script.substringAfter("async function refreshFiles()").substringBefore("async function uploadFile(file)")
-        assertTrue(!refresh.contains("setConnectionState(false)"))
-
-        val socketHandlers = script.substringAfter("let socket;").substringBefore("heartbeat();")
-        assertTrue(!socketHandlers.contains("setConnectionState(false)"))
-        assertTrue(!socketHandlers.contains("setConnectionState(true)"))
+        assertTrue(script.contains("socket.onopen = () => {\n            setConnectionState(true);"))
+        assertTrue(script.contains("socket.onclose = () => {\n            setConnectionState(false);"))
+        assertTrue(script.contains("socket.onerror = () => setConnectionState(false)"))
+        assertTrue(!script.contains("function heartbeat()"))
+        assertTrue(!script.contains("/api/presence"))
+        assertTrue(!script.contains("setInterval("))
     }
 
     @Test
@@ -123,6 +117,17 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("appendChatMessage(payload.message)"))
         assertTrue(script.contains("body: file"))
         assertTrue(!script.contains("new File([text], '消息.txt'"))
+    }
+
+    @Test
+    fun browserAppliesFileUploadEventsWithoutPollingFileList() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("function upsertFile(file)"))
+        assertTrue(script.contains("payload.type === 'files' && payload.file) upsertFile(payload.file)"))
+        assertTrue(script.contains("socket.send('sync')"))
+        assertTrue(!script.contains("async function refreshFiles()"))
+        assertTrue(!script.contains("/api/files"))
     }
 
     @Test
