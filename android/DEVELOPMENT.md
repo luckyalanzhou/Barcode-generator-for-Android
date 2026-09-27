@@ -4,21 +4,38 @@
 
 ## 环境
 
-- JDK 17
-- Android SDK Platform 37
-- 仓库提供的 Gradle Wrapper
-- Windows 命令示例使用 PowerShell；Android SDK 与 Gradle User Home 可按本机安装位置配置。
+- JDK 17、Android SDK Platform 37 和仓库 Gradle Wrapper；具体版本随仓库配置。
+- Windows 命令示例使用 PowerShell。通用机器可以配置自己的 SDK 与 Gradle User Home；本机固定环境见下节。
+
+## 本机固定验证环境（Windows）
+
+以下路径固定用于当前本机，不是远程构建要求，也不应复制到 GitHub Actions 环境变量：
+
+| 用途 | 固定位置 |
+| --- | --- |
+| 仓库检出 | `D:\GitHub\Barcode-generator-for-Android` |
+| Android 项目根目录 | `D:\GitHub\Barcode-generator-for-Android\android` |
+| JDK 17 | `D:\Java17`（`bin\java.exe`、`bin\javac.exe`） |
+| Gradle User Home、依赖缓存及 Wrapper 分发 | `D:\Barcode_build\gradle-home`（使用 Gradle 9.5.0） |
+| Android SDK | `D:\Barcode_build\android-sdk`（`platforms\android-37.0`、`platform-tools\adb.exe`） |
+| 本地启动器 | `D:\Barcode_build\run-barcode-android-gradle.ps1` |
+| 模块构建输出 | 各模块的 `android\<module>\build` 目录 |
+
+本机专用 Gradle worker 并行度保存在 `D:\Barcode_build\gradle-home\gradle.properties`，当前为 `org.gradle.workers.max=4`。不要把本机资源参数写入仓库 `gradle.properties`。
+
+本机验证统一通过启动器运行。它只为本次 Gradle 进程设置 `GRADLE_USER_HOME`、`ANDROID_HOME`、`ANDROID_SDK_ROOT` 和 `JAVA_HOME`；启动前检查固定目录及 Gradle 9.5.0 是否存在。若检查失败会立即退出，不回退到 `C:\.gradle`、其他 SDK/JDK，也不会尝试下载缺失的 Wrapper。启动器位于仓库外，因此不会进入提交或影响远程工作流。
 
 ## 本地 Beta 验证
 
-在仓库根目录执行：
+在 PowerShell 中执行：
 
 ```powershell
-Set-Location .\android
-.\gradlew.bat :architecture-tests:test verifyArchitectureModuleDependencies :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache
+& 'D:\Barcode_build\run-barcode-android-gradle.ps1' :architecture-tests:test verifyArchitectureModuleDependencies :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache
 ```
 
 该命令运行架构边界、领域、数据、LAN Share 和 Beta App 单元测试，并检查 Beta Release lint。单模块开发时可只运行对应任务。针对 Wi-Fi 连通、系统相机/文件选择器和生命周期的验证须使用 Android 真机；自动化测试不能代替设备验证。
+
+若任务报告 `classes.jar` 等构建输出被占用，先查询并确认实际持有进程。确认锁来自与本项目验证无关、且没有其他正在进行任务的进程后，结束该占用进程，确认文件锁已释放，再只重跑失败的验证任务。若占用者是本项目的空闲 Gradle daemon，使用 `& 'D:\Barcode_build\run-barcode-android-gradle.ps1' --stop` 停止固定 Gradle User Home 下的 daemon 后再验证。不得删除构建目录、锁文件，也不得结束用途或状态尚未确认的进程。
 
 ## 架构 PR 检查
 
