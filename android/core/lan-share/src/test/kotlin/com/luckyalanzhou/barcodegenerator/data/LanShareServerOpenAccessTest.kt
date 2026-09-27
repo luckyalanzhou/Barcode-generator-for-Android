@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.Socket
 import java.net.URL
@@ -81,6 +82,27 @@ class LanShareServerOpenAccessTest {
     }
 
     @Test
+    fun sessionSnapshotContainsCurrentFileAndMessageHistory() {
+        val folder = temporaryFolder.newFolder()
+        val server = LanShareServer(
+            "127.0.0.1", 0, folder, AppLogger { _, _, _ -> },
+        )
+        try {
+            server.start(5_000, false)
+            server.receiveBrowserMessage("cbrowser123", "browser message")
+            server.sendLocalMessage("app message")
+            File(folder, "app_123_photo.jpg").writeBytes(byteArrayOf(1, 2, 3))
+
+            val snapshot = server.sessionSnapshot()
+
+            assertEquals("photo.jpg", snapshot.files.single().name)
+            assertEquals(listOf("browser message", "app message"), snapshot.messages.map { it.text })
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun blankAndOversizedChatMessagesAreRejected() {
         val server = LanShareServer(
             "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
@@ -107,4 +129,5 @@ class LanShareServerOpenAccessTest {
             connection.disconnect()
         }
     }
+
 }

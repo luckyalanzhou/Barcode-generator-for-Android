@@ -12,8 +12,10 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCache
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
+import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_MAX_SESSION_MESSAGES
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD
 import org.json.JSONArray
@@ -38,6 +40,11 @@ internal class LanShareServer(
     previewCacheFolder: File = File(folder.parentFile, ".lan-share-web-preview"),
     private val emitRealtimeEvent: (LanShareRealtimeEvent) -> Unit = {},
 ) : NanoWSD(host, port) {
+    internal data class SessionSnapshot(
+        val files: List<LanShareFile>,
+        val messages: List<LanShareMessage>,
+    )
+
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
     private val webSocketStateLock = Any()
     private val chatMessages = mutableListOf<LanShareMessage>()
@@ -223,7 +230,7 @@ internal class LanShareServer(
                 createdAt = maxOf(System.currentTimeMillis(), previousTimestamp + 1),
             ).also {
                 chatMessages += it
-                if (chatMessages.size > MAX_CHAT_MESSAGES) chatMessages.removeAt(0)
+                if (chatMessages.size > LAN_SHARE_MAX_SESSION_MESSAGES) chatMessages.removeAt(0)
             }
         }
         if (webSockets.isNotEmpty()) {
@@ -317,8 +324,14 @@ internal class LanShareServer(
         }
     }
 
-    private fun sessionSnapshotEvent(): String = JSONObject().put("type", "snapshot")
-        .put("files", JSONArray(fileRecordsSnapshot("peer").map { record -> JSONObject()
+    internal fun sessionSnapshot(): SessionSnapshot = SessionSnapshot(
+        files = fileRecordsSnapshot("peer"),
+        messages = messagesSnapshot(),
+    )
+
+    private fun sessionSnapshotEvent(): String = sessionSnapshot().let { snapshot ->
+        JSONObject().put("type", "snapshot")
+        .put("files", JSONArray(snapshot.files.map { record -> JSONObject()
             .put("id", record.id)
             .put("name", record.name)
             .put("size", record.size)
@@ -326,8 +339,9 @@ internal class LanShareServer(
             .put("sender", record.sender)
             .put("mimeType", record.mimeType)
         }))
-        .put("messages", JSONArray(messagesSnapshot().map(::messageJson)))
+        .put("messages", JSONArray(snapshot.messages.map(::messageJson)))
         .toString()
+    }
 
     private fun messageJson(message: LanShareMessage) = JSONObject()
         .put("id", message.id)
@@ -437,7 +451,6 @@ internal class LanShareServer(
         const val MAX_CHUNK_LINE_BYTES = 8 * 1024
         const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
         const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
-        const val MAX_CHAT_MESSAGES = 100
         const val APP_UPLOAD_CLIENT = "app"
     }
 

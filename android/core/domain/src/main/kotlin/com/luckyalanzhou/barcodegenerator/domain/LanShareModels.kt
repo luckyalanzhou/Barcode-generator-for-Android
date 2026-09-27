@@ -3,7 +3,9 @@ package com.luckyalanzhou.barcodegenerator.domain
 import java.io.File
 import java.io.InputStream
 import java.net.URI
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+
+const val LAN_SHARE_MAX_SESSION_MESSAGES = 100
 
 /** LAN Share 展示和会话模型，供 ViewModel 与 Compose 使用，不暴露网络 DTO 包。 */
 data class LanShareFile(
@@ -28,6 +30,27 @@ sealed interface LanShareRealtimeEvent {
     data class ConnectionChanged(val connected: Boolean) : LanShareRealtimeEvent
     data class MessageAdded(val message: LanShareMessage) : LanShareRealtimeEvent
     data class FileAdded(val file: LanShareFile) : LanShareRealtimeEvent
+}
+
+/** Latest host-side LAN-share state; StateFlow conflation avoids an unbounded event backlog. */
+data class LanShareRealtimeState(
+    val browserConnected: Boolean = false,
+    val files: List<LanShareFile> = emptyList(),
+    val messages: List<LanShareMessage> = emptyList(),
+) {
+    fun applying(event: LanShareRealtimeEvent): LanShareRealtimeState = when (event) {
+        is LanShareRealtimeEvent.ConnectionChanged -> copy(browserConnected = event.connected)
+        is LanShareRealtimeEvent.MessageAdded -> copy(
+            messages = (messages + event.message)
+                .distinctBy(LanShareMessage::id)
+                .sortedBy(LanShareMessage::createdAt)
+                .takeLast(LAN_SHARE_MAX_SESSION_MESSAGES),
+        )
+        is LanShareRealtimeEvent.FileAdded -> copy(
+            files = (files.filterNot { it.id == event.file.id } + event.file)
+                .sortedBy(LanShareFile::modifiedAt),
+        )
+    }
 }
 
 data class LanShareSession(
@@ -90,7 +113,7 @@ interface LanShareGateway {
     fun localFiles(): List<LanShareFile>
     fun localMessages(): List<LanShareMessage>
     fun sendLocalMessage(text: String): LanShareMessage
-    fun observeRealtimeEvents(): Flow<LanShareRealtimeEvent>
+    fun observeRealtimeState(): StateFlow<LanShareRealtimeState>
     fun list(session: LanShareSession): List<LanShareFile>
     fun upload(session: LanShareSession, source: LanShareUploadSource): String
     fun downloadToFile(session: LanShareSession, id: String, destination: File)

@@ -40,10 +40,12 @@
 ## 局域网文件传输
 
 - Android App 是分享房间创建端；同一局域网的加入端使用浏览器访问，不要求安装 App。
-- 文字消息通过 `/ws` WebSocket 双向广播并在当前服务进程内暂存；单条消息和历史条数均有限制，停止或重建分享服务后不保留聊天记录。
-- 文件内容仍通过 HTTP `PUT /upload` 上传，原文件由 `GET /dl/<id>` 下载；图片预览走独立的 `GET /api/preview/<id>`，不改变原文件字节。
-- 上传完成并提交文件后，服务端向 WebSocket 浏览器端和 App 的实时事件流推送文件元数据；App ViewModel 用 `StateFlow` 更新消息、文件及连接状态，不轮询状态接口或文件列表。
-- WebSocket 首次连接/重连时发送完整会话快照，弥补断线期间错过的临时事件；App 通过 `LanShareGateway` 订阅事件，传输协议、服务生命周期与 Compose UI 保持隔离。
+- 文字消息通过 `/ws` WebSocket 双向广播，并在当前服务进程内暂存；App 与浏览器两端的消息都会进入最多 100 条的会话历史，服务停止后不保留聊天记录。
+- 文件内容通过 HTTP `PUT /upload` 原字节上传，文件名和发送端信息作为请求参数传递；原文件由 `GET /dl/<id>` 下载，图片预览走独立的 `GET /api/preview/<id>`，预览处理不改变下载原文件。
+- 文件暂存在 App 私有目录 `filesDir/lan-share`，不写入公共 Documents。创建新分享房间或显式结束房间时清理；不将该目录作为长期文件库。
+- 浏览器 WebSocket 断开后每 1 秒尝试重连。重连后浏览器请求当前会话快照，恢复文件列表和消息历史；浏览器不通过定时轮询更新列表。
+- 服务端将连接、文件和消息变化折叠为最新会话状态，通过 `LanShareGateway` 暴露给 App；App ViewModel 以 `StateFlow` 更新界面。慢速观察者可以跳过中间状态，但会收到最新状态，避免无限事件队列积压。
+- `:core:lan-share` 隔离 HTTP/WebSocket 实现、浏览器页面和传输缓冲细节；presentation/UI 通过领域层契约访问能力，仅 App 的 DI 装配层了解具体实现。传输协议、服务生命周期与 Compose UI 保持解耦。
 
 ## 导航
 

@@ -3,15 +3,15 @@ package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
-import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
+import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeState
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
+import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_MAX_SESSION_MESSAGES
 import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -71,7 +71,7 @@ class LanShareViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            lanShareGateway.observeRealtimeEvents().collect(::applyRealtimeEvent)
+            lanShareGateway.observeRealtimeState().collect(::applyRealtimeState)
         }
     }
 
@@ -185,21 +185,13 @@ class LanShareViewModel @Inject constructor(
         refreshJob = null
     }
 
-    private fun applyRealtimeEvent(event: LanShareRealtimeEvent) {
-        when (event) {
-            is LanShareRealtimeEvent.ConnectionChanged -> _uiState.update { state ->
-                if (state.isHost) state.copy(browserConnected = event.connected) else state
-            }
-            is LanShareRealtimeEvent.MessageAdded -> _uiState.update { state ->
-                if (!state.isHost) state else state.copy(messages = (state.messages + event.message)
-                    .distinctBy(LanShareMessage::id)
-                    .sortedBy(LanShareMessage::createdAt)
-                    .takeLast(MAX_SESSION_MESSAGES))
-            }
-            is LanShareRealtimeEvent.FileAdded -> _uiState.update { state ->
-                if (!state.isHost) state else state.copy(files = (state.files.filterNot { it.id == event.file.id } + event.file)
-                    .sortedBy(LanShareFile::modifiedAt))
-            }
+    private fun applyRealtimeState(snapshot: LanShareRealtimeState) {
+        _uiState.update { state ->
+            if (!state.isHost) state else state.copy(
+                browserConnected = snapshot.browserConnected,
+                files = snapshot.files,
+                messages = snapshot.messages,
+            )
         }
     }
 
@@ -236,7 +228,7 @@ class LanShareViewModel @Inject constructor(
                     state.copy(messages = (state.messages + sentMessage)
                         .distinctBy(LanShareMessage::id)
                         .sortedBy(LanShareMessage::createdAt)
-                        .takeLast(MAX_SESSION_MESSAGES))
+                        .takeLast(LAN_SHARE_MAX_SESSION_MESSAGES))
                 }
                 if (refreshGuard.isCurrent(session, ticket)) {
                     _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
@@ -258,7 +250,7 @@ class LanShareViewModel @Inject constructor(
                 try {
                     lanShareGateway.downloadToFile(session, id, temporary)
                     appContext.contentResolver.openOutputStream(destination)?.use { output ->
-                        temporary.inputStream().use { it.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE) }
+                        temporary.inputStream().use { it.copyTo(output, DOWNLOAD_DESTINATION_COPY_BUFFER_SIZE) }
                     } ?: error("无法写入文件")
                 } finally {
                     temporary.delete()
@@ -336,7 +328,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     private companion object {
-        const val MAX_SESSION_MESSAGES = 100
+        const val DOWNLOAD_DESTINATION_COPY_BUFFER_SIZE = 128 * 1024
     }
 
 }
