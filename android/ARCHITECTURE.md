@@ -25,7 +25,7 @@
 
 - `:core:domain`：领域模型、Repository/平台能力接口和不依赖 Android 的业务规则。
 - `:core:data`：Room、DataStore、文件数据源及 Repository 实现；负责 Entity/Domain Mapper 和持久化迁移。
-- `:core:lan-share`：局域网 HTTP 服务端/客户端、文件协议和内嵌浏览器页面；依赖 `:core:domain` 的 `LanShareGateway` 契约。
+- `:core:lan-share`：局域网 HTTP 文件服务、WebSocket 会话消息、文件协议和内嵌浏览器页面；依赖 `:core:domain` 的 `LanShareGateway` 契约。
 - `:app` 的 `presentation` 包：ViewModel、页面状态和应用级业务协调。
 - `:app` 的 `ui` 包：Compose 页面、状态渲染、页面切换和一次性事件消费；通过 ViewModel/回调连接 presentation，不直接操作数据源。
 - `:app` 的 DI 与平台桥接：组合各模块实现，并接入 Activity、权限、文件选择器等 Android 能力。
@@ -36,6 +36,13 @@
 - Toast、Snackbar、导航、系统请求和下载完成等一次性行为使用 `SharedFlow` 或 `Channel`。
 - Composable 不直接访问数据库、DataStore、文件或网络。
 - 结果页使用 `SavedStateHandle` 保存条码 ID、返回来源和收藏分组 ID，进程重建后从 Repository 重载内容；外部相机/文件请求保存请求码及必要的输出路径。不要把位图或整份条码列表放入保存状态。
+
+## 局域网文件传输
+
+- Android App 是分享房间创建端；同一局域网的加入端使用浏览器访问，不要求安装 App。
+- 文字消息通过 `/ws` WebSocket 双向广播并在当前服务进程内暂存；单条消息和历史条数均有限制，停止或重建分享服务后不保留聊天记录。
+- 文件内容仍通过 HTTP `PUT /upload` 上传，原文件由 `GET /dl/<id>` 下载；图片预览走独立的 `GET /api/preview/<id>`，不改变原文件字节。
+- App 通过 `LanShareGateway` 调用模块能力，ViewModel 保存页面消息/文件状态；传输协议、服务生命周期与 Compose UI 保持隔离。
 
 ## 导航
 

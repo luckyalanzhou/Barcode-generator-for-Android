@@ -13,6 +13,14 @@ data class LanShareFile(
     val sender: String = "peer",
 )
 
+/** Ephemeral text chat entry shared by the App host and connected browser clients. */
+data class LanShareMessage(
+    val id: String,
+    val text: String,
+    val sender: String,
+    val createdAt: Long,
+)
+
 data class LanShareSession(
     val baseUrl: String,
 ) {
@@ -63,9 +71,10 @@ interface LanShareGateway {
     fun stop(clearSharedFiles: Boolean = false)
     fun browserConnected(): Boolean
     fun localFiles(): List<LanShareFile>
+    fun localMessages(): List<LanShareMessage>
+    fun sendLocalMessage(text: String): LanShareMessage
     fun list(session: LanShareSession): List<LanShareFile>
     fun upload(session: LanShareSession, source: LanShareUploadSource): String
-    fun uploadText(session: LanShareSession, text: String): String
     fun downloadToFile(session: LanShareSession, id: String, destination: File)
     fun downloadPreview(
         session: LanShareSession,

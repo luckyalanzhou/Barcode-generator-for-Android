@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCache
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoWSD
 import org.json.JSONArray
@@ -23,9 +24,10 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URLDecoder
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
 
-/** 浏览器端服务：HTTP 文件接口和 WebSocket 实时文件事件。 */
+/** 浏览器端服务：HTTP 文件接口和 WebSocket 会话消息。 */
 internal class LanShareServer(
     host: String,
     port: Int,
@@ -36,6 +38,7 @@ internal class LanShareServer(
     private val browserPresence = LanShareBrowserPresence()
     @Volatile private var fileVersion = 0L
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
+    private val chatMessages = mutableListOf<LanShareMessage>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
@@ -188,6 +191,37 @@ internal class LanShareServer(
 
     fun browserConnected() = browserPresence.isConnected()
 
+    fun messagesSnapshot(): List<LanShareMessage> = synchronized(chatMessages) { chatMessages.toList() }
+
+    fun sendLocalMessage(text: String): LanShareMessage = publishMessage(text, "app")
+        ?: throw IllegalArgumentException("文字消息为空或超过 64 KB")
+
+    /** Accept one browser chat message after applying the same bound used by the App host. */
+    internal fun receiveBrowserMessage(clientId: String, text: String): LanShareMessage? {
+        val sender = "browser:${safeBrowserClientId(clientId)}"
+        return publishMessage(text, sender)
+    }
+
+    private fun publishMessage(text: String, sender: String): LanShareMessage? {
+        if (text.isBlank() || text.toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) return null
+        val message = synchronized(chatMessages) {
+            val previousTimestamp = chatMessages.lastOrNull()?.createdAt ?: 0L
+            LanShareMessage(
+                id = UUID.randomUUID().toString(),
+                text = text,
+                sender = sender,
+                createdAt = maxOf(System.currentTimeMillis(), previousTimestamp + 1),
+            ).also {
+                chatMessages += it
+                if (chatMessages.size > MAX_CHAT_MESSAGES) chatMessages.removeAt(0)
+            }
+        }
+        if (webSockets.isNotEmpty()) {
+            broadcast(JSONObject().put("type", "message").put("message", messageJson(message)).toString())
+        }
+        return message
+    }
+
     override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = object : NanoWSD.WebSocket(handshake) {
         override fun onOpen() {
             webSockets.add(this)
@@ -201,8 +235,22 @@ internal class LanShareServer(
         }
 
         override fun onMessage(message: NanoWSD.WebSocketFrame) {
-            // 客户端在 onopen 后请求快照；此时浏览器已安装 onmessage，不会漏掉首批文件。
-            if (message.textPayload == "sync") runCatching { send(fileSnapshotEvent()) }
+            // 客户端在 onopen 后请求快照；浏览器已安装 onmessage，不会漏掉首批文件和聊天记录。
+            val payloadText = message.textPayload ?: return
+            if (payloadText == "sync") {
+                runCatching { send(sessionSnapshotEvent()) }
+                return
+            }
+            val payload = runCatching { JSONObject(payloadText) }.getOrNull() ?: return
+            if (payload.optString("type") != "message") return
+            val clientId = handshake.parameters["client"]?.firstOrNull().orEmpty()
+            val posted = receiveBrowserMessage(clientId, payload.optString("text"))
+            if (posted == null) {
+                val reason = if (payload.optString("text").toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) {
+                    "消息不能超过 64 KB"
+                } else "消息不能为空"
+                runCatching { send(JSONObject().put("type", "error").put("message", reason).toString()) }
+            }
         }
 
         override fun onPong(pong: NanoWSD.WebSocketFrame) = Unit
@@ -229,15 +277,29 @@ internal class LanShareServer(
         }
     }
 
-    private fun fileSnapshotEvent(): String = JSONObject().put("type", "snapshot").put("files", JSONArray(
-        listFiles(folder, "peer").map { record -> JSONObject()
+    private fun sessionSnapshotEvent(): String = JSONObject().put("type", "snapshot")
+        .put("files", JSONArray(listFiles(folder, "peer").map { record -> JSONObject()
             .put("id", record.id)
             .put("name", record.name)
             .put("size", record.size)
             .put("modifiedAt", record.modifiedAt)
             .put("sender", record.sender)
+        }))
+        .put("messages", JSONArray(messagesSnapshot().map(::messageJson)))
+        .toString()
+
+    private fun messageJson(message: LanShareMessage) = JSONObject()
+        .put("id", message.id)
+        .put("text", message.text)
+        .put("sender", message.sender)
+        .put("createdAt", message.createdAt)
+
+    private fun broadcast(event: String) {
+        webSockets.toList().forEach { socket ->
+            runCatching { if (socket.isOpen) socket.send(event) }
+                .onFailure { webSockets.remove(socket) }
         }
-    )).toString()
+    }
 
     override fun serve(session: IHTTPSession): Response =
         super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
@@ -325,7 +387,7 @@ internal class LanShareServer(
                     }
                 }
 
-                session.method == Method.GET && requestPath.startsWith("/api/download/") -> {
+                session.method == Method.GET && requestPath.startsWith("/dl/") -> {
                     val file = sharedFile(folder, decodePathSegment(requestPath.substringAfterLast('/')))
                     if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
                     else newFixedLengthResponse(Response.Status.OK, mimeTypeForName(file.name), FileInputStream(file), file.length()).apply {
@@ -349,6 +411,8 @@ internal class LanShareServer(
     private companion object {
         const val MAX_CHUNK_LINE_BYTES = 8 * 1024
         const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
+        const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
+        const val MAX_CHAT_MESSAGES = 100
         const val APP_UPLOAD_CLIENT = "app"
     }
 

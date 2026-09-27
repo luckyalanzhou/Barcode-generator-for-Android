@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
@@ -73,6 +74,21 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.text.BasicTextField
 
+private sealed interface LanShareTimelineEntry {
+    val key: String
+    val timestamp: Long
+
+    data class FileEntry(val file: LanShareFile) : LanShareTimelineEntry {
+        override val key: String get() = "file:${file.id}"
+        override val timestamp: Long get() = file.modifiedAt
+    }
+
+    data class MessageEntry(val message: LanShareMessage) : LanShareTimelineEntry {
+        override val key: String get() = "message:${message.id}"
+        override val timestamp: Long get() = message.createdAt
+    }
+}
+
 @Composable
 internal fun LanShareContent(
     lanState: LanShareUiState,
@@ -105,8 +121,14 @@ internal fun LanShareContent(
     }
 
     val listState = rememberLazyListState()
-    val peerColorIndices = remember(lanState.files, lanState.ownFileIds) {
-        lanSharePeerColorIndices(lanState.files, lanState.ownFileIds)
+    val peerColorIndices = remember(lanState.files, lanState.messages, lanState.ownFileIds) {
+        lanSharePeerColorIndices(lanState.files, lanState.ownFileIds, lanState.messages)
+    }
+    val timeline = remember(lanState.files, lanState.messages) {
+        buildList {
+            lanState.files.forEach { add(LanShareTimelineEntry.FileEntry(it)) }
+            lanState.messages.forEach { add(LanShareTimelineEntry.MessageEntry(it)) }
+        }.sortedWith(compareBy<LanShareTimelineEntry> { it.timestamp }.thenBy { it.key })
     }
     val background = themeColors.surfaces.background
     val toggleQr: () -> Unit = {
@@ -130,12 +152,28 @@ internal fun LanShareContent(
             item(key = "connection", contentType = "connection") {
                 LanShareConnectionStatus(lanState.browserConnected)
             }
-            items(lanState.files, key = { it.id }, contentType = { "file" }) { file ->
-                LanShareMessageBubble(
-                    localFile, lanState, file, dark, primary, secondary, onSaveFile,
-                    peerColorIndex = peerColorIndices[file.sender],
-                    onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
-                )
+            items(timeline, key = { it.key }, contentType = {
+                if (it is LanShareTimelineEntry.FileEntry) "file" else "message"
+            }) { entry ->
+                when (entry) {
+                    is LanShareTimelineEntry.FileEntry -> {
+                        val file = entry.file
+                        LanShareMessageBubble(
+                            localFile, lanState, file, dark, primary, secondary, onSaveFile,
+                            peerColorIndex = peerColorIndices[file.sender],
+                            onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
+                        )
+                    }
+                    is LanShareTimelineEntry.MessageEntry -> {
+                        val chatMessage = entry.message
+                        LanShareTextMessageBubble(
+                            message = chatMessage,
+                            dark = dark,
+                            primary = primary,
+                            peerColorIndex = peerColorIndices[chatMessage.sender],
+                        )
+                    }
+                }
             }
         }
 

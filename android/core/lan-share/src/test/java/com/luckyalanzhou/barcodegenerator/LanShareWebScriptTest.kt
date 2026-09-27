@@ -109,6 +109,20 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("imageViewerImage.src = image.dataset.fullSrc || image.currentSrc || image.src"))
         assertTrue(script.contains("preview.src = previewUrl(file)"))
         assertTrue(script.contains("name.href = url"))
+        assertTrue(script.contains("return '/dl/' + encodeURIComponent(file.id)"))
+        assertTrue(!script.contains("return '/api/download/"))
+    }
+
+    @Test
+    fun browserTextUsesWebSocketWhileAttachmentsRemainHttpUploads() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("socket.send(JSON.stringify({ type: 'message', text }))"))
+        assertTrue(script.contains("'/ws?client=' + encodeURIComponent(clientId)"))
+        assertTrue(script.contains("reconcileMessages(payload.messages)"))
+        assertTrue(script.contains("appendChatMessage(payload.message)"))
+        assertTrue(script.contains("body: file"))
+        assertTrue(!script.contains("new File([text], '消息.txt'"))
     }
 
     @Test

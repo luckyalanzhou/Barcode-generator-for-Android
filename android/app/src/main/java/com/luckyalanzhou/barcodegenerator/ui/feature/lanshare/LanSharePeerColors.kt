@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import androidx.compose.ui.graphics.Color
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 
 private const val PEER_COLOR_COUNT = 8
 
@@ -19,10 +20,15 @@ private val darkPeerColors = listOf(
 internal fun lanSharePeerColorIndices(
     files: List<LanShareFile>,
     ownFileIds: Set<String>,
+    messages: List<LanShareMessage> = emptyList(),
 ): Map<String, Int> {
-    val senders = files.asSequence()
+    val fileSenders = files.asSequence()
         .filter { it.id !in ownFileIds && it.sender.isLanShareBrowserSender() }
         .map(LanShareFile::sender)
+    val messageSenders = messages.asSequence()
+        .filter { it.sender.isLanShareBrowserSender() }
+        .map(LanShareMessage::sender)
+    val senders = (fileSenders + messageSenders)
         .distinct()
         .sorted()
         .toList()

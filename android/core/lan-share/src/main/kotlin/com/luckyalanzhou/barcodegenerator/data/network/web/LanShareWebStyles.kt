@@ -48,6 +48,8 @@ li a.download{color:var(--accent)}
 li.mine a.download{color:#fff}
 .image-item .file-name{width:100%;text-align:center}
 .image-item a.download{width:auto;text-align:center}
+li.text-message{display:block;width:fit-content;min-width:0;max-width:min(78%,620px);padding:10px 14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.4}
+li.text-message::before{display:none;content:none}
 </style>
 <style>
 body.preview-open{overflow:hidden}

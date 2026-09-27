@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data.network.server
 import com.luckyalanzhou.barcodegenerator.data.network.client.LanShareClient
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
+import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
@@ -107,6 +108,9 @@ class LanShareManager(
     }
 
     override fun browserConnected() = server?.browserConnected() == true
+    override fun localMessages() = server?.messagesSnapshot().orEmpty()
+    override fun sendLocalMessage(text: String): LanShareMessage =
+        checkNotNull(server) { "只有 App 创建的分享房间可以发送文字消息" }.sendLocalMessage(text)
 
     override fun stop(clearSharedFiles: Boolean) {
         server?.stop()
@@ -123,7 +127,6 @@ class LanShareManager(
 
     override fun list(session: LanShareSession) = client.list(session)
     override fun upload(session: LanShareSession, source: LanShareUploadSource): String = client.upload(session, source)
-    override fun uploadText(session: LanShareSession, text: String): String = client.uploadText(session, text)
     override fun downloadToFile(session: LanShareSession, id: String, destination: File) = client.downloadToFile(session, id, destination)
     override fun downloadPreview(session: LanShareSession, id: String, destination: File, maxBytes: Long) =
         client.downloadPreview(session, id, destination, maxBytes)

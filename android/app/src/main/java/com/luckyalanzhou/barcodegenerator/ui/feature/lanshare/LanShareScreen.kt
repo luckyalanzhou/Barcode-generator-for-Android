@@ -49,7 +49,7 @@ internal fun LanShareScreen(
                     state.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
                 }
             } else text.takeIf { it.isNotBlank() }?.let { value ->
-                state.session?.let { session -> viewModel.uploadText(session, value) }
+                state.session?.let { session -> viewModel.sendText(session, value) }
             }
         },
         localFile = viewModel::localFile,

@@ -14,6 +14,8 @@ const imageViewerStage = document.getElementById('image-viewer-stage');
 const imageViewerImage = document.getElementById('image-viewer-image');
 const imageViewerTitle = document.getElementById('image-viewer-title');
 const imageViewerClose = document.getElementById('image-viewer-close');
+let fileRecords = [];
+let chatRecords = [];
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
@@ -93,7 +95,7 @@ function markConnectionFailure() {
 }
 
 function fileUrl(file) {
-    return '/api/download/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
+    return '/dl/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
 }
 
 function previewUrl(file) {
@@ -260,23 +262,82 @@ document.addEventListener('keydown', event => {
     }
 });
 
-/** 用服务端快照对齐列表，删除已不存在的记录并保持服务端顺序。 */
+/** Keep HTTP file refreshes and WebSocket chat snapshots in one chronological conversation. */
 function reconcileFiles(list) {
-    const normalized = (Array.isArray(list) ? list : []).filter(file => file && file.id);
-    const peerSenders = Array.from(new Set(normalized
-        .filter(file => !isOwnFile(file) && isBrowserSender(file.sender))
-        .map(file => file.sender))).sort();
+    fileRecords = (Array.isArray(list) ? list : []).filter(file => file && file.id);
+    renderTimeline();
+}
+
+function reconcileMessages(list) {
+    chatRecords = (Array.isArray(list) ? list : []).filter(message =>
+        message && message.id && typeof message.text === 'string'
+    );
+    renderTimeline();
+}
+
+function appendChatMessage(message) {
+    if (!message || !message.id || typeof message.text !== 'string') return;
+    chatRecords = chatRecords.filter(existing => existing.id !== message.id);
+    chatRecords.push(message);
+    renderTimeline();
+}
+
+function isOwnMessage(message) {
+    return message.sender === 'browser:' + clientId;
+}
+
+function createMessageItem(message) {
+    const item = document.createElement('li');
+    item.dataset.messageId = message.id;
+    item.className = isOwnMessage(message) ? 'mine' : 'peer';
+    item.classList.add('text-message');
+    item.textContent = message.text;
+    return item;
+}
+
+function renderTimeline() {
+    const normalized = fileRecords;
+    const messages = chatRecords;
+    const peerSenders = Array.from(new Set([
+        ...normalized.filter(file => !isOwnFile(file) && isBrowserSender(file.sender)).map(file => file.sender),
+        ...messages.filter(message => !isOwnMessage(message) && isBrowserSender(message.sender)).map(message => message.sender)
+    ])).sort();
     const peerColorIndices = new Map(peerSenders.map((sender, index) => [sender, index % 8]));
     const usePeerColors = peerSenders.length > 1;
-    const current = new Map(Array.from(fileList.children).map(item => [item.dataset.fileId, item]));
-    const activeIds = new Set(normalized.map(file => file.id));
+    const timeline = [
+        ...normalized.map(file => ({ kind: 'file', item: file, timestamp: Number(file.modifiedAt) || 0, key: 'file:' + file.id })),
+        ...messages.map(message => ({ kind: 'message', item: message, timestamp: Number(message.createdAt) || 0, key: 'message:' + message.id }))
+    ].sort((left, right) => left.timestamp - right.timestamp || left.key.localeCompare(right.key));
+    const current = new Map(Array.from(fileList.children).map(item => {
+        const key = item.dataset.fileId ? 'file:' + item.dataset.fileId : 'message:' + item.dataset.messageId;
+        return [key, item];
+    }));
+    const activeKeys = new Set(timeline.map(entry => entry.key));
 
     current.forEach((item, id) => {
-        if (!activeIds.has(id)) item.remove();
+        if (!activeKeys.has(id)) item.remove();
     });
 
-    normalized.forEach(file => {
-        const oldItem = current.get(file.id);
+    timeline.forEach(entry => {
+        if (entry.kind === 'message') {
+            const message = entry.item;
+            const oldItem = current.get(entry.key);
+            const item = oldItem || createMessageItem(message);
+            if (oldItem) {
+                item.className = isOwnMessage(message) ? 'mine' : 'peer';
+                item.classList.add('text-message');
+                item.textContent = message.text;
+            }
+            delete item.dataset.peerColor;
+            if (!isOwnMessage(message) && usePeerColors && isBrowserSender(message.sender)) {
+                item.dataset.peerColor = String(peerColorIndices.get(message.sender) || 0);
+            }
+            fileList.appendChild(item);
+            return;
+        }
+
+        const file = entry.item;
+        const oldItem = current.get(entry.key);
         const item = oldItem || createFileItem(file);
         if (oldItem) {
             item.className = isOwnFile(file) ? 'mine' : 'peer';
@@ -343,7 +404,7 @@ async function refreshFiles() {
 async function uploadFile(file) {
     if (!file) return;
     try {
-        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '消息.txt') + '&client=' + encodeURIComponent(clientId), {
+        const response = await fetch('/upload?name=' + encodeURIComponent(file.name || '附件') + '&client=' + encodeURIComponent(clientId), {
             method: 'PUT',
             headers: {
                 'content-type': file.type || 'application/octet-stream',
@@ -369,8 +430,20 @@ async function uploadFile(file) {
 uploadForm.onsubmit = event => {
     event.preventDefault();
     const text = messageInput.value;
-    if (text.trim()) uploadFile(new File([text], '消息.txt', { type: 'text/plain' }));
-    else messageInput.focus();
+    if (!text.trim()) {
+        messageInput.focus();
+        return;
+    }
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        alert('设备连接尚未就绪，请稍后重试');
+        return;
+    }
+    if (new TextEncoder().encode(text).length > 64 * 1024) {
+        alert('单条文字消息不能超过 64 KB');
+        return;
+    }
+    socket.send(JSON.stringify({ type: 'message', text }));
+    messageInput.value = '';
 };
 
 attachmentButton.onclick = event => {
@@ -446,14 +519,18 @@ async function heartbeat() {
 let socket;
 function connectSocket() {
     try {
-        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?client=' + encodeURIComponent(clientId));
         socket.onopen = () => {
             socket.send('sync');
         };
         socket.onmessage = event => {
             try {
                 const payload = JSON.parse(event.data);
-                if (payload.type === 'snapshot') reconcileFiles(payload.files);
+                if (payload.type === 'snapshot') {
+                    reconcileFiles(payload.files);
+                    reconcileMessages(payload.messages);
+                } else if (payload.type === 'message') appendChatMessage(payload.message);
+                else if (payload.type === 'error') alert(payload.message || '消息发送失败');
                 else refreshFiles();
             } catch (_) {
                 refreshFiles();

@@ -29,6 +29,7 @@ class LanShareServerOpenAccessTest {
             assertEquals(200, request(base).first)
             assertTrue(request(base).second.contains("id=\"files\""))
             assertEquals(404, request("$base/join").first)
+            assertEquals(404, request("$base/dl/missing").first)
             assertEquals(404, request("$base/api/download/missing").first)
             assertEquals(404, request("$base/api/preview/missing").first)
 
@@ -41,6 +42,43 @@ class LanShareServerOpenAccessTest {
                     ).toByteArray(Charsets.US_ASCII))
                 assertTrue(socket.getInputStream().bufferedReader().readLine().contains(" 101 "))
             }
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun textMessagesStayInSessionMemoryWithoutCreatingFiles() {
+        val folder = temporaryFolder.newFolder()
+        val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> })
+        try {
+            server.start(5_000, false)
+
+            val browser = server.receiveBrowserMessage("cbrowser123", "原样 YAML: 名称: 示例\n数量: 2")
+            val host = server.sendLocalMessage("App 主机消息")
+            val messages = server.messagesSnapshot()
+
+            assertEquals(2, messages.size)
+            assertEquals("browser:cbrowser123", messages[0].sender)
+            assertEquals("原样 YAML: 名称: 示例\n数量: 2", messages[0].text)
+            assertEquals("app", messages[1].sender)
+            assertEquals(host.id, messages.last().id)
+            assertTrue(browser!!.createdAt < host.createdAt)
+            assertTrue(folder.listFiles().orEmpty().isEmpty())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun blankAndOversizedChatMessagesAreRejected() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+        )
+        try {
+            assertEquals(null, server.receiveBrowserMessage("cbrowser123", " \n "))
+            assertEquals(null, server.receiveBrowserMessage("cbrowser123", "中".repeat(22_000)))
+            assertTrue(server.messagesSnapshot().isEmpty())
         } finally {
             server.stop()
         }

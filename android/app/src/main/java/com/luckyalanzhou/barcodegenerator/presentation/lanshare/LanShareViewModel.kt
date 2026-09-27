@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImageName
 import com.luckyalanzhou.barcodegenerator.domain.LanShareGateway
@@ -40,6 +41,7 @@ data class LanShareUiState(
     val qrVisible: Boolean = false,
     val browserConnected: Boolean = false,
     val files: List<LanShareFile> = emptyList(),
+    val messages: List<LanShareMessage> = emptyList(),
     val ownFileIds: Set<String> = emptySet(),
     val previewFiles: Map<String, java.io.File> = emptyMap(),
     val pendingDownloadId: String? = null,
@@ -83,6 +85,7 @@ class LanShareViewModel @Inject constructor(
                 qrVisible = true,
                 browserConnected = false,
                 files = lanShareGateway.localFiles(),
+                messages = lanShareGateway.localMessages(),
                 ownFileIds = emptySet(),
                 previewFiles = emptyMap(),
             )
@@ -100,6 +103,7 @@ class LanShareViewModel @Inject constructor(
                 qrVisible = false,
                 browserConnected = false,
                 files = emptyList(),
+                messages = emptyList(),
                 ownFileIds = emptySet(),
                 previewFiles = emptyMap(),
             )
@@ -128,6 +132,7 @@ class LanShareViewModel @Inject constructor(
                 qrVisible = false,
                 browserConnected = false,
                 files = emptyList(),
+                messages = emptyList(),
                 ownFileIds = emptySet(),
                 previewFiles = emptyMap(),
             )
@@ -143,18 +148,19 @@ class LanShareViewModel @Inject constructor(
         if (refreshJob?.isActive == true) return
         val ticket = refreshGuard.currentGeneration()
         refreshJob = viewModelScope.launch(Dispatchers.IO) {
-            val result = runCatching { lanShareGateway.list(session) }
+            val result = runCatching { lanShareGateway.list(session) to lanShareGateway.localMessages() }
             currentCoroutineContext().ensureActive()
             if (!refreshGuard.isCurrent(session, ticket)) return@launch
             refreshGuard.update(session, ticket) {
                 it.copy(browserConnected = lanShareGateway.browserConnected())
             }
-            result.onSuccess { files ->
+            result.onSuccess { (files, messages) ->
                 if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
                 val imageIds = files.filter { isLanShareImageName(it.name) }.map { it.id }.toSet()
                 refreshGuard.update(session, ticket) {
                     it.copy(
                         files = files,
+                        messages = messages,
                         previewFiles = it.previewFiles.filterKeys { key -> key in imageIds },
                     )
                 }
@@ -212,15 +218,19 @@ class LanShareViewModel @Inject constructor(
         }
     }
 
-    fun uploadText(session: LanShareSession, text: String) {
+    fun sendText(session: LanShareSession, text: String) {
+        if (!_uiState.value.isHost) {
+            _events.trySend(LanShareEvent.Error("文字消息需由 App 创建分享房间后发送"))
+            return
+        }
         val ticket = refreshGuard.currentGeneration()
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
-                val id = lanShareGateway.uploadText(session, text)
+                lanShareGateway.sendLocalMessage(text)
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
-                addOwnFileId(session, ticket, id)
-                refreshFiles(session, showError = false)
+                val messages = lanShareGateway.localMessages()
+                refreshGuard.update(session, ticket) { it.copy(messages = messages) }
                 if (refreshGuard.isCurrent(session, ticket)) {
                     _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
                 }

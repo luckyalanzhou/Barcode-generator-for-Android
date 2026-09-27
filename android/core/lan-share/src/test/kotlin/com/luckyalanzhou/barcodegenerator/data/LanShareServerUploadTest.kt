@@ -54,6 +54,32 @@ class LanShareServerUploadTest {
     }
 
     @Test
+    fun downloadedFileUsesDlRouteAndPreservesOriginalBytes() {
+        val folder = temporaryFolder.newFolder()
+        val payload = "原始文件内容\r\nkey: value\n".toByteArray(StandardCharsets.UTF_8)
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            val uploaded = upload(server.listeningPort, payload, "source.yaml", "cbrowser123", chunked = false)
+            assertEquals(200, uploaded.first)
+
+            val encodedId = URLEncoder.encode(uploaded.second, StandardCharsets.UTF_8.name())
+            val connection = URL("http://127.0.0.1:${server.listeningPort}/dl/$encodedId")
+                .openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 5_000
+                connection.readTimeout = 5_000
+                assertEquals(200, connection.responseCode)
+                assertArrayEquals(payload, connection.inputStream.use { it.readBytes() })
+            } finally {
+                connection.disconnect()
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun mismatchedContentLengthAndDeclaredFileSizeAreRejectedBeforeSaving() {
         val folder = temporaryFolder.newFolder()
         val payload = byteArrayOf(1, 2, 3, 4)

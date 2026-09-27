@@ -47,14 +47,6 @@ internal class LanShareClient(
         }
     }
 
-    fun uploadText(session: LanShareSession, text: String): String {
-        val name = text.trim().take(100).ifBlank { "消息" }
-        val body = text.toByteArray(Charsets.UTF_8)
-        return uploadRaw(session, name, body.size.toLong()) { body.inputStream() }.also {
-            logger.record("lan", "text sent length=${body.size}", null)
-        }
-    }
-
     private fun uploadRaw(
         session: LanShareSession,
         name: String,
@@ -91,7 +83,7 @@ internal class LanShareClient(
     }
 
     fun downloadToFile(session: LanShareSession, id: String, destination: File) =
-        request(session, "/api/download/${Uri.encode(id)}") { connection ->
+        request(session, "/dl/${Uri.encode(id)}") { connection ->
             destination.parentFile?.mkdirs()
             val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
             try {
