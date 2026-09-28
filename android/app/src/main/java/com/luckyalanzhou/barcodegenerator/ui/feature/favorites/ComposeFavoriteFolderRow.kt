@@ -11,7 +11,6 @@ import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -57,6 +56,11 @@ internal fun FavoriteFolderRow(
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
     val background by animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (row.collapsed) -90f else 0f,
+        animationSpec = animation.settleSpring(),
+        label = "favorite-folder-arrow-rotation",
+    )
     val indent = if (row.level == 0) 11.dp else 26.dp
 
     Box(Modifier.fillMaxWidth()) {
@@ -72,10 +76,10 @@ internal fun FavoriteFolderRow(
             Text(row.label, color = LocalAppColorScheme.current.text.primary, fontSize = if (row.level == 0) 18.sp else 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Icon(
-                imageVector = if (row.collapsed) KeyboardArrowRightIcon else KeyboardArrowDownIcon,
+                imageVector = KeyboardArrowDownIcon,
                 contentDescription = if (row.collapsed) "展开文件夹" else "收起文件夹",
                 tint = secondary,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation },
             )
         }
         AnchoredDropdownMenu(

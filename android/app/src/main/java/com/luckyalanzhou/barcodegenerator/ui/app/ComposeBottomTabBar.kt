@@ -8,7 +8,9 @@ import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -32,6 +34,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +51,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private data class ComposeTabSpec(val label: String, val description: String, val icon: ImageVector)
 
@@ -68,6 +73,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
+    var tapPulseTab by remember { mutableIntStateOf(-1) }
+    var tapPulseGeneration by remember { mutableIntStateOf(0) }
+    val tapScope = rememberCoroutineScope()
 
     LaunchedEffect(selectedIndex, dragging) {
         if (!dragging) {
@@ -159,11 +167,26 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     animationSpec = tween(120),
                     label = "tab-item-scale-$index",
                 )
+                val tapScale by animateFloatAsState(
+                    targetValue = if (tapPulseTab == index) .78f else 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessHigh,
+                    ),
+                    label = "tab-tap-jelly-scale-$index",
+                )
                 Box(
                     modifier = Modifier.weight(1f).graphicsLayer { scaleX = itemScale; scaleY = itemScale }
                         .pointerInput(index) {
                             detectTapGestures {
                                 onTabSelected(index, false)
+                                tapPulseTab = index
+                                tapPulseGeneration += 1
+                                val generation = tapPulseGeneration
+                                tapScope.launch {
+                                    delay(72)
+                                    if (tapPulseGeneration == generation) tapPulseTab = -1
+                                }
                             }
                         }.padding(vertical = 3.dp), contentAlignment = Alignment.Center
                 ) {
@@ -175,7 +198,12 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                             imageVector = tab.icon,
                             contentDescription = tab.description,
                             tint = itemColor,
-                            modifier = Modifier.size(26.dp),
+                            modifier = Modifier.size(26.dp).graphicsLayer {
+                                val squash = 1f - tapScale
+                                scaleX = 1f + squash * .34f
+                                scaleY = tapScale
+                                translationY = squash * 12.dp.toPx()
+                            },
                         )
                         Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }

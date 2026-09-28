@@ -18,12 +18,17 @@ import com.luckyalanzhou.barcodegenerator.icons.DriveFileMoveIcon
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 import com.luckyalanzhou.barcodegenerator.icons.SearchIcon
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -79,6 +84,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
@@ -152,6 +158,32 @@ internal fun FavoritesContent(
             composeFavoriteRows(displayState, normalizedQuery, visibleCollapsedFolders)
         }
     }
+    val rowKey: (ComposeFavoriteRow) -> String = { row ->
+        if (row.folder) "folder-${row.path}" else "group-${row.group?.id}"
+    }
+    var displayedRows by remember { mutableStateOf<List<ComposeFavoriteRow>?>(null) }
+    var targetRowKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(rows, listPositionRestored) {
+        val targetRows = rows ?: return@LaunchedEffect
+        val targetKeys = targetRows.mapTo(mutableSetOf(), rowKey)
+        val previousRows = displayedRows
+        val previousKeys = previousRows.orEmpty().mapTo(mutableSetOf(), rowKey)
+        val removedKeys = previousKeys - targetKeys
+        val addedKeys = targetKeys - previousKeys
+        targetRowKeys = targetKeys
+
+        if (previousRows == null || !listPositionRestored || removedKeys.isEmpty() || addedKeys.isNotEmpty()) {
+            displayedRows = targetRows
+            return@LaunchedEffect
+        }
+
+        // Keep collapsing rows composed until their height/fade transition finishes;
+        // LazyColumn remains virtualized, and a rapid re-expand cancels this delay.
+        delay((maxOf(animation.pageExitDurationMillis, animation.pageFadeOutDurationMillis) + 48).toLong())
+        displayedRows = targetRows
+    }
+    val rowsForDisplay = displayedRows ?: rows
 
     LaunchedEffect(favoritesState.isReady, rows) {
         if (favoritesState.isReady && rows != null && !listPositionRestored) {
@@ -258,10 +290,10 @@ internal fun FavoritesContent(
                     textAlign = TextAlign.Center,
                 )
             }
-        } else if (rows == null) {
+        } else if (rowsForDisplay == null) {
             // The tree projection is computed off the main thread; keep the page quiet
             // during the short recomposition instead of showing a flashing placeholder.
-        } else if (rows!!.isEmpty()) {
+        } else if (rowsForDisplay.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(
                     if (displayState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏",
@@ -272,60 +304,85 @@ internal fun FavoritesContent(
                 )
             }
         } else {
-                items(
-                items = rows!!,
-                key = { row -> if (row.folder) "folder-${row.path}" else "group-${row.group?.id}" },
+            items(
+                items = rowsForDisplay,
+                key = rowKey,
                 contentType = { row -> if (row.folder) "folder" else "favorite-group" },
             ) { row ->
-                if (row.folder) {
-                    FavoriteFolderRow(
-                        row = row,
-                        dark = dark,
-                        secondary = secondary,
-                        folderColor = if (row.level == 0) rootFolderColor else childFolderColor,
-                        animation = animation,
-                        menuExpanded = folderMenu?.first == row.path,
-                        onMenuDismiss = { folderMenu = null },
-                        onClick = { onToggleFolder(row.path, folderPaths) },
-                        onLongClick = {
-                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                            folderMenu = row.path to row.level
-                        },
-                        onShowSubfolderEditor = onShowSubfolderEditor,
-                        onShowFolderEditor = onShowFolderEditor,
-                        onConfirm = onConfirm,
-                        onRenameFolder = onRenameFolder,
-                        onDeleteFolder = onDeleteFolder,
-                    )
-                } else {
-                    row.group?.let { group ->
-                        FavoriteGroupRow(
+                val key = rowKey(row)
+                val targetVisible = !listPositionRestored || key in targetRowKeys
+                val visibility = remember(key) {
+                    MutableTransitionState(!listPositionRestored)
+                }
+                LaunchedEffect(targetVisible) {
+                    visibility.targetState = targetVisible
+                }
+                AnimatedVisibility(
+                    visibleState = visibility,
+                    modifier = Modifier.fillMaxWidth().animateItem(
+                        fadeInSpec = null,
+                        placementSpec = animation.settleSpring(),
+                        fadeOutSpec = null,
+                    ),
+                    enter = expandVertically(
+                        expandFrom = Alignment.Top,
+                        animationSpec = animation.settleSpring(),
+                    ) + fadeIn(tween(animation.pageFadeInDurationMillis)),
+                    exit = shrinkVertically(
+                        shrinkTowards = Alignment.Top,
+                        animationSpec = tween(animation.pageExitDurationMillis),
+                    ) + fadeOut(tween(animation.pageFadeOutDurationMillis)),
+                ) {
+                    if (row.folder) {
+                        FavoriteFolderRow(
                             row = row,
-                            group = group,
                             dark = dark,
                             secondary = secondary,
-                            fileColor = fileColor,
+                            folderColor = if (row.level == 0) rootFolderColor else childFolderColor,
                             animation = animation,
-                            hapticView = hapticView,
-                            menuExpanded = fileMenu?.id == group.id,
-                            onMenuDismiss = { fileMenu = null },
-                            onClick = {
-                                onRememberListPosition(
-                                    listState.firstVisibleItemIndex,
-                                    listState.firstVisibleItemScrollOffset,
-                                )
-                                onOpenGroup(group, style, dark, density)
-                            },
+                            menuExpanded = folderMenu?.first == row.path,
+                            onMenuDismiss = { folderMenu = null },
+                            onClick = { onToggleFolder(row.path, folderPaths) },
                             onLongClick = {
                                 hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                                fileMenu = group
+                                folderMenu = row.path to row.level
                             },
-                            onShowMoveDialog = onShowMoveDialog,
-                            onShowRenameDialog = onShowRenameDialog,
-                            onEdit = onEdit,
+                            onShowSubfolderEditor = onShowSubfolderEditor,
+                            onShowFolderEditor = onShowFolderEditor,
                             onConfirm = onConfirm,
-                            onDelete = onDeleteGroup,
+                            onRenameFolder = onRenameFolder,
+                            onDeleteFolder = onDeleteFolder,
                         )
+                    } else {
+                        row.group?.let { group ->
+                            FavoriteGroupRow(
+                                row = row,
+                                group = group,
+                                dark = dark,
+                                secondary = secondary,
+                                fileColor = fileColor,
+                                animation = animation,
+                                hapticView = hapticView,
+                                menuExpanded = fileMenu?.id == group.id,
+                                onMenuDismiss = { fileMenu = null },
+                                onClick = {
+                                    onRememberListPosition(
+                                        listState.firstVisibleItemIndex,
+                                        listState.firstVisibleItemScrollOffset,
+                                    )
+                                    onOpenGroup(group, style, dark, density)
+                                },
+                                onLongClick = {
+                                    hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                    fileMenu = group
+                                },
+                                onShowMoveDialog = onShowMoveDialog,
+                                onShowRenameDialog = onShowRenameDialog,
+                                onEdit = onEdit,
+                                onConfirm = onConfirm,
+                                onDelete = onDeleteGroup,
+                            )
+                        }
                     }
                 }
             }
