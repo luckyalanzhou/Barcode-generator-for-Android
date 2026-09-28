@@ -4,11 +4,13 @@ package com.luckyalanzhou.barcodegenerator.presentation.settings
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
@@ -40,9 +42,13 @@ class SettingsViewModel @Inject constructor(
         get() = currentStyle.copy()
 
     suspend fun loadPersistedState() {
-        settingsRepository.load()
-        legacySettingsMigrator.migrateIfNeeded()
-        initialize(settingsRepository.loadStyle(), settingsRepository.getOcrConfusionReplacementMask())
+        val (style, ocrMask) = withContext(Dispatchers.IO) {
+            settingsRepository.load()
+            legacySettingsMigrator.migrateIfNeeded()
+            settingsRepository.loadStyle() to settingsRepository.getOcrConfusionReplacementMask()
+        }
+        // Return to the caller context (the Activity's main thread) before publishing ViewModel state.
+        initialize(style, ocrMask)
     }
 
     fun save(): Job = settingsRepository.saveStyle(style)

@@ -49,6 +49,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -171,10 +172,17 @@ class MainActivity : AppCompatActivity() {
         }
         buildComposeShell()
 
+        // ViewModelLazy/Hilt ViewModel creation and clearing are main-thread operations.
+        // Capture these Activity-scoped instances here before dispatching any startup work.
+        val startupSettingsViewModel = settingsViewModel
+        val startupLibraryDataViewModel = libraryDataViewModel
+
         lifecycleScope.launch {
             var settingsError: Throwable? = null
             try {
-                withContext(Dispatchers.IO) { settingsViewModel.loadPersistedState() }
+                startupSettingsViewModel.loadPersistedState()
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 settingsError = error
                 Log.e("BarcodeGenerator", "Startup settings initialization failed", error)
@@ -193,14 +201,17 @@ class MainActivity : AppCompatActivity() {
             }
             // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
             lifecycleScope.launch(Dispatchers.IO) {
-                runCatching { libraryDataViewModel.loadPersistedData() }
-                    .onFailure { error ->
-                        Log.e("BarcodeGenerator", "Background data initialization failed", error)
-                        DebugLog.record("startup", "background data initialization failed", error)
-                        withContext(Dispatchers.Main) {
-                            showStartupFallbackNoticeOnce()
-                        }
+                try {
+                    startupLibraryDataViewModel.loadPersistedData()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    Log.e("BarcodeGenerator", "Background data initialization failed", error)
+                    DebugLog.record("startup", "background data initialization failed", error)
+                    withContext(Dispatchers.Main) {
+                        showStartupFallbackNoticeOnce()
                     }
+                }
             }
             window.decorView.post {
                 if (!updateViewModel.uiState.value.startupCheckStarted) {
