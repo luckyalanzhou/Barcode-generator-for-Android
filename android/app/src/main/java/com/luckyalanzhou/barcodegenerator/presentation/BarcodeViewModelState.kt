@@ -40,6 +40,7 @@ data class FavoriteTreeUiState(
     val initialized: Boolean = false,
     val knownFolders: Set<String> = emptySet(),
     val collapsedBeforeSearch: Set<String>? = null,
+    val searchAutoExpandSuppressed: Boolean = false,
 )
 
 data class CameraCaptureState(

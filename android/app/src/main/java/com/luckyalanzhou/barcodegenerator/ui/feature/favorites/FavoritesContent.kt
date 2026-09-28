@@ -152,7 +152,13 @@ internal fun FavoritesContent(
             .collect { (index, offset) -> onRememberListPosition(index, offset) }
     }
 
-    val visibleCollapsedFolders = if (normalizedQuery.isEmpty()) treeState.collapsedFolders else treeState.collapsedFolders - expandedSearchPaths
+    val visibleCollapsedFolders = if (
+        normalizedQuery.isEmpty() || treeState.searchAutoExpandSuppressed
+    ) {
+        treeState.collapsedFolders
+    } else {
+        treeState.collapsedFolders - expandedSearchPaths
+    }
     val rows by produceState<List<ComposeFavoriteRow>?>(null, displayState, normalizedQuery, visibleCollapsedFolders) {
         value = withContext(Dispatchers.Default) {
             composeFavoriteRows(displayState, normalizedQuery, visibleCollapsedFolders)

@@ -17,6 +17,7 @@ internal class FavoritesPageStateCoordinator {
     fun syncTree(folders: Set<String>) = treeCoordinator.sync(folders)
     fun updateQuery(query: String) = searchQueryState.update(query)
     fun addCollapsed(paths: Set<String>) = treeCoordinator.addCollapsed(paths)
+    fun collapseAllFolders(folders: Set<String>) = treeCoordinator.collapseAll(folders)
     fun toggleFolder(path: String, folders: Set<String>) = treeCoordinator.toggle(path, folders)
     fun updateSearch(expandedPaths: Set<String>, searching: Boolean) =
         treeCoordinator.updateSearch(expandedPaths, searching)

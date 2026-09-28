@@ -84,6 +84,13 @@ class FavoritesViewModel @Inject constructor(
     fun updateQuery(query: String) = pageState.updateQuery(query)
     fun syncTree(folders: Set<String>) = pageState.syncTree(folders)
     fun addCollapsed(paths: Set<String>) = pageState.addCollapsed(paths)
+    fun collapseAllFolders() {
+        val current = dataState.value
+        val folders = (current.folders + current.groups.map { it.folder })
+            .filter { it.isNotBlank() }
+            .toSet()
+        pageState.collapseAllFolders(folders)
+    }
     fun toggleFolder(path: String, folders: Set<String>) = pageState.toggleFolder(path, folders)
     fun updateSearch(expandedPaths: Set<String>, searching: Boolean) =
         pageState.updateSearch(expandedPaths, searching)

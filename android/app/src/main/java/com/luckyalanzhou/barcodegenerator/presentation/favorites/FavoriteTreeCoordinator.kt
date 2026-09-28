@@ -34,6 +34,19 @@ internal class FavoriteTreeCoordinator {
         )
     }
 
+    fun collapseAll(folders: Set<String>) {
+        val collapsed = folders.filter { it.isNotBlank() }.toSet()
+        val current = _state.value
+        val isSearching = current.collapsedBeforeSearch != null
+        _state.value = current.copy(
+            collapsedFolders = collapsed,
+            initialized = true,
+            knownFolders = collapsed,
+            collapsedBeforeSearch = if (isSearching) collapsed else null,
+            searchAutoExpandSuppressed = isSearching,
+        )
+    }
+
     fun toggle(path: String, folders: Set<String>) {
         val current = _state.value
         val nextCollapsed = current.collapsedFolders.toMutableSet()
@@ -47,13 +60,18 @@ internal class FavoriteTreeCoordinator {
         if (searching) {
             val before = current.collapsedBeforeSearch ?: current.collapsedFolders
             _state.value = current.copy(
-                collapsedFolders = current.collapsedFolders - expandedPaths,
+                collapsedFolders = if (current.searchAutoExpandSuppressed) {
+                    current.collapsedFolders
+                } else {
+                    current.collapsedFolders - expandedPaths
+                },
                 collapsedBeforeSearch = before,
             )
         } else {
             _state.value = current.copy(
                 collapsedFolders = current.collapsedBeforeSearch ?: current.collapsedFolders,
                 collapsedBeforeSearch = null,
+                searchAutoExpandSuppressed = false,
             )
         }
     }

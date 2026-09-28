@@ -61,6 +61,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         if (navigationViewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
         val routes = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
         if (index !in routes.indices) return
+        if (index == 2 && !fromSwipe) favoritesViewModel.collapseAllFolders()
         if (index == 3 && navigationViewModel.uiState.value.page != AppRoute.Settings) {
             val current = navigationViewModel.uiState.value.page
             val returnPage = current.takeIf { it.mainTabIndex != null && it != AppRoute.Settings }
