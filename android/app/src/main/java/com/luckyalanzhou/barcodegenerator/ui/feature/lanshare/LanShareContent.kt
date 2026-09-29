@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
-import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
@@ -37,7 +36,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -152,7 +150,7 @@ internal fun LanShareContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "header", contentType = "header") {
-                LanShareHeader(dark, panel, primary, accent, toggleQr)
+                LanShareHeader(primary, accent, toggleQr)
             }
             item(key = "connection", contentType = "connection") {
                 LanShareConnectionStatus(lanState.browserConnected)
@@ -236,17 +234,16 @@ internal fun LanShareContent(
     }
 }
 @Composable
-private fun LanShareHeader(dark: Boolean, panel: Color, primary: Color, accent: Color, onQrClick: () -> Unit) {
+private fun LanShareHeader(primary: Color, accent: Color, onQrClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 8.dp)
-            .globalCardSurface(dark, panel, RoundedCornerShape(18.dp), 3.dp),
+        Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Spacer(Modifier.width(60.dp))
+        Spacer(Modifier.width(48.dp))
         Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-        // 二维码入口只保留在右侧图标的点击区域，标题卡片本身不承担点击行为。
-        IconButton(onClick = onQrClick, interactionSource = interactionSource, modifier = Modifier.iosPressFeedback(interactionSource).width(58.dp).height(48.dp)) {
+        // 二维码入口保留独立的触控区域，标题区域不承担点击行为。
+        IconButton(onClick = onQrClick, interactionSource = interactionSource, modifier = Modifier.iosPressFeedback(interactionSource).size(48.dp)) {
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",
