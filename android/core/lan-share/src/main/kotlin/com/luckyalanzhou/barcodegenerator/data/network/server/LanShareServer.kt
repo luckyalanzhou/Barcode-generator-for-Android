@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.data.network.server
 
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_WEBSOCKET_HEARTBEAT_INTERVAL_MS
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_WEBSOCKET_HEARTBEAT_TIMEOUT_MS
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.isCommittedSharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.mimeTypeForName
@@ -43,6 +45,8 @@ internal class LanShareServer(
     previewCacheFolder: File = File(folder.parentFile, ".lan-share-web-preview"),
     private val emitRealtimeEvent: (LanShareRealtimeEvent) -> Unit = {},
     private val connectionDisconnectGraceMs: Long = DEFAULT_CONNECTION_DISCONNECT_GRACE_MS,
+    private val webSocketHeartbeatIntervalMs: Long = LAN_SHARE_WEBSOCKET_HEARTBEAT_INTERVAL_MS,
+    private val webSocketHeartbeatTimeoutMs: Long = LAN_SHARE_WEBSOCKET_HEARTBEAT_TIMEOUT_MS,
 ) : NanoWSD(host, port) {
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
@@ -57,7 +61,7 @@ internal class LanShareServer(
         val messages: List<LanShareMessage>,
     )
 
-    private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
+    private val webSockets = CopyOnWriteArraySet<BrowserWebSocket>()
     private val webSocketStateLock = Any()
     private val connectionStateExecutor = Executors.newSingleThreadScheduledExecutor { task ->
         Thread(task, "lan-share-connection-state").apply { isDaemon = true }
@@ -65,12 +69,24 @@ internal class LanShareServer(
     private var pendingDisconnect: ScheduledFuture<*>? = null
     private var connectionGeneration = 0L
     private var reportedConnected = false
-    private var stopped = false
+    @Volatile private var stopped = false
     private val chatMessages = mutableListOf<LanShareMessage>()
     private val uploadedMimeTypes = ConcurrentHashMap<String, String>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
+    private val heartbeatTask: ScheduledFuture<*>
+
+    init {
+        require(webSocketHeartbeatIntervalMs > 0L)
+        require(webSocketHeartbeatTimeoutMs > webSocketHeartbeatIntervalMs)
+        heartbeatTask = connectionStateExecutor.scheduleAtFixedRate(
+            ::sendWebSocketHeartbeats,
+            webSocketHeartbeatIntervalMs,
+            webSocketHeartbeatIntervalMs,
+            TimeUnit.MILLISECONDS,
+        )
+    }
 
     private data class UploadBody(val expectedBytes: Long, val isChunked: Boolean)
 
@@ -127,21 +143,24 @@ internal class LanShareServer(
     ) {
         var reservationHeld = true
         var temporary: File? = null
+        var receivedBytes = 0L
+        var committed = false
+        val startedAtNanos = System.nanoTime()
         try {
             val stagingFile = File.createTempFile(".lan-upload-", ".part", folder)
             temporary = stagingFile
-            val receivedBytes = BufferedOutputStream(
+            val copiedBytes = BufferedOutputStream(
                 FileOutputStream(stagingFile),
                 LAN_SHARE_STREAM_BUFFER_SIZE,
             ).use { output ->
                 if (body.isChunked) {
-                    copyChunkedBody(session.inputStream, output, body.expectedBytes)
+                    copyChunkedBody(session.inputStream, output, body.expectedBytes) { receivedBytes = it }
                 } else {
-                    copyFixedLengthBody(session.inputStream, output, body.expectedBytes)
+                    copyFixedLengthBody(session.inputStream, output, body.expectedBytes) { receivedBytes = it }
                 }
             }
-            require(receivedBytes == body.expectedBytes && stagingFile.length() == body.expectedBytes) {
-                "上传内容大小不匹配：$receivedBytes/${body.expectedBytes} 字节"
+            require(copiedBytes == body.expectedBytes && stagingFile.length() == body.expectedBytes) {
+                "上传内容大小不匹配：$copiedBytes/${body.expectedBytes} 字节"
             }
             synchronized(uploadLock) {
                 check(!target.exists()) { "目标文件已存在" }
@@ -150,14 +169,34 @@ internal class LanShareServer(
                 reservedUploadBytes = (reservedUploadBytes - reservation).coerceAtLeast(0L)
                 reservationHeld = false
             }
+            committed = true
             notifyFilesChanged(target, transferId)
+        } catch (error: Exception) {
+            val safeTransferId = transferId
+                ?.take(64)
+                ?.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+                ?.ifEmpty { "unknown" }
+                ?: "unknown"
+            logger.record(
+                "lan-server",
+                "upload failed transfer=$safeTransferId chunked=${body.isChunked} received=$receivedBytes " +
+                    "expected=${body.expectedBytes} committed=$committed " +
+                    "elapsedMs=${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos)}",
+                error,
+            )
+            throw error
         } finally {
             temporary?.delete()
             if (reservationHeld) releaseUploadCapacity(reservation)
         }
     }
 
-    private fun copyFixedLengthBody(input: java.io.InputStream, output: BufferedOutputStream, expectedBytes: Long): Long {
+    private fun copyFixedLengthBody(
+        input: java.io.InputStream,
+        output: BufferedOutputStream,
+        expectedBytes: Long,
+        onProgress: (Long) -> Unit,
+    ): Long {
         val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
         var copied = 0L
         while (copied < expectedBytes) {
@@ -166,11 +205,17 @@ internal class LanShareServer(
             if (read == 0) continue
             output.write(buffer, 0, read)
             copied += read
+            onProgress(copied)
         }
         return copied
     }
 
-    private fun copyChunkedBody(input: java.io.InputStream, output: BufferedOutputStream, expectedBytes: Long): Long {
+    private fun copyChunkedBody(
+        input: java.io.InputStream,
+        output: BufferedOutputStream,
+        expectedBytes: Long,
+        onProgress: (Long) -> Unit,
+    ): Long {
         val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
         var copied = 0L
         var trailerBytes = 0
@@ -202,6 +247,7 @@ internal class LanShareServer(
                 output.write(buffer, 0, read)
                 copied += read
                 remaining -= read
+                onProgress(copied)
             }
             if (input.read() != '\r'.code || input.read() != '\n'.code) {
                 throw IOException("分块上传格式无效")
@@ -260,8 +306,16 @@ internal class LanShareServer(
         return message
     }
 
-    override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = object : NanoWSD.WebSocket(handshake) {
+    override fun openWebSocket(handshake: IHTTPSession): NanoWSD.WebSocket = BrowserWebSocket(handshake)
+
+    private inner class BrowserWebSocket(handshake: IHTTPSession) : NanoWSD.WebSocket(handshake) {
+        private val browserClientId = handshake.parameters["client"]?.firstOrNull().orEmpty()
+
+        @Volatile var lastPongAtNanos: Long = System.nanoTime()
+            private set
+
         override fun onOpen() {
+            lastPongAtNanos = System.nanoTime()
             addWebSocket(this)
         }
 
@@ -278,8 +332,7 @@ internal class LanShareServer(
             }
             val payload = runCatching { JSONObject(payloadText) }.getOrNull() ?: return
             if (payload.optString("type") != "message") return
-            val clientId = handshake.parameters["client"]?.firstOrNull().orEmpty()
-            val posted = receiveBrowserMessage(clientId, payload.optString("text"))
+            val posted = receiveBrowserMessage(browserClientId, payload.optString("text"))
             if (posted == null) {
                 val reason = if (payload.optString("text").toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) {
                     "消息不能超过 64 KB"
@@ -288,11 +341,40 @@ internal class LanShareServer(
             }
         }
 
-        override fun onPong(pong: NanoWSD.WebSocketFrame) = Unit
+        override fun onPong(pong: NanoWSD.WebSocketFrame) {
+            lastPongAtNanos = System.nanoTime()
+        }
+
         override fun onException(exception: IOException) { removeWebSocket(this) }
     }
 
-    private fun addWebSocket(socket: NanoWSD.WebSocket) {
+    private fun sendWebSocketHeartbeats() {
+        if (stopped) return
+        val nowNanos = System.nanoTime()
+        val timeoutNanos = TimeUnit.MILLISECONDS.toNanos(webSocketHeartbeatTimeoutMs)
+        webSockets.toList().forEach { socket ->
+            if (!socket.isOpen) {
+                removeWebSocket(socket)
+            } else if (nowNanos - socket.lastPongAtNanos >= timeoutNanos) {
+                logger.record("lan-server", "websocket heartbeat timed out", null)
+                runCatching {
+                    socket.close(NanoWSD.WebSocketFrame.CloseCode.GoingAway, "heartbeat timeout", false)
+                }
+                removeWebSocket(socket)
+            } else {
+                runCatching { socket.ping(nowNanos.toString().toByteArray(Charsets.US_ASCII)) }
+                    .onFailure { error ->
+                        logger.record("lan-server", "websocket heartbeat failed", error)
+                        runCatching {
+                            socket.close(NanoWSD.WebSocketFrame.CloseCode.GoingAway, "heartbeat failed", false)
+                        }
+                        removeWebSocket(socket)
+                    }
+            }
+        }
+    }
+
+    private fun addWebSocket(socket: BrowserWebSocket) {
         synchronized(webSocketStateLock) {
             if (stopped) return
             webSockets.add(socket)
@@ -306,7 +388,7 @@ internal class LanShareServer(
         }
     }
 
-    private fun removeWebSocket(socket: NanoWSD.WebSocket) {
+    private fun removeWebSocket(socket: BrowserWebSocket) {
         synchronized(webSocketStateLock) {
             if (stopped || !webSockets.remove(socket) || webSockets.isNotEmpty() || !reportedConnected || pendingDisconnect != null) return
             val generation = ++connectionGeneration
@@ -330,6 +412,7 @@ internal class LanShareServer(
             webSockets.clear()
             reportedConnected = false
         }
+        heartbeatTask.cancel(false)
         connectionStateExecutor.shutdownNow()
         super.stop()
     }

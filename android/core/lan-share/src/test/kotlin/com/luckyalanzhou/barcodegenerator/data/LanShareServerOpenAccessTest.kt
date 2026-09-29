@@ -3,11 +3,14 @@ package com.luckyalanzhou.barcodegenerator.data
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
+import java.io.DataInputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.Socket
 import java.net.URL
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -55,6 +58,82 @@ class LanShareServerOpenAccessTest {
         } finally {
             first?.close()
             second?.close()
+            server.stop()
+        }
+    }
+
+    @Test
+    fun websocketHeartbeatKeepsResponsiveBrowserConnectedAndDropsMissingPongs() {
+        val events = CopyOnWriteArrayList<LanShareRealtimeEvent>()
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+            emitRealtimeEvent = events::add,
+            connectionDisconnectGraceMs = 50,
+            webSocketHeartbeatIntervalMs = 100,
+            webSocketHeartbeatTimeoutMs = 500,
+        )
+        var socket: Socket? = null
+        val running = AtomicBoolean(true)
+        val respondToPings = AtomicBoolean(true)
+        val pongCount = AtomicInteger()
+        try {
+            server.start(2_000, false)
+            val browser = openWebSocket(server.listeningPort)
+            socket = browser
+            val heartbeatReader = Thread({
+                val input = DataInputStream(browser.getInputStream())
+                val output = browser.getOutputStream()
+                while (running.get()) {
+                    val firstByte = input.readUnsignedByte()
+                    val secondByte = input.readUnsignedByte()
+                    var payloadLength = secondByte and 0x7f
+                    if (payloadLength == 126) {
+                        payloadLength = input.readUnsignedShort()
+                    } else if (payloadLength == 127) {
+                        throw AssertionError("server heartbeat payload unexpectedly exceeds 64 KB")
+                    }
+                    val payload = ByteArray(payloadLength)
+                    input.readFully(payload)
+                    when (firstByte and 0x0f) {
+                        0x9 -> if (respondToPings.get()) {
+                            val mask = byteArrayOf(0x13, 0x27, 0x41, 0x5b)
+                            output.write(0x8a)
+                            output.write(0x80 or payload.size)
+                            output.write(mask)
+                            payload.forEachIndexed { index, byte ->
+                                output.write((byte.toInt() xor mask[index % mask.size].toInt()) and 0xff)
+                            }
+                            output.flush()
+                            pongCount.incrementAndGet()
+                        }
+                        0x8 -> return@Thread
+                    }
+                }
+            }, "lan-share-test-websocket-heartbeat").apply {
+                isDaemon = true
+                start()
+            }
+
+            assertTrue(awaitCondition(2_000) { pongCount.get() >= 3 })
+            assertTrue(server.browserConnected())
+            assertEquals(
+                listOf(LanShareRealtimeEvent.ConnectionChanged(true)),
+                events.filterIsInstance<LanShareRealtimeEvent.ConnectionChanged>(),
+            )
+
+            respondToPings.set(false)
+            assertTrue("a client that stops answering heartbeats must be removed", awaitCondition(2_000) {
+                !server.browserConnected()
+            })
+            assertTrue(awaitCondition(1_000) {
+                events.filterIsInstance<LanShareRealtimeEvent.ConnectionChanged>() == listOf(
+                    LanShareRealtimeEvent.ConnectionChanged(true),
+                    LanShareRealtimeEvent.ConnectionChanged(false),
+                )
+            })
+        } finally {
+            running.set(false)
+            socket?.close()
             server.stop()
         }
     }

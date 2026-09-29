@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_SOCKET_READ_TIMEOUT_MS
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import java.io.File
@@ -50,6 +51,55 @@ class LanShareServerUploadTest {
             assertTrue(result.second.contains("_cbrowser123_"))
             assertArrayEquals(payload, File(folder, result.second).readBytes())
         } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun fixedLengthUploadSurvivesIdleGapLongerThanPreviousSocketTimeout() {
+        val folder = temporaryFolder.newFolder()
+        val firstPart = ByteArray(512 * 1024) { index -> (index * 13).toByte() }
+        val secondPart = ByteArray(512 * 1024) { index -> (index * 29).toByte() }
+        val server = newServer(folder)
+        var connection: HttpURLConnection? = null
+        try {
+            server.start(LAN_SHARE_SOCKET_READ_TIMEOUT_MS, false)
+            val uploadConnection = URL("http://127.0.0.1:${server.listeningPort}/upload?name=paused.bin&client=cbrowser123")
+                .openConnection() as HttpURLConnection
+            connection = uploadConnection
+            uploadConnection.connectTimeout = 5_000
+            uploadConnection.readTimeout = 20_000
+            uploadConnection.requestMethod = "PUT"
+            uploadConnection.setRequestProperty("X-File-Size", (firstPart.size + secondPart.size).toString())
+            uploadConnection.setRequestProperty("Content-Type", "application/octet-stream")
+            uploadConnection.doOutput = true
+            uploadConnection.setFixedLengthStreamingMode(firstPart.size + secondPart.size)
+
+            val output = uploadConnection.outputStream
+            output.write(firstPart)
+            output.flush()
+            val stagingDeadline = System.nanoTime() + 5_000_000_000L
+            while (folder.listFiles().orEmpty().none {
+                    it.name.startsWith(".lan-upload-") && it.length() > 0L
+                } && System.nanoTime() < stagingDeadline
+            ) {
+                Thread.sleep(10)
+            }
+            assertTrue(
+                "server should persist upload bytes before the intentional idle gap",
+                folder.listFiles().orEmpty().any { it.name.startsWith(".lan-upload-") && it.length() > 0L },
+            )
+
+            Thread.sleep(6_000)
+            output.write(secondPart)
+            output.close()
+
+            val status = uploadConnection.responseCode
+            val storedId = uploadConnection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText().trim() }
+            assertEquals(200, status)
+            assertArrayEquals(firstPart + secondPart, File(folder, storedId).readBytes())
+        } finally {
+            connection?.disconnect()
             server.stop()
         }
     }

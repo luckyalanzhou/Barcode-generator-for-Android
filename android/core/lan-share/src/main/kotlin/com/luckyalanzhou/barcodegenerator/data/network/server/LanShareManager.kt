@@ -8,6 +8,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeState
 import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_SOCKET_READ_TIMEOUT_MS
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
 
@@ -118,7 +119,7 @@ class LanShareManager(
             },
         ).also {
             try {
-                it.start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+                it.start(LAN_SHARE_SOCKET_READ_TIMEOUT_MS, false)
             } catch (error: Exception) {
                 runCatching { it.stop() }
                 throw IllegalStateException("无法在随机端口 $port 启动局域网分享服务", error)
