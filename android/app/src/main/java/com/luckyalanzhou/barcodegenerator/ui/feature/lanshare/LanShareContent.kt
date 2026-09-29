@@ -216,9 +216,9 @@ internal fun LanShareContent(
     if (qrOpen) {
         ComposeLanShareQrDialog(
             onCopyAddress = onCopyAddress,
-            onHideQr = { onSetQrVisible(false) },
             session = session,
             dark = dark,
+            browserConnected = lanState.browserConnected,
             primary = primary,
             secondary = secondary,
             onDismiss = { onSetQrVisible(false) },
