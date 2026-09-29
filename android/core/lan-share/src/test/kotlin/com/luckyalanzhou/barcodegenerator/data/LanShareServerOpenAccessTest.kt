@@ -7,6 +7,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.Socket
 import java.net.URL
+import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -15,6 +16,48 @@ import org.junit.rules.TemporaryFolder
 
 class LanShareServerOpenAccessTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
+
+    @Test
+    fun briefWebSocketReconnectDoesNotReportDeviceDisconnected() {
+        val events = CopyOnWriteArrayList<LanShareRealtimeEvent>()
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+            emitRealtimeEvent = events::add,
+            connectionDisconnectGraceMs = 1_500,
+        )
+        var first: Socket? = null
+        var second: Socket? = null
+        try {
+            server.start(5_000, false)
+            first = openWebSocket(server.listeningPort)
+            assertTrue(awaitCondition(1_000) { server.browserConnected() })
+
+            first.close()
+            assertTrue(awaitCondition(1_000) { !server.browserConnected() })
+            Thread.sleep(100)
+
+            second = openWebSocket(server.listeningPort)
+            assertTrue(awaitCondition(1_000) { server.browserConnected() })
+            Thread.sleep(1_600)
+
+            assertEquals(
+                listOf(LanShareRealtimeEvent.ConnectionChanged(true)),
+                events.filterIsInstance<LanShareRealtimeEvent.ConnectionChanged>(),
+            )
+
+            second.close()
+            assertTrue(awaitCondition(2_500) {
+                events.filterIsInstance<LanShareRealtimeEvent.ConnectionChanged>() == listOf(
+                    LanShareRealtimeEvent.ConnectionChanged(true),
+                    LanShareRealtimeEvent.ConnectionChanged(false),
+                )
+            })
+        } finally {
+            first?.close()
+            second?.close()
+            server.stop()
+        }
+    }
 
     @Test
     fun httpAndWebSocketEntryPointsWorkWithoutCredentials() {
@@ -128,6 +171,27 @@ class LanShareServerOpenAccessTest {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun openWebSocket(port: Int): Socket {
+        val socket = Socket("127.0.0.1", port).apply { soTimeout = 5_000 }
+        socket.getOutputStream().write((
+            "GET /ws HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nUpgrade: websocket\r\n" +
+                "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+                "Sec-WebSocket-Version: 13\r\n\r\n"
+            ).toByteArray(Charsets.US_ASCII))
+        val statusLine = socket.getInputStream().bufferedReader().readLine()
+        assertTrue("WebSocket upgrade failed: $statusLine", statusLine.contains(" 101 "))
+        return socket
+    }
+
+    private fun awaitCondition(timeoutMs: Long, condition: () -> Boolean): Boolean {
+        val deadline = System.nanoTime() + timeoutMs * 1_000_000
+        while (System.nanoTime() < deadline) {
+            if (condition()) return true
+            Thread.sleep(10)
+        }
+        return condition()
     }
 
 }

@@ -95,6 +95,27 @@ function setConnectionState(connected) {
     connectionStatus.classList.toggle('connected', connected);
 }
 
+const CONNECTION_DISCONNECT_GRACE_MS = 3000;
+let pendingDisconnectTimer = null;
+let connectionStateGeneration = 0;
+
+function markConnectionRestored() {
+    connectionStateGeneration++;
+    if (pendingDisconnectTimer !== null) clearTimeout(pendingDisconnectTimer);
+    pendingDisconnectTimer = null;
+    setConnectionState(true);
+}
+
+function scheduleConnectionLost() {
+    const generation = ++connectionStateGeneration;
+    if (pendingDisconnectTimer !== null) clearTimeout(pendingDisconnectTimer);
+    pendingDisconnectTimer = setTimeout(() => {
+        if (generation !== connectionStateGeneration) return;
+        pendingDisconnectTimer = null;
+        setConnectionState(false);
+    }, CONNECTION_DISCONNECT_GRACE_MS);
+}
+
 function fileUrl(file) {
     return '/dl/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
 }
@@ -563,7 +584,7 @@ function connectSocket() {
     try {
         socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?client=' + encodeURIComponent(clientId));
         socket.onopen = () => {
-            setConnectionState(true);
+            markConnectionRestored();
             socket.send('sync');
         };
         socket.onmessage = event => {
@@ -578,11 +599,11 @@ function connectSocket() {
             } catch (_) {}
         };
         socket.onclose = () => {
-            setConnectionState(false);
+            scheduleConnectionLost();
             setTimeout(connectSocket, 1000);
         };
-        socket.onerror = () => setConnectionState(false);
     } catch (_) {
+        scheduleConnectionLost();
         setTimeout(connectSocket, 1000);
     }
 }

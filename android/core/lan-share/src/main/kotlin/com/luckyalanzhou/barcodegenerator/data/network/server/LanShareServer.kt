@@ -30,6 +30,9 @@ import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /** 浏览器端服务：HTTP 文件接口和 WebSocket 会话消息。 */
 internal class LanShareServer(
@@ -39,7 +42,16 @@ internal class LanShareServer(
     private val logger: AppLogger,
     previewCacheFolder: File = File(folder.parentFile, ".lan-share-web-preview"),
     private val emitRealtimeEvent: (LanShareRealtimeEvent) -> Unit = {},
+    private val connectionDisconnectGraceMs: Long = DEFAULT_CONNECTION_DISCONNECT_GRACE_MS,
 ) : NanoWSD(host, port) {
+    private companion object {
+        const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
+        const val MAX_CHUNK_LINE_BYTES = 8 * 1024
+        const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
+        const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
+        const val APP_UPLOAD_CLIENT = "app"
+    }
+
     internal data class SessionSnapshot(
         val files: List<LanShareFile>,
         val messages: List<LanShareMessage>,
@@ -47,6 +59,13 @@ internal class LanShareServer(
 
     private val webSockets = CopyOnWriteArraySet<NanoWSD.WebSocket>()
     private val webSocketStateLock = Any()
+    private val connectionStateExecutor = Executors.newSingleThreadScheduledExecutor { task ->
+        Thread(task, "lan-share-connection-state").apply { isDaemon = true }
+    }
+    private var pendingDisconnect: ScheduledFuture<*>? = null
+    private var connectionGeneration = 0L
+    private var reportedConnected = false
+    private var stopped = false
     private val chatMessages = mutableListOf<LanShareMessage>()
     private val uploadedMimeTypes = ConcurrentHashMap<String, String>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
@@ -207,7 +226,7 @@ internal class LanShareServer(
         throw IOException("分块上传行过长")
     }
 
-    fun browserConnected() = webSockets.isNotEmpty()
+    fun browserConnected() = synchronized(webSocketStateLock) { webSockets.isNotEmpty() }
 
     fun messagesSnapshot(): List<LanShareMessage> = synchronized(chatMessages) { chatMessages.toList() }
 
@@ -275,9 +294,13 @@ internal class LanShareServer(
 
     private fun addWebSocket(socket: NanoWSD.WebSocket) {
         synchronized(webSocketStateLock) {
-            val wasConnected = webSockets.isNotEmpty()
+            if (stopped) return
             webSockets.add(socket)
-            if (!wasConnected && webSockets.isNotEmpty()) {
+            connectionGeneration++
+            pendingDisconnect?.cancel(false)
+            pendingDisconnect = null
+            if (!reportedConnected) {
+                reportedConnected = true
                 emitRealtimeEvent(LanShareRealtimeEvent.ConnectionChanged(true))
             }
         }
@@ -285,12 +308,30 @@ internal class LanShareServer(
 
     private fun removeWebSocket(socket: NanoWSD.WebSocket) {
         synchronized(webSocketStateLock) {
-            val wasConnected = webSockets.isNotEmpty()
-            webSockets.remove(socket)
-            if (wasConnected && webSockets.isEmpty()) {
-                emitRealtimeEvent(LanShareRealtimeEvent.ConnectionChanged(false))
-            }
+            if (stopped || !webSockets.remove(socket) || webSockets.isNotEmpty() || !reportedConnected || pendingDisconnect != null) return
+            val generation = ++connectionGeneration
+            pendingDisconnect = connectionStateExecutor.schedule({
+                synchronized(webSocketStateLock) {
+                    if (generation != connectionGeneration || webSockets.isNotEmpty() || !reportedConnected) return@synchronized
+                    pendingDisconnect = null
+                    reportedConnected = false
+                    emitRealtimeEvent(LanShareRealtimeEvent.ConnectionChanged(false))
+                }
+            }, connectionDisconnectGraceMs, TimeUnit.MILLISECONDS)
         }
+    }
+
+    override fun stop() {
+        synchronized(webSocketStateLock) {
+            stopped = true
+            connectionGeneration++
+            pendingDisconnect?.cancel(false)
+            pendingDisconnect = null
+            webSockets.clear()
+            reportedConnected = false
+        }
+        connectionStateExecutor.shutdownNow()
+        super.stop()
     }
 
     private fun fileRecordsSnapshot(sender: String) = folder.listFiles().orEmpty()
@@ -450,13 +491,6 @@ internal class LanShareServer(
             logger.record("lan-server", "request failed path=${session.uri.substringBefore('?')}", error)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
         }
-    }
-
-    private companion object {
-        const val MAX_CHUNK_LINE_BYTES = 8 * 1024
-        const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
-        const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
-        const val APP_UPLOAD_CLIENT = "app"
     }
 
     private fun decodePathSegment(value: String): String = runCatching {

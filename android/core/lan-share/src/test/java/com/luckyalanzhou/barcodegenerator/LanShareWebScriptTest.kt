@@ -21,9 +21,13 @@ class LanShareWebScriptTest {
     fun browserConnectionIndicatorUsesWebSocketLifecycleWithoutPolling() {
         val script = LanShareWebScript.render()
 
-        assertTrue(script.contains("socket.onopen = () => {\n            setConnectionState(true);"))
-        assertTrue(script.contains("socket.onclose = () => {\n            setConnectionState(false);"))
-        assertTrue(script.contains("socket.onerror = () => setConnectionState(false)"))
+        assertTrue(script.contains("const CONNECTION_DISCONNECT_GRACE_MS = 3000;"))
+        assertTrue(script.contains("function markConnectionRestored()"))
+        assertTrue(script.contains("function scheduleConnectionLost()"))
+        assertTrue(script.contains("socket.onopen = () => {\n            markConnectionRestored();"))
+        assertTrue(script.contains("socket.onclose = () => {\n            scheduleConnectionLost();"))
+        assertTrue(!script.contains("socket.onerror = () => setConnectionState(false)"))
+        assertTrue(script.contains("if (generation !== connectionStateGeneration) return;"))
         assertTrue(!script.contains("function heartbeat()"))
         assertTrue(!script.contains("/api/presence"))
         assertTrue(!script.contains("setInterval("))
