@@ -86,7 +86,7 @@ internal fun SettingsContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item("settings-appearance") {
             SettingsCard(colors.surfaces.card, dark) {
