@@ -231,7 +231,7 @@ class ResultsViewModel @Inject constructor(
         style: StyleSettings,
         dark: Boolean,
         density: Float,
-    ): Boolean = withContext(Dispatchers.Default.limitedParallelism(4)) {
+    ): Boolean = withContext(Dispatchers.Default.limitedParallelism(8)) {
         coroutineScope {
             items.map { item ->
                 async { imageRenderer.loadOrCreate(item, style, dark, density) != null }

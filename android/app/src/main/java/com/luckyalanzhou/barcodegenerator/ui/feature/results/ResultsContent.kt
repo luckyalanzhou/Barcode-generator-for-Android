@@ -101,8 +101,8 @@ internal fun ResultsContent(
         density,
     ) {
         value = try {
-            withContext(Dispatchers.Default.limitedParallelism(4)) {
-                items.chunked(4).all { batch ->
+            withContext(Dispatchers.Default.limitedParallelism(8)) {
+                items.chunked(8).all { batch ->
                     coroutineScope {
                         batch.map { item ->
                             async { loadBarcodeImage(item, dark, density) != null }
