@@ -42,6 +42,7 @@ internal fun LanShareScreen(
         dark = dark,
         onMessageChange = { message = it },
         onSetQrVisible = viewModel::setQrVisible,
+        onCancelUpload = viewModel::cancelUpload,
         onLoadImagePreview = viewModel::loadImagePreview,
         onSend = { text ->
             val state = viewModel.uiState.value

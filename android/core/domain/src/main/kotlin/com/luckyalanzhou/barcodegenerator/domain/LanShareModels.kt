@@ -117,9 +117,11 @@ interface LanShareGateway {
     fun list(session: LanShareSession): List<LanShareFile>
     fun upload(
         session: LanShareSession,
+        transferId: String,
         source: LanShareUploadSource,
         onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
     ): String
+    fun cancelUpload(transferId: String) {}
     fun downloadToFile(session: LanShareSession, id: String, destination: File)
     fun downloadPreview(
         session: LanShareSession,

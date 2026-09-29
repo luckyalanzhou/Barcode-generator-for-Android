@@ -161,6 +161,20 @@ class LanShareWebScriptTest {
     }
 
     @Test
+    fun browserCanCancelAnActiveUploadWithoutShowingFailureAlert() {
+        val script = LanShareWebScript.render()
+        val page = LanShareWebTemplates.page()
+
+        assertTrue(script.contains("const activeUploads = new Map();"))
+        assertTrue(script.contains("function cancelUpload(transferId)"))
+        assertTrue(script.contains("request.abort();"))
+        assertTrue(script.contains("if (!cancelledUploads.delete(transferId))"))
+        assertTrue(script.contains("cancel.className = 'upload-cancel';"))
+        assertTrue(page.contains(".upload-cancel{position:relative"))
+        assertTrue(page.contains("grid-template-areas:\"icon name percent\" \"icon size cancel\""))
+    }
+
+    @Test
     fun browserTransferListScrollsBetweenFixedPageChromeAndUsesCompactImagePreviews() {
         val page = LanShareWebTemplates.page()
 

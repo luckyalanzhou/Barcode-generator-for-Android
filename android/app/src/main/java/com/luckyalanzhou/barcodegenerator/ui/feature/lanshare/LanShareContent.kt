@@ -99,6 +99,7 @@ internal fun LanShareContent(
     onMessageChange: (String) -> Unit,
     onSetQrVisible: (Boolean) -> Unit,
     onSend: (String) -> Unit,
+    onCancelUpload: (String) -> Unit,
     onLoadImagePreview: suspend (LanShareFile) -> Bitmap?,
     onOpenCamera: () -> Unit,
     onOpenGallery: () -> Unit,
@@ -178,7 +179,7 @@ internal fun LanShareContent(
                         )
                     }
                     is LanShareTimelineEntry.UploadEntry -> {
-                        LanShareUploadingBubble(entry.upload)
+                        LanShareUploadingBubble(entry.upload) { onCancelUpload(entry.upload.id) }
                     }
                     is LanShareTimelineEntry.MessageEntry -> {
                         val chatMessage = entry.message

@@ -17,12 +17,21 @@ import org.json.JSONArray
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.CancellationException
 
 /** App 端访问浏览器分享服务的 HTTP 客户端；不包含服务端生命周期逻辑。 */
 internal class LanShareClient(
     private val isRouterLanHost: (String?) -> Boolean,
     private val logger: AppLogger,
 ) {
+    private class ActiveUpload {
+        var connection: HttpURLConnection? = null
+        var cancelled: Boolean = false
+    }
+
+    private val uploadLock = Any()
+    private val activeUploads = mutableMapOf<String, ActiveUpload>()
+
     fun list(session: LanShareSession) = request(session, "/api/files") { connection ->
         JSONArray(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }).let { json ->
             (0 until json.length()).map { index ->
@@ -43,6 +52,7 @@ internal class LanShareClient(
 
     fun upload(
         session: LanShareSession,
+        transferId: String,
         source: LanShareUploadSource,
         onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
     ): String {
@@ -50,13 +60,35 @@ internal class LanShareClient(
         val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
         require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
-        return uploadRaw(session, name, size, source.mimeType, onProgress) { source.openStream() }.also {
-            logger.record("lan", "file uploaded name=$name size=$size", null)
+        val activeUpload = ActiveUpload()
+        synchronized(uploadLock) {
+            check(transferId !in activeUploads) { "上传任务标识已存在" }
+            activeUploads[transferId] = activeUpload
         }
+        try {
+            return uploadRaw(session, transferId, activeUpload, name, size, source.mimeType, onProgress) {
+                source.openStream()
+            }.also {
+                logger.record("lan", "file uploaded name=$name size=$size", null)
+            }
+        } finally {
+            synchronized(uploadLock) {
+                if (activeUploads[transferId] === activeUpload) activeUploads.remove(transferId)
+            }
+        }
+    }
+
+    fun cancelUpload(transferId: String) {
+        val connection = synchronized(uploadLock) {
+            activeUploads[transferId]?.also { it.cancelled = true }?.connection
+        }
+        connection?.disconnect()
     }
 
     private fun uploadRaw(
         session: LanShareSession,
+        transferId: String,
+        activeUpload: ActiveUpload,
         name: String,
         size: Long,
         mimeType: String?,
@@ -74,6 +106,18 @@ internal class LanShareClient(
             doOutput = true
             setFixedLengthStreamingMode(size)
         }
+        val canStart = synchronized(uploadLock) {
+            if (activeUploads[transferId] !== activeUpload || activeUpload.cancelled) {
+                false
+            } else {
+                activeUpload.connection = connection
+                true
+            }
+        }
+        if (!canStart) {
+            connection.disconnect()
+            throw CancellationException("上传已取消")
+        }
         try {
             val copiedBytes = openStream()?.use { input ->
                 connection.outputStream.buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
@@ -88,6 +132,11 @@ internal class LanShareClient(
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText().trim() }
                 .ifBlank { error("上传完成但未收到文件标识") }
         } finally {
+            synchronized(uploadLock) {
+                if (activeUploads[transferId] === activeUpload && activeUpload.connection === connection) {
+                    activeUpload.connection = null
+                }
+            }
             connection.disconnect()
         }
     }

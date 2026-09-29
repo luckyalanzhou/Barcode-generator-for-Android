@@ -20,6 +20,8 @@ const imageViewerClose = document.getElementById('image-viewer-close');
 let fileRecords = [];
 let chatRecords = [];
 const uploadRecords = new Map();
+const activeUploads = new Map();
+const cancelledUploads = new Set();
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
@@ -216,6 +218,13 @@ function closeImageViewer() {
 }
 
 fileList.addEventListener('click', event => {
+    const cancelButton = event.target.closest('.upload-cancel');
+    if (cancelButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelUpload(cancelButton.closest('[data-upload-id]')?.dataset.uploadId);
+        return;
+    }
     const image = event.target.closest('img.media-preview');
     if (!image) return;
     event.preventDefault();
@@ -301,6 +310,16 @@ function upsertFile(file, transferId) {
     renderTimeline();
 }
 
+function cancelUpload(transferId) {
+    if (!transferId) return;
+    const request = activeUploads.get(transferId);
+    if (!request || request.readyState === XMLHttpRequest.DONE) return;
+    cancelledUploads.add(transferId);
+    uploadRecords.delete(transferId);
+    renderTimeline();
+    request.abort();
+}
+
 function reconcileMessages(list) {
     chatRecords = (Array.isArray(list) ? list : []).filter(message =>
         message && message.id && typeof message.text === 'string'
@@ -333,9 +352,6 @@ function createUploadItem(upload) {
     const item = document.createElement('li');
     item.dataset.uploadId = upload.id;
     item.className = 'mine upload-progress';
-    item.setAttribute('role', 'progressbar');
-    item.setAttribute('aria-valuemin', '0');
-    item.setAttribute('aria-valuemax', '100');
     const fill = document.createElement('span');
     fill.className = 'upload-fill';
     fill.setAttribute('aria-hidden', 'true');
@@ -345,7 +361,15 @@ function createUploadItem(upload) {
     size.className = 'upload-size';
     const percent = document.createElement('span');
     percent.className = 'upload-percent';
-    item.append(fill, name, size, percent);
+    percent.setAttribute('role', 'progressbar');
+    percent.setAttribute('aria-valuemin', '0');
+    percent.setAttribute('aria-valuemax', '100');
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'upload-cancel';
+    cancel.setAttribute('aria-label', '取消上传 ' + (upload.name || '附件'));
+    cancel.textContent = '取消';
+    item.append(fill, name, size, percent, cancel);
     updateUploadItem(item, upload);
     return item;
 }
@@ -355,8 +379,9 @@ function updateUploadItem(item, upload) {
     const loaded = Math.max(0, Math.min(total, Number(upload.loaded) || 0));
     const percent = total > 0 ? Math.floor(loaded * 100 / total) : 0;
     item.style.setProperty('--upload-progress', percent + '%');
-    item.setAttribute('aria-valuenow', String(percent));
-    item.setAttribute('aria-label', '正在上传 ' + upload.name + '，' + percent + '%');
+    const progress = item.querySelector('.upload-percent');
+    progress.setAttribute('aria-valuenow', String(percent));
+    progress.setAttribute('aria-label', '正在上传 ' + upload.name + '，' + percent + '%');
     item.querySelector('.upload-name').textContent = upload.name || '附件';
     item.querySelector('.upload-size').textContent = formatSize(loaded) + ' / ' + formatSize(total);
     item.querySelector('.upload-percent').textContent = percent + '%';
@@ -485,6 +510,7 @@ async function uploadFile(file) {
             });
             request.addEventListener('error', () => reject(new Error('网络连接失败')));
             request.addEventListener('abort', () => reject(new Error('上传已取消')));
+            activeUploads.set(transferId, request);
             request.send(file);
         });
         // The server returns the stored file ID. Keep that authoritative identity locally so
@@ -507,7 +533,12 @@ async function uploadFile(file) {
     } catch (error) {
         uploadRecords.delete(transferId);
         renderTimeline();
-        alert('发送失败：' + (error.message || '请刷新页面后重试'));
+        if (!cancelledUploads.delete(transferId)) {
+            alert('发送失败：' + (error.message || '请刷新页面后重试'));
+        }
+    } finally {
+        activeUploads.delete(transferId);
+        cancelledUploads.delete(transferId);
     }
 }
 

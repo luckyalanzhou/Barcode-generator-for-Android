@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
@@ -25,7 +27,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUploadin
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 
 @Composable
-internal fun LanShareUploadingBubble(upload: LanShareUploadingFile) {
+internal fun LanShareUploadingBubble(upload: LanShareUploadingFile, onCancel: () -> Unit) {
     val colors = LocalAppColorScheme.current
     val shape = RoundedCornerShape(18.dp)
     val progress = (upload.progressPercent / 100f).coerceIn(0f, 1f)
@@ -63,6 +65,15 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingFile) {
                 }
                 Spacer(Modifier.width(10.dp))
                 Text("${upload.progressPercent}%", color = label, fontSize = 13.sp, maxLines = 1)
+                Text(
+                    "取消",
+                    modifier = Modifier
+                        .clickable(role = Role.Button, onClick = onCancel)
+                        .padding(start = 10.dp, top = 8.dp, bottom = 8.dp),
+                    color = label.copy(alpha = .82f),
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                )
             }
         }
     }

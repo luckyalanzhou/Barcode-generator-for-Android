@@ -55,6 +55,50 @@ class LanShareServerUploadTest {
     }
 
     @Test
+    fun abortedUploadRemovesTemporaryFileWithoutCommittingPartialBytes() {
+        val folder = temporaryFolder.newFolder()
+        val server = newServer(folder)
+        var connection: HttpURLConnection? = null
+        try {
+            server.start(5_000, false)
+            val partialPayload = ByteArray(256 * 1024) { index -> index.toByte() }
+            val uploadConnection = URL("http://127.0.0.1:${server.listeningPort}/upload?name=partial.bin&client=cbrowser123")
+                .openConnection() as HttpURLConnection
+            connection = uploadConnection
+            uploadConnection.connectTimeout = 5_000
+            uploadConnection.readTimeout = 5_000
+            uploadConnection.requestMethod = "PUT"
+            uploadConnection.setRequestProperty("X-File-Size", (2 * 1024 * 1024).toString())
+            uploadConnection.setRequestProperty("Content-Type", "application/octet-stream")
+            uploadConnection.doOutput = true
+            uploadConnection.setFixedLengthStreamingMode(2 * 1024 * 1024)
+            val output = uploadConnection.outputStream
+            output.write(partialPayload)
+            output.flush()
+
+            val stagedDeadline = System.nanoTime() + 5_000_000_000L
+            while (folder.listFiles().orEmpty().none { it.name.startsWith(".lan-upload-") } && System.nanoTime() < stagedDeadline) {
+                Thread.sleep(10)
+            }
+            assertTrue("server should stage the partial upload before it is cancelled", folder.listFiles().orEmpty().any {
+                it.name.startsWith(".lan-upload-")
+            })
+
+            uploadConnection.disconnect()
+            runCatching { output.close() }
+
+            val cleanupDeadline = System.nanoTime() + 5_000_000_000L
+            while (folder.listFiles().orEmpty().isNotEmpty() && System.nanoTime() < cleanupDeadline) {
+                Thread.sleep(10)
+            }
+            assertTrue("cancelled upload must not leave staged or committed files", folder.listFiles().orEmpty().isEmpty())
+        } finally {
+            connection?.disconnect()
+            server.stop()
+        }
+    }
+
+    @Test
     fun downloadedFileUsesDlRouteAndPreservesOriginalBytes() {
         val folder = temporaryFolder.newFolder()
         val payload = "原始文件内容\r\nkey: value\n".toByteArray(StandardCharsets.UTF_8)

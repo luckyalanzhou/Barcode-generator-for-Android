@@ -27,6 +27,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -41,6 +42,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 data class LanShareUploadingFile(
     val id: String,
@@ -86,6 +88,8 @@ class LanShareViewModel @Inject constructor(
     private val _events = Channel<LanShareEvent>(Channel.BUFFERED)
     val events: Flow<LanShareEvent> = _events.receiveAsFlow()
     private var refreshJob: Job? = null
+    private data class ActiveUploadTask(val job: Job, val temporaryFile: java.io.File?)
+    private val activeUploadTasks = ConcurrentHashMap<String, ActiveUploadTask>()
     @Volatile
     private var previewFilesById: Map<String, java.io.File> = emptyMap()
 
@@ -245,9 +249,8 @@ class LanShareViewModel @Inject constructor(
 
     fun uploadFile(session: LanShareSession, uri: android.net.Uri, temporaryFile: java.io.File? = null) {
         val ticket = refreshGuard.currentGeneration()
-        viewModelScope.launch(Dispatchers.IO) {
-            val uploadId = UUID.randomUUID().toString()
-            var uploadStarted = false
+        val uploadId = UUID.randomUUID().toString()
+        val job = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
             try {
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
                 val source = createUploadSource(uri)
@@ -261,9 +264,9 @@ class LanShareViewModel @Inject constructor(
                 refreshGuard.update(session, ticket) {
                     it.copy(uploadingFiles = it.uploadingFiles + uploading)
                 }
-                uploadStarted = true
+                currentCoroutineContext().ensureActive()
                 var lastProgressPercent = 0
-                val id = lanShareGateway.upload(session, source) { uploadedBytes, totalBytes ->
+                val id = lanShareGateway.upload(session, uploadId, source) { uploadedBytes, totalBytes ->
                     val percent = if (totalBytes <= 0L) 0 else
                         ((uploadedBytes.coerceIn(0L, totalBytes) * 100L) / totalBytes).toInt()
                     if (percent != lastProgressPercent) {
@@ -293,16 +296,32 @@ class LanShareViewModel @Inject constructor(
                 }
                 if (!_uiState.value.isHost) refreshFiles(session, showError = false)
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Notice("上传成功"))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("上传失败"))
-            } finally {
-                if (uploadStarted) {
-                    refreshGuard.update(session, ticket) { state ->
-                        state.copy(uploadingFiles = state.uploadingFiles.filterNot { it.id == uploadId })
-                    }
-                }
-                temporaryFile?.delete()
             }
+        }
+        val task = ActiveUploadTask(job, temporaryFile)
+        activeUploadTasks[uploadId] = task
+        job.invokeOnCompletion {
+            activeUploadTasks.remove(uploadId, task)
+            temporaryFile?.delete()
+            refreshGuard.update(session, ticket) { state ->
+                state.copy(uploadingFiles = state.uploadingFiles.filterNot { it.id == uploadId })
+            }
+        }
+        job.start()
+    }
+
+    fun cancelUpload(uploadId: String) {
+        lanShareGateway.cancelUpload(uploadId)
+        val task = activeUploadTasks.remove(uploadId)
+        task?.job?.cancel(CancellationException("用户取消上传"))
+        task?.temporaryFile?.delete()
+        _uiState.update { state ->
+            state.copy(uploadingFiles = state.uploadingFiles.filterNot { it.id == uploadId })
         }
     }
 
