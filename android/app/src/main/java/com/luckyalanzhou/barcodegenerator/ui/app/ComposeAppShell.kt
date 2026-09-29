@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -162,14 +163,21 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 ) { targetPage ->
                     Column(Modifier.fillMaxSize()) {
                         if (targetPage.chromeVisible) {
-                            Text(
-                                text = targetPage.title,
-                                modifier = Modifier.fillMaxWidth().height(60.dp),
-                                color = colors.text.primary,
-                                fontSize = 25.sp,
-                                fontWeight = FontWeight.Medium,
-                                textAlign = TextAlign.Center,
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(
+                                    if (targetPage == AppRoute.Settings) 52.dp else 60.dp,
+                                ),
+                                contentAlignment = Alignment.TopCenter,
+                            ) {
+                                Text(
+                                    text = targetPage.title,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = colors.text.primary,
+                                    fontSize = 25.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                         }
                         Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = dimensions.pageHorizontalPadding)) {
                             pageStateHolder.SaveableStateProvider(targetPage.pageName) {
