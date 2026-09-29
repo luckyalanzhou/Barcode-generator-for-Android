@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
 import kotlinx.coroutines.launch
@@ -33,6 +34,9 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             AppRoute.Generate -> {
                 val editorState by dependencies.generateViewModel.uiState.collectAsStateWithLifecycle()
                 val barcodeData by dependencies.favoritesViewModel.dataState.collectAsStateWithLifecycle()
+                val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                val isPreparingResult by dependencies.resultsViewModel.isPreparingResult.collectAsStateWithLifecycle()
+                val density = LocalDensity.current.density
                 val initialFormat = editorState.pendingFormat ?: editorState.formatName
                 LaunchedEffect(routePage, initialFormat) {
                     dependencies.generateViewModel.clearPendingFormat()
@@ -50,6 +54,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     editorState = editorState,
                     initialFormat = initialFormat,
                     dark = dark,
+                    isPreparingResult = isPreparingResult,
                     onDraftChanged = dependencies.generateViewModel::updateDraft,
                     onFormatChanged = dependencies.generateViewModel::updateFormat,
                     onGenerate = { values, format ->
@@ -60,9 +65,14 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                                 if (message == "请输入内容") message else "第 ${result.errorIndex + 1} 行：$message",
                             )
                         } else {
-                            dependencies.resultsViewModel.commitGeneratedBarcodes(result.items) {
-                                dependencies.actions.navigateTo(AppRoute.Results)
-                            }
+                            dependencies.resultsViewModel.commitGeneratedBarcodes(
+                                items = result.items,
+                                style = settings.style,
+                                dark = dark,
+                                density = density,
+                                onNotice = dependencies.actions::notice,
+                                onNavigateToResults = { dependencies.actions.navigateTo(AppRoute.Results) },
+                            )
                         }
                     },
                     onCaptureText = dependencies.actions::captureText,
@@ -71,14 +81,21 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             AppRoute.History -> {
                 val historyState by dependencies.historyViewModel.dataState.collectAsStateWithLifecycle()
+                val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                val density = LocalDensity.current.density
                 HistoryScreen(
                     dataState = historyState,
                     dark = dark,
                     onClear = dependencies.actions::clearHistory,
                     onOpen = { batch ->
-                        dependencies.resultsViewModel.showHistoryResult(batch) {
-                            dependencies.actions.navigateTo(AppRoute.Results)
-                        }
+                        dependencies.resultsViewModel.showHistoryResult(
+                            batch = batch,
+                            style = settings.style,
+                            dark = dark,
+                            density = density,
+                            onNotice = dependencies.actions::notice,
+                            onNavigateToResults = { dependencies.actions.navigateTo(AppRoute.Results) },
+                        )
                     },
                     onEdit = dependencies.actions::editHistory,
                     onDelete = { batch ->

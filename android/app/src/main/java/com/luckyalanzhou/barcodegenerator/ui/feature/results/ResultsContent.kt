@@ -46,6 +46,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun ResultsContent(
@@ -63,6 +69,7 @@ internal fun ResultsContent(
     val secondary = themeColors.text.secondary
     val resultActionBlue = themeColors.controls.accent
     val items = resultState.items
+    val density = LocalDensity.current.density
     val isFavorite = items.isNotEmpty() && items.all { it.favorite }
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
 
@@ -75,6 +82,54 @@ internal fun ResultsContent(
                     resultState.restoreFailed -> "上次结果已不可用，请返回重新打开"
                     else -> "暂无生成结果"
                 },
+                color = secondary,
+                fontSize = 17.sp,
+                modifier = Modifier.padding(vertical = 40.dp),
+            )
+        }
+        return
+    }
+
+    // Do not reveal a partially populated result list. This also covers restored results
+    // whose image cache may have been cleared while the app was stopped.
+    val allImagesReady by produceState<Boolean?>(
+        initialValue = null,
+        items,
+        settings.style,
+        dark,
+        density,
+    ) {
+        value = try {
+            withContext(Dispatchers.Default.limitedParallelism(4)) {
+                items.chunked(4).all { batch ->
+                    coroutineScope {
+                        batch.map { item ->
+                            async { loadBarcodeImage(item, dark, density) != null }
+                        }.awaitAll().all { it }
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    if (allImagesReady != true) {
+        Column(
+            Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "生成结果",
+                color = primary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
+            )
+            Text(
+                if (allImagesReady == false) "条码准备失败，请返回后重试" else "正在准备全部条码…",
                 color = secondary,
                 fontSize = 17.sp,
                 modifier = Modifier.padding(vertical = 40.dp),
@@ -141,7 +196,7 @@ internal fun ComposeResultBarcode(
     val barWidth = style.barWidth.roundToInt().coerceIn(120, 300)
     val textSize = style.textSize.coerceIn(10f, 24f)
     val showFormat = style.showFormat
-    // 先读取已生成的图片；未命中时才在后台生成并写回，页面导航不等待。
+    // 整批结果通过就绪检查后才会显示；此处读取已准备好的缓存图片。
     val displayed by produceState<Bitmap?>(initialValue = null, item, barWidth, barHeight, textSize, showFormat, dark) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             loadBarcodeImage(item, dark, density)

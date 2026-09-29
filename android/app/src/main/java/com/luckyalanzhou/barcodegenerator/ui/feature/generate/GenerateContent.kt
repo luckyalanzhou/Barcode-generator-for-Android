@@ -68,6 +68,7 @@ internal fun GenerateContent(
     editorState: GenerateEditorState,
     initialFormat: String,
     dark: Boolean,
+    isPreparingResult: Boolean,
     onDraftChanged: (List<String>) -> Unit,
     onFormatChanged: (String) -> Unit,
     onGenerate: (List<String>, String) -> Unit,
@@ -188,7 +189,7 @@ internal fun GenerateContent(
         )
 
         val count = values.count { it.trim().isNotEmpty() }
-        val generateEnabled = count > 0
+        val generateEnabled = count > 0 && !isPreparingResult
         val generateContainer = if (generateEnabled) themeColors.controls.progress else themeColors.controls.button
         val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -273,6 +274,12 @@ internal fun GenerateContent(
                 onGenerate(values.toList(), formatName)
             },
             contentAlignment = Alignment.Center
-        ) { Text("\u751f\u6210 $count \u4e2a\u6761\u7801", color = generateContent, fontSize = 16.sp) }
+        ) {
+            Text(
+                if (isPreparingResult) "正在准备全部条码…" else "\u751f\u6210 $count \u4e2a\u6761\u7801",
+                color = generateContent,
+                fontSize = 16.sp,
+            )
+        }
     }
 }

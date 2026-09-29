@@ -26,6 +26,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
@@ -51,6 +53,9 @@ class ResultsViewModel @Inject constructor(
     private var restorationJob: Job? = null
     private var favoriteRenderJob: Job? = null
     private var favoriteRenderRequest = 0L
+    private var resultPreparationJob: Job? = null
+    private val _isPreparingResult = MutableStateFlow(false)
+    val isPreparingResult: StateFlow<Boolean> = _isPreparingResult.asStateFlow()
 
     init {
         pendingRestoration?.let(::restoreSavedResult)
@@ -117,12 +122,9 @@ class ResultsViewModel @Inject constructor(
         val request = ++favoriteRenderRequest
         favoriteRenderJob = viewModelScope.launch {
             try {
-                withContext(Dispatchers.Default.limitedParallelism(4)) {
-                    coroutineScope {
-                        content.items.map { item ->
-                            async { imageRenderer.loadOrCreate(item, style, dark, density) }
-                        }.awaitAll()
-                    }
+                if (!prepareBarcodeImages(content.items, style, dark, density)) {
+                    onNotice("部分收藏条码生成失败，请重试")
+                    return@launch
                 }
                 if (request != favoriteRenderRequest || !isCurrent(content.group.id, content.expectedSavedAt)) {
                     appLogger.record("favorites", "open discarded groupId=${content.group.id} reason=stale_after_render", null)
@@ -156,11 +158,20 @@ class ResultsViewModel @Inject constructor(
         onLoaded(content.items)
     }
 
-    fun showHistoryResult(batch: List<CodeItem>, onNavigateToResults: () -> Unit) {
-        restorationJob?.cancel()
-        results.showHistoryResult(batch)
-        savedResult.save(results.current())
-        onNavigateToResults()
+    fun showHistoryResult(
+        batch: List<CodeItem>,
+        style: StyleSettings,
+        dark: Boolean,
+        density: Float,
+        onNotice: (String) -> Unit,
+        onNavigateToResults: () -> Unit,
+    ) {
+        prepareResultImages(batch, style, dark, density, onNotice) {
+            restorationJob?.cancel()
+            results.showHistoryResult(batch)
+            savedResult.save(results.current())
+            onNavigateToResults()
+        }
     }
 
     fun editCurrentResult(onNavigateToGenerate: () -> Unit) {
@@ -170,11 +181,62 @@ class ResultsViewModel @Inject constructor(
         onNavigateToGenerate()
     }
 
-    fun commitGeneratedBarcodes(items: List<CodeItem>, onNavigateToResults: () -> Unit) {
+    fun commitGeneratedBarcodes(
+        items: List<CodeItem>,
+        style: StyleSettings,
+        dark: Boolean,
+        density: Float,
+        onNotice: (String) -> Unit,
+        onNavigateToResults: () -> Unit,
+    ) {
         if (items.isEmpty()) return
-        val nextResult = generation.commit(items, results.current())
-        rememberResult(nextResult)
-        onNavigateToResults()
+        prepareResultImages(items, style, dark, density, onNotice) {
+            val nextResult = generation.commit(items, results.current())
+            rememberResult(nextResult)
+            onNavigateToResults()
+        }
+    }
+
+    private fun prepareResultImages(
+        items: List<CodeItem>,
+        style: StyleSettings,
+        dark: Boolean,
+        density: Float,
+        onNotice: (String) -> Unit,
+        onReady: () -> Unit,
+    ) {
+        if (items.isEmpty() || _isPreparingResult.value) return
+        resultPreparationJob?.cancel()
+        _isPreparingResult.value = true
+        resultPreparationJob = viewModelScope.launch {
+            try {
+                if (!prepareBarcodeImages(items, style, dark, density)) {
+                    onNotice("条码图片生成失败，结果尚未打开；请重试")
+                    return@launch
+                }
+                onReady()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                appLogger.record("results", "preparing result barcode images failed", error)
+                onNotice("条码图片生成失败，结果尚未打开；请重试")
+            } finally {
+                _isPreparingResult.value = false
+            }
+        }
+    }
+
+    private suspend fun prepareBarcodeImages(
+        items: List<CodeItem>,
+        style: StyleSettings,
+        dark: Boolean,
+        density: Float,
+    ): Boolean = withContext(Dispatchers.Default.limitedParallelism(4)) {
+        coroutineScope {
+            items.map { item ->
+                async { imageRenderer.loadOrCreate(item, style, dark, density) != null }
+            }.awaitAll().all { it }
+        }
     }
 
     fun loadOrCreateBarcodeImage(
