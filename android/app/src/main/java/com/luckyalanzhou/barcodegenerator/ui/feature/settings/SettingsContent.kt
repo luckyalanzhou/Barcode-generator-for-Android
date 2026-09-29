@@ -105,7 +105,7 @@ internal fun SettingsContent(
         state = listState,
         userScrollEnabled = contentExceedsViewport,
         contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         item("settings-appearance") {
             SettingsCard(colors.surfaces.card, dark) {

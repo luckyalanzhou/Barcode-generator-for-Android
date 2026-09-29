@@ -56,7 +56,7 @@ internal fun rememberSettingsColors(): AppColorScheme = LocalAppColorScheme.curr
 
 @Composable
 internal fun SettingsCard(color: Color, dark: Boolean, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp).padding(horizontal = SettingsCardHorizontalPadding, vertical = 3.dp), content = content)
+    Column(Modifier.fillMaxWidth().globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp).padding(horizontal = SettingsCardHorizontalPadding, vertical = 2.dp), content = content)
 }
 
 @Composable
