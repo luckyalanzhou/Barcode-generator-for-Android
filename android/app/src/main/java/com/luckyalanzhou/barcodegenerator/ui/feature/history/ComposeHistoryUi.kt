@@ -40,7 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,8 +73,6 @@ internal fun HistoryComposePage(
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val clearColor = themeColors.text.destructive
-    val hapticView = LocalView.current
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 12.dp),
@@ -111,12 +108,7 @@ internal fun HistoryComposePage(
                     primary = primary,
                     secondary = secondary,
                     onOpen = { onOpen(batch) },
-                    onEdit = {
-                        hapticView.performHapticFeedback(
-                            android.view.HapticFeedbackConstants.LONG_PRESS,
-                        )
-                        onEdit(batch)
-                    },
+                    onEdit = { onEdit(batch) },
                     onDelete = { onDelete(batch) },
                 )
             }
@@ -146,7 +138,11 @@ private fun HistoryBatchCard(
             .fillMaxWidth()
             .padding(horizontal = 6.dp)
             .globalCardSurface(dark, card, RoundedCornerShape(12.dp), 2.dp)
-            .combinedClickable(onClick = onOpen, onLongClick = onEdit),
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = onEdit,
+                hapticFeedbackEnabled = true,
+            ),
         shape = RoundedCornerShape(12.dp),
         color = card,
         tonalElevation = 0.dp,

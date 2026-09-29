@@ -59,7 +59,6 @@ internal fun FavoriteGroupRow(
     secondary: Color,
     fileColor: Color,
     animation: ComposeAnimationConfig,
-    hapticView: android.view.View,
     menuExpanded: Boolean,
     onMenuDismiss: () -> Unit,
     onClick: () -> Unit,
@@ -81,7 +80,13 @@ internal fun FavoriteGroupRow(
                 .clip(RoundedCornerShape(14.dp))
                 .drawBehind { drawRoundRect(color = background, cornerRadius = CornerRadius(14.dp.toPx())) }
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .combinedClickable(interactionSource, indication = null, onClick = onClick, onLongClick = onLongClick),
+                .combinedClickable(
+                    interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    hapticFeedbackEnabled = true,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))

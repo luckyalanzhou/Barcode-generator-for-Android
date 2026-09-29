@@ -67,7 +67,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.PlatformTextStyle
@@ -113,7 +112,6 @@ internal fun FavoritesContent(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
-    val hapticView = LocalView.current
     val density = LocalDensity.current.density
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
@@ -375,7 +373,6 @@ internal fun FavoritesContent(
                             onMenuDismiss = { folderMenu = null },
                             onClick = { onToggleFolder(row.path, folderPaths) },
                             onLongClick = {
-                                hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                                 folderMenu = row.path to row.level
                             },
                             onShowSubfolderEditor = onShowSubfolderEditor,
@@ -393,7 +390,6 @@ internal fun FavoritesContent(
                                 secondary = secondary,
                                 fileColor = fileColor,
                                 animation = animation,
-                                hapticView = hapticView,
                                 menuExpanded = fileMenu?.id == group.id,
                                 onMenuDismiss = { fileMenu = null },
                                 onClick = {
@@ -404,7 +400,6 @@ internal fun FavoritesContent(
                                     onOpenGroup(group, style, dark, density)
                                 },
                                 onLongClick = {
-                                    hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                                     fileMenu = group
                                 },
                                 onShowMoveDialog = onShowMoveDialog,

@@ -71,7 +71,13 @@ internal fun FavoriteFolderRow(
                 .drawBehind { drawRoundRect(color = background, cornerRadius = CornerRadius(14.dp.toPx())) }
                 .padding(start = indent, end = 5.dp)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .combinedClickable(interactionSource, indication = null, onClick = onClick, onLongClick = onLongClick),
+                .combinedClickable(
+                    interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    hapticFeedbackEnabled = true,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
