@@ -27,9 +27,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -69,7 +69,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -87,6 +86,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
+
+private const val FAVORITE_ROW_EXPAND_DURATION_MILLIS = 180
+private const val FAVORITE_ROW_COLLAPSE_DURATION_MILLIS = 160
+private const val FAVORITE_ROW_FADE_DURATION_MILLIS = 120
 
 @Composable
 internal fun FavoritesContent(
@@ -186,7 +189,7 @@ internal fun FavoritesContent(
 
         // Keep collapsing rows composed until their height/fade transition finishes;
         // LazyColumn remains virtualized, and a rapid re-expand cancels this delay.
-        delay((maxOf(animation.pageExitDurationMillis, animation.pageFadeOutDurationMillis) + 48).toLong())
+        delay(FAVORITE_ROW_COLLAPSE_DURATION_MILLIS + 48L)
         displayedRows = targetRows
     }
     val rowsForDisplay = displayedRows ?: rows
@@ -325,19 +328,34 @@ internal fun FavoritesContent(
                 }
                 AnimatedVisibility(
                     visibleState = visibility,
-                    modifier = Modifier.fillMaxWidth().animateItem(
-                        fadeInSpec = null,
-                        placementSpec = animation.settleSpring(),
-                        fadeOutSpec = null,
-                    ),
+                    // Animate each row's measured height only. A second LazyColumn
+                    // placement spring would chase every intermediate height frame,
+                    // which can make following rows appear to trail behind.
+                    modifier = Modifier.fillMaxWidth(),
                     enter = expandVertically(
                         expandFrom = Alignment.Top,
-                        animationSpec = animation.settleSpring(),
-                    ) + fadeIn(tween(animation.pageFadeInDurationMillis)),
+                        animationSpec = tween(
+                            durationMillis = FAVORITE_ROW_EXPAND_DURATION_MILLIS,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    ) + fadeIn(
+                        animationSpec = tween(
+                            durationMillis = FAVORITE_ROW_FADE_DURATION_MILLIS,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    ),
                     exit = shrinkVertically(
                         shrinkTowards = Alignment.Top,
-                        animationSpec = tween(animation.pageExitDurationMillis),
-                    ) + fadeOut(tween(animation.pageFadeOutDurationMillis)),
+                        animationSpec = tween(
+                            durationMillis = FAVORITE_ROW_COLLAPSE_DURATION_MILLIS,
+                            easing = FastOutLinearInEasing,
+                        ),
+                    ) + fadeOut(
+                        animationSpec = tween(
+                            durationMillis = FAVORITE_ROW_FADE_DURATION_MILLIS,
+                            easing = FastOutLinearInEasing,
+                        ),
+                    ),
                 ) {
                     if (row.folder) {
                         FavoriteFolderRow(
