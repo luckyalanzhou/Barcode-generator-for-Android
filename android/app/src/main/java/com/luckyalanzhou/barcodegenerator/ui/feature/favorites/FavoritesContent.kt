@@ -190,7 +190,7 @@ internal fun FavoritesContent(
 
     LaunchedEffect(favoritesState.isReady, rows) {
         if (favoritesState.isReady && rows != null && !listPositionRestored) {
-            val lastAvailableIndex = rows!!.size
+            val lastAvailableIndex = rows!!.lastIndex.coerceAtLeast(0)
             val targetIndex = savedListPosition.first.coerceIn(0, lastAvailableIndex)
             listState.scrollToItem(targetIndex, savedListPosition.second)
             listPositionRestored = true
@@ -205,83 +205,86 @@ internal fun FavoritesContent(
             }
     }
 
-    LazyColumn(
-        state = listState,
+    Column(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        item(key = "favorite-search") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(45.dp)
-                        .border(1.dp, themeColors.borders.input, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart,
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(45.dp)
+                    .border(1.dp, themeColors.borders.input, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = SearchIcon,
-                            contentDescription = "搜索",
-                            tint = primary,
-                            modifier = Modifier.size(24.dp),
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        BasicTextField(
-                            value = query,
-                            onValueChange = onQueryChange,
-                            modifier = Modifier.weight(1f).height(28.dp),
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                color = primary,
-                                fontSize = 18.sp,
-                                lineHeight = 24.sp,
-                                platformStyle = PlatformTextStyle(includeFontPadding = false),
-                                lineHeightStyle = LineHeightStyle(
-                                    alignment = LineHeightStyle.Alignment.Center,
-                                    trim = LineHeightStyle.Trim.Both,
-                                ),
+                    Icon(
+                        imageVector = SearchIcon,
+                        contentDescription = "搜索",
+                        tint = primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    BasicTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        modifier = Modifier.weight(1f).height(28.dp),
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = primary,
+                            fontSize = 18.sp,
+                            lineHeight = 24.sp,
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                            lineHeightStyle = LineHeightStyle(
+                                alignment = LineHeightStyle.Alignment.Center,
+                                trim = LineHeightStyle.Trim.Both,
                             ),
-                            cursorBrush = SolidColor(primary),
-                            decorationBox = { field ->
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().height(28.dp),
-                                    contentAlignment = Alignment.CenterStart,
-                                ) {
-                                    if (query.isEmpty()) {
-                                        Text(
-                                            "搜索名称、文件夹或内容",
-                                            style = TextStyle(
-                                                color = themeColors.text.placeholder,
-                                                fontSize = 14.sp,
-                                                lineHeight = 20.sp,
-                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
-                                                lineHeightStyle = LineHeightStyle(
-                                                    alignment = LineHeightStyle.Alignment.Center,
-                                                    trim = LineHeightStyle.Trim.Both,
-                                                ),
+                        ),
+                        cursorBrush = SolidColor(primary),
+                        decorationBox = { field ->
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(28.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        "搜索名称、文件夹或内容",
+                                        style = TextStyle(
+                                            color = themeColors.text.placeholder,
+                                            fontSize = 14.sp,
+                                            lineHeight = 20.sp,
+                                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                            lineHeightStyle = LineHeightStyle(
+                                                alignment = LineHeightStyle.Alignment.Center,
+                                                trim = LineHeightStyle.Trim.Both,
                                             ),
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Clip,
-                                        )
-                                    }
-                                    field()
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Clip,
+                                    )
                                 }
-                            },
-                        )
-                    }
-                }
-                TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
-                    Text("清空", color = themeColors.text.destructive, fontSize = 14.sp)
+                                field()
+                            }
+                        },
+                    )
                 }
             }
+            TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
+                Text("清空", color = themeColors.text.destructive, fontSize = 14.sp)
+            }
         }
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
 
         if (!favoritesState.isReady) {
             item(key = "favorite-loading") {
@@ -418,4 +421,5 @@ internal fun FavoritesContent(
             }
         }
     }
+}
 }

@@ -59,7 +59,7 @@ internal fun formatHistoryTime(time: Long): String {
     }
 }
 
-/** 历史页：单一 LazyColumn 承载标题、空状态和历史批次，避免外层嵌套滚动。 */
+/** 历史页：清空操作固定在列表上方，单一 LazyColumn 只滚动空状态或历史批次。 */
 @Composable
 internal fun HistoryComposePage(
     entries: List<Pair<Long, List<CodeItem>>>,
@@ -76,23 +76,25 @@ internal fun HistoryComposePage(
     val clearColor = themeColors.text.destructive
     val hapticView = LocalView.current
 
-    LazyColumn(
+    Column(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        item(key = "history-header") {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onClear) {
-                    Text("一键清空", color = clearColor)
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onClear) {
+                Text("一键清空", color = clearColor)
             }
         }
 
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
         if (entries.isEmpty()) {
             item(key = "history-empty") {
                 HistoryEmptyState(color = secondary)
@@ -120,6 +122,7 @@ internal fun HistoryComposePage(
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalFoundationApi::class)
