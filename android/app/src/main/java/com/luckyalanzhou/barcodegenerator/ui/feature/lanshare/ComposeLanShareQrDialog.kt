@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +37,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -107,10 +105,9 @@ internal fun ComposeLanShareQrDialog(
                 color = secondary,
                 fontSize = 14.sp,
             )
-            LanShareQrManualInfo(
+            LanShareQrConnectionAddress(
                 baseUrl = session.baseUrl,
                 primary = primary,
-                secondary = secondary,
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
@@ -121,32 +118,21 @@ internal fun ComposeLanShareQrDialog(
 }
 
 @Composable
-private fun LanShareQrManualInfo(
+private fun LanShareQrConnectionAddress(
     baseUrl: String,
     primary: Color,
-    secondary: Color,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .background(LocalAppColorScheme.current.controls.button, RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text("手动连接地址", color = secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("地址", color = secondary, fontSize = 12.sp, modifier = Modifier.width(44.dp))
-            SelectionContainer(modifier = Modifier.weight(1f)) {
-                Text(
-                    baseUrl,
-                    color = primary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
+    SelectionContainer(modifier = modifier) {
+        Text(
+            baseUrl,
+            color = primary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }
 
@@ -169,16 +155,14 @@ internal fun MainActivity.showLanShareQrDialogCompose() {
         val dark = isDark()
         val colors = LocalAppColorScheme.current
         val primary = colors.text.primary
-        val secondary = colors.text.secondary
         val foreground = colors.barcode.qrForeground.toArgb()
         val qrBackground = colors.barcode.qrBackground.toArgb()
         val bitmap = remember(session.shareUrl, dark) { createLanShareQrBitmap(session.shareUrl, foreground, qrBackground) }
         ComposeGlassDialogCard(dark) {
             Image(bitmap = bitmap.asImageBitmap(), contentDescription = "局域网分享二维码", modifier = Modifier.fillMaxWidth().background(Color(qrBackground)), contentScale = ContentScale.FillWidth)
-            LanShareQrManualInfo(
+            LanShareQrConnectionAddress(
                 baseUrl = session.baseUrl,
                 primary = primary,
-                secondary = secondary,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
