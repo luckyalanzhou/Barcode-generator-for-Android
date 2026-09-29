@@ -52,6 +52,7 @@ internal class ResultsCoordinator(initial: ResultUiState = ResultUiState()) {
         _state.update {
             it.copy(
                 items = items.sortedBy(CodeItem::id),
+                selectedFavoriteGroup = null,
                 showingHistoryResult = true,
                 returnPage = AppRoute.History,
                 isRestoring = false,

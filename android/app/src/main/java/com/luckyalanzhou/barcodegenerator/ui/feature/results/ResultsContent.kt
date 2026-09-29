@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
+import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
@@ -70,7 +71,7 @@ internal fun ResultsContent(
     val resultActionBlue = themeColors.controls.accent
     val items = resultState.items
     val density = LocalDensity.current.density
-    val isFavorite = items.isNotEmpty() && items.all { it.favorite }
+    val isFavorite = resultState.hasSavedFavoriteFile()
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
 
     if (items.isEmpty()) {
@@ -167,6 +168,10 @@ internal fun ResultsContent(
         }
     }
 }
+
+internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
+    selectedFavoriteGroup != null && returnPage == NavigationRoute.Favorites
+
 @Composable
 private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
     Column(

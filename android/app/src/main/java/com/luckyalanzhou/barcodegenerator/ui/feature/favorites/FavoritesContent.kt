@@ -324,11 +324,21 @@ internal fun FavoritesContent(
                     visibleState = visibility,
                     // AnimatedVisibility handles row size/fade; animateItem moves
                     // surviving keyed rows into their new flattened-list positions.
-                    modifier = Modifier.fillMaxWidth().animateItem(
-                        fadeInSpec = null,
-                        placementSpec = animation.settleSpring(),
-                        fadeOutSpec = null,
-                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(themeColors.surfaces.background)
+                        .animateItem(
+                            fadeInSpec = null,
+                            placementSpec = if (listState.isScrollInProgress) {
+                                null
+                            } else {
+                                tween(
+                                    durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
+                                    easing = FastOutSlowInEasing,
+                                )
+                            },
+                            fadeOutSpec = null,
+                        ),
                     enter = expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = tween(
