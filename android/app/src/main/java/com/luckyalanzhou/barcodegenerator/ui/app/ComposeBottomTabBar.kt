@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
+import com.luckyalanzhou.barcodegenerator.icons.HistoryFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 
@@ -52,15 +53,20 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private data class ComposeTabSpec(val label: String, val description: String, val icon: ImageVector)
+private data class ComposeTabSpec(
+    val label: String,
+    val description: String,
+    val icon: ImageVector,
+    val selectedIcon: ImageVector = icon,
+)
 
 @Composable
 internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
-            // 历史和收藏只使用线框图标；选中态通过颜色、液态玻璃框和弹簧动画表达。
-            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon),
+            // 历史选中时切换为实心时钟；收藏仍只通过颜色和液态玻璃框表达选中态。
+            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon, HistoryFilledIcon),
             ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon),
             ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon)
         )
@@ -190,7 +196,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Icon(
-                            imageVector = tab.icon,
+                            imageVector = if (selected) tab.selectedIcon else tab.icon,
                             contentDescription = tab.description,
                             tint = itemColor,
                             modifier = Modifier.size(26.dp).graphicsLayer {
