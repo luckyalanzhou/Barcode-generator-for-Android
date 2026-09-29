@@ -3,9 +3,11 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
+import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
+import com.luckyalanzhou.barcodegenerator.icons.SettingsFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 
 import androidx.compose.animation.animateColorAsState
@@ -65,10 +67,10 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
-            // 历史选中时切换为实心时钟；收藏仍只通过颜色和液态玻璃框表达选中态。
+            // 历史、收藏和设置选中时使用各自的填充图标。
             ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon, HistoryFilledIcon),
-            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon),
-            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon)
+            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon, FavoriteFilledIcon),
+            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon, SettingsFilledIcon)
         )
     }
     val themeColors = LocalAppColorScheme.current
