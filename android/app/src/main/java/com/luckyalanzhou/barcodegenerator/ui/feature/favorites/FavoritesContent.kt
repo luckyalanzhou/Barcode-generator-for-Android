@@ -10,7 +10,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
-import com.luckyalanzhou.barcodegenerator.ui.app.rememberComposeAnimationConfig
 
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
@@ -123,7 +122,7 @@ internal fun FavoritesContent(
     val density = LocalDensity.current.density
     var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
-    val animation = rememberComposeAnimationConfig()
+    val animation = ComposeAnimationConfig
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary

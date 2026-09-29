@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
-import com.luckyalanzhou.barcodegenerator.ui.app.rememberComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
 
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadUiState
 import androidx.compose.animation.core.LinearEasing
@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 private fun ComposeSegmentedProgress(progress: Int) {
-    val animation = rememberComposeAnimationConfig()
+    val animation = ComposeAnimationConfig
     val animated = animateFloatAsState(
         targetValue = progress.coerceIn(0, 100) / 100f,
         animationSpec = tween(durationMillis = animation.progressDurationMillis),

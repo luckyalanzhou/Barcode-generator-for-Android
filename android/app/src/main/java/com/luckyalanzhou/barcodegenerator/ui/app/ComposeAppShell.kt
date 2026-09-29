@@ -104,7 +104,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
-    val animation = rememberComposeAnimationConfig()
+    val animation = ComposeAnimationConfig
     val pageStateHolder = rememberSaveableStateHolder()
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
