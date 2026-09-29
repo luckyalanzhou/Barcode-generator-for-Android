@@ -13,11 +13,29 @@ object ComposeAnimationConfig {
     const val tabSwipeFadeDurationMillis = 180
     const val tabSelectionEnterDurationMillis = 180
     const val tabSelectionExitDurationMillis = 120
+    const val tabItemColorDurationMillis = 100
+    const val tabItemScaleDurationMillis = 120
+    const val tabJellyResetDelayMillis = 72L
+    const val favoriteRowExpandDurationMillis = 180
+    const val favoriteRowCollapseDurationMillis = 160
+    const val favoriteRowFadeDurationMillis = 120
+    const val favoriteRowRemovalBufferMillis = 48L
     const val progressDurationMillis = 230
+    const val indeterminateProgressDurationMillis = 1100
 
-    fun <T> bouncySpring(): SpringSpec<T> = spring(
+    fun <T> jellySpring(): SpringSpec<T> = spring(
         dampingRatio = Spring.DampingRatioLowBouncy,
-        stiffness = Spring.StiffnessMediumLow,
+        stiffness = Spring.StiffnessHigh,
+    )
+
+    fun <T> pressSpring(): SpringSpec<T> = spring(
+        dampingRatio = 0.68f,
+        stiffness = 520f,
+    )
+
+    fun <T> toggleSpring(): SpringSpec<T> = spring(
+        dampingRatio = 0.72f,
+        stiffness = 700f,
     )
 
     fun <T> settleSpring(): SpringSpec<T> = spring(

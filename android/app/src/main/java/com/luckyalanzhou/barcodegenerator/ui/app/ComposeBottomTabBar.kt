@@ -8,9 +8,7 @@ import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -159,20 +157,17 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                 val glassTouchesContent = dragging && glassRight >= contentLeft && glassLeft <= contentRight
                 val itemColor by animateColorAsState(
                     targetValue = if (if (dragging) glassTouchesContent else selected) selectedColor else unselectedColor,
-                    animationSpec = tween(100),
+                    animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
                     label = "tab-item-color-$index",
                 )
                 val itemScale by animateFloatAsState(
                     targetValue = if (glassTouchesContent) 1.12f else 1f,
-                    animationSpec = tween(120),
+                    animationSpec = tween(ComposeAnimationConfig.tabItemScaleDurationMillis),
                     label = "tab-item-scale-$index",
                 )
                 val tapScale by animateFloatAsState(
                     targetValue = if (tapPulseTab == index) .78f else 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessHigh,
-                    ),
+                    animationSpec = ComposeAnimationConfig.jellySpring(),
                     label = "tab-tap-jelly-scale-$index",
                 )
                 Box(
@@ -184,7 +179,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                                 tapPulseGeneration += 1
                                 val generation = tapPulseGeneration
                                 tapScope.launch {
-                                    delay(72)
+                                    delay(ComposeAnimationConfig.tabJellyResetDelayMillis)
                                     if (tapPulseGeneration == generation) tapPulseTab = -1
                                 }
                             }

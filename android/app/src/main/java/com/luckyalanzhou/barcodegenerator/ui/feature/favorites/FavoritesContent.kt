@@ -20,7 +20,6 @@ import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.SearchIcon
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -85,10 +84,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
-
-private const val FAVORITE_ROW_EXPAND_DURATION_MILLIS = 180
-private const val FAVORITE_ROW_COLLAPSE_DURATION_MILLIS = 160
-private const val FAVORITE_ROW_FADE_DURATION_MILLIS = 120
 
 @Composable
 internal fun FavoritesContent(
@@ -188,7 +183,7 @@ internal fun FavoritesContent(
 
         // Keep collapsing rows composed until their height/fade transition finishes;
         // LazyColumn remains virtualized, and a rapid re-expand cancels this delay.
-        delay(FAVORITE_ROW_COLLAPSE_DURATION_MILLIS + 48L)
+        delay(ComposeAnimationConfig.favoriteRowCollapseDurationMillis + ComposeAnimationConfig.favoriteRowRemovalBufferMillis)
         displayedRows = targetRows
     }
     val rowsForDisplay = displayedRows ?: rows
@@ -334,24 +329,24 @@ internal fun FavoritesContent(
                     enter = expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = tween(
-                            durationMillis = FAVORITE_ROW_EXPAND_DURATION_MILLIS,
+                            durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
                             easing = FastOutSlowInEasing,
                         ),
                     ) + fadeIn(
                         animationSpec = tween(
-                            durationMillis = FAVORITE_ROW_FADE_DURATION_MILLIS,
+                            durationMillis = ComposeAnimationConfig.favoriteRowFadeDurationMillis,
                             easing = FastOutSlowInEasing,
                         ),
                     ),
                     exit = shrinkVertically(
                         shrinkTowards = Alignment.Top,
                         animationSpec = tween(
-                            durationMillis = FAVORITE_ROW_COLLAPSE_DURATION_MILLIS,
+                            durationMillis = ComposeAnimationConfig.favoriteRowCollapseDurationMillis,
                             easing = FastOutLinearInEasing,
                         ),
                     ) + fadeOut(
                         animationSpec = tween(
-                            durationMillis = FAVORITE_ROW_FADE_DURATION_MILLIS,
+                            durationMillis = ComposeAnimationConfig.favoriteRowFadeDurationMillis,
                             easing = FastOutLinearInEasing,
                         ),
                     ),

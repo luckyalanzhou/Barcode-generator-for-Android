@@ -15,7 +15,6 @@ import com.luckyalanzhou.barcodegenerator.icons.VisibilityIcon
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -39,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -77,7 +78,9 @@ internal fun FavoriteGroupRow(
     Box(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().height(44.dp).padding(start = if (row.level <= 1) 20.dp else 38.dp, end = 4.dp)
-                .clip(RoundedCornerShape(14.dp)).background(background).graphicsLayer { scaleX = scale; scaleY = scale }
+                .clip(RoundedCornerShape(14.dp))
+                .drawBehind { drawRoundRect(color = background, cornerRadius = CornerRadius(14.dp.toPx())) }
+                .graphicsLayer { scaleX = scale; scaleY = scale }
                 .combinedClickable(interactionSource, indication = null, onClick = onClick, onLongClick = onLongClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {

@@ -6,9 +6,6 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable

@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.component
 
+import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
@@ -17,7 +17,7 @@ internal fun Modifier.iosPressFeedback(
     pressedAlpha: Float = 0.82f,
 ): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
-    val springSpec = spring<Float>(dampingRatio = 0.68f, stiffness = 520f)
+    val springSpec = ComposeAnimationConfig.pressSpring<Float>()
     val scale by animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
         animationSpec = springSpec,

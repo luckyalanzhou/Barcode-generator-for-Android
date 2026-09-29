@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
+import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
@@ -10,7 +11,6 @@ import com.luckyalanzhou.barcodegenerator.domain.ocrCorrectionOptions
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -117,8 +117,8 @@ internal fun SettingsDivider(dark: Boolean) {
 @Composable
 internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     val themeColors = LocalAppColorScheme.current
-    val trackColor by animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, spring(stiffness = 700f), label = "settings-toggle-track")
-    val thumbOffset by animateDpAsState(if (checked) 20.dp else 0.dp, spring(dampingRatio = 0.72f, stiffness = 700f), label = "settings-toggle-thumb")
+    val trackColor by animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
+    val thumbOffset by animateDpAsState(if (checked) 20.dp else 0.dp, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-thumb")
     Box(modifier.width(52.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(trackColor).clickable { onCheckedChange(!checked) }.padding(2.dp), contentAlignment = Alignment.CenterStart) {
         Box(Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }.size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.controls.thumb))
     }

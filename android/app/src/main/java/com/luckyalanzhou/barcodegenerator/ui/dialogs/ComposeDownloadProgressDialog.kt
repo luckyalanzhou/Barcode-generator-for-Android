@@ -31,11 +31,11 @@ import androidx.compose.ui.unit.sp
 @Composable
 private fun ComposeSegmentedProgress(progress: Int) {
     val animation = ComposeAnimationConfig
-    val animated = animateFloatAsState(
+    val animatedProgress = animateFloatAsState(
         targetValue = progress.coerceIn(0, 100) / 100f,
         animationSpec = tween(durationMillis = animation.progressDurationMillis),
         label = "downloadProgress",
-    ).value
+    )
     val fill = LocalAppColorScheme.current.controls.progress
     val track = LocalAppColorScheme.current.controls.progressTrack
     val highlight = LocalAppColorScheme.current.controls.progressHighlight
@@ -45,7 +45,7 @@ private fun ComposeSegmentedProgress(progress: Int) {
             .background(track)
             .border(1.dp, fill.copy(alpha = 0.45f), RoundedCornerShape(7.dp)),
     ) {
-        val filledWidth = size.width * animated
+        val filledWidth = size.width * animatedProgress.value
         if (filledWidth > 0f) {
             val glowWidth = 32.dp.toPx()
             drawRoundRect(
@@ -70,7 +70,9 @@ private fun ComposeIndeterminateProgress() {
     val offset by transition.animateFloat(
         initialValue = -0.35f,
         targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(
+            tween(ComposeAnimationConfig.indeterminateProgressDurationMillis, easing = LinearEasing),
+        ),
         label = "downloadShimmer",
     )
     Canvas(
