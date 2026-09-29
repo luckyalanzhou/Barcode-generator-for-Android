@@ -22,9 +22,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.SizeTransform
@@ -104,7 +102,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
-    val animation = ComposeAnimationConfig
     val pageStateHolder = rememberSaveableStateHolder()
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
@@ -142,32 +139,23 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     targetState = currentRoute,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     transitionSpec = {
-                        if (targetState == AppRoute.Results || initialState == AppRoute.Results) {
-                            EnterTransition.None togetherWith ExitTransition.None using null
-                        } else {
-                            val initialTabIndex = initialState.mainTabIndex
-                        val targetTabIndex = targetState.mainTabIndex
-                        if (initialTabIndex != null && targetTabIndex != null) {
-                            if (appUiState.tabChangeFromSwipe) {
-                                val forward = targetTabIndex > initialTabIndex
-                                (slideInHorizontally(tween(200)) { if (forward) it / 8 else -it / 8 } + fadeIn(tween(180))) togetherWith
-                                    (slideOutHorizontally(tween(160)) { if (forward) -it / 8 else it / 8 } + fadeOut(tween(160))) using SizeTransform(clip = true)
-                            } else {
-                                (scaleIn(initialScale = .97f, animationSpec = tween(180)) + fadeIn(tween(180))) togetherWith
-                                    (scaleOut(targetScale = 1.02f, animationSpec = tween(120)) + fadeOut(tween(120))) using SizeTransform(clip = false)
+                        when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
+                            AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
+                            AppPageTransitionKind.TAB_SWIPE -> {
+                                val forward = targetState.mainTabIndex!! > initialState.mainTabIndex!!
+                                (slideInHorizontally(tween(ComposeAnimationConfig.tabSwipeEnterDurationMillis)) { if (forward) it / 8 else -it / 8 } +
+                                    fadeIn(tween(ComposeAnimationConfig.tabSwipeFadeDurationMillis))) togetherWith
+                                    (slideOutHorizontally(tween(ComposeAnimationConfig.tabSwipeExitDurationMillis)) { if (forward) -it / 8 else it / 8 } +
+                                        fadeOut(tween(ComposeAnimationConfig.tabSwipeFadeDurationMillis))) using SizeTransform(clip = true)
                             }
-                        } else {
-                            when (kotlin.math.abs((initialState.hashCode() * 31 + targetState.hashCode()).rem(4))) {
-                                0 -> (slideInHorizontally(tween(animation.pageEnterDurationMillis)) { it / 2 } + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
-                                    (slideOutHorizontally(tween(animation.pageExitDurationMillis)) { -it / 3 } + fadeOut(tween(animation.pageFadeOutDurationMillis))) using SizeTransform(clip = false)
-                                1 -> (slideInVertically(tween(animation.pageEnterDurationMillis)) { -it / 3 } + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
-                                    (slideOutVertically(tween(animation.pageExitDurationMillis)) { it / 3 } + fadeOut(tween(animation.pageFadeOutDurationMillis))) using SizeTransform(clip = false)
-                                2 -> (scaleIn(initialScale = .88f, animationSpec = tween(animation.pageEnterDurationMillis)) + fadeIn(tween(animation.pageFadeInDurationMillis))) togetherWith
-                                    (scaleOut(targetScale = .94f, animationSpec = tween(animation.pageExitDurationMillis)) + fadeOut(tween(animation.pageExitDurationMillis))) using SizeTransform(clip = false)
-                                else -> (fadeIn(tween(animation.pageEnterDurationMillis)) + slideInVertically(tween(animation.pageEnterDurationMillis)) { it / 2 }) togetherWith
-                                    (fadeOut(tween(animation.pageExitDurationMillis)) + slideOutHorizontally(tween(animation.pageExitDurationMillis)) { it / 4 }) using SizeTransform(clip = false)
-                            }
-                        }
+                            AppPageTransitionKind.TAB_SELECTION ->
+                                (scaleIn(initialScale = .97f, animationSpec = tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis)) +
+                                    fadeIn(tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis))) togetherWith
+                                    (scaleOut(targetScale = 1.02f, animationSpec = tween(ComposeAnimationConfig.tabSelectionExitDurationMillis)) +
+                                        fadeOut(tween(ComposeAnimationConfig.tabSelectionExitDurationMillis))) using SizeTransform(clip = false)
+                            AppPageTransitionKind.SECONDARY_PAGE ->
+                                fadeIn(tween(ComposeAnimationConfig.pageFadeInDurationMillis)) togetherWith
+                                    fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
                         }
                     },
                     label = "pageTransition",
