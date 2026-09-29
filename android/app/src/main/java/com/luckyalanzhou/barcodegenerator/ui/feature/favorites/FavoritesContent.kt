@@ -322,10 +322,13 @@ internal fun FavoritesContent(
                 }
                 AnimatedVisibility(
                     visibleState = visibility,
-                    // Animate each row's measured height only. A second LazyColumn
-                    // placement spring would chase every intermediate height frame,
-                    // which can make following rows appear to trail behind.
-                    modifier = Modifier.fillMaxWidth(),
+                    // AnimatedVisibility handles row size/fade; animateItem moves
+                    // surviving keyed rows into their new flattened-list positions.
+                    modifier = Modifier.fillMaxWidth().animateItem(
+                        fadeInSpec = null,
+                        placementSpec = animation.settleSpring(),
+                        fadeOutSpec = null,
+                    ),
                     enter = expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = tween(
