@@ -168,18 +168,21 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
                     label = "tab-item-color-$index",
                 )
-                val itemScale by animateFloatAsState(
+                val itemScale = animateFloatAsState(
                     targetValue = if (glassTouchesContent) 1.12f else 1f,
                     animationSpec = tween(ComposeAnimationConfig.tabItemScaleDurationMillis),
                     label = "tab-item-scale-$index",
                 )
-                val tapScale by animateFloatAsState(
+                val tapScale = animateFloatAsState(
                     targetValue = if (tapPulseTab == index) .78f else 1f,
                     animationSpec = ComposeAnimationConfig.jellySpring(),
                     label = "tab-tap-jelly-scale-$index",
                 )
                 Box(
-                    modifier = Modifier.weight(1f).graphicsLayer { scaleX = itemScale; scaleY = itemScale }
+                    modifier = Modifier.weight(1f).graphicsLayer {
+                        scaleX = itemScale.value
+                        scaleY = itemScale.value
+                    }
                         .pointerInput(index) {
                             detectTapGestures {
                                 onTabSelected(index, false)
@@ -202,9 +205,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                             contentDescription = tab.description,
                             tint = itemColor,
                             modifier = Modifier.size(26.dp).graphicsLayer {
-                                val squash = 1f - tapScale
+                                val squash = 1f - tapScale.value
                                 scaleX = 1f + squash * .34f
-                                scaleY = tapScale
+                                scaleY = tapScale.value
                                 translationY = squash * 12.dp.toPx()
                             },
                         )

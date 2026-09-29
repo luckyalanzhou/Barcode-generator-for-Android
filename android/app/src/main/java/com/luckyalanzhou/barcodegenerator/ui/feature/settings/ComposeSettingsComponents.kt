@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,18 +33,19 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -117,10 +117,28 @@ internal fun SettingsDivider(dark: Boolean) {
 @Composable
 internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     val themeColors = LocalAppColorScheme.current
-    val trackColor by animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
-    val thumbOffset by animateDpAsState(if (checked) 20.dp else 0.dp, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-thumb")
-    Box(modifier.width(52.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(trackColor).clickable { onCheckedChange(!checked) }.padding(2.dp), contentAlignment = Alignment.CenterStart) {
-        Box(Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }.size(28.dp).shadow(1.dp, CircleShape).clip(CircleShape).background(themeColors.controls.thumb))
+    val trackColor = animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
+    val thumbOffset = animateDpAsState(if (checked) 20.dp else 0.dp, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-thumb")
+    Box(
+        modifier.width(52.dp).height(32.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .drawBehind {
+                drawRoundRect(
+                    color = trackColor.value,
+                    cornerRadius = CornerRadius(16.dp.toPx()),
+                )
+            }
+            .clickable { onCheckedChange(!checked) }
+            .padding(2.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            Modifier.size(28.dp)
+                .graphicsLayer { translationX = thumbOffset.value.toPx() }
+                .shadow(1.dp, CircleShape)
+                .clip(CircleShape)
+                .background(themeColors.controls.thumb),
+        )
     }
 }
 

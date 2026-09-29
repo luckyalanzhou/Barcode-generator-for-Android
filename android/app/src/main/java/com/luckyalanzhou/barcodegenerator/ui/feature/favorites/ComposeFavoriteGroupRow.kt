@@ -71,15 +71,18 @@ internal fun FavoriteGroupRow(
 ) {
     val interactionSource = remember(group.id) { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-group-scale")
-    val background by animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-group-background")
+    val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-group-scale")
+    val background = animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-group-background")
 
     Box(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().height(44.dp).padding(start = if (row.level <= 1) 20.dp else 38.dp, end = 4.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .drawBehind { drawRoundRect(color = background, cornerRadius = CornerRadius(14.dp.toPx())) }
-                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
+                .graphicsLayer {
+                    scaleX = scale.value
+                    scaleY = scale.value
+                }
                 .combinedClickable(
                     interactionSource,
                     indication = null,

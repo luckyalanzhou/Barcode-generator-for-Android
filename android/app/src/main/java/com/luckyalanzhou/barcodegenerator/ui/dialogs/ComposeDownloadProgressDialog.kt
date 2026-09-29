@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -67,7 +66,7 @@ private fun ComposeIndeterminateProgress() {
     val fill = LocalAppColorScheme.current.controls.progress
     val track = LocalAppColorScheme.current.controls.progressTrack
     val transition = rememberInfiniteTransition(label = "downloadIndeterminate")
-    val offset by transition.animateFloat(
+    val offset = transition.animateFloat(
         initialValue = -0.35f,
         targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
@@ -81,7 +80,7 @@ private fun ComposeIndeterminateProgress() {
             .background(track)
             .border(1.dp, fill.copy(alpha = .45f), RoundedCornerShape(7.dp)),
     ) {
-        val center = size.width * offset
+        val center = size.width * offset.value
         drawRoundRect(
             brush = Brush.horizontalGradient(
                 colors = listOf(fill.copy(alpha = .08f), fill, fill.copy(alpha = .08f)),

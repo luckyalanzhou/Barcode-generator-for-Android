@@ -55,9 +55,9 @@ internal fun FavoriteFolderRow(
 ) {
     val interactionSource = remember(row.path) { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
-    val background by animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
-    val arrowRotation by animateFloatAsState(
+    val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
+    val background = animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
+    val arrowRotation = animateFloatAsState(
         targetValue = if (row.collapsed) -90f else 0f,
         animationSpec = animation.settleSpring(),
         label = "favorite-folder-arrow-rotation",
@@ -68,9 +68,12 @@ internal fun FavoriteFolderRow(
         Row(
             Modifier.fillMaxWidth().height(if (row.level == 0) 50.dp else 43.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .drawBehind { drawRoundRect(color = background, cornerRadius = CornerRadius(14.dp.toPx())) }
+                .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
                 .padding(start = indent, end = 5.dp)
-                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .graphicsLayer {
+                    scaleX = scale.value
+                    scaleY = scale.value
+                }
                 .combinedClickable(
                     interactionSource,
                     indication = null,
@@ -88,7 +91,7 @@ internal fun FavoriteFolderRow(
                 imageVector = KeyboardArrowDownIcon,
                 contentDescription = if (row.collapsed) "展开文件夹" else "收起文件夹",
                 tint = secondary,
-                modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation },
+                modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation.value },
             )
         }
         AnchoredDropdownMenu(

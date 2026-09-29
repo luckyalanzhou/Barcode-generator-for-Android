@@ -4,7 +4,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 
-/** Shared, refresh-rate-independent motion tokens for the Compose UI. */
+/** Shared time-based motion specs. Compose drives these with its frame clock; ordinary UI motion should not pin a display refresh rate. */
 object ComposeAnimationConfig {
     const val pageFadeInDurationMillis = 180
     const val pageFadeOutDurationMillis = 140

@@ -18,19 +18,19 @@ internal fun Modifier.iosPressFeedback(
 ): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
     val springSpec = ComposeAnimationConfig.pressSpring<Float>()
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
         animationSpec = springSpec,
         label = "ios-press-scale",
     )
-    val alpha by animateFloatAsState(
+    val alpha = animateFloatAsState(
         targetValue = if (pressed) pressedAlpha else 1f,
         animationSpec = springSpec,
         label = "ios-press-dim",
     )
     return graphicsLayer {
-        scaleX = scale
-        scaleY = scale
-        this.alpha = alpha
+        scaleX = scale.value
+        scaleY = scale.value
+        this.alpha = alpha.value
     }
 }
