@@ -1,8 +1,11 @@
 package com.luckyalanzhou.barcodegenerator.data.network.web
 
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+
 /** 浏览器传输页的交互脚本模板。 */
 internal object LanShareWebScript {
     fun render() = """<script>
+const MAX_UPLOAD_BYTES = ${LanShareLimits.MAX_FILE_BYTES};
 const fileList = document.getElementById('files');
 const uploadForm = document.getElementById('upload-form');
 const messageInput = document.getElementById('message');
@@ -430,6 +433,10 @@ function setPeerBubbleColor(item, file, peerColorIndices, usePeerColors) {
 
 async function uploadFile(file) {
     if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+        alert('单个文件不能超过 10 GiB');
+        return;
+    }
     const transferId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
     const upload = { id: transferId, name: file.name || '附件', total: file.size, loaded: 0, startedAt: Date.now() };
     uploadRecords.set(transferId, upload);

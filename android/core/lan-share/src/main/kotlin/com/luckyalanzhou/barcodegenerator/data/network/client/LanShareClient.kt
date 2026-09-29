@@ -49,7 +49,7 @@ internal class LanShareClient(
         val name = source.name.ifBlank { "附件" }
         val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
-        require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
+        require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
         return uploadRaw(session, name, size, source.mimeType, onProgress) { source.openStream() }.also {
             logger.record("lan", "file uploaded name=$name size=$size", null)
         }
@@ -63,7 +63,7 @@ internal class LanShareClient(
         onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
         openStream: () -> java.io.InputStream?,
     ): String {
-        require(size in 1..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 5 GB" }
+        require(size in 1..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
         val url = URL(session.baseUrl + "/upload?name=${Uri.encode(name)}&client=app")
         val connection = (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000

@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebScript
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -67,6 +68,16 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("'&transfer=' + encodeURIComponent(transferId)"))
         assertTrue(script.contains("rememberOwnFile(storedId)"))
         assertTrue(script.contains("function updateUploadItem(item, upload)"))
+    }
+
+    @Test
+    fun browserRejectsOnlyFilesAboveTheSharedTenGibibyteLimitBeforeUploading() {
+        val script = LanShareWebScript.render()
+
+        assertEquals(10L * 1024L * 1024L * 1024L, LanShareLimits.MAX_FILE_BYTES)
+        assertTrue(script.contains("const MAX_UPLOAD_BYTES = ${LanShareLimits.MAX_FILE_BYTES};"))
+        assertTrue(script.contains("if (file.size > MAX_UPLOAD_BYTES)"))
+        assertTrue(script.contains("alert('单个文件不能超过 10 GiB')"))
     }
 
     @Test

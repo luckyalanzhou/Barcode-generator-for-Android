@@ -388,7 +388,7 @@ internal class LanShareServer(
                     val body = uploadBody(session)
                         ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "上传请求长度无效")
                     if (body.expectedBytes !in 1..LanShareLimits.MAX_FILE_BYTES) {
-                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "单个文件不能超过 5 GB")
+                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "单个文件不能超过 10 GiB")
                     }
                     val submittedName = session.parameters["name"]?.firstOrNull().orEmpty().ifBlank { "附件" }
                     val client = session.parameters["client"]?.firstOrNull().orEmpty()
