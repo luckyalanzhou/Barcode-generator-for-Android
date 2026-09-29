@@ -85,7 +85,7 @@ internal fun FavoriteGroupRow(
                     indication = null,
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    hapticFeedbackEnabled = true,
+                    hapticFeedbackEnabled = false,
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {

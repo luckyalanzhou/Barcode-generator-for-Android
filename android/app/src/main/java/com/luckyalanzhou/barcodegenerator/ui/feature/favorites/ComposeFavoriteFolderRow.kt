@@ -76,7 +76,7 @@ internal fun FavoriteFolderRow(
                     indication = null,
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    hapticFeedbackEnabled = true,
+                    hapticFeedbackEnabled = false,
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
