@@ -265,6 +265,6 @@ private fun LanShareConnectionStatus(connected: Boolean) {
             modifier = Modifier.size(16.dp),
         )
         Spacer(Modifier.width(5.dp))
-        Text(if (connected) "浏览器已连接" else "等待浏览器连接…", color = statusColor, fontSize = 15.sp)
+        Text(if (connected) "设备已连接" else "等待设备连接", color = statusColor, fontSize = 15.sp)
     }
 }

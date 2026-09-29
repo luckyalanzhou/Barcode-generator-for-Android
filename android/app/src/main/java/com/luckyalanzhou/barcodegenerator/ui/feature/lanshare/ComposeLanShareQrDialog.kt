@@ -85,7 +85,7 @@ internal fun ComposeLanShareQrDialog(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("等待设备扫码", color = primary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        if (browserConnected) "已有设备连接" else "等待设备连接",
+                        if (browserConnected) "设备已连接" else "等待设备连接",
                         color = if (browserConnected) colors.controls.success else secondary,
                         fontSize = 13.sp,
                     )
