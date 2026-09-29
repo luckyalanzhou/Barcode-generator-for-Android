@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -37,6 +38,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -80,11 +82,28 @@ internal fun SettingsContent(
     val density = LocalDensity.current
     val schemeWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val listState = rememberLazyListState()
+    val contentExceedsViewport by remember(listState) {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            val firstVisibleItem = visibleItems.firstOrNull()
+            val lastVisibleItem = visibleItems.lastOrNull()
+
+            when {
+                firstVisibleItem == null || lastVisibleItem == null -> false
+                firstVisibleItem.index > 0 || lastVisibleItem.index < layoutInfo.totalItemsCount - 1 -> true
+                else -> lastVisibleItem.offset + lastVisibleItem.size > layoutInfo.viewportSize.height
+            }
+        }
+    }
 
     fun persist(next: SettingsUiState = settings) = onPersist(next)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        state = listState,
+        userScrollEnabled = contentExceedsViewport,
         contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
