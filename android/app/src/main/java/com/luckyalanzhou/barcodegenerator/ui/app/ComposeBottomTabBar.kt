@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import android.view.HapticFeedbackConstants
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
@@ -48,6 +49,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -80,6 +82,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
     val themeColors = LocalAppColorScheme.current
     val selectedColor = themeColors.controls.accent
     val unselectedColor = themeColors.navigation.tabUnselected
+    val hapticView = LocalView.current
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
@@ -121,6 +124,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                     if (target != lastTarget) {
                         lastTarget = target
+                        hapticView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         onTabSelected(target, true)
                     }
                 },
@@ -207,6 +211,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     }
                         .pointerInput(index) {
                             detectTapGestures {
+                                hapticView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                 onTabSelected(index, false)
                                 tapPulseTab = index
                                 tapPulseGeneration += 1
