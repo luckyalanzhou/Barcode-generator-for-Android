@@ -23,7 +23,8 @@ class LanShareServerUploadTest {
     fun fixedLengthUploadWritesOriginalBytesToSingleCommittedFile() {
         val folder = temporaryFolder.newFolder()
         val payload = ByteArray(768 * 1024 + 37) { index -> (index * 31).toByte() }
-        val server = newServer(folder)
+        val diagnostics = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val server = newServer(folder, diagnostics)
         try {
             server.start(5_000, false)
             val result = upload(server.listeningPort, payload, "原图 % sample.jpg", "app", chunked = false)
@@ -32,6 +33,13 @@ class LanShareServerUploadTest {
             assertTrue(result.second.startsWith("app_"))
             assertArrayEquals(payload, File(folder, result.second).readBytes())
             assertTrue(folder.listFiles().orEmpty().none { it.name.startsWith(".lan-upload-") || it.name.endsWith(".part") })
+            assertTrue(diagnostics.any { it.contains("listener receiveBufferDefaultBytes=") })
+            assertTrue(diagnostics.any { it.contains("accepted socket receiveBufferBytes=") })
+            assertTrue(diagnostics.any {
+                it.contains("upload complete source=app framing=content-length") &&
+                    it.contains("readMs=") && it.contains("writeMs=") && it.contains("flushMs=") &&
+                    it.contains("bodyMbps=") && it.contains("readCalls=")
+            })
         } finally {
             server.stop()
         }
@@ -41,7 +49,8 @@ class LanShareServerUploadTest {
     fun chunkedBrowserUploadUsesDeclaredSizeAndPreservesBytes() {
         val folder = temporaryFolder.newFolder()
         val payload = ByteArray(384 * 1024 + 19) { index -> (index xor (index ushr 8)).toByte() }
-        val server = newServer(folder)
+        val diagnostics = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val server = newServer(folder, diagnostics)
         try {
             server.start(5_000, false)
             val result = upload(server.listeningPort, payload, "browser.bin", "cbrowser123", chunked = true)
@@ -50,6 +59,9 @@ class LanShareServerUploadTest {
             assertTrue(result.second.startsWith("web_"))
             assertTrue(result.second.contains("_cbrowser123_"))
             assertArrayEquals(payload, File(folder, result.second).readBytes())
+            assertTrue(diagnostics.any {
+                it.contains("upload complete source=browser framing=chunked") && it.contains("httpChunks=")
+            })
         } finally {
             server.stop()
         }
@@ -226,11 +238,14 @@ class LanShareServerUploadTest {
         }
     }
 
-    private fun newServer(folder: File) = LanShareServer(
+    private fun newServer(
+        folder: File,
+        diagnostics: MutableList<String> = mutableListOf(),
+    ) = LanShareServer(
         "127.0.0.1",
         0,
         folder,
-        AppLogger { _, _, _ -> },
+        AppLogger { _, message, _ -> diagnostics += message },
     )
 
     private fun upload(

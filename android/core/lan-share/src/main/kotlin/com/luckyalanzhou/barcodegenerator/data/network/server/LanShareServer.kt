@@ -28,6 +28,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.net.ServerSocket
+import java.net.Socket
 import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
@@ -81,6 +83,24 @@ internal class LanShareServer(
     init {
         require(webSocketHeartbeatIntervalMs > 0L)
         require(webSocketHeartbeatTimeoutMs > webSocketHeartbeatIntervalMs)
+        setServerSocketFactory(object : NanoHTTPD.ServerSocketFactory {
+            override fun create(): ServerSocket = object : ServerSocket() {
+                init {
+                    recordReceiveBufferDiagnostic(
+                        label = "listener receiveBufferDefaultBytes",
+                        readBufferSize = { this.receiveBufferSize },
+                        note = "; OS defaults/autotuning preserved",
+                    )
+                }
+
+                override fun accept(): Socket = super.accept().also { accepted ->
+                    recordReceiveBufferDiagnostic(
+                        label = "accepted socket receiveBufferBytes",
+                        readBufferSize = { accepted.receiveBufferSize },
+                    )
+                }
+            }
+        })
         heartbeatTask = connectionStateExecutor.scheduleAtFixedRate(
             ::sendWebSocketHeartbeats,
             webSocketHeartbeatIntervalMs,
@@ -89,7 +109,30 @@ internal class LanShareServer(
         )
     }
 
-    private data class UploadBody(val expectedBytes: Long, val isChunked: Boolean)
+    private data class UploadBody(
+        val expectedBytes: Long,
+        val isChunked: Boolean,
+        val framing: String,
+    )
+
+    /** Timings stay in memory until a request completes; never log per buffer. */
+    private data class UploadMetrics(
+        var bodyReadNanos: Long = 0L,
+        var fileWriteNanos: Long = 0L,
+        var framingNanos: Long = 0L,
+        var flushNanos: Long = 0L,
+        var readCalls: Long = 0L,
+        var httpChunks: Long = 0L,
+    )
+
+    private fun recordReceiveBufferDiagnostic(
+        label: String,
+        readBufferSize: () -> Int,
+        note: String = "",
+    ) {
+        val bytes = runCatching(readBufferSize).getOrNull() ?: return
+        runCatching { logger.record("lan-server", "$label=$bytes$note", null) }
+    }
 
     /** Accept a fixed-length request or a correctly declared HTTP/1.1 chunked body. */
     private fun uploadBody(session: IHTTPSession): UploadBody? {
@@ -112,7 +155,15 @@ internal class LanShareServer(
 
         val expectedBytes = contentLength ?: fileSize ?: return null
         if (isChunked && fileSize == null) return null
-        return UploadBody(expectedBytes, isChunked)
+        return UploadBody(
+            expectedBytes = expectedBytes,
+            isChunked = isChunked,
+            framing = when {
+                isChunked -> "chunked"
+                contentLength != null -> "content-length"
+                else -> "declared-size"
+            },
+        )
     }
 
     /** Capacity reservation is brief; file/network I/O happens outside this lock. */
@@ -141,28 +192,40 @@ internal class LanShareServer(
         reservation: Long,
         mimeType: String,
         transferId: String?,
+        source: String,
     ) {
         var reservationHeld = true
         var temporary: File? = null
         var receivedBytes = 0L
         var committed = false
+        val metrics = UploadMetrics()
         val startedAtNanos = System.nanoTime()
         try {
             val stagingFile = File.createTempFile(".lan-upload-", ".part", folder)
             temporary = stagingFile
+            val bodyStartedAtNanos = System.nanoTime()
             val copiedBytes = BufferedOutputStream(
                 FileOutputStream(stagingFile),
                 LAN_SHARE_STREAM_BUFFER_SIZE,
             ).use { output ->
-                if (body.isChunked) {
-                    copyChunkedBody(session.inputStream, output, body.expectedBytes) { receivedBytes = it }
+                val bytes = if (body.isChunked) {
+                    copyChunkedBody(session.inputStream, output, body.expectedBytes, metrics) { receivedBytes = it }
                 } else {
-                    copyFixedLengthBody(session.inputStream, output, body.expectedBytes) { receivedBytes = it }
+                    copyFixedLengthBody(session.inputStream, output, body.expectedBytes, metrics) { receivedBytes = it }
                 }
+                val flushStartedAtNanos = System.nanoTime()
+                try {
+                    output.flush()
+                } finally {
+                    metrics.flushNanos += System.nanoTime() - flushStartedAtNanos
+                }
+                bytes
             }
+            val bodyElapsedNanos = System.nanoTime() - bodyStartedAtNanos
             require(copiedBytes == body.expectedBytes && stagingFile.length() == body.expectedBytes) {
                 "上传内容大小不匹配：$copiedBytes/${body.expectedBytes} 字节"
             }
+            val commitStartedAtNanos = System.nanoTime()
             synchronized(uploadLock) {
                 check(!target.exists()) { "目标文件已存在" }
                 check(stagingFile.renameTo(target)) { "无法保存上传文件" }
@@ -170,8 +233,25 @@ internal class LanShareServer(
                 reservedUploadBytes = (reservedUploadBytes - reservation).coerceAtLeast(0L)
                 reservationHeld = false
             }
+            val commitElapsedNanos = System.nanoTime() - commitStartedAtNanos
             committed = true
             notifyFilesChanged(target, transferId)
+            val bodyElapsedMs = nanosToMillis(bodyElapsedNanos)
+            val bodyMbps = if (bodyElapsedNanos > 0L) {
+                body.expectedBytes * 8_000.0 / bodyElapsedNanos
+            } else {
+                0.0
+            }
+            logger.record(
+                "lan-server",
+                "upload complete source=$source framing=${body.framing} bytes=${body.expectedBytes} " +
+                    "bodyMs=$bodyElapsedMs bodyMbps=${"%.1f".format(java.util.Locale.US, bodyMbps)} " +
+                    "readMs=${nanosToMillis(metrics.bodyReadNanos)} writeMs=${nanosToMillis(metrics.fileWriteNanos)} " +
+                    "framingMs=${nanosToMillis(metrics.framingNanos)} flushMs=${nanosToMillis(metrics.flushNanos)} " +
+                    "commitMs=${nanosToMillis(commitElapsedNanos)} totalMs=${nanosToMillis(System.nanoTime() - startedAtNanos)} " +
+                    "readCalls=${metrics.readCalls} httpChunks=${metrics.httpChunks}",
+                null,
+            )
         } catch (error: Exception) {
             val safeTransferId = transferId
                 ?.take(64)
@@ -180,9 +260,12 @@ internal class LanShareServer(
                 ?: "unknown"
             logger.record(
                 "lan-server",
-                "upload failed transfer=$safeTransferId chunked=${body.isChunked} received=$receivedBytes " +
+                "upload failed transfer=$safeTransferId source=$source framing=${body.framing} received=$receivedBytes " +
                     "expected=${body.expectedBytes} committed=$committed " +
-                    "elapsedMs=${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos)}",
+                    "readMs=${nanosToMillis(metrics.bodyReadNanos)} writeMs=${nanosToMillis(metrics.fileWriteNanos)} " +
+                    "framingMs=${nanosToMillis(metrics.framingNanos)} flushMs=${nanosToMillis(metrics.flushNanos)} " +
+                    "elapsedMs=${nanosToMillis(System.nanoTime() - startedAtNanos)} readCalls=${metrics.readCalls} " +
+                    "httpChunks=${metrics.httpChunks}",
                 error,
             )
             throw error
@@ -196,15 +279,27 @@ internal class LanShareServer(
         input: java.io.InputStream,
         output: BufferedOutputStream,
         expectedBytes: Long,
+        metrics: UploadMetrics,
         onProgress: (Long) -> Unit,
     ): Long {
         val buffer = ByteArray(UPLOAD_READ_BUFFER_SIZE)
         var copied = 0L
         while (copied < expectedBytes) {
-            val read = input.read(buffer, 0, minOf(buffer.size.toLong(), expectedBytes - copied).toInt())
+            val readStartedAtNanos = System.nanoTime()
+            val read = try {
+                input.read(buffer, 0, minOf(buffer.size.toLong(), expectedBytes - copied).toInt())
+            } finally {
+                metrics.bodyReadNanos += System.nanoTime() - readStartedAtNanos
+                metrics.readCalls++
+            }
             if (read < 0) throw IOException("上传内容提前结束：$copied/$expectedBytes 字节")
             if (read == 0) continue
-            output.write(buffer, 0, read)
+            val writeStartedAtNanos = System.nanoTime()
+            try {
+                output.write(buffer, 0, read)
+            } finally {
+                metrics.fileWriteNanos += System.nanoTime() - writeStartedAtNanos
+            }
             copied += read
             onProgress(copied)
         }
@@ -215,13 +310,14 @@ internal class LanShareServer(
         input: java.io.InputStream,
         output: BufferedOutputStream,
         expectedBytes: Long,
+        metrics: UploadMetrics,
         onProgress: (Long) -> Unit,
     ): Long {
         val buffer = ByteArray(UPLOAD_READ_BUFFER_SIZE)
         var copied = 0L
         var trailerBytes = 0
         while (true) {
-            val chunkLine = readHttpLine(input)
+            val chunkLine = readHttpLine(input, metrics)
             val chunkSizeText = chunkLine.substringBefore(';').trim()
             val chunkSize = chunkSizeText.takeIf {
                 it.isNotEmpty() && it.all { value ->
@@ -231,7 +327,7 @@ internal class LanShareServer(
                 ?.toLongOrNull(16) ?: throw IOException("无效的分块上传长度")
             if (chunkSize == 0L) {
                 while (true) {
-                    val trailer = readHttpLine(input)
+                    val trailer = readHttpLine(input, metrics)
                     trailerBytes += trailer.length + 2
                     if (trailerBytes > MAX_CHUNK_TRAILER_BYTES) throw IOException("上传请求尾部过长")
                     if (trailer.isEmpty()) break
@@ -239,18 +335,36 @@ internal class LanShareServer(
                 break
             }
             if (chunkSize > expectedBytes - copied) throw IOException("上传内容超过声明大小")
+            metrics.httpChunks++
 
             var remaining = chunkSize
             while (remaining > 0L) {
-                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                val readStartedAtNanos = System.nanoTime()
+                val read = try {
+                    input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                } finally {
+                    metrics.bodyReadNanos += System.nanoTime() - readStartedAtNanos
+                    metrics.readCalls++
+                }
                 if (read < 0) throw IOException("分块上传内容提前结束")
                 if (read == 0) continue
-                output.write(buffer, 0, read)
+                val writeStartedAtNanos = System.nanoTime()
+                try {
+                    output.write(buffer, 0, read)
+                } finally {
+                    metrics.fileWriteNanos += System.nanoTime() - writeStartedAtNanos
+                }
                 copied += read
                 remaining -= read
                 onProgress(copied)
             }
-            if (input.read() != '\r'.code || input.read() != '\n'.code) {
+            val framingStartedAtNanos = System.nanoTime()
+            val validTerminator = try {
+                input.read() == '\r'.code && input.read() == '\n'.code
+            } finally {
+                metrics.framingNanos += System.nanoTime() - framingStartedAtNanos
+            }
+            if (!validTerminator) {
                 throw IOException("分块上传格式无效")
             }
         }
@@ -258,20 +372,27 @@ internal class LanShareServer(
         return copied
     }
 
-    private fun readHttpLine(input: java.io.InputStream): String {
+    private fun readHttpLine(input: java.io.InputStream, metrics: UploadMetrics): String {
+        val framingStartedAtNanos = System.nanoTime()
         val line = ByteArrayOutputStream()
-        while (line.size() <= MAX_CHUNK_LINE_BYTES) {
-            val value = input.read()
-            if (value < 0) throw IOException("分块上传意外结束")
-            if (value == '\r'.code) {
-                if (input.read() != '\n'.code) throw IOException("分块上传行结束符无效")
-                return line.toString(Charsets.US_ASCII.name())
+        try {
+            while (line.size() <= MAX_CHUNK_LINE_BYTES) {
+                val value = input.read()
+                if (value < 0) throw IOException("分块上传意外结束")
+                if (value == '\r'.code) {
+                    if (input.read() != '\n'.code) throw IOException("分块上传行结束符无效")
+                    return line.toString(Charsets.US_ASCII.name())
+                }
+                if (value == '\n'.code || value > 0x7f) throw IOException("分块上传行格式无效")
+                line.write(value)
             }
-            if (value == '\n'.code || value > 0x7f) throw IOException("分块上传行格式无效")
-            line.write(value)
+            throw IOException("分块上传行过长")
+        } finally {
+            metrics.framingNanos += System.nanoTime() - framingStartedAtNanos
         }
-        throw IOException("分块上传行过长")
     }
+
+    private fun nanosToMillis(nanos: Long): Long = TimeUnit.NANOSECONDS.toMillis(nanos)
 
     fun browserConnected() = synchronized(webSocketStateLock) { webSockets.isNotEmpty() }
 
@@ -530,7 +651,15 @@ internal class LanShareServer(
                     if (!reserveUploadCapacity(body.expectedBytes)) {
                         return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
                     }
-                    receiveUpload(session, body, target, body.expectedBytes, mimeType, transferId)
+                    receiveUpload(
+                        session = session,
+                        body = body,
+                        target = target,
+                        reservation = body.expectedBytes,
+                        mimeType = mimeType,
+                        transferId = transferId,
+                        source = if (client == APP_UPLOAD_CLIENT) "app" else "browser",
+                    )
                     newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, target.name)
                 }
 
