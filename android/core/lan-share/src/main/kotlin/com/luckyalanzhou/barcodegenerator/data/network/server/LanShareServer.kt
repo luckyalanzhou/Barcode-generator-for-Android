@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.data.network.server
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_WEBSOCKET_HEARTBEAT_INTERVAL_MS
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_WEBSOCKET_HEARTBEAT_TIMEOUT_MS
-import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_STREAM_BUFFER_SIZE
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.isCommittedSharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.mimeTypeForName
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.uploadedMimeType
@@ -53,6 +52,7 @@ internal class LanShareServer(
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
         const val UPLOAD_READ_BUFFER_SIZE = 512 * 1024
+        const val UPLOAD_WRITE_BUFFER_SIZE = 256 * 1024
         const val MAX_CHUNK_LINE_BYTES = 8 * 1024
         const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
         const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
@@ -206,7 +206,7 @@ internal class LanShareServer(
             val bodyStartedAtNanos = System.nanoTime()
             val copiedBytes = BufferedOutputStream(
                 FileOutputStream(stagingFile),
-                LAN_SHARE_STREAM_BUFFER_SIZE,
+                UPLOAD_WRITE_BUFFER_SIZE,
             ).use { output ->
                 val bytes = if (body.isChunked) {
                     copyChunkedBody(session.inputStream, output, body.expectedBytes, metrics) { receivedBytes = it }
