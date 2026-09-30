@@ -61,7 +61,7 @@ internal fun SettingsCard(color: Color, dark: Boolean, content: @Composable Colu
 
 @Composable
 internal fun SettingsRow(title: String, color: Color, trailing: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(50.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f))
         trailing()
     }

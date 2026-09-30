@@ -11,9 +11,13 @@ internal data class AppDimensions(
     val pageHorizontalPadding: Dp = 18.dp,
     val pageTopPadding: Dp = 18.dp,
     val pageBottomPadding: Dp = 10.dp,
+    val pageHeaderHeight: Dp = 52.dp,
+    val settingsHeaderHeight: Dp = 44.dp,
     val bottomTabBarHeight: Dp = 72.dp,
     val cardCornerRadius: Dp = 18.dp,
     val buttonCornerRadius: Dp = 16.dp,
+    val settingsRowHeight: Dp = 48.dp,
+    val settingsCardSpacing: Dp = 6.dp,
 )
 
 internal val LocalAppDimensions = staticCompositionLocalOf { AppDimensions() }

@@ -165,7 +165,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         if (targetPage.chromeVisible) {
                             Box(
                                 modifier = Modifier.fillMaxWidth().height(
-                                    if (targetPage == AppRoute.Settings) 52.dp else 60.dp,
+                                    if (targetPage == AppRoute.Settings) dimensions.settingsHeaderHeight else dimensions.pageHeaderHeight,
                                 ),
                                 contentAlignment = Alignment.TopCenter,
                             ) {
