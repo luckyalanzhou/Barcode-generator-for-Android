@@ -50,6 +50,7 @@ internal class LanShareServer(
 ) : NanoWSD(host, port) {
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
+        const val UPLOAD_READ_BUFFER_SIZE = 512 * 1024
         const val MAX_CHUNK_LINE_BYTES = 8 * 1024
         const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
         const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
@@ -197,7 +198,7 @@ internal class LanShareServer(
         expectedBytes: Long,
         onProgress: (Long) -> Unit,
     ): Long {
-        val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
+        val buffer = ByteArray(UPLOAD_READ_BUFFER_SIZE)
         var copied = 0L
         while (copied < expectedBytes) {
             val read = input.read(buffer, 0, minOf(buffer.size.toLong(), expectedBytes - copied).toInt())
@@ -216,7 +217,7 @@ internal class LanShareServer(
         expectedBytes: Long,
         onProgress: (Long) -> Unit,
     ): Long {
-        val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
+        val buffer = ByteArray(UPLOAD_READ_BUFFER_SIZE)
         var copied = 0L
         var trailerBytes = 0
         while (true) {
