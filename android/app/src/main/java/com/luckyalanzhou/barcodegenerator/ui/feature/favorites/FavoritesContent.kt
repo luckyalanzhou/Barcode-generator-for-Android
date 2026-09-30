@@ -128,6 +128,10 @@ internal fun FavoritesContent(
     var listPositionRestored by remember { mutableStateOf(false) }
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
+    val allFavoriteFolderPaths = remember(favoritesState.folders, favoritesState.groups) {
+        (favoritesState.folders + favoritesState.groups.map { it.folder })
+            .filter { it.isNotBlank() }.toSet()
+    }
     val folderPaths = remember(displayState.folders, displayState.groups) {
         (displayState.folders + displayState.groups.map { it.folder })
             .filter { it.isNotBlank() }.distinct().toSet()
@@ -138,7 +142,7 @@ internal fun FavoritesContent(
         }
     }
 
-    LaunchedEffect(folderPaths, displayState.groups) { onSyncFavoriteTree(folderPaths) }
+    LaunchedEffect(allFavoriteFolderPaths) { onSyncFavoriteTree(allFavoriteFolderPaths) }
     LaunchedEffect(normalizedQuery, favoritesState) { onSearchFavoriteContent(normalizedQuery) }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { onUpdateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
@@ -149,13 +153,12 @@ internal fun FavoritesContent(
             .collect { (index, offset) -> onRememberListPosition(index, offset) }
     }
 
-    val visibleCollapsedFolders = if (
-        normalizedQuery.isEmpty() || treeState.searchAutoExpandSuppressed
-    ) {
-        treeState.collapsedFolders
-    } else {
-        treeState.collapsedFolders - expandedSearchPaths
-    }
+    val visibleCollapsedFolders = effectiveCollapsedFavoriteFolders(
+        treeState = treeState,
+        allFolderPaths = allFavoriteFolderPaths,
+        query = normalizedQuery,
+        expandedSearchPaths = expandedSearchPaths,
+    )
     val rows by produceState<List<ComposeFavoriteRow>?>(null, displayState, normalizedQuery, visibleCollapsedFolders) {
         value = withContext(Dispatchers.Default) {
             composeFavoriteRows(displayState, normalizedQuery, visibleCollapsedFolders)

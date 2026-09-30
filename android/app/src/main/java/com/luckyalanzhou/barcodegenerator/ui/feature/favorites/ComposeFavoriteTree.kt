@@ -16,6 +16,21 @@ internal data class ComposeFavoriteRow(
     val group: FavoriteGroup? = null,
 )
 
+/** Treat folders not yet synchronized into the view-model tree as collapsed during projection. */
+internal fun effectiveCollapsedFavoriteFolders(
+    treeState: FavoriteTreeUiState,
+    allFolderPaths: Set<String>,
+    query: String,
+    expandedSearchPaths: Set<String>,
+): Set<String> {
+    val collapsed = treeState.collapsedFolders + (allFolderPaths - treeState.knownFolders)
+    return if (query.isEmpty() || treeState.searchAutoExpandSuppressed) {
+        collapsed
+    } else {
+        collapsed - expandedSearchPaths
+    }
+}
+
 internal fun composeFavoriteRows(
     state: BarcodeDataState,
     query: String,
