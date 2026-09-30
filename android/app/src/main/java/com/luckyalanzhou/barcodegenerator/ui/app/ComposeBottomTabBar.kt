@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import android.os.Build
 import android.view.HapticFeedbackConstants
+import android.view.View
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
@@ -124,7 +126,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                     if (target != lastTarget) {
                         lastTarget = target
-                        hapticView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        hapticView.performSubtleTabHaptic()
                         onTabSelected(target, true)
                     }
                 },
@@ -211,7 +213,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     }
                         .pointerInput(index) {
                             detectTapGestures {
-                                hapticView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                hapticView.performSubtleTabHaptic()
                                 onTabSelected(index, false)
                                 tapPulseTab = index
                                 tapPulseGeneration += 1
@@ -244,4 +246,16 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
             }
         }
     }
+}
+
+/** Prefer Android's intentionally soft frequent-choice tick, with compatible older-API fallbacks. */
+private fun View.performSubtleTabHaptic() {
+    val feedback = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+            HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 ->
+            HapticFeedbackConstants.TEXT_HANDLE_MOVE
+        else -> HapticFeedbackConstants.CLOCK_TICK
+    }
+    performHapticFeedback(feedback)
 }
