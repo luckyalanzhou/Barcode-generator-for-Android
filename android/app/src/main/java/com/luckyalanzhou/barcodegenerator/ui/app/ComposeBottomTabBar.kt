@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,12 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -96,35 +91,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize().padding(4.dp)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(50),
-                clip = false,
-                ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .05f),
-                spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .18f else .08f),
-            )
-            .clip(RoundedCornerShape(50))
             .hazeEffect(backdrop) {
                 backgroundColor = themeColors.surfaces.background
                 blurRadius = 20.dp
                 noiseFactor = 0f
-                tints = listOf(HazeTint(themeColors.surfaces.surface.copy(alpha = if (dark) .72f else .64f)))
-            }
-            .drawBehind {
-                val rim = .75.dp.toPx()
-                val panelRadius = CornerRadius((size.height - rim) / 2f)
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            themeColors.navigation.tabRimTop.copy(alpha = if (dark) .30f else .80f),
-                            themeColors.text.primary.copy(alpha = if (dark) .08f else .06f),
-                        ),
-                    ),
-                    topLeft = Offset(rim / 2, rim / 2),
-                    size = androidx.compose.ui.geometry.Size(size.width - rim, size.height - rim),
-                    cornerRadius = panelRadius,
-                    style = Stroke(width = rim),
-                )
+                tints = listOf(HazeTint(themeColors.surfaces.surface.copy(alpha = if (dark) .18f else .10f)))
             }
             .padding(horizontal = 6.dp, vertical = 6.dp)
             .pointerInput(Unit) {
@@ -160,7 +131,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
         val tabWidth = (maxWidth - 12.dp) / tabs.size
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
         Box(
-            // The selected capsule stays inside the panel's 6dp inset on all four sides.
+            // Keep the selected capsule inset; there is no enclosing capsule border.
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
