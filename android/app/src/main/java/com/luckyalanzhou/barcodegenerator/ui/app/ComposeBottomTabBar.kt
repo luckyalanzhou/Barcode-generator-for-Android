@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,8 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -135,15 +139,36 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
+                .shadow(
+                    elevation = 3.dp,
+                    shape = RoundedCornerShape(50),
+                    clip = false,
+                    ambientColor = selectedColor.copy(alpha = if (dark) .16f else .10f),
+                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .16f else .08f),
+                )
                 .drawBehind {
+                    val outline = .7.dp.toPx()
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .18f else .65f),
-                                selectedColor.copy(alpha = if (dark) .14f else .08f),
+                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .42f else .86f),
+                                themeColors.surfaces.surface.copy(alpha = if (dark) .24f else .42f),
+                                selectedColor.copy(alpha = if (dark) .20f else .12f),
                             ),
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
+                    )
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                themeColors.navigation.tabRimTop.copy(alpha = if (dark) .58f else .78f),
+                                themeColors.navigation.tabRimBottom.copy(alpha = if (dark) .20f else .24f),
+                            ),
+                        ),
+                        topLeft = androidx.compose.ui.geometry.Offset(outline / 2f, outline / 2f),
+                        size = Size(size.width - outline, size.height - outline),
+                        cornerRadius = CornerRadius((size.height - outline) / 2f),
+                        style = Stroke(width = outline),
                     )
                 }
         )
