@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 /** 收藏、文件夹和收藏条码关系的变更协调器。查询和分页由 FavoritesQueryCoordinator 负责。 */
 internal class FavoritesMutationCoordinator(
@@ -59,13 +60,12 @@ internal class FavoritesMutationCoordinator(
     }
 
     fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
-        val selectedItems = store.itemsSnapshot().filter { it.id in resultItemIds }
-        if (selectedItems.isEmpty() || folder.isBlank() || name.isBlank()) return false
+        if (orderedFavoriteItems(store.itemsSnapshot(), resultItemIds).isNullOrEmpty() || folder.isBlank() || name.isBlank()) return false
         val excludedIds = setOfNotNull(editingGroupId, targetGroupId).toSet()
         if (store.hasFavoriteIdentity(folder, name, excludedIds)) return false
         val allocatedGroupId = targetGroupId ?: (store.maxFavoriteGroupId() + 1L)
         val savedGroupId = store.edit {
-            val selectedItems = items.filter { it.id in resultItemIds }
+            val selectedItems = orderedFavoriteItems(items, resultItemIds) ?: return@edit null
             if (selectedItems.isEmpty()) return@edit null
             if (editingGroupId != null && editingGroupId != targetGroupId) groups.removeAll { it.id == editingGroupId }
             selectedItems.forEach { it.favorite = true; it.folder = folder }
@@ -163,4 +163,13 @@ internal class FavoritesMutationCoordinator(
             ids.size > 1 && ids.mapNotNull(before::get).distinct().size > 1
         }
     }
+}
+
+/** Resolve selected result IDs in the order supplied by the generated result page, not store order. */
+internal fun orderedFavoriteItems(items: List<CodeItem>, resultItemIds: List<Long>): List<CodeItem>? {
+    val itemsById = items.associateBy(CodeItem::id)
+    val orderedIds = resultItemIds.distinct()
+    if (orderedIds.isEmpty()) return emptyList()
+    val orderedItems = orderedIds.mapNotNull(itemsById::get)
+    return orderedItems.takeIf { it.size == orderedIds.size }
 }

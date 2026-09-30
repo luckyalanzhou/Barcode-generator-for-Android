@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
@@ -51,7 +52,9 @@ class BarcodePersistenceCoordinator @Inject constructor(
         return enqueue {
             barcodeRepository.applyFavoritesMutation(
                 BarcodeSnapshot(itemSnapshot, groupSnapshot, groupSnapshot.flatMap { group ->
-                    group.itemIds.map { itemId -> com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId) }
+                    group.itemIds.distinct().mapIndexed { position, itemId ->
+                        FavoriteGroupItem(group.id, itemId, position)
+                    }
                 }, folderSnapshot, replaceGroupLinkIds),
             )
         }

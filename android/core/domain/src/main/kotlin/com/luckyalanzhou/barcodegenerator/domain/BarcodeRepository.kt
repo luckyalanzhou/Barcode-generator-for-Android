@@ -4,6 +4,8 @@ package com.luckyalanzhou.barcodegenerator.domain
 data class FavoriteGroupItem(
     val groupId: Long,
     val itemId: Long,
+    /** Zero-based order of this barcode inside its favorite file. */
+    val position: Int,
 )
 
 /** A consistent, single-read view of a favorite file and every barcode linked to it. */

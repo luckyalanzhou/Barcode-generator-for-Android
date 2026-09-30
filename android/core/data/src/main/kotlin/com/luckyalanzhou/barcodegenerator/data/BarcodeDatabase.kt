@@ -52,7 +52,7 @@ data class FavoriteGroupEntity(
 @Entity(
     tableName = "favorite_group_items",
     primaryKeys = ["groupId", "itemId"],
-    indices = [Index(value = ["groupId"]), Index(value = ["itemId"])],
+    indices = [Index(value = ["groupId", "position"], unique = true), Index(value = ["itemId"])],
     foreignKeys = [
         ForeignKey(
             entity = FavoriteGroupEntity::class,
@@ -68,7 +68,7 @@ data class FavoriteGroupEntity(
         ),
     ],
 )
-data class FavoriteGroupItemEntity(val groupId: Long, val itemId: Long)
+data class FavoriteGroupItemEntity(val groupId: Long, val itemId: Long, val position: Int)
 
 @Entity(tableName = "favorite_folders")
 data class FavoriteFolderEntity(@PrimaryKey val name: String)
@@ -122,10 +122,10 @@ interface BarcodeDao {
     suspend fun renameGroupsFolder(path: String, renamedPath: String)
     @Query("DELETE FROM favorite_groups WHERE folder = :path OR substr(folder, 1, length(:path) + 1) = (:path || '/') COLLATE BINARY")
     suspend fun deleteGroupsByFolder(path: String)
-    @Query("SELECT * FROM favorite_group_items") suspend fun loadGroupItems(): List<FavoriteGroupItemEntity>
-    @Query("SELECT * FROM favorite_group_items WHERE groupId IN (:groupIds)") suspend fun loadGroupItemsByGroupIds(groupIds: List<Long>): List<FavoriteGroupItemEntity>
-    @Query("SELECT itemId FROM favorite_group_items WHERE groupId = :groupId ORDER BY itemId") suspend fun loadGroupItemIds(groupId: Long): List<Long>
-    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun saveGroupItems(items: List<FavoriteGroupItemEntity>)
+    @Query("SELECT * FROM favorite_group_items ORDER BY groupId, position, itemId") suspend fun loadGroupItems(): List<FavoriteGroupItemEntity>
+    @Query("SELECT * FROM favorite_group_items WHERE groupId IN (:groupIds) ORDER BY groupId, position, itemId") suspend fun loadGroupItemsByGroupIds(groupIds: List<Long>): List<FavoriteGroupItemEntity>
+    @Query("SELECT itemId FROM favorite_group_items WHERE groupId = :groupId ORDER BY position, itemId") suspend fun loadGroupItemIds(groupId: Long): List<Long>
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun saveGroupItems(items: List<FavoriteGroupItemEntity>)
     @Query("DELETE FROM favorite_group_items") suspend fun clearGroupItems()
     @Query("DELETE FROM favorite_group_items WHERE groupId NOT IN (:retainedGroupIds)") suspend fun deleteGroupItemsExcept(retainedGroupIds: List<Long>)
     @Query("DELETE FROM favorite_group_items WHERE groupId IN (:groupIds)") suspend fun clearGroupItemsForGroups(groupIds: List<Long>)
@@ -142,7 +142,7 @@ interface BarcodeDao {
 
 @Database(
     entities = [CodeItemEntity::class, FavoriteGroupEntity::class, FavoriteGroupItemEntity::class, FavoriteFolderEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class BarcodeDatabase : RoomDatabase() {
@@ -153,7 +153,7 @@ abstract class BarcodeDatabase : RoomDatabase() {
             context.applicationContext,
             BarcodeDatabase::class.java,
             "barcode_generator.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
 
         internal val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -223,6 +223,52 @@ abstract class BarcodeDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE favorite_group_items")
                 db.execSQL("ALTER TABLE favorite_group_items_new RENAME TO favorite_group_items")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_groupId ON favorite_group_items(groupId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_itemId ON favorite_group_items(itemId)")
+            }
+        }
+
+        /**
+         * Persist barcode order explicitly. Version 5 did not store an ordinal, so backfill
+         * using the exact itemId order the app displayed before this migration.
+         */
+        internal val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE favorite_group_items_new (
+                        groupId INTEGER NOT NULL,
+                        itemId INTEGER NOT NULL,
+                        position INTEGER NOT NULL,
+                        PRIMARY KEY(groupId, itemId),
+                        FOREIGN KEY(groupId) REFERENCES favorite_groups(id) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(itemId) REFERENCES code_items(id) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                """.trimIndent())
+
+                db.compileStatement(
+                    "INSERT INTO favorite_group_items_new(groupId, itemId, position) VALUES (?, ?, ?)"
+                ).use { insert ->
+                    db.query("SELECT groupId, itemId FROM favorite_group_items ORDER BY groupId, itemId").use { cursor ->
+                        var currentGroupId: Long? = null
+                        var position = 0
+                        while (cursor.moveToNext()) {
+                            val groupId = cursor.getLong(0)
+                            if (currentGroupId != groupId) {
+                                currentGroupId = groupId
+                                position = 0
+                            }
+                            insert.clearBindings()
+                            insert.bindLong(1, groupId)
+                            insert.bindLong(2, cursor.getLong(1))
+                            insert.bindLong(3, position.toLong())
+                            insert.executeInsert()
+                            position++
+                        }
+                    }
+                }
+
+                db.execSQL("DROP TABLE favorite_group_items")
+                db.execSQL("ALTER TABLE favorite_group_items_new RENAME TO favorite_group_items")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_favorite_group_items_groupId_position ON favorite_group_items(groupId, position)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_itemId ON favorite_group_items(itemId)")
             }
         }

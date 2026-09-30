@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -56,7 +57,9 @@ object FavoritesTransferManager {
             ensureDirectories(listOf(FAVORITES_DIRECTORY, parts.first, parts.second).filter { it.isNotBlank() }.joinToString("/"))
         }
         snapshot.groups.forEach { group ->
-            val groupItems = linksByGroup[group.id].orEmpty().mapNotNull { itemById[it.itemId] }
+            val groupItems = linksByGroup[group.id].orEmpty()
+                .sortedWith(compareBy(FavoriteGroupItem::position, FavoriteGroupItem::itemId))
+                .mapNotNull { itemById[it.itemId] }
                 .filter { it.text.isNotBlank() }
             require(groupItems.isNotEmpty()) { "收藏“${group.name}”没有有效内容，无法导出" }
             require(group.name.isNotBlank()) { "收藏文件缺少文件名" }
@@ -253,7 +256,9 @@ object FavoritesTransferManager {
             if (existingKeys.contains(key)) return@forEach
             val group = FavoriteGroupEntity(nextGroupId++, favorite.folder, favorite.name, favorite.time)
             val groupItems = favorite.texts.map { text -> CodeItemEntity(nextItemId++, text, toAndroidFormat(favorite.type), favorite.time, true, favorite.folder, false) }
-            groups += group; items += groupItems; links += groupItems.map { FavoriteGroupItemEntity(group.id, it.id) }
+            groups += group
+            items += groupItems
+            links += groupItems.mapIndexed { position, item -> FavoriteGroupItemEntity(group.id, item.id, position) }
         }
         val folderNames = (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.distinct()
         return TransferEntities(items, groups, links, folderNames.map(::FavoriteFolderEntity))

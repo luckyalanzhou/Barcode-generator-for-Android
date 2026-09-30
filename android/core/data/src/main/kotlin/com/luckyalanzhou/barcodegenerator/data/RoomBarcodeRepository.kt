@@ -41,7 +41,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.clearFolders()
             dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
             dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
+            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
     }
@@ -56,9 +56,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
                 val linkGroups = snapshot.replaceGroupLinkIds.intersect(groupIds.toSet())
                 dao.clearGroupItemsForGroups(linkGroups.toList())
-                dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap { group ->
-                    group.itemIds.map { FavoriteGroupItemEntity(group.id, it) }
-                })
+                dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap(FavoriteGroup::toLinkEntities))
             }
             dao.clearFolders()
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
@@ -107,7 +105,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.clearGroupItemsForGroups(retainedGroupIds)
             }
             dao.upsertGroups(groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-            dao.saveGroupItems(links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
+            dao.saveGroupItems(links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
         }
     }
 
@@ -161,7 +159,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     }
 
     override suspend fun loadGroupItems(): List<FavoriteGroupItem> =
-        dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId) }
+        dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId, it.position) }
 
     override suspend fun loadGroupItemIds(groupId: Long): List<Long> = dao.loadGroupItemIds(groupId)
 
@@ -226,7 +224,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         BarcodeSnapshot(
             items = dao.loadItems().map(CodeItemEntity::toDomain),
             groups = dao.loadGroups().map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) },
-            links = dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId) },
+            links = dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId, it.position) },
             folders = dao.loadFolders().map { it.name },
         )
     }
@@ -249,7 +247,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         database.withTransaction {
             dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
             dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
+            dao.clearGroupItemsForGroups(snapshot.groups.map { it.id })
+            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
     }
@@ -264,7 +263,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             }
             dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
             dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId) })
+            val importedGroupIds = snapshot.groups.map { it.id }
+            dao.clearGroupItemsForGroups(importedGroupIds)
+            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
             // Import adds folders but must not erase pre-existing empty folders.
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
@@ -303,7 +304,11 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                             for (itemIndex in 0 until itemIds.length()) {
                                 runCatching { itemIds.getLong(itemIndex) }
                                     .getOrNull()
-                                    ?.let { links += FavoriteGroupItemEntity(groupId, it) }
+                                    ?.takeIf { id -> links.none { it.groupId == groupId && it.itemId == id } }
+                                    ?.let { itemId ->
+                                        val position = links.count { it.groupId == groupId }
+                                        links += FavoriteGroupItemEntity(groupId, itemId, position)
+                                    }
                             }
                         }
                     }
@@ -315,3 +320,9 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         }
     }
 }
+
+/** Store each favorite file's declared item order as contiguous, zero-based positions. */
+private fun FavoriteGroup.toLinkEntities(): List<FavoriteGroupItemEntity> =
+    itemIds.distinct().mapIndexed { position, itemId ->
+        FavoriteGroupItemEntity(groupId = id, itemId = itemId, position = position)
+    }

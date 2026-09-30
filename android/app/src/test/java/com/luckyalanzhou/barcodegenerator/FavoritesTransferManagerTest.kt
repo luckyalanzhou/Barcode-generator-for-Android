@@ -51,7 +51,7 @@ class FavoritesTransferManagerTest {
         )
         val existingItems = listOf(CodeItemEntity(10L, "123", "Code 128-B", 1L, true, "旧文件夹", false))
         val existingGroups = listOf(FavoriteGroupEntity(20L, "旧文件夹", "旧收藏", 1L))
-        val existingLinks = listOf(FavoriteGroupItemEntity(20L, 10L))
+        val existingLinks = listOf(FavoriteGroupItemEntity(20L, 10L, 0))
 
         val entities = FavoritesTransferManager.appendEntities(backup, existingItems, existingGroups, existingLinks)
 
@@ -59,7 +59,7 @@ class FavoritesTransferManagerTest {
         assertEquals(11L, entities.items.single().id)
         assertEquals(1, entities.groups.size)
         assertEquals(21L, entities.groups.single().id)
-        assertEquals(FavoriteGroupItemEntity(21L, 11L), entities.links.single())
+        assertEquals(FavoriteGroupItemEntity(21L, 11L, 0), entities.links.single())
         assertEquals(listOf("新文件夹"), entities.folders.map { it.name })
     }
 }

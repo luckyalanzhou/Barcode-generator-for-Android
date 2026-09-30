@@ -32,6 +32,22 @@ class FavoritesTransferManagerTest {
     }
 
     @Test
+    fun importStoresBarcodeTextOrderAsContiguousPositions() {
+        val backup = InterchangeBackup(
+            favorites = listOf(
+                InterchangeFavorite(null, "文件", "一级", "", "code128", 11L, listOf("third", "first", "second")),
+            ),
+            folders = listOf("一级"),
+        )
+
+        val entities = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+
+        assertEquals(listOf("third", "first", "second"), entities.items.map { it.text })
+        assertEquals(listOf(0, 1, 2), entities.links.map { it.position })
+        assertEquals(entities.items.map { it.id }, entities.links.map { it.itemId })
+    }
+
+    @Test
     fun importKeepsSameContentFavoritesWithDifferentIds() {
         val backup = InterchangeBackup(
             favorites = listOf(
@@ -69,7 +85,7 @@ class FavoritesTransferManagerTest {
     fun importIdentityDoesNotDependOnBarcodeContent() {
         val existingGroups = listOf(FavoriteGroupEntity(10L, "一级", "文件", 1L))
         val existingItems = listOf(CodeItemEntity(20L, "OLD", "Code 128-B", 1L, true, "一级", false))
-        val existingLinks = listOf(FavoriteGroupItemEntity(10L, 20L))
+        val existingLinks = listOf(FavoriteGroupItemEntity(10L, 20L, 0))
         val backup = InterchangeBackup(
             favorites = listOf(InterchangeFavorite("30", "文件", "一级", "", "code128", 2L, listOf("NEW"))),
             folders = listOf("一级"),
@@ -116,7 +132,7 @@ class FavoritesTransferManagerTest {
                 CodeItem(6L, "q\"\\\n\u0001", "Code 128-B", createdAt = 13L),
             ),
             groups = listOf(FavoriteGroup(7L, "一级/二级", "收藏", 11L, mutableListOf())),
-            links = listOf(FavoriteGroupItem(7L, 5L), FavoriteGroupItem(7L, 6L)),
+            links = listOf(FavoriteGroupItem(7L, 6L, 1), FavoriteGroupItem(7L, 5L, 0)),
             folders = listOf("一级", "一级/二级"),
         )
 
@@ -142,7 +158,7 @@ class FavoritesTransferManagerTest {
         val snapshot = BarcodeSnapshot(
             items = listOf(CodeItem(5L, "x".repeat(1024 * 1024), "Code 128-B")),
             groups = listOf(FavoriteGroup(7L, "", "收藏", 11L, mutableListOf())),
-            links = listOf(FavoriteGroupItem(7L, 5L)),
+            links = listOf(FavoriteGroupItem(7L, 5L, 0)),
             folders = emptyList(),
         )
 
@@ -162,7 +178,7 @@ class FavoritesTransferManagerTest {
         val snapshot = BarcodeSnapshot(
             items = ids.map { CodeItem(it, "value-$it", "Code 128-B") },
             groups = ids.map { FavoriteGroup(it, "", "group-$it", it, mutableListOf()) },
-            links = ids.map { FavoriteGroupItem(it, it) },
+            links = ids.map { FavoriteGroupItem(it, it, 0) },
             folders = emptyList(),
         )
 
