@@ -51,6 +51,8 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import kotlinx.coroutines.flow.collect
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 internal data class ComposeAppShellDependencies(
     val navigationViewModel: AppNavigationViewModel,
@@ -125,8 +127,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val dark = LocalResolvedAppAppearance.current.isDark
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
+        val navigationBackdrop = remember { HazeState() }
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
@@ -138,7 +141,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             ) {
                 AnimatedContent(
                     targetState = currentRoute,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    // Capture only page pixels, never the glass control itself (no feedback).
+                    // Reserve the bar's height so inputs and the last list item remain reachable.
+                    modifier = Modifier.fillMaxSize().hazeSource(navigationBackdrop)
+                        .background(colors.surfaces.background)
+                        .padding(bottom = if (chromeVisible) dimensions.bottomTabBarHeight else 0.dp),
                     transitionSpec = {
                         when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                             AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
@@ -190,8 +197,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     BarcodeComposeBottomTabBar(
                         selectedIndex = appUiState.selectedTab,
                         dark = dark,
+                        backdrop = navigationBackdrop,
                         onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                     )
                 }
             }

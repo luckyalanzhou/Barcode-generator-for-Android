@@ -21,10 +21,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -41,11 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -56,6 +56,9 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 
 private data class ComposeTabSpec(
     val label: String,
@@ -65,7 +68,7 @@ private data class ComposeTabSpec(
 )
 
 @Composable
-internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
+internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backdrop: HazeState, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
@@ -94,50 +97,36 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     BoxWithConstraints(
         modifier = modifier.fillMaxSize().padding(4.dp)
             .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(26.dp),
+                elevation = 6.dp,
+                shape = RoundedCornerShape(50),
                 clip = false,
-                ambientColor = selectedColor.copy(alpha = if (dark) .14f else .10f),
-                spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .24f else .09f),
+                ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .05f),
+                spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .18f else .08f),
             )
+            .clip(RoundedCornerShape(50))
+            .hazeEffect(backdrop) {
+                backgroundColor = themeColors.surfaces.background
+                blurRadius = 20.dp
+                noiseFactor = 0f
+                tints = listOf(HazeTint(themeColors.surfaces.surface.copy(alpha = if (dark) .72f else .64f)))
+            }
             .drawBehind {
-                val panelRadius = CornerRadius(size.height / 2f)
-                val panelBase = themeColors.surfaces.surface
-                val panelTint = selectedColor.copy(alpha = if (dark) .13f else .07f)
+                val rim = .75.dp.toPx()
+                val panelRadius = CornerRadius((size.height - rim) / 2f)
                 drawRoundRect(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            panelBase.copy(alpha = if (dark) .86f else .83f),
-                            panelBase.copy(alpha = if (dark) .78f else .72f),
-                            panelTint,
+                            themeColors.navigation.tabRimTop.copy(alpha = if (dark) .30f else .80f),
+                            themeColors.text.primary.copy(alpha = if (dark) .08f else .06f),
                         ),
                     ),
+                    topLeft = Offset(rim / 2, rim / 2),
+                    size = androidx.compose.ui.geometry.Size(size.width - rim, size.height - rim),
                     cornerRadius = panelRadius,
-                )
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            themeColors.navigation.tabRimTop.copy(alpha = if (dark) .72f else .86f),
-                            themeColors.navigation.tabRimBottom.copy(alpha = if (dark) .56f else .40f),
-                        ),
-                    ),
-                    cornerRadius = panelRadius,
-                    style = Stroke(width = 1.dp.toPx()),
-                )
-                drawLine(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            androidx.compose.ui.graphics.Color.Transparent,
-                            themeColors.navigation.tabHighlight.copy(alpha = if (dark) .56f else .72f),
-                            androidx.compose.ui.graphics.Color.White.copy(alpha = if (dark) .48f else .80f),
-                            androidx.compose.ui.graphics.Color.Transparent,
-                        ),
-                    ),
-                    start = Offset(size.height * .7f, 1.dp.toPx()),
-                    end = Offset(size.width - size.height * .7f, 1.dp.toPx()),
-                    strokeWidth = 1.dp.toPx(),
+                    style = Stroke(width = rim),
                 )
             }
+            .padding(horizontal = 6.dp, vertical = 6.dp)
             .pointerInput(Unit) {
             detectHorizontalDragGestures(
                 onDragStart = { position ->
@@ -171,47 +160,19 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         val tabWidth = (maxWidth - 12.dp) / tabs.size
         val indicatorOffset = (tabWidth + 4.dp) * dragProgress
         Box(
-            // 液态玻璃包住完整的图标+文字单元；外层 itemScale 让二者保持同一套动画。
-            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(56.dp)
+            // The selected capsule stays inside the panel's 6dp inset on all four sides.
+            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
-                .shadow(
-                    elevation = 5.dp,
-                    shape = RoundedCornerShape(18.dp),
-                    clip = false,
-                    ambientColor = selectedColor.copy(alpha = if (dark) .17f else .12f),
-                    spotColor = selectedColor.copy(alpha = if (dark) .20f else .10f),
-                )
                 .drawBehind {
-                    val inset = 1.5.dp.toPx()
-                    val rimTop = themeColors.navigation.tabRimTop
-                    val rimBottom = themeColors.navigation.tabRimBottom
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                themeColors.surfaces.surface.copy(alpha = if (dark) .46f else .72f),
-                                selectedColor.copy(alpha = if (dark) .16f else .10f),
-                                themeColors.surfaces.surface.copy(alpha = if (dark) .18f else .36f),
+                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .18f else .65f),
+                                selectedColor.copy(alpha = if (dark) .14f else .08f),
                             ),
                         ),
-                        cornerRadius = CornerRadius(18.dp.toPx()),
-                    )
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                rimTop.copy(alpha = if (dark) .88f else .96f),
-                                rimBottom.copy(alpha = if (dark) .72f else .62f),
-                            ),
-                        ),
-                        cornerRadius = CornerRadius(18.dp.toPx()),
-                        style = Stroke(width = 1.15.dp.toPx()),
-                    )
-                    drawRoundRect(
-                        color = themeColors.navigation.tabHighlight,
-                        topLeft = Offset(inset, inset),
-                        size = Size(size.width - inset * 2f, size.height - inset * 2f),
-                        cornerRadius = CornerRadius(16.5.dp.toPx()),
-                        style = Stroke(width = 0.55.dp.toPx()),
+                        cornerRadius = CornerRadius(size.height / 2f),
                     )
                 }
         )
@@ -244,7 +205,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     label = "tab-tap-jelly-scale-$index",
                 )
                 Box(
-                    modifier = Modifier.weight(1f).graphicsLayer {
+                    modifier = Modifier.weight(1f).fillMaxHeight().graphicsLayer {
                         scaleX = itemScale.value
                         scaleY = itemScale.value
                     }
