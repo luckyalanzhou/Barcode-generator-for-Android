@@ -65,7 +65,7 @@ internal fun LanShareMessageBubble(
         preview?.let { fitLanSharePreviewSize(it.width, it.height) }
     }
     val bubbleColor = when {
-        mine -> themeColors.controls.progress.copy(alpha = .44f)
+        mine -> themeColors.controls.accent.copy(alpha = .44f)
         peerColorIndex != null -> lanSharePeerBubbleColor(peerColorIndex, dark)
         else -> themeColors.surfaces.overlay
     }

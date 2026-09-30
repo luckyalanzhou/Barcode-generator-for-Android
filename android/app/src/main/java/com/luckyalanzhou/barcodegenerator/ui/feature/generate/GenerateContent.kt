@@ -190,7 +190,7 @@ internal fun GenerateContent(
 
         val count = values.count { it.trim().isNotEmpty() }
         val generateEnabled = count > 0 && !isPreparingResult
-        val generateContainer = if (generateEnabled) themeColors.controls.progress else themeColors.controls.button
+        val generateContainer = if (generateEnabled) themeColors.controls.accent else themeColors.controls.button
         val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ComposeGenerateActionButton(

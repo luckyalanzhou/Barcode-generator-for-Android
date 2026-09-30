@@ -10,7 +10,7 @@ internal val DarkAppColorScheme = AppColorScheme(
         placeholder = AppColorTokens.Dark.placeholder,
         disabled = AppColorTokens.Dark.disabled,
         destructive = AppColorTokens.Dark.destructive,
-        link = AppColorTokens.Dark.link,
+        link = AppColorTokens.Dark.accent,
         onAccent = AppColorTokens.Dark.onAccent,
     ),
     settingsText = AppSettingsTextColors(
@@ -29,7 +29,6 @@ internal val DarkAppColorScheme = AppColorScheme(
     controls = AppControlColors(
         accent = AppColorTokens.Dark.accent,
         button = AppColorTokens.Dark.button,
-        progress = AppColorTokens.Dark.progress,
         progressTrack = AppColorTokens.Dark.progressTrack,
         thumb = AppColorTokens.white,
         toggleOn = AppColorTokens.Dark.toggleOn,
@@ -42,13 +41,13 @@ internal val DarkAppColorScheme = AppColorScheme(
         button = AppColorTokens.Dark.buttonBorder,
         card = AppColorTokens.Dark.cardBorder,
         input = AppColorTokens.Dark.inputBorder,
-        focusedInput = AppColorTokens.Dark.focusedInputBorder,
+        focusedInput = AppColorTokens.Dark.accent.copy(alpha = .72f),
         divider = AppColorTokens.Dark.divider,
     ),
     navigation = AppNavigationColors(
         tabUnselected = AppColorTokens.Dark.tabUnselected,
         tabRimTop = AppColorTokens.tabRimTopDark,
-        tabRimBottom = AppColorTokens.Dark.tabRimBottom,
+        tabRimBottom = AppColorTokens.Dark.accent.copy(alpha = .62f),
         tabHighlight = AppColorTokens.tabHighlightDark,
     ),
     content = AppContentColors(
@@ -64,7 +63,7 @@ internal val DarkAppColorScheme = AppColorScheme(
         qrBackground = AppColorTokens.Dark.qrBackground,
     ),
     sliders = AppSliderColors(
-        activeTrack = AppColorTokens.Dark.sliderActiveTrack,
+        activeTrack = AppColorTokens.Dark.accent,
         inactiveTrack = AppColorTokens.Dark.sliderInactiveTrack,
         thumbBorder = AppColorTokens.Dark.sliderThumbBorder,
         thumb = AppColorTokens.Dark.sliderThumb,

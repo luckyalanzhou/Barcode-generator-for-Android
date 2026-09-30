@@ -27,7 +27,7 @@ internal fun LanShareTextMessageBubble(
     val colors = LocalAppColorScheme.current
     val mine = message.sender == "app"
     val bubbleColor = when {
-        mine -> colors.controls.progress.copy(alpha = .44f)
+        mine -> colors.controls.accent.copy(alpha = .44f)
         peerColorIndex != null -> lanSharePeerBubbleColor(peerColorIndex, dark)
         else -> colors.surfaces.overlay
     }

@@ -102,7 +102,7 @@ internal fun DialogAction(
         else -> colors.text.primary
     }
     val border = if (primary) foreground.copy(alpha = 0.62f) else colors.borders.border
-    val background = if (primary) colors.controls.progress else colors.controls.button
+    val background = if (primary) colors.controls.accent else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier

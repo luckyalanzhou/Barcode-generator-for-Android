@@ -35,7 +35,7 @@ private fun ComposeSegmentedProgress(progress: Int) {
         animationSpec = tween(durationMillis = animation.progressDurationMillis),
         label = "downloadProgress",
     )
-    val fill = LocalAppColorScheme.current.controls.progress
+    val fill = LocalAppColorScheme.current.controls.accent
     val track = LocalAppColorScheme.current.controls.progressTrack
     val highlight = LocalAppColorScheme.current.controls.progressHighlight
     Canvas(
@@ -63,7 +63,7 @@ private fun ComposeSegmentedProgress(progress: Int) {
 
 @Composable
 private fun ComposeIndeterminateProgress() {
-    val fill = LocalAppColorScheme.current.controls.progress
+    val fill = LocalAppColorScheme.current.controls.accent
     val track = LocalAppColorScheme.current.controls.progressTrack
     val transition = rememberInfiniteTransition(label = "downloadIndeterminate")
     val offset = transition.animateFloat(

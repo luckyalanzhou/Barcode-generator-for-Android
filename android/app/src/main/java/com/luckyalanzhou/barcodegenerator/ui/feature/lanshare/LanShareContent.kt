@@ -112,7 +112,7 @@ internal fun LanShareContent(
     val secondary = themeColors.text.secondary
     val panel = themeColors.surfaces.surface
     val inputPanel = themeColors.surfaces.inputPanel
-    val accent = themeColors.controls.progress
+    val accent = themeColors.controls.accent
     val qrOpen = lanState.qrVisible
     var imagePreview by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
     var attachmentMenu by remember { mutableStateOf(false) }

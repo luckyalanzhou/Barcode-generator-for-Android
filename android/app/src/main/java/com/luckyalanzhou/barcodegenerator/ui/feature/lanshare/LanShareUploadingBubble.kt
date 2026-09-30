@@ -31,7 +31,7 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingFile, onCancel: ()
     val colors = LocalAppColorScheme.current
     val shape = RoundedCornerShape(18.dp)
     val progress = (upload.progressPercent / 100f).coerceIn(0f, 1f)
-    val fill = colors.controls.progress.copy(alpha = .38f)
+    val fill = colors.controls.accent.copy(alpha = .38f)
     val track = colors.surfaces.overlay
     val label = colors.text.primary
 

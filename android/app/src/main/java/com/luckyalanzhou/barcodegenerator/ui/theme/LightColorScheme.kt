@@ -10,7 +10,7 @@ internal val LightAppColorScheme = AppColorScheme(
         placeholder = AppColorTokens.Light.placeholder,
         disabled = AppColorTokens.Light.disabled,
         destructive = AppColorTokens.Light.destructive,
-        link = AppColorTokens.black,
+        link = AppColorTokens.Light.accent,
         onAccent = AppColorTokens.white,
     ),
     settingsText = AppSettingsTextColors(
@@ -29,7 +29,6 @@ internal val LightAppColorScheme = AppColorScheme(
     controls = AppControlColors(
         accent = AppColorTokens.Light.accent,
         button = AppColorTokens.Light.button,
-        progress = AppColorTokens.Light.progress,
         progressTrack = AppColorTokens.Light.progressTrack,
         thumb = AppColorTokens.white,
         toggleOn = AppColorTokens.Light.toggleOn,
@@ -42,13 +41,13 @@ internal val LightAppColorScheme = AppColorScheme(
         button = AppColorTokens.Light.buttonBorder,
         card = AppColorTokens.Light.cardBorder,
         input = AppColorTokens.Light.inputBorder,
-        focusedInput = AppColorTokens.Light.focusedInputBorder,
+        focusedInput = AppColorTokens.Light.accent.copy(alpha = .76f),
         divider = AppColorTokens.Light.divider,
     ),
     navigation = AppNavigationColors(
         tabUnselected = AppColorTokens.Light.tabUnselected,
         tabRimTop = AppColorTokens.tabRimTopLight,
-        tabRimBottom = AppColorTokens.Light.tabRimBottom,
+        tabRimBottom = AppColorTokens.Light.accent.copy(alpha = .58f),
         tabHighlight = AppColorTokens.tabHighlightLight,
     ),
     content = AppContentColors(
@@ -64,7 +63,7 @@ internal val LightAppColorScheme = AppColorScheme(
         qrBackground = AppColorTokens.white,
     ),
     sliders = AppSliderColors(
-        activeTrack = AppColorTokens.Light.sliderActiveTrack,
+        activeTrack = AppColorTokens.Light.accent,
         inactiveTrack = AppColorTokens.Light.sliderInactiveTrack,
         thumbBorder = AppColorTokens.Light.sliderThumbBorder,
         thumb = AppColorTokens.Light.sliderThumb,
