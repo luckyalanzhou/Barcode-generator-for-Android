@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -90,7 +92,53 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     }
 
     BoxWithConstraints(
-        modifier = modifier.fillMaxSize().padding(4.dp).pointerInput(Unit) {
+        modifier = modifier.fillMaxSize().padding(4.dp)
+            .shadow(
+                elevation = 12.dp,
+                shape = RoundedCornerShape(26.dp),
+                clip = false,
+                ambientColor = selectedColor.copy(alpha = if (dark) .14f else .10f),
+                spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .24f else .09f),
+            )
+            .drawBehind {
+                val panelRadius = CornerRadius(size.height / 2f)
+                val panelBase = themeColors.surfaces.surface
+                val panelTint = selectedColor.copy(alpha = if (dark) .13f else .07f)
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            panelBase.copy(alpha = if (dark) .86f else .83f),
+                            panelBase.copy(alpha = if (dark) .78f else .72f),
+                            panelTint,
+                        ),
+                    ),
+                    cornerRadius = panelRadius,
+                )
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            themeColors.navigation.tabRimTop.copy(alpha = if (dark) .72f else .86f),
+                            themeColors.navigation.tabRimBottom.copy(alpha = if (dark) .56f else .40f),
+                        ),
+                    ),
+                    cornerRadius = panelRadius,
+                    style = Stroke(width = 1.dp.toPx()),
+                )
+                drawLine(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            androidx.compose.ui.graphics.Color.Transparent,
+                            themeColors.navigation.tabHighlight.copy(alpha = if (dark) .56f else .72f),
+                            androidx.compose.ui.graphics.Color.White.copy(alpha = if (dark) .48f else .80f),
+                            androidx.compose.ui.graphics.Color.Transparent,
+                        ),
+                    ),
+                    start = Offset(size.height * .7f, 1.dp.toPx()),
+                    end = Offset(size.width - size.height * .7f, 1.dp.toPx()),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+            .pointerInput(Unit) {
             detectHorizontalDragGestures(
                 onDragStart = { position ->
                     dragging = true
@@ -127,6 +175,13 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).height(56.dp)
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
+                .shadow(
+                    elevation = 5.dp,
+                    shape = RoundedCornerShape(18.dp),
+                    clip = false,
+                    ambientColor = selectedColor.copy(alpha = if (dark) .17f else .12f),
+                    spotColor = selectedColor.copy(alpha = if (dark) .20f else .10f),
+                )
                 .drawBehind {
                     val inset = 1.5.dp.toPx()
                     val rimTop = themeColors.navigation.tabRimTop
@@ -134,12 +189,22 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                rimTop,
-                                rimBottom,
+                                themeColors.surfaces.surface.copy(alpha = if (dark) .46f else .72f),
+                                selectedColor.copy(alpha = if (dark) .16f else .10f),
+                                themeColors.surfaces.surface.copy(alpha = if (dark) .18f else .36f),
                             ),
                         ),
                         cornerRadius = CornerRadius(18.dp.toPx()),
-                        style = Stroke(width = 1.35.dp.toPx()),
+                    )
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                rimTop.copy(alpha = if (dark) .88f else .96f),
+                                rimBottom.copy(alpha = if (dark) .72f else .62f),
+                            ),
+                        ),
+                        cornerRadius = CornerRadius(18.dp.toPx()),
+                        style = Stroke(width = 1.15.dp.toPx()),
                     )
                     drawRoundRect(
                         color = themeColors.navigation.tabHighlight,
