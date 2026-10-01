@@ -129,12 +129,13 @@ internal fun BarcodeComposeBottomTabBar(
     )
     val glassImpactProgress by animateFloatAsState(
         targetValue = glassImpact,
-        animationSpec = spring(dampingRatio = 0.58f, stiffness = 720f),
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 820f),
         label = "liquid-glass-tab-impact",
     )
 
     fun pulseGlass(amount: Float) {
-        glassImpact = amount.coerceIn(0f, 0.14f)
+        // Keep the capsule response visible but restrained; tab content itself never distorts.
+        glassImpact = amount.coerceIn(0f, 0.035f)
         glassImpactGeneration += 1
         val generation = glassImpactGeneration
         tapScope.launch {
@@ -153,7 +154,7 @@ internal fun BarcodeComposeBottomTabBar(
     fun handleTabClick(index: Int) {
         if (index != selectedIndex) performTabSwitchHaptic()
         if (index != selectedIndex) dragDirection = if (index > selectedIndex) 1f else -1f
-        pulseGlass(if (index == selectedIndex) .035f else .085f)
+        pulseGlass(if (index == selectedIndex) .014f else .03f)
         onTabSelected(index, false)
         tapPulseTab = index
         tapPulseGeneration += 1
@@ -172,7 +173,7 @@ internal fun BarcodeComposeBottomTabBar(
                 detectHorizontalDragGestures(
                     onDragStart = { position ->
                         dragging = true
-                        pulseGlass(.035f)
+                        pulseGlass(.014f)
                         dragProgress = selectedProgress
                         val tabWidth = size.width.toFloat() / tabs.size
                         dragProgress = (position.x / tabWidth - .5f)
@@ -188,19 +189,19 @@ internal fun BarcodeComposeBottomTabBar(
                         val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                         if (target != lastTarget) {
                             lastTarget = target
-                            pulseGlass(.105f)
+                            pulseGlass(.032f)
                             performTabSwitchHaptic()
                             onTabSelected(target, true)
                         }
                     },
                     onDragEnd = {
                         dragging = false
-                        pulseGlass(.07f)
+                        pulseGlass(.022f)
                         onTabSelected(lastTarget, true)
                     },
                     onDragCancel = {
                         dragging = false
-                        pulseGlass(.04f)
+                        pulseGlass(.014f)
                     },
                 )
             }
@@ -214,40 +215,40 @@ internal fun BarcodeComposeBottomTabBar(
                 modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxHeight()
                     .align(Alignment.CenterStart)
                     .graphicsLayer {
-                        scaleX = 1f + glassImpactProgress + if (dragging) .025f else 0f
-                        scaleY = 1f - glassImpactProgress * .26f
+                        scaleX = 1f + glassImpactProgress + if (dragging) .005f else 0f
+                        scaleY = 1f - glassImpactProgress * .12f
                         transformOrigin = TransformOrigin(
                             pivotFractionX = if (dragDirection > 0f) 0f else 1f,
                             pivotFractionY = .5f,
                         )
                     }
                     .shadow(
-                        elevation = if (dark) .8.dp else 2.5.dp,
+                        elevation = if (dark) .35.dp else 1.25.dp,
                         shape = indicatorShape,
                         clip = false,
-                        ambientColor = Color.Black.copy(alpha = if (dark) .10f else .06f),
-                        spotColor = Color.Black.copy(alpha = if (dark) .13f else .10f),
+                        ambientColor = Color.Black.copy(alpha = if (dark) .08f else .045f),
+                        spotColor = Color.Black.copy(alpha = if (dark) .10f else .07f),
                     )
                     .drawBehind {
-                        val outline = .8.dp.toPx()
+                        val outline = .65.dp.toPx()
                         val corner = CornerRadius(size.height / 2f)
                         val fill = if (dark) {
                             listOf(
-                                Color.White.copy(alpha = .19f),
-                                Color.White.copy(alpha = .09f),
-                                Color.Black.copy(alpha = .22f),
+                                Color.White.copy(alpha = .105f),
+                                Color.White.copy(alpha = .065f),
+                                selectedColor.copy(alpha = .045f),
                             )
                         } else {
                             listOf(
-                                Color.White.copy(alpha = .94f),
-                                selectedColor.copy(alpha = .16f),
-                                Color.White.copy(alpha = .62f),
+                                Color.White.copy(alpha = .78f),
+                                selectedColor.copy(alpha = .075f),
+                                Color.White.copy(alpha = .56f),
                             )
                         }
                         val rim = if (dark) {
-                            listOf(Color.White.copy(alpha = .32f), Color.White.copy(alpha = .10f))
+                            listOf(Color.White.copy(alpha = .19f), Color.White.copy(alpha = .075f))
                         } else {
-                            listOf(Color.White.copy(alpha = .92f), selectedColor.copy(alpha = .28f))
+                            listOf(Color.White.copy(alpha = .76f), selectedColor.copy(alpha = .16f))
                         }
                         drawRoundRect(
                             brush = Brush.verticalGradient(fill),
@@ -256,8 +257,8 @@ internal fun BarcodeComposeBottomTabBar(
                         drawRoundRect(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = if (dark) .24f else .56f),
-                                    Color.White.copy(alpha = if (dark) .07f else .14f),
+                                    Color.White.copy(alpha = if (dark) .13f else .30f),
+                                    Color.White.copy(alpha = if (dark) .045f else .09f),
                                     Color.Transparent,
                                 ),
                                 center = Offset(size.width * if (dragDirection > 0f) .26f else .74f, size.height * .12f),
