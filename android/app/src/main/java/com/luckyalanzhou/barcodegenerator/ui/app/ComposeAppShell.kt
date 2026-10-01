@@ -24,6 +24,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,10 +37,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.flow.collect
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -106,6 +111,12 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
     val pageBackdrop = remember { HazeState() }
+    var tabMenuState by remember { mutableStateOf<TabLongPressMenuState?>(null) }
+    val tabMenuBackdropBlur by animateDpAsState(
+        targetValue = if (tabMenuState == null) 0.dp else 20.dp,
+        animationSpec = tween(190, easing = FastOutSlowInEasing),
+        label = "tab-menu-background-blur",
+    )
     val tabEnterOffset = with(LocalDensity.current) { 20.dp.roundToPx() }
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
@@ -117,6 +128,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         dependencies.libraryDataViewModel.persistenceFailures.collect {
             dependencies.actions.notice("数据保存失败，请稍后重试")
         }
+    }
+    BackHandler(enabled = tabMenuState != null) {
+        tabMenuState = null
     }
     LaunchedEffect(updateUiState.dialogShowing, updateUiState.availableVersion, updateUiState.availableUrl) {
         if (updateUiState.dialogShowing && updateUiState.availableVersion != null && updateUiState.availableUrl != null) {
@@ -130,86 +144,97 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val dimensions = LocalAppDimensions.current
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(
-                        top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,
-                        bottom = dimensions.pageBottomPadding,
-                    ),
+                modifier = Modifier.fillMaxSize().blur(tabMenuBackdropBlur),
             ) {
-                Column(Modifier.fillMaxSize().background(colors.surfaces.background)) {
-                    if (chromeVisible) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(
-                                if (currentRoute == AppRoute.Settings) dimensions.settingsHeaderHeight else dimensions.pageHeaderHeight,
-                            ),
-                            contentAlignment = Alignment.TopCenter,
-                        ) {
-                            Text(
-                                text = currentRoute.title,
-                                modifier = Modifier.fillMaxWidth(),
-                                color = colors.text.primary,
-                                fontSize = 25.sp,
-                                fontWeight = FontWeight.Medium,
-                                textAlign = TextAlign.Center,
-                            )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(
+                            top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,
+                            bottom = dimensions.pageBottomPadding,
+                        ),
+                ) {
+                    Column(Modifier.fillMaxSize().background(colors.surfaces.background)) {
+                        if (chromeVisible) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(
+                                    if (currentRoute == AppRoute.Settings) dimensions.settingsHeaderHeight else dimensions.pageHeaderHeight,
+                                ),
+                                contentAlignment = Alignment.TopCenter,
+                            ) {
+                                Text(
+                                    text = currentRoute.title,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = colors.text.primary,
+                                    fontSize = 25.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                         }
-                    }
 
-                    AnimatedContent(
-                        targetState = currentRoute,
-                        // Keep scrollable content behind the floating navigation rail;
-                        // main-tab lists reserve a trailing inset so their final items remain reachable.
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                            .background(colors.surfaces.background)
-                            .hazeSource(pageBackdrop, zIndex = 0f),
-                        transitionSpec = {
-                            when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
-                                AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
-                                AppPageTransitionKind.TAB_SWIPE, AppPageTransitionKind.TAB_SELECTION ->
-                                    (slideInVertically(
-                                        animationSpec = tween(
-                                            ComposeAnimationConfig.tabSelectionEnterDurationMillis,
-                                            easing = FastOutSlowInEasing,
-                                        ),
-                                    ) { tabEnterOffset } togetherWith ExitTransition.None).apply {
-                                        targetContentZIndex = 1f
-                                    } using SizeTransform(clip = true)
-                                AppPageTransitionKind.SECONDARY_PAGE ->
-                                    fadeIn(tween(ComposeAnimationConfig.pageFadeInDurationMillis)) togetherWith
-                                        fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
-                            }
-                        },
-                        label = "pageTransition",
-                    ) { targetPage ->
-                        // Keep the title stationary while only the page body enters from below.
-                        Box(
-                            Modifier.fillMaxSize()
+                        AnimatedContent(
+                            targetState = currentRoute,
+                            // Keep scrollable content behind the floating navigation rail;
+                            // main-tab lists reserve a trailing inset so their final items remain reachable.
+                            modifier = Modifier.fillMaxWidth().weight(1f)
                                 .background(colors.surfaces.background)
-                                .padding(horizontal = dimensions.pageHorizontalPadding),
-                        ) {
-                            pageStateHolder.SaveableStateProvider(targetPage.pageName) {
-                                ComposePageRenderer(dependencies, targetPage, dark)
+                                .hazeSource(pageBackdrop, zIndex = 0f),
+                            transitionSpec = {
+                                when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
+                                    AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
+                                    AppPageTransitionKind.TAB_SWIPE, AppPageTransitionKind.TAB_SELECTION ->
+                                        (slideInVertically(
+                                            animationSpec = tween(
+                                                ComposeAnimationConfig.tabSelectionEnterDurationMillis,
+                                                easing = FastOutSlowInEasing,
+                                            ),
+                                        ) { tabEnterOffset } togetherWith ExitTransition.None).apply {
+                                            targetContentZIndex = 1f
+                                        } using SizeTransform(clip = true)
+                                    AppPageTransitionKind.SECONDARY_PAGE ->
+                                        fadeIn(tween(ComposeAnimationConfig.pageFadeInDurationMillis)) togetherWith
+                                            fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
+                                }
+                            },
+                            label = "pageTransition",
+                        ) { targetPage ->
+                            // Keep the title stationary while only the page body enters from below.
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .background(colors.surfaces.background)
+                                    .padding(horizontal = dimensions.pageHorizontalPadding),
+                            ) {
+                                pageStateHolder.SaveableStateProvider(targetPage.pageName) {
+                                    ComposePageRenderer(dependencies, targetPage, dark)
+                                }
                             }
                         }
                     }
+                    if (chromeVisible) {
+                        BarcodeComposeBottomTabBar(
+                            selectedIndex = appUiState.selectedTab,
+                            dark = dark,
+                            pageBackdrop = pageBackdrop,
+                            onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
+                            onHistoryClear = dependencies.actions::clearHistory,
+                            onFavoritesImport = dependencies.actions::restoreFavorites,
+                            onFavoritesExport = dependencies.actions::exportFavorites,
+                            onCheckForUpdates = dependencies.actions::checkForUpdates,
+                            onLongPressActionMenuRequested = { tabMenuState = it },
+                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
+                        )
+                    }
                 }
-                if (chromeVisible) {
-                    BarcodeComposeBottomTabBar(
-                        selectedIndex = appUiState.selectedTab,
-                        dark = dark,
-                        pageBackdrop = pageBackdrop,
-                        onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
-                        onHistoryClear = dependencies.actions::clearHistory,
-                        onFavoritesImport = dependencies.actions::restoreFavorites,
-                        onFavoritesExport = dependencies.actions::exportFavorites,
-                        onCheckForUpdates = dependencies.actions::checkForUpdates,
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                            .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
-                    )
-                }
+            }
+            tabMenuState?.let { menuState ->
+                TabLongPressActionOverlay(
+                    state = menuState,
+                    onDismiss = { tabMenuState = null },
+                )
             }
         }
     }

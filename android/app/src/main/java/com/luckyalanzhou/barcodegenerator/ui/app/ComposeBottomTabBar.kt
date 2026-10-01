@@ -103,6 +103,7 @@ internal fun BarcodeComposeBottomTabBar(
     onFavoritesImport: () -> Unit,
     onFavoritesExport: () -> Unit,
     onCheckForUpdates: () -> Unit,
+    onLongPressActionMenuRequested: (TabLongPressMenuState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tabs = remember {
@@ -131,9 +132,6 @@ internal fun BarcodeComposeBottomTabBar(
     var settleGeneration by remember { mutableIntStateOf(0) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
-    var showHistoryMenu by remember { mutableStateOf(false) }
-    var showFavoritesMenu by remember { mutableStateOf(false) }
-    var showSettingsMenu by remember { mutableStateOf(false) }
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
     val tapScope = rememberCoroutineScope()
     val glassInteractionSource = remember { MutableInteractionSource() }
@@ -414,19 +412,44 @@ internal fun BarcodeComposeBottomTabBar(
                         onClick = { handleTabClick(index, itemCenterPx) },
                         onLongClick = {
                             hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            if (index == 1) {
-                                showFavoritesMenu = false
-                                showSettingsMenu = false
-                                showHistoryMenu = true
-                            } else if (index == 2) {
-                                showHistoryMenu = false
-                                showSettingsMenu = false
-                                showFavoritesMenu = true
-                            } else {
-                                showHistoryMenu = false
-                                showFavoritesMenu = false
-                                showSettingsMenu = true
+                            val actions = when (index) {
+                                1 -> listOf(
+                                    TabLongPressAction(
+                                        label = "清空历史记录",
+                                        icon = DeleteIcon,
+                                        onClick = onHistoryClear,
+                                    ),
+                                )
+                                2 -> listOf(
+                                    TabLongPressAction(
+                                        label = "导入收藏",
+                                        icon = CloudDownloadIcon,
+                                        onClick = onFavoritesImport,
+                                    ),
+                                    TabLongPressAction(
+                                        label = "导出收藏",
+                                        icon = CloudUploadIcon,
+                                        onClick = onFavoritesExport,
+                                    ),
+                                )
+                                else -> listOf(
+                                    TabLongPressAction(
+                                        label = "检查更新",
+                                        icon = UpgradeIcon,
+                                        onClick = onCheckForUpdates,
+                                    ),
+                                )
                             }
+                            onLongPressActionMenuRequested(
+                                TabLongPressMenuState(
+                                    anchorBoundsOnScreen = tabBoundsOnScreen[index],
+                                    focusIcon = if (selected) tab.selectedIcon else null,
+                                    focusLabel = if (selected) tab.label else null,
+                                    focusTint = itemColor,
+                                    dark = dark,
+                                    actions = actions,
+                                ),
+                            )
                         },
                     )
                 } else {
@@ -473,66 +496,6 @@ internal fun BarcodeComposeBottomTabBar(
                             },
                         )
                         Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                    }
-                    if (index == 1) {
-                        if (showHistoryMenu) {
-                            TabLongPressActionDialog(
-                                dark = dark,
-                                anchorBoundsOnScreen = tabBoundsOnScreen[index],
-                                focusIcon = if (selected) tab.selectedIcon else null,
-                                focusLabel = if (selected) tab.label else null,
-                                focusTint = itemColor,
-                                actions = listOf(
-                                    TabLongPressAction(
-                                        label = "清空历史记录",
-                                        icon = DeleteIcon,
-                                        onClick = onHistoryClear,
-                                    ),
-                                ),
-                                onDismiss = { showHistoryMenu = false },
-                            )
-                        }
-                    }
-                    if (index == 2) {
-                        if (showFavoritesMenu) {
-                            TabLongPressActionDialog(
-                                dark = dark,
-                                anchorBoundsOnScreen = tabBoundsOnScreen[index],
-                                focusIcon = if (selected) tab.selectedIcon else null,
-                                focusLabel = if (selected) tab.label else null,
-                                focusTint = itemColor,
-                                actions = listOf(
-                                    TabLongPressAction(
-                                        label = "导入收藏",
-                                        icon = CloudDownloadIcon,
-                                        onClick = onFavoritesImport,
-                                    ),
-                                    TabLongPressAction(
-                                        label = "导出收藏",
-                                        icon = CloudUploadIcon,
-                                        onClick = onFavoritesExport,
-                                    ),
-                                ),
-                                onDismiss = { showFavoritesMenu = false },
-                            )
-                        }
-                    }
-                    if (index == 3 && showSettingsMenu) {
-                        TabLongPressActionDialog(
-                            dark = dark,
-                            anchorBoundsOnScreen = tabBoundsOnScreen[index],
-                            focusIcon = if (selected) tab.selectedIcon else null,
-                            focusLabel = if (selected) tab.label else null,
-                            focusTint = itemColor,
-                            actions = listOf(
-                                TabLongPressAction(
-                                    label = "检查更新",
-                                    icon = UpgradeIcon,
-                                    onClick = onCheckForUpdates,
-                                ),
-                            ),
-                            onDismiss = { showSettingsMenu = false },
-                        )
                     }
                 }
             }
