@@ -119,6 +119,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     treeState = favoriteTree,
                     query = favoriteQuery,
                     savedListPosition = dependencies.favoritesViewModel.position(),
+                    scrollToTopEvents = dependencies.favoritesViewModel.scrollToTopEvents,
                     dark = dark,
                     style = settings.style,
                     onQueryChange = dependencies.favoritesViewModel::updateQuery,

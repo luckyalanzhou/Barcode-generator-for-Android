@@ -139,52 +139,57 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         bottom = dimensions.pageBottomPadding,
                     ),
             ) {
-                AnimatedContent(
-                    targetState = currentRoute,
-                    // Keep scrollable content behind the floating navigation rail;
-                    // main-tab lists reserve a trailing inset so their final items remain reachable.
-                    modifier = Modifier.fillMaxSize()
-                        .background(colors.surfaces.background)
-                        .hazeSource(pageBackdrop, zIndex = 0f),
-                    transitionSpec = {
-                        when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
-                            AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
-                            AppPageTransitionKind.TAB_SWIPE, AppPageTransitionKind.TAB_SELECTION ->
-                                (slideInVertically(
-                                    animationSpec = tween(
-                                        ComposeAnimationConfig.tabSelectionEnterDurationMillis,
-                                        easing = FastOutSlowInEasing,
-                                    ),
-                                ) { tabEnterOffset } togetherWith ExitTransition.None).apply {
-                                    targetContentZIndex = 1f
-                                } using SizeTransform(clip = true)
-                            AppPageTransitionKind.SECONDARY_PAGE ->
-                                fadeIn(tween(ComposeAnimationConfig.pageFadeInDurationMillis)) togetherWith
-                                    fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
+                Column(Modifier.fillMaxSize().background(colors.surfaces.background)) {
+                    if (chromeVisible) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(
+                                if (currentRoute == AppRoute.Settings) dimensions.settingsHeaderHeight else dimensions.pageHeaderHeight,
+                            ),
+                            contentAlignment = Alignment.TopCenter,
+                        ) {
+                            Text(
+                                text = currentRoute.title,
+                                modifier = Modifier.fillMaxWidth(),
+                                color = colors.text.primary,
+                                fontSize = 25.sp,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                            )
                         }
-                    },
-                    label = "pageTransition",
-                ) { targetPage ->
-                    // Incoming pages cover outgoing content instead of blending text.
-                    Column(Modifier.fillMaxSize().background(colors.surfaces.background)) {
-                        if (targetPage.chromeVisible) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(
-                                    if (targetPage == AppRoute.Settings) dimensions.settingsHeaderHeight else dimensions.pageHeaderHeight,
-                                ),
-                                contentAlignment = Alignment.TopCenter,
-                            ) {
-                                Text(
-                                    text = targetPage.title,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = colors.text.primary,
-                                    fontSize = 25.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    textAlign = TextAlign.Center,
-                                )
+                    }
+
+                    AnimatedContent(
+                        targetState = currentRoute,
+                        // Keep scrollable content behind the floating navigation rail;
+                        // main-tab lists reserve a trailing inset so their final items remain reachable.
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                            .background(colors.surfaces.background)
+                            .hazeSource(pageBackdrop, zIndex = 0f),
+                        transitionSpec = {
+                            when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
+                                AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
+                                AppPageTransitionKind.TAB_SWIPE, AppPageTransitionKind.TAB_SELECTION ->
+                                    (slideInVertically(
+                                        animationSpec = tween(
+                                            ComposeAnimationConfig.tabSelectionEnterDurationMillis,
+                                            easing = FastOutSlowInEasing,
+                                        ),
+                                    ) { tabEnterOffset } togetherWith ExitTransition.None).apply {
+                                        targetContentZIndex = 1f
+                                    } using SizeTransform(clip = true)
+                                AppPageTransitionKind.SECONDARY_PAGE ->
+                                    fadeIn(tween(ComposeAnimationConfig.pageFadeInDurationMillis)) togetherWith
+                                        fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
                             }
-                        }
-                        Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = dimensions.pageHorizontalPadding)) {
+                        },
+                        label = "pageTransition",
+                    ) { targetPage ->
+                        // Keep the title stationary while only the page body enters from below.
+                        Box(
+                            Modifier.fillMaxSize()
+                                .background(colors.surfaces.background)
+                                .padding(horizontal = dimensions.pageHorizontalPadding),
+                        ) {
                             pageStateHolder.SaveableStateProvider(targetPage.pageName) {
                                 ComposePageRenderer(dependencies, targetPage, dark)
                             }

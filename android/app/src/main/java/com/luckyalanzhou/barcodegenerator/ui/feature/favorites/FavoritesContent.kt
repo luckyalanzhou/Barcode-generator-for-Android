@@ -82,6 +82,7 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
@@ -92,6 +93,7 @@ internal fun FavoritesContent(
     treeState: FavoriteTreeUiState,
     query: String,
     savedListPosition: Pair<Int, Int>,
+    scrollToTopEvents: Flow<Unit>,
     dark: Boolean,
     style: StyleSettings,
     onQueryChange: (String) -> Unit,
@@ -151,6 +153,13 @@ internal fun FavoritesContent(
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) -> onRememberListPosition(index, offset) }
+    }
+
+    LaunchedEffect(listState, listPositionRestored, scrollToTopEvents) {
+        if (!listPositionRestored) return@LaunchedEffect
+        scrollToTopEvents.collect {
+            listState.animateScrollToItem(0)
+        }
     }
 
     val visibleCollapsedFolders = effectiveCollapsedFavoriteFolders(

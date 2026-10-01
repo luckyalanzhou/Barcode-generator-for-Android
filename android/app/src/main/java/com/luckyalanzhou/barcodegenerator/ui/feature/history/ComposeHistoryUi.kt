@@ -86,7 +86,7 @@ internal fun HistoryComposePage(
     var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
     LaunchedEffect(refreshGeneration) {
         if (appliedRefreshGeneration != refreshGeneration) {
-            listState.scrollToItem(0)
+            listState.animateScrollToItem(0)
             appliedRefreshGeneration = refreshGeneration
         }
     }

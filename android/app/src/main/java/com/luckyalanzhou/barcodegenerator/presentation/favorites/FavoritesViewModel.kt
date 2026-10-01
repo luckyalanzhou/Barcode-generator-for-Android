@@ -5,10 +5,13 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -46,11 +49,13 @@ class FavoritesViewModel @Inject constructor(
     private var searchJob: Job? = null
     private var groupLoadJob: Job? = null
     private var groupLoadRequest = 0L
+    private val scrollToTopRequests = Channel<Unit>(Channel.BUFFERED)
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
     val searchState: StateFlow<BarcodeDataState> = querySession.searchState
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
     val query: StateFlow<String> = pageState.query
+    val scrollToTopEvents: Flow<Unit> = scrollToTopRequests.receiveAsFlow()
     init {
         viewModelScope.launch {
             dataSession.loadMetadata.collect { metadata ->
@@ -90,6 +95,9 @@ class FavoritesViewModel @Inject constructor(
             .filter { it.isNotBlank() }
             .toSet()
         pageState.collapseAllFolders(folders)
+    }
+    fun requestScrollToTop() {
+        scrollToTopRequests.trySend(Unit)
     }
     fun toggleFolder(path: String, folders: Set<String>) = pageState.toggleFolder(path, folders)
     fun updateSearch(expandedPaths: Set<String>, searching: Boolean) =

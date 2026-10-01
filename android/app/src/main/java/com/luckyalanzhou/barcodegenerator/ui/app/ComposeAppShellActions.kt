@@ -64,7 +64,10 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         if (index == 1 && !fromSwipe) {
             historyViewModel.refreshHistory()
         }
-        if (index == 2 && !fromSwipe) favoritesViewModel.collapseAllFolders()
+        if (index == 2 && !fromSwipe) {
+            favoritesViewModel.collapseAllFolders()
+            favoritesViewModel.requestScrollToTop()
+        }
         if (index == 3 && navigationViewModel.uiState.value.page != AppRoute.Settings) {
             val current = navigationViewModel.uiState.value.page
             val returnPage = current.takeIf { it.mainTabIndex != null && it != AppRoute.Settings }
