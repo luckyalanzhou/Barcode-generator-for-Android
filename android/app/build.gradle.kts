@@ -107,6 +107,7 @@ dependencies {
     implementation(libs.compose.animation.core)
     implementation(libs.compose.material3)
     implementation(libs.haze)
+    implementation(libs.haze.glass)
     testImplementation(libs.junit)
     implementation(libs.zxing.core)
     implementation(libs.androidx.core.ktx)

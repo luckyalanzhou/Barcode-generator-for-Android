@@ -285,7 +285,7 @@ internal fun FavoritesContent(
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 20.dp),
+            contentPadding = PaddingValues(bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
 

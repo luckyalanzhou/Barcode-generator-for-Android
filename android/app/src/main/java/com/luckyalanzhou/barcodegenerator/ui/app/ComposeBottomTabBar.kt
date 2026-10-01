@@ -15,9 +15,11 @@ import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,11 +31,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,6 +52,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -60,8 +63,12 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.ExperimentalHazeApi
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.glass.GlassStyle
+import dev.chrisbanes.haze.glass.GlassTransformPivot
+import dev.chrisbanes.haze.glass.GlassTransformTarget
+import dev.chrisbanes.haze.glass.hazeGlass
 
 private data class ComposeTabSpec(
     val label: String,
@@ -71,6 +78,7 @@ private data class ComposeTabSpec(
 )
 
 @Composable
+@OptIn(ExperimentalHazeApi::class)
 internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backdrop: HazeState, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tabs = remember {
         listOf(
@@ -91,26 +99,43 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
     val tapScope = rememberCoroutineScope()
-
-    LaunchedEffect(selectedIndex, dragging) {
-        if (!dragging) {
-            dragProgress = selectedIndex.toFloat()
+    val glassInteractionSource = remember { MutableInteractionSource() }
+    val selectedProgress by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+        label = "liquid-glass-tab-position",
+    )
+    val themeGlassStyle = remember(dark, themeColors.surfaces.surface) {
+        GlassStyle.regular.then {
+            tint(themeColors.surfaces.surface.copy(alpha = if (dark) 0.10f else 0.06f))
+            shape(RoundedCornerShape(50))
+            pressed {
+                lightingIntensity(0.9f)
+                refractionMultiplier(1.04f)
+                whitePointDelta(0.025f)
+            }
+            interactionLightRadiusFraction(0.72f)
+            interactionPositionAnimationSpec(
+                spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
+            )
         }
     }
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize().padding(4.dp)
-            .hazeEffect(backdrop) {
-                backgroundColor = themeColors.surfaces.background
-                blurRadius = 20.dp
-                noiseFactor = 0f
-                tints = listOf(HazeTint(themeColors.surfaces.surface.copy(alpha = if (dark) .18f else .10f)))
-            }
+            .hazeGlass(
+                input = HazeInput.Sources(backdrop),
+                style = themeGlassStyle,
+                interactionSource = glassInteractionSource,
+                interactionTransformTarget = GlassTransformTarget.MaterialOnly,
+                interactionTransformPivot = GlassTransformPivot.Pointer,
+            )
             .padding(horizontal = 6.dp, vertical = 6.dp)
             .pointerInput(Unit) {
             detectHorizontalDragGestures(
                 onDragStart = { position ->
                     dragging = true
+                    dragProgress = selectedProgress
                     val tabWidth = (size.width - 12.dp.toPx()) / tabs.size
                     val step = tabWidth + 4.dp.toPx()
                     dragProgress = ((position.x - tabWidth / 2f) / step)
@@ -139,7 +164,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
         }
     ) {
         val tabWidth = (maxWidth - 12.dp) / tabs.size
-        val indicatorOffset = (tabWidth + 4.dp) * dragProgress
+        val indicatorProgress = if (dragging) dragProgress else selectedProgress
+        val indicatorOffset = (tabWidth + 4.dp) * indicatorProgress
         Box(
             // Keep the selected capsule inset; there is no enclosing capsule border.
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
@@ -157,9 +183,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .42f else .86f),
-                                themeColors.surfaces.surface.copy(alpha = if (dark) .24f else .42f),
-                                selectedColor.copy(alpha = if (dark) .20f else .12f),
+                                Color.White.copy(alpha = if (dark) .22f else .56f),
+                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .32f else .38f),
+                                selectedColor.copy(alpha = if (dark) .16f else .10f),
                             ),
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
@@ -197,7 +223,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     label = "tab-item-color-$index",
                 )
                 val itemScale = animateFloatAsState(
-                    targetValue = if (glassTouchesContent) 1.12f else 1f,
+                    targetValue = if (glassTouchesContent) 1.08f else 1f,
                     animationSpec = tween(ComposeAnimationConfig.tabItemScaleDurationMillis),
                     label = "tab-item-scale-$index",
                 )
@@ -211,17 +237,20 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                         scaleX = itemScale.value
                         scaleY = itemScale.value
                     }
-                        .pointerInput(index) {
-                            detectTapGestures {
-                                hapticView.performSubtleTabHaptic()
-                                onTabSelected(index, false)
-                                tapPulseTab = index
-                                tapPulseGeneration += 1
-                                val generation = tapPulseGeneration
-                                tapScope.launch {
-                                    delay(ComposeAnimationConfig.tabJellyResetDelayMillis)
-                                    if (tapPulseGeneration == generation) tapPulseTab = -1
-                                }
+                        // clickable emits a real PressInteraction consumed by
+                        // hazeGlass, so the material lights from the touch point.
+                        .clickable(
+                            interactionSource = glassInteractionSource,
+                            indication = null,
+                        ) {
+                            hapticView.performSubtleTabHaptic()
+                            onTabSelected(index, false)
+                            tapPulseTab = index
+                            tapPulseGeneration += 1
+                            val generation = tapPulseGeneration
+                            tapScope.launch {
+                                delay(ComposeAnimationConfig.tabJellyResetDelayMillis)
+                                if (tapPulseGeneration == generation) tapPulseTab = -1
                             }
                         }.padding(vertical = 3.dp), contentAlignment = Alignment.Center
                 ) {

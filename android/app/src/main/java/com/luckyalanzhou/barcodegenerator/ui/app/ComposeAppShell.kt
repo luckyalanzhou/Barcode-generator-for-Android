@@ -142,10 +142,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 AnimatedContent(
                     targetState = currentRoute,
                     // Capture only page pixels, never the glass control itself (no feedback).
-                    // Reserve the bar's height so inputs and the last list item remain reachable.
+                    // Let scrollable content pass behind the floating glass navigation layer;
+                    // each main-tab list reserves its own trailing scroll inset.
                     modifier = Modifier.fillMaxSize().hazeSource(navigationBackdrop)
-                        .background(colors.surfaces.background)
-                        .padding(bottom = if (chromeVisible) dimensions.bottomTabBarHeight else 0.dp),
+                        .background(colors.surfaces.background),
                     transitionSpec = {
                         when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                             AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null

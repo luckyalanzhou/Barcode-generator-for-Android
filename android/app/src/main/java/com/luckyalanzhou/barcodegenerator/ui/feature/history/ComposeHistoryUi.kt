@@ -92,7 +92,7 @@ internal fun HistoryComposePage(
 
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 12.dp),
+            contentPadding = PaddingValues(bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
         if (entries.isEmpty()) {

@@ -104,7 +104,7 @@ internal fun SettingsContent(
         modifier = Modifier.fillMaxSize(),
         state = listState,
         userScrollEnabled = contentExceedsViewport,
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(LocalAppDimensions.current.settingsCardSpacing),
     ) {
         item("settings-appearance") {
