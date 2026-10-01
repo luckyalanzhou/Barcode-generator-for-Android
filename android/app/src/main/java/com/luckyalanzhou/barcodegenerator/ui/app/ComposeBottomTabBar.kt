@@ -240,11 +240,13 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         if (target != lastTarget) {
                             lastTarget = target
                             hapticView.performSubtleTabHaptic()
-                            onTabSelected(target, true)
                         }
                     },
                     onDragEnd = {
                         settleIndicator((dragStretch * 0.42f).coerceIn(0.025f, 0.065f))
+                        // Commit navigation only after the finger is released. The glass
+                        // indicator still tracks each tab during the drag, but page content
+                        // no longer starts a new transition every time a tab boundary is crossed.
                         onTabSelected(lastTarget, true)
                     },
                     onDragCancel = {
@@ -323,9 +325,15 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         style = Stroke(width = outline),
                     )
                 }
-                .hazeGlass(
-                    input = tabArtworkInput,
-                    style = indicatorGlassStyle,
+                .then(
+                    if (dragging || settlingDrag) {
+                        Modifier.hazeGlass(
+                            input = tabArtworkInput,
+                            style = indicatorGlassStyle,
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
         )
         Row(
