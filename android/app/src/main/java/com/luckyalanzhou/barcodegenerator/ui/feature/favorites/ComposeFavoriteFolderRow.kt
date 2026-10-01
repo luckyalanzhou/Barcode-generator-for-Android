@@ -104,14 +104,14 @@ internal fun FavoriteFolderRow(
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑文件夹", color = LocalAppColorScheme.current.text.placeholder, fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.requiredHeight(40.dp), enabled = false, text = { Text("编辑文件夹", color = LocalAppColorScheme.current.text.placeholder, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             val actions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
             actions.forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
                 val deleteAction = label == "删除"
                 DropdownMenuItem(
-                    modifier = Modifier.height(40.dp),
+                    modifier = Modifier.requiredHeight(40.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                     text = { Text(label) },
                     trailingIcon = if (deleteAction) {

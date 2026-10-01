@@ -23,10 +23,12 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -189,7 +191,7 @@ internal fun TabLongPressActionDialog(
                     ) {
                         Text(
                             text = "操作",
-                            color = colors.text.secondary.copy(alpha = .78f),
+                            color = colors.text.secondary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                         )
@@ -209,15 +211,14 @@ internal fun TabLongPressActionDialog(
                             Text(
                                 text = action.label,
                                 color = colors.text.primary,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Normal,
+                                style = MaterialTheme.typography.labelLarge,
                             )
                             Spacer(Modifier.weight(1f))
                             Icon(
                                 imageVector = action.icon,
                                 contentDescription = null,
                                 tint = colors.text.primary,
-                                modifier = Modifier.padding(start = 12.dp).width(20.dp).height(20.dp),
+                                modifier = Modifier.padding(start = 12.dp).size(20.dp),
                             )
                         }
                     }
@@ -229,7 +230,6 @@ internal fun TabLongPressActionDialog(
 @Composable
 private fun ActionSeparator(color: Color) {
     Box(
-        Modifier.fillMaxWidth().height(.7.dp).padding(horizontal = 18.dp)
-            .background(color),
+        Modifier.fillMaxWidth().height(.7.dp).background(color),
     )
 }

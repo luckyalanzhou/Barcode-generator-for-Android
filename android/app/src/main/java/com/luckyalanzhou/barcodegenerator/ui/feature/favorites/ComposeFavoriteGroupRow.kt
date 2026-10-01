@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -107,12 +108,12 @@ internal fun FavoriteGroupRow(
             shadowElevation = 1.dp,
             menuWidth = 160.dp,
         ) {
-            DropdownMenuItem(modifier = Modifier.height(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalAppColorScheme.current.text.placeholder, fontWeight = FontWeight.SemiBold) }, onClick = {})
+            DropdownMenuItem(modifier = Modifier.requiredHeight(40.dp), enabled = false, text = { Text("编辑收藏文件", color = LocalAppColorScheme.current.text.placeholder, fontWeight = FontWeight.SemiBold) }, onClick = {})
             ComposeDropdownDivider(dark)
             listOf("查看", "移动", "重命名", "删除").forEachIndexed { index, label ->
                 if (index > 0) ComposeDropdownDivider(dark)
                 DropdownMenuItem(
-                    modifier = Modifier.height(40.dp),
+                    modifier = Modifier.requiredHeight(40.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                     text = { Text(label) },
                     trailingIcon = {
