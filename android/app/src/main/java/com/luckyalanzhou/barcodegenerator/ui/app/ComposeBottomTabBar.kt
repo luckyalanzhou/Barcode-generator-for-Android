@@ -134,12 +134,6 @@ internal fun BarcodeComposeBottomTabBar(
     var showHistoryMenu by remember { mutableStateOf(false) }
     var showFavoritesMenu by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
-    val longPressedMenuTab = when {
-        showHistoryMenu -> 1
-        showFavoritesMenu -> 2
-        showSettingsMenu -> 3
-        else -> -1
-    }
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
     val tapScope = rememberCoroutineScope()
     val glassInteractionSource = remember { MutableInteractionSource() }
@@ -413,11 +407,6 @@ internal fun BarcodeComposeBottomTabBar(
                     animationSpec = ComposeAnimationConfig.pressSpring(),
                     label = "tab-tap-glass-response-$index",
                 )
-                val longPressLift = animateFloatAsState(
-                    targetValue = if (selected && longPressedMenuTab == index) 1f else 0f,
-                    animationSpec = spring(dampingRatio = .72f, stiffness = Spring.StiffnessMedium),
-                    label = "tab-long-press-lift-$index",
-                )
                 val tabClickModifier = if (index in 1..3) {
                     Modifier.combinedClickable(
                         interactionSource = glassInteractionSource,
@@ -469,13 +458,6 @@ internal fun BarcodeComposeBottomTabBar(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(
-                        modifier = Modifier.graphicsLayer {
-                            val progress = longPressLift.value
-                            val scale = 1f + progress * .08f
-                            scaleX = scale
-                            scaleY = scale
-                            translationY = -progress * 5.dp.toPx()
-                        },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
@@ -497,6 +479,9 @@ internal fun BarcodeComposeBottomTabBar(
                             TabLongPressActionDialog(
                                 dark = dark,
                                 anchorBoundsOnScreen = tabBoundsOnScreen[index],
+                                focusIcon = if (selected) tab.selectedIcon else null,
+                                focusLabel = if (selected) tab.label else null,
+                                focusTint = itemColor,
                                 actions = listOf(
                                     TabLongPressAction(
                                         label = "清空历史记录",
@@ -513,6 +498,9 @@ internal fun BarcodeComposeBottomTabBar(
                             TabLongPressActionDialog(
                                 dark = dark,
                                 anchorBoundsOnScreen = tabBoundsOnScreen[index],
+                                focusIcon = if (selected) tab.selectedIcon else null,
+                                focusLabel = if (selected) tab.label else null,
+                                focusTint = itemColor,
                                 actions = listOf(
                                     TabLongPressAction(
                                         label = "导入收藏",
@@ -533,6 +521,9 @@ internal fun BarcodeComposeBottomTabBar(
                         TabLongPressActionDialog(
                             dark = dark,
                             anchorBoundsOnScreen = tabBoundsOnScreen[index],
+                            focusIcon = if (selected) tab.selectedIcon else null,
+                            focusLabel = if (selected) tab.label else null,
+                            focusTint = itemColor,
                             actions = listOf(
                                 TabLongPressAction(
                                     label = "检查更新",

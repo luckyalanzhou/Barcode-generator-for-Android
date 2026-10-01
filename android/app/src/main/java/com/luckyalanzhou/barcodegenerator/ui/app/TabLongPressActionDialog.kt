@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -72,6 +73,9 @@ internal data class TabLongPressAction(
 internal fun TabLongPressActionDialog(
     dark: Boolean,
     anchorBoundsOnScreen: Rect,
+    focusIcon: ImageVector?,
+    focusLabel: String?,
+    focusTint: Color,
     actions: List<TabLongPressAction>,
     onDismiss: () -> Unit,
 ) {
@@ -94,13 +98,13 @@ internal fun TabLongPressActionDialog(
         SideEffect {
             val window = (dialogView.parent as? DialogWindowProvider)?.window
             window?.apply {
-                addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                setDimAmount(if (dark) .30f else .18f)
+                clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                     attributes = attributes.apply {
-                        blurBehindRadius = with(density) { 30.dp.roundToPx() }
+                        blurBehindRadius = with(density) { 42.dp.roundToPx() }
+                        dimAmount = 0f
                     }
                 }
             }
@@ -145,6 +149,71 @@ internal fun TabLongPressActionDialog(
                 animationSpec = tween(190, easing = FastOutSlowInEasing),
                 label = "tab-action-menu-entrance",
             )
+            if (popupReady && focusIcon != null && focusLabel != null) {
+                val focusWidth = 76.dp
+                val focusHeight = 62.dp
+                val focusWidthPx = with(density) { focusWidth.toPx() }
+                val focusHeightPx = with(density) { focusHeight.toPx() }
+                val focusCenterY = (anchorBoundsOnScreen.top + anchorBoundsOnScreen.bottom) / 2f - dialogOriginOnScreen.y
+                val liftPx = with(density) { 8.dp.toPx() }
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                (anchorCenterX - focusWidthPx / 2f).roundToInt(),
+                                (focusCenterY - focusHeightPx / 2f - liftPx * popupProgress).roundToInt(),
+                            )
+                        }
+                        .size(focusWidth, focusHeight)
+                        .graphicsLayer {
+                            alpha = popupProgress
+                            val scale = 1f + .14f * popupProgress
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(21.dp),
+                            ambientColor = Color.Black.copy(alpha = if (dark) .28f else .16f),
+                            spotColor = Color.Black.copy(alpha = if (dark) .34f else .20f),
+                        )
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = if (dark) {
+                                    listOf(Color(0xFF494950).copy(alpha = .92f), Color(0xFF29292F).copy(alpha = .90f))
+                                } else {
+                                    listOf(Color.White.copy(alpha = .94f), Color(0xFFF5F5F8).copy(alpha = .91f))
+                                },
+                            ),
+                        )
+                        .border(
+                            width = .8.dp,
+                            color = Color.White.copy(alpha = if (dark) .20f else .75f),
+                            shape = RoundedCornerShape(21.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Icon(
+                            imageVector = focusIcon,
+                            contentDescription = focusLabel,
+                            tint = focusTint,
+                            modifier = Modifier.size(28.dp),
+                        )
+                        Text(
+                            text = focusLabel,
+                            color = focusTint,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
             Column(
                     modifier = Modifier.widthIn(min = 140.dp, max = panelMaxWidth)
                         .width(IntrinsicSize.Max)
@@ -169,12 +238,12 @@ internal fun TabLongPressActionDialog(
                                 colors = if (dark) {
                                     listOf(
                                         colors.surfaces.panel.copy(alpha = .94f),
-                                        colors.surfaces.panel.copy(alpha = .90f),
+                                        colors.surfaces.panel.copy(alpha = .82f),
                                     )
                                 } else {
                                     listOf(
-                                        Color.White.copy(alpha = .95f),
-                                        colors.surfaces.panel.copy(alpha = .92f),
+                                        Color.White.copy(alpha = .84f),
+                                        colors.surfaces.panel.copy(alpha = .76f),
                                     )
                                 },
                             ),
