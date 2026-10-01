@@ -325,33 +325,41 @@ internal fun BarcodeComposeBottomTabBar(
                     )
                 }
                 .shadow(
-                    elevation = if (dark) 1.dp else 3.dp,
+                    elevation = if (dark) .5.dp else 3.dp,
                     shape = RoundedCornerShape(50),
                     clip = false,
-                    ambientColor = Color.Black.copy(alpha = if (dark) .025f else .04f),
-                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .04f else .08f),
+                    ambientColor = Color.Black.copy(alpha = if (dark) .015f else .04f),
+                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .025f else .08f),
                 )
                 .drawBehind {
                     val outline = .7.dp.toPx()
+                    val indicatorFill = if (dark) {
+                        listOf(
+                            Color.White.copy(alpha = .065f),
+                            Color.White.copy(alpha = .035f),
+                            Color.Black.copy(alpha = .075f),
+                        )
+                    } else {
+                        listOf(
+                            Color.White.copy(alpha = .56f),
+                            themeColors.navigation.tabHighlight.copy(alpha = .38f),
+                            selectedColor.copy(alpha = .10f),
+                        )
+                    }
+                    val indicatorRim = if (dark) {
+                        listOf(Color.White.copy(alpha = .16f), Color.Black.copy(alpha = .16f))
+                    } else {
+                        listOf(
+                            themeColors.navigation.tabRimTop.copy(alpha = .78f),
+                            themeColors.navigation.tabRimBottom.copy(alpha = .24f),
+                        )
+                    }
                     drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = if (dark) .10f else .56f),
-                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .18f else .38f),
-                                selectedColor.copy(alpha = if (dark) .06f else .10f),
-                            ),
-                        ),
+                        brush = Brush.verticalGradient(colors = indicatorFill),
                         cornerRadius = CornerRadius(size.height / 2f),
                     )
                     drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                if (dark) Color.White.copy(alpha = .22f)
-                                else themeColors.navigation.tabRimTop.copy(alpha = .78f),
-                                if (dark) Color.White.copy(alpha = .06f)
-                                else themeColors.navigation.tabRimBottom.copy(alpha = .24f),
-                            ),
-                        ),
+                        brush = Brush.verticalGradient(colors = indicatorRim),
                         topLeft = androidx.compose.ui.geometry.Offset(outline / 2f, outline / 2f),
                         size = Size(size.width - outline, size.height - outline),
                         cornerRadius = CornerRadius((size.height - outline) / 2f),
