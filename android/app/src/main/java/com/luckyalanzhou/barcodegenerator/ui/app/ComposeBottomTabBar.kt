@@ -64,12 +64,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeSourceSelection
+import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.GlassTransformPivot
 import dev.chrisbanes.haze.glass.GlassTransformTarget
@@ -113,6 +116,15 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
     val glassInteractionSource = remember { MutableInteractionSource() }
     val glassPressed by glassInteractionSource.collectIsPressedAsState()
     val density = LocalDensity.current
+    // Capture the tab artwork separately so the moving indicator can refract
+    // icons and labels without feeding its own glass output back into the source.
+    val tabArtworkBackdrop = remember { HazeState() }
+    val tabArtworkInput = remember(tabArtworkBackdrop) {
+        HazeInput.Sources(
+            state = tabArtworkBackdrop,
+            selection = HazeSourceSelection.All,
+        )
+    }
     val velocityTracker = remember { VelocityTracker() }
     val selectedProgress by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
@@ -172,6 +184,19 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
             interactionPositionAnimationSpec(
                 spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
             )
+        }
+    }
+    val indicatorGlassStyle = remember(dark, themeColors.navigation.tabHighlight, themeColors.surfaces.surface) {
+        GlassStyle.clear.then {
+            backgroundColor(themeColors.surfaces.surface.copy(alpha = if (dark) 0.16f else 0.12f))
+            tint(themeColors.navigation.tabHighlight.copy(alpha = if (dark) 0.10f else 0.08f))
+            optics(
+                refractionStrength = 0.86f,
+                refractionHeightFraction = 0.34f,
+                depth = 0.58f,
+            )
+            shape(RoundedCornerShape(50))
+            specularIntensity(0.62f)
         }
     }
 
@@ -242,6 +267,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
+                // This effect is above the tab row and samples that row as its input,
+                // so the moving lens bends the actual icon/text pixels beneath it.
+                .zIndex(1f)
                 .graphicsLayer {
                     val stretchAmount = (indicatorStretch - 1f).coerceAtLeast(0f)
                     scaleX = indicatorStretch * (1f - pressCompression * 0.24f)
@@ -301,9 +329,13 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                         style = Stroke(width = outline),
                     )
                 }
+                .hazeGlass(
+                    input = tabArtworkInput,
+                    style = indicatorGlassStyle,
+                )
         )
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().hazeSource(tabArtworkBackdrop, zIndex = 0f),
             horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically
         ) {
             tabs.forEachIndexed { index, tab ->
