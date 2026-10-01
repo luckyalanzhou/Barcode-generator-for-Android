@@ -51,6 +51,8 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import kotlinx.coroutines.flow.collect
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 internal data class ComposeAppShellDependencies(
     val navigationViewModel: AppNavigationViewModel,
@@ -104,6 +106,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
+    val pageBackdrop = remember { HazeState() }
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
         if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
@@ -141,7 +144,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     // Keep scrollable content behind the floating navigation rail;
                     // main-tab lists reserve a trailing inset so their final items remain reachable.
                     modifier = Modifier.fillMaxSize()
-                        .background(colors.surfaces.background),
+                        .background(colors.surfaces.background)
+                        .hazeSource(pageBackdrop, zIndex = 0f),
                     transitionSpec = {
                         when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                             AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
@@ -193,6 +197,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     BarcodeComposeBottomTabBar(
                         selectedIndex = appUiState.selectedTab,
                         dark = dark,
+                        pageBackdrop = pageBackdrop,
                         onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                             .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),

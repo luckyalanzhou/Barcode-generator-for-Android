@@ -18,7 +18,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -66,7 +65,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -74,7 +72,6 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeSourceSelection
-import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.hazeGlass
 
@@ -87,7 +84,7 @@ private data class ComposeTabSpec(
 
 @Composable
 @OptIn(ExperimentalHazeApi::class)
-internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
+internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageBackdrop: HazeState, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
@@ -117,12 +114,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
     val glassInteractionSource = remember { MutableInteractionSource() }
     val glassPressed by glassInteractionSource.collectIsPressedAsState()
     val density = LocalDensity.current
-    // Capture the tab artwork separately so the moving indicator can refract
-    // icons and labels without feeding its own glass output back into the source.
-    val tabArtworkBackdrop = remember { HazeState() }
-    val tabArtworkInput = remember(tabArtworkBackdrop) {
+    // Only page content feeds the outer glass. Tab artwork and the selected
+    // capsule are drawn above it and never become refraction inputs.
+    val pageBackdropInput = remember(pageBackdrop) {
         HazeInput.Sources(
-            state = tabArtworkBackdrop,
+            state = pageBackdrop,
             selection = HazeSourceSelection.All,
         )
     }
@@ -172,7 +168,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         }
     }
 
-    val indicatorGlassStyle = remember(dark, themeColors.navigation.tabHighlight, themeColors.surfaces.surface) {
+    val railGlassStyle = remember(dark, themeColors.navigation.tabHighlight, themeColors.surfaces.surface) {
         GlassStyle.clear.then {
             backgroundColor(themeColors.surfaces.surface.copy(alpha = if (dark) 0.16f else 0.12f))
             tint(themeColors.navigation.tabHighlight.copy(alpha = if (dark) 0.10f else 0.08f))
@@ -188,8 +184,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize().padding(4.dp)
-            // Keep the rail visually separated without sampling page content;
-            // only the moving indicator should refract pixels.
             .shadow(
                 elevation = 6.dp,
                 shape = navigationShape,
@@ -197,7 +191,26 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                 ambientColor = Color.Black.copy(alpha = if (dark) .20f else .10f),
                 spotColor = Color.Black.copy(alpha = if (dark) .18f else .08f),
             )
-            .background(themeColors.surfaces.surface, navigationShape)
+            .hazeGlass(input = pageBackdropInput, style = railGlassStyle)
+            .drawBehind {
+                if (dragLightAlpha > 0f) {
+                    drawRoundRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = dragLightAlpha * .55f),
+                                selectedColor.copy(alpha = dragLightAlpha * .16f),
+                                Color.Transparent,
+                            ),
+                            center = Offset(
+                                x = (dragTouchX + 6.dp.toPx()).coerceIn(0f, size.width),
+                                y = size.height * .5f,
+                            ),
+                            radius = size.height * 1.7f,
+                        ),
+                        cornerRadius = CornerRadius(size.height / 2f),
+                    )
+                }
+            }
             .border(
                 width = .8.dp,
                 color = themeColors.borders.border.copy(alpha = if (dark) .75f else .70f),
@@ -259,13 +272,10 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
         val indicatorProgress = if (dragging) dragProgress else selectedProgress
         val indicatorOffset = (tabWidth + 4.dp) * indicatorProgress
         Box(
-            // Keep the selected capsule inset; there is no enclosing capsule border.
+            // A plain highlight capsule sits below the clear tab artwork.
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
-                // This effect is above the tab row and samples that row as its input,
-                // so the moving lens bends the actual icon/text pixels beneath it.
-                .zIndex(1f)
                 .graphicsLayer {
                     val stretchAmount = (indicatorStretch - 1f).coerceAtLeast(0f)
                     scaleX = indicatorStretch * (1f - pressCompression * 0.24f)
@@ -294,24 +304,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
                     )
-                    if (dragLightAlpha > 0f) {
-                        val touchCenter = Offset(
-                            x = (dragTouchX - indicatorOffset.toPx()).coerceIn(0f, size.width),
-                            y = size.height * 0.5f,
-                        )
-                        drawRoundRect(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = dragLightAlpha),
-                                    selectedColor.copy(alpha = dragLightAlpha * 0.42f),
-                                    Color.Transparent,
-                                ),
-                                center = touchCenter,
-                                radius = size.height * 1.18f,
-                            ),
-                            cornerRadius = CornerRadius(size.height / 2f),
-                        )
-                    }
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
@@ -325,19 +317,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         style = Stroke(width = outline),
                     )
                 }
-                .then(
-                    if (dragging || settlingDrag) {
-                        Modifier.hazeGlass(
-                            input = tabArtworkInput,
-                            style = indicatorGlassStyle,
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
         )
         Row(
-            modifier = Modifier.fillMaxSize().hazeSource(tabArtworkBackdrop, zIndex = 0f),
+            modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically
         ) {
             tabs.forEachIndexed { index, tab ->
@@ -348,14 +330,14 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                 val contentHalfWidth = 16.dp
                 val contentLeft = itemCenter - contentHalfWidth
                 val contentRight = itemCenter + contentHalfWidth
-                val glassTouchesContent = dragging && glassRight >= contentLeft && glassLeft <= contentRight
+                val indicatorTouchesContent = dragging && glassRight >= contentLeft && glassLeft <= contentRight
                 val itemColor by animateColorAsState(
-                    targetValue = if (if (dragging) glassTouchesContent else selected) selectedColor else unselectedColor,
+                    targetValue = if (if (dragging) indicatorTouchesContent else selected) selectedColor else unselectedColor,
                     animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
                     label = "tab-item-color-$index",
                 )
                 val itemScale = animateFloatAsState(
-                    targetValue = if (glassTouchesContent) 1.08f else 1f,
+                    targetValue = if (indicatorTouchesContent) 1.025f else 1f,
                     animationSpec = tween(ComposeAnimationConfig.tabItemScaleDurationMillis),
                     label = "tab-item-scale-$index",
                 )
@@ -369,8 +351,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTab
                         scaleX = itemScale.value
                         scaleY = itemScale.value
                     }
-                        // clickable emits a real PressInteraction consumed by
-                        // hazeGlass, so the material lights from the touch point.
+                        // Keep press feedback on the capsule; the rail light follows
+                        // the same touch position without refracting tab artwork.
                         .clickable(
                             interactionSource = glassInteractionSource,
                             indication = null,
