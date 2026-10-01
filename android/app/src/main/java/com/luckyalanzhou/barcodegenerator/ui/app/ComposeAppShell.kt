@@ -55,8 +55,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.flow.collect
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
 
 internal data class ComposeAppShellDependencies(
     val navigationViewModel: AppNavigationViewModel,
@@ -110,7 +108,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
-    val pageBackdrop = remember { HazeState() }
     var tabMenuState by remember { mutableStateOf<TabLongPressMenuState?>(null) }
     val tabMenuBackdropBlur by animateDpAsState(
         targetValue = if (tabMenuState == null) 0.dp else 20.dp,
@@ -180,8 +177,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             // Keep scrollable content behind the floating navigation rail;
                             // main-tab lists reserve a trailing inset so their final items remain reachable.
                             modifier = Modifier.fillMaxWidth().weight(1f)
-                                .background(colors.surfaces.background)
-                                .hazeSource(pageBackdrop, zIndex = 0f),
+                                .background(colors.surfaces.background),
                             transitionSpec = {
                                 when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                                     AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
@@ -217,7 +213,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         BarcodeComposeBottomTabBar(
                             selectedIndex = appUiState.selectedTab,
                             dark = dark,
-                            pageBackdrop = pageBackdrop,
                             onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
                             onHistoryClear = dependencies.actions::clearHistory,
                             onFavoritesImport = dependencies.actions::restoreFavorites,

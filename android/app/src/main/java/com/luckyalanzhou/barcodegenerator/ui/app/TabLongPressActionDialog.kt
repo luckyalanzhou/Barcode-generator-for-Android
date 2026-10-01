@@ -63,8 +63,8 @@ internal data class TabLongPressAction(
 
 internal data class TabLongPressMenuState(
     val anchorBoundsOnScreen: Rect,
-    val focusIcon: ImageVector?,
-    val focusLabel: String?,
+    val focusIcon: ImageVector,
+    val focusLabel: String,
     val focusTint: Color,
     val dark: Boolean,
     val actions: List<TabLongPressAction>,
@@ -129,19 +129,19 @@ internal fun TabLongPressActionOverlay(
                 animationSpec = tween(190, easing = FastOutSlowInEasing),
                 label = "tab-action-menu-entrance",
             )
-            if (popupReady && focusIcon != null && focusLabel != null) {
+            val focusLiftPx = with(density) { 10.dp.toPx() }
+            if (popupReady) {
                 val focusWidth = 64.dp
                 val focusHeight = 54.dp
                 val focusWidthPx = with(density) { focusWidth.toPx() }
                 val focusHeightPx = with(density) { focusHeight.toPx() }
                 val focusCenterY = (anchorBoundsOnScreen.top + anchorBoundsOnScreen.bottom) / 2f - overlayOriginOnScreen.y
-                val liftPx = with(density) { 8.dp.toPx() }
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
                                 (anchorCenterX - focusWidthPx / 2f).roundToInt(),
-                                (focusCenterY - focusHeightPx / 2f - liftPx * popupProgress).roundToInt(),
+                                (focusCenterY - focusHeightPx / 2f - focusLiftPx * popupProgress).roundToInt(),
                             )
                         }
                         .size(focusWidth, focusHeight)
@@ -166,11 +166,6 @@ internal fun TabLongPressActionOverlay(
                                     listOf(Color.White.copy(alpha = .94f), Color(0xFFF5F5F8).copy(alpha = .91f))
                                 },
                             ),
-                        )
-                        .border(
-                            width = .8.dp,
-                            color = Color.White.copy(alpha = if (dark) .20f else .75f),
-                            shape = RoundedCornerShape(21.dp),
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -198,7 +193,12 @@ internal fun TabLongPressActionOverlay(
                     modifier = Modifier.widthIn(min = 140.dp, max = panelMaxWidth)
                         .width(IntrinsicSize.Max)
                         .onSizeChanged { if (panelSize != it) panelSize = it }
-                        .offset { IntOffset(leftPx.roundToInt(), topPx.roundToInt()) }
+                        .offset {
+                            IntOffset(
+                                leftPx.roundToInt(),
+                                (topPx - focusLiftPx * popupProgress).roundToInt(),
+                            )
+                        }
                         .graphicsLayer {
                             alpha = popupProgress
                             val scale = .94f + .06f * popupProgress

@@ -91,7 +91,6 @@ internal fun GenerateContent(
     val secondary = themeColors.text.secondary
     val cardColor = themeColors.surfaces.panel
     val inputColor = themeColors.surfaces.input
-    val cardBorder = themeColors.borders.card
     val inputBorder = themeColors.borders.input
     val focusedInputBorder = themeColors.borders.focusedInput
     val density = LocalDensity.current

@@ -56,9 +56,6 @@ internal data class AppBorderColors(
 @Immutable
 internal data class AppNavigationColors(
     val tabUnselected: Color,
-    val tabRimTop: Color,
-    val tabRimBottom: Color,
-    val tabHighlight: Color,
 )
 
 @Immutable

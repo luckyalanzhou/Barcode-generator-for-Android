@@ -46,9 +46,6 @@ internal val LightAppColorScheme = AppColorScheme(
     ),
     navigation = AppNavigationColors(
         tabUnselected = AppColorTokens.Light.tabUnselected,
-        tabRimTop = AppColorTokens.tabRimTopLight,
-        tabRimBottom = AppColorTokens.Light.accent.copy(alpha = .58f),
-        tabHighlight = AppColorTokens.tabHighlightLight,
     ),
     content = AppContentColors(
         favoriteActive = AppColorTokens.Light.favoriteActive,

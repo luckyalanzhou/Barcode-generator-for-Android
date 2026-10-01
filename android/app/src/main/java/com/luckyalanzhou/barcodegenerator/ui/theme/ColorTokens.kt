@@ -48,8 +48,8 @@ internal object AppColorTokens {
         val buttonBorder = Color(0xff3a3a3c).copy(alpha = .82f)
         val destructive = Color(0xffffb0b0)
         // Dark-mode system blue keeps primary actions consistent with tabs and sliders.
-        val cardBorder = Color.White.copy(alpha = 0.10f)
-        val inputBorder = Color.White.copy(alpha = 0.22f)
+        val cardBorder = Color.White.copy(alpha = 0.055f)
+        val inputBorder = Color.White.copy(alpha = 0.14f)
         val tabUnselected = Color(0xffc4cada)
         val disabled = Color(0xff657388)
         val progressTrack = Color(0xff152938)
@@ -76,9 +76,5 @@ internal object AppColorTokens {
 
     internal val black = Color.Black
     internal val white = Color.White
-    internal val tabRimTopLight = Color.White.copy(alpha = .98f)
-    internal val tabRimTopDark = Color(0xfff2f8ff).copy(alpha = .78f)
-    internal val tabHighlightLight = Color.White.copy(alpha = .62f)
-    internal val tabHighlightDark = Color.White.copy(alpha = .24f)
     internal val progressHighlight = Color.White.copy(alpha = .78f)
 }

@@ -46,9 +46,6 @@ internal val DarkAppColorScheme = AppColorScheme(
     ),
     navigation = AppNavigationColors(
         tabUnselected = AppColorTokens.Dark.tabUnselected,
-        tabRimTop = AppColorTokens.tabRimTopDark,
-        tabRimBottom = AppColorTokens.Dark.accent.copy(alpha = .62f),
-        tabHighlight = AppColorTokens.tabHighlightDark,
     ),
     content = AppContentColors(
         favoriteActive = AppColorTokens.Dark.favoriteActive,

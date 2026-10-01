@@ -25,7 +25,7 @@ internal fun Modifier.globalCardSurface(
     .clip(shape)
     .background(color)
     .border(
-        1.dp,
+        if (dark) 0.7.dp else 1.dp,
         LocalAppColorScheme.current.borders.card,
         shape,
     )

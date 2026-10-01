@@ -10,7 +10,6 @@ object ComposeAnimationConfig {
     const val pageFadeOutDurationMillis = 140
     const val tabSelectionEnterDurationMillis = 180
     const val tabItemColorDurationMillis = 100
-    const val tabItemScaleDurationMillis = 120
     const val tabJellyResetDelayMillis = 72L
     const val favoriteRowExpandDurationMillis = 180
     const val favoriteRowCollapseDurationMillis = 160
