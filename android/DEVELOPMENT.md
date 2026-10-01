@@ -18,12 +18,27 @@
 | JDK 17 | `D:\Java17`（`bin\java.exe`、`bin\javac.exe`） |
 | Gradle User Home、依赖缓存及 Wrapper 分发 | `D:\Barcode_build\gradle-home`（使用 Gradle 9.5.0） |
 | Android SDK | `D:\Barcode_build\android-sdk`（`platforms\android-37.0`、`platform-tools\adb.exe`） |
+| Android 用户偏好与本机调试签名文件 | `D:\Barcode_build\android-user-home` |
+| Java/Gradle 临时文件（`TEMP`、`TMP`、`java.io.tmpdir`） | `D:\Barcode_build\android-temp` |
+| Kotlin 编译守护进程运行标记 | `D:\Barcode_build\kotlin-daemon` |
 | 本地启动器 | `D:\Barcode_build\run-barcode-android-gradle.ps1` |
 | 模块构建输出 | 各模块的 `android\<module>\build` 目录 |
 
 本机专用 Gradle worker 并行度保存在 `D:\Barcode_build\gradle-home\gradle.properties`，当前为 `org.gradle.workers.max=4`。不要把本机资源参数写入仓库 `gradle.properties`。
 
-本机验证统一通过启动器运行。它只为本次 Gradle 进程设置 `GRADLE_USER_HOME`、`ANDROID_HOME`、`ANDROID_SDK_ROOT` 和 `JAVA_HOME`；启动前检查固定目录及 Gradle 9.5.0 是否存在。若检查失败会立即退出，不回退到 `C:\.gradle`、其他 SDK/JDK，也不会尝试下载缺失的 Wrapper。启动器位于仓库外，因此不会进入提交或影响远程工作流。
+本机验证统一通过启动器运行。启动器为本次 Gradle/JVM 进程固定设置 `GRADLE_USER_HOME`、`ANDROID_HOME`、`ANDROID_SDK_ROOT`、`ANDROID_USER_HOME`、`JAVA_HOME`、`TEMP`、`TMP`、`java.io.tmpdir` 和 Kotlin daemon 的 `runFilesPath`。这些路径全部指向表格列出的 `D:` 目录；启动前会检查所需工具与缓存目录可用、可写，并在缺少本机专用临时目录时创建它们。任一固定工具路径缺失时立即退出，不回退到 `C:\.gradle`、`C:\.android`、用户 `AppData` 或其他 SDK/JDK，也不会尝试下载缺失的 Wrapper。启动器位于仓库外，因此这些本机绝对路径不会进入 Git 或影响远程工作流。
+
+### 本机目录与 GitHub Actions 目录的边界
+
+| 内容 | 本机验证 | 远程 Beta/正式版构建 |
+| --- | --- | --- |
+| Gradle 缓存、Wrapper、依赖 | `D:\Barcode_build\gradle-home` | GitHub Actions runner 自己的 Gradle Home/缓存 |
+| JDK 与 Android SDK | `D:\Java17`、`D:\Barcode_build\android-sdk` | GitHub Actions 工作流在 Ubuntu runner 上配置的 JDK/SDK |
+| Android 偏好、调试签名、临时目录、Kotlin daemon 标记 | `D:\Barcode_build\android-user-home`、`android-temp`、`kotlin-daemon` | runner 自己的用户目录和临时目录 |
+| 模块编译输出 | 当前检出中的 `android\<module>\build` | runner 检出目录里的对应 `android/<module>/build` |
+| 配置入口 | 仓库外的 `D:\Barcode_build\run-barcode-android-gradle.ps1` 及本机 Gradle Home 属性 | `.github/workflows/` 与仓库共享的 Gradle 配置；不读取本机启动器 |
+
+不要把 `D:\Barcode_build`、`D:\Java17` 或任何本机绝对路径写进仓库的 `android/gradle.properties` 或 GitHub Actions 工作流。仓库的 `android/gradle.properties` 是本机和远程共用的构建行为配置；固定机器路径只放在仓库外的本机启动器中。
 
 ## 本地 Beta 验证
 
