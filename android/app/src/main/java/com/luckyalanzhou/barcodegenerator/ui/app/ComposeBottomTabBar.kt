@@ -6,6 +6,9 @@ import android.view.View
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
+import com.luckyalanzhou.barcodegenerator.icons.CloudDownloadIcon
+import com.luckyalanzhou.barcodegenerator.icons.CloudUploadIcon
+import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryFilledIcon
@@ -18,8 +21,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +41,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -83,8 +90,17 @@ private data class ComposeTabSpec(
 )
 
 @Composable
-@OptIn(ExperimentalHazeApi::class)
-internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageBackdrop: HazeState, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
+@OptIn(ExperimentalFoundationApi::class, ExperimentalHazeApi::class)
+internal fun BarcodeComposeBottomTabBar(
+    selectedIndex: Int,
+    dark: Boolean,
+    pageBackdrop: HazeState,
+    onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit,
+    onHistoryClear: () -> Unit,
+    onFavoritesImport: () -> Unit,
+    onFavoritesExport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
@@ -110,6 +126,8 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
     var settleGeneration by remember { mutableIntStateOf(0) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
+    var showHistoryMenu by remember { mutableStateOf(false) }
+    var showFavoritesMenu by remember { mutableStateOf(false) }
     val tapScope = rememberCoroutineScope()
     val glassInteractionSource = remember { MutableInteractionSource() }
     val glassPressed by glassInteractionSource.collectIsPressedAsState()
@@ -165,6 +183,24 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                 delay(260)
                 if (settleGeneration == generation) settlingDrag = false
             }
+        }
+    }
+
+    fun handleTabClick(index: Int, centerX: Float) {
+        hapticView.performSubtleTabHaptic()
+        val travel = index - selectedIndex
+        if (travel != 0) dragDirection = if (travel > 0) 1f else -1f
+        dragTouchX = centerX
+        val clickStretch = if (travel == 0) 0.025f
+        else (0.045f + kotlin.math.abs(travel) * 0.014f).coerceAtMost(0.09f)
+        settleIndicator(clickStretch)
+        onTabSelected(index, false)
+        tapPulseTab = index
+        tapPulseGeneration += 1
+        val generation = tapPulseGeneration
+        tapScope.launch {
+            delay(ComposeAnimationConfig.tabJellyResetDelayMillis)
+            if (tapPulseGeneration == generation) tapPulseTab = -1
         }
     }
 
@@ -328,6 +364,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                 val contentHalfWidth = 16.dp
                 val contentLeft = itemCenter - contentHalfWidth
                 val contentRight = itemCenter + contentHalfWidth
+                val itemCenterPx = with(density) { itemCenter.toPx() }
                 val indicatorTouchesContent = dragging && glassRight >= contentLeft && glassLeft <= contentRight
                 val itemColor by animateColorAsState(
                     targetValue = if (if (dragging) indicatorTouchesContent else selected) selectedColor else unselectedColor,
@@ -344,6 +381,23 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                     animationSpec = ComposeAnimationConfig.pressSpring(),
                     label = "tab-tap-glass-response-$index",
                 )
+                val tabClickModifier = if (index == 1 || index == 2) {
+                    Modifier.combinedClickable(
+                        interactionSource = glassInteractionSource,
+                        indication = null,
+                        onClick = { handleTabClick(index, itemCenterPx) },
+                        onLongClick = {
+                            hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            if (index == 1) showHistoryMenu = true else showFavoritesMenu = true
+                        },
+                    )
+                } else {
+                    Modifier.clickable(
+                        interactionSource = glassInteractionSource,
+                        indication = null,
+                        onClick = { handleTabClick(index, itemCenterPx) },
+                    )
+                }
                 Box(
                     modifier = Modifier.weight(1f).fillMaxHeight().graphicsLayer {
                         scaleX = itemScale.value
@@ -351,26 +405,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                     }
                         // Keep press feedback on the capsule; the rail light follows
                         // the same touch position without refracting tab artwork.
-                        .clickable(
-                            interactionSource = glassInteractionSource,
-                            indication = null,
-                        ) {
-                            hapticView.performSubtleTabHaptic()
-                            val travel = index - selectedIndex
-                            if (travel != 0) dragDirection = if (travel > 0) 1f else -1f
-                            dragTouchX = with(density) { itemCenter.toPx() }
-                            val clickStretch = if (travel == 0) 0.025f
-                            else (0.045f + kotlin.math.abs(travel) * 0.014f).coerceAtMost(0.09f)
-                            settleIndicator(clickStretch)
-                            onTabSelected(index, false)
-                            tapPulseTab = index
-                            tapPulseGeneration += 1
-                            val generation = tapPulseGeneration
-                            tapScope.launch {
-                                delay(ComposeAnimationConfig.tabJellyResetDelayMillis)
-                                if (tapPulseGeneration == generation) tapPulseTab = -1
-                            }
-                        }.padding(vertical = 3.dp), contentAlignment = Alignment.Center
+                        .then(tabClickModifier)
+                        .padding(vertical = 3.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -388,6 +425,62 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                             },
                         )
                         Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                    }
+                    if (index == 1) {
+                        DropdownMenu(
+                            expanded = showHistoryMenu,
+                            onDismissRequest = { showHistoryMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("清空历史记录", color = themeColors.text.destructive) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = DeleteIcon,
+                                        contentDescription = null,
+                                        tint = themeColors.text.destructive,
+                                    )
+                                },
+                                onClick = {
+                                    showHistoryMenu = false
+                                    onHistoryClear()
+                                },
+                            )
+                        }
+                    }
+                    if (index == 2) {
+                        DropdownMenu(
+                            expanded = showFavoritesMenu,
+                            onDismissRequest = { showFavoritesMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("导入收藏") },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = CloudDownloadIcon,
+                                        contentDescription = null,
+                                        tint = themeColors.text.primary,
+                                    )
+                                },
+                                onClick = {
+                                    showFavoritesMenu = false
+                                    onFavoritesImport()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("导出收藏") },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = CloudUploadIcon,
+                                        contentDescription = null,
+                                        tint = themeColors.text.primary,
+                                    )
+                                },
+                                onClick = {
+                                    showFavoritesMenu = false
+                                    onFavoritesExport()
+                                },
+                            )
+                        }
                     }
                 }
             }

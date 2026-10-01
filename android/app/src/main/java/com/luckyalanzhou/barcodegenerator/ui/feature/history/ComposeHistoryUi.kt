@@ -36,7 +36,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,13 +64,12 @@ internal fun formatHistoryTime(time: Long, nowMillis: Long = System.currentTimeM
     }
 }
 
-/** 历史页：清空操作固定在列表上方，单一 LazyColumn 只滚动空状态或历史批次。 */
+/** 历史页使用完整内容高度展示空状态或历史批次；清空操作由历史 Tab 长按菜单触发。 */
 @Composable
 internal fun HistoryComposePage(
     entries: List<Pair<Long, List<CodeItem>>>,
     refreshGeneration: Long,
     dark: Boolean,
-    onClear: () -> Unit,
     onOpen: (List<CodeItem>) -> Unit,
     onEdit: (List<CodeItem>) -> Unit,
     onDelete: (List<CodeItem>) -> Unit,
@@ -80,7 +78,6 @@ internal fun HistoryComposePage(
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
-    val clearColor = themeColors.text.destructive
     val hapticView = LocalView.current
     val listState = rememberLazyListState()
     var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
@@ -91,26 +88,12 @@ internal fun HistoryComposePage(
         }
     }
 
-    Column(
+    LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onClear) {
-                Text("一键清空", color = clearColor)
-            }
-        }
-
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
         if (entries.isEmpty()) {
             item(key = "history-empty") {
                 HistoryEmptyState(color = secondary)
@@ -136,7 +119,6 @@ internal fun HistoryComposePage(
                     onDelete = { onDelete(batch) },
                 )
             }
-        }
     }
 }
 }

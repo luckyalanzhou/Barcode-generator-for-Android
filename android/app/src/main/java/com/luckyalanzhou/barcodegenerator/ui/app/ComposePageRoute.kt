@@ -88,7 +88,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dataState = historyState,
                     refreshGeneration = refreshGeneration,
                     dark = dark,
-                    onClear = dependencies.actions::clearHistory,
                     onOpen = { batch ->
                         dependencies.resultsViewModel.showHistoryResult(
                             batch = batch,
@@ -212,8 +211,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     },
                     onOcrMaskChange = { dependencies.settingsViewModel.setOcrMaskPersisted(it) },
                     onEnterLanShare = dependencies.actions::enterLanShare,
-                    onRestoreFavorites = dependencies.actions::restoreFavorites,
-                    onExportFavorites = dependencies.actions::exportFavorites,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                     onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onNotice = dependencies.actions::notice,

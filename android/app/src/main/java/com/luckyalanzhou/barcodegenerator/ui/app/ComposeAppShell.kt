@@ -202,6 +202,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         dark = dark,
                         pageBackdrop = pageBackdrop,
                         onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
+                        onHistoryClear = dependencies.actions::clearHistory,
+                        onFavoritesImport = dependencies.actions::restoreFavorites,
+                        onFavoritesExport = dependencies.actions::exportFavorites,
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                             .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                     )

@@ -68,8 +68,6 @@ internal fun SettingsContent(
     onPersist: (SettingsUiState) -> Unit,
     onOcrMaskChange: (Int) -> Unit,
     onEnterLanShare: () -> Unit,
-    onRestoreFavorites: () -> Unit,
-    onExportFavorites: () -> Unit,
     onShareDebugLog: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
@@ -231,15 +229,8 @@ internal fun SettingsContent(
                         persist(defaults)
                         onNotice("已恢复条码默认设置")
                     }
-                    SettingsDivider(dark)
-                    SettingsRow("收藏备份", colors.settingsText.primary) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SettingsSmallButton("导入", colors.settingsText.primary, colors.controls.button, onRestoreFavorites)
-                            SettingsSmallButton("导出", colors.settingsText.primary, colors.controls.button, onExportFavorites)
-                        }
-                    }
-                    SettingsDivider(dark)
                     if (BuildConfig.DEBUG_LOG_EXPORT) {
+                        SettingsDivider(dark)
                         SettingsActionRow("导出调试日志", "分享", colors.settingsText.primary, colors.controls.button, onShareDebugLog)
                     }
             }

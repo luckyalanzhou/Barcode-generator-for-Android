@@ -86,11 +86,6 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
 }
 
 @Composable
-internal fun SettingsSmallButton(text: String, color: Color, buttonColor: Color, onClick: () -> Unit) {
-    SettingsButton(text, buttonColor, color, onClick)
-}
-
-@Composable
 internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(16.dp), containerColor = LocalAppColorScheme.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, alignEndWithAnchor = true, content = content)
 }
