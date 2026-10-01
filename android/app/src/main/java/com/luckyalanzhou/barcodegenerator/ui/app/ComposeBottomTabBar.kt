@@ -18,6 +18,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -74,8 +76,6 @@ import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeSourceSelection
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.glass.GlassStyle
-import dev.chrisbanes.haze.glass.GlassTransformPivot
-import dev.chrisbanes.haze.glass.GlassTransformTarget
 import dev.chrisbanes.haze.glass.hazeGlass
 
 private data class ComposeTabSpec(
@@ -87,7 +87,7 @@ private data class ComposeTabSpec(
 
 @Composable
 @OptIn(ExperimentalHazeApi::class)
-internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backdrop: HazeState, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
+internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
@@ -100,6 +100,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
     val themeColors = LocalAppColorScheme.current
     val selectedColor = themeColors.controls.accent
     val unselectedColor = themeColors.navigation.tabUnselected
+    val navigationShape = remember { RoundedCornerShape(50) }
     val hapticView = LocalView.current
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
@@ -171,21 +172,6 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
         }
     }
 
-    val themeGlassStyle = remember(dark, themeColors.surfaces.surface) {
-        GlassStyle.regular.then {
-            tint(themeColors.surfaces.surface.copy(alpha = if (dark) 0.10f else 0.06f))
-            shape(RoundedCornerShape(50))
-            pressed {
-                lightingIntensity(0.9f)
-                refractionMultiplier(1.04f)
-                whitePointDelta(0.025f)
-            }
-            interactionLightRadiusFraction(0.72f)
-            interactionPositionAnimationSpec(
-                spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
-            )
-        }
-    }
     val indicatorGlassStyle = remember(dark, themeColors.navigation.tabHighlight, themeColors.surfaces.surface) {
         GlassStyle.clear.then {
             backgroundColor(themeColors.surfaces.surface.copy(alpha = if (dark) 0.16f else 0.12f))
@@ -202,12 +188,20 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize().padding(4.dp)
-            .hazeGlass(
-                input = HazeInput.Sources(backdrop),
-                style = themeGlassStyle,
-                interactionSource = glassInteractionSource,
-                interactionTransformTarget = GlassTransformTarget.MaterialOnly,
-                interactionTransformPivot = GlassTransformPivot.Pointer,
+            // Keep the rail visually separated without sampling page content;
+            // only the moving indicator should refract pixels.
+            .shadow(
+                elevation = 6.dp,
+                shape = navigationShape,
+                clip = false,
+                ambientColor = Color.Black.copy(alpha = if (dark) .20f else .10f),
+                spotColor = Color.Black.copy(alpha = if (dark) .18f else .08f),
+            )
+            .background(themeColors.surfaces.surface, navigationShape)
+            .border(
+                width = .8.dp,
+                color = themeColors.borders.border.copy(alpha = if (dark) .75f else .70f),
+                shape = navigationShape,
             )
             .padding(horizontal = 6.dp, vertical = 6.dp)
             .pointerInput(Unit) {
