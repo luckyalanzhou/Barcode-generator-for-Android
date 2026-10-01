@@ -41,8 +41,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -388,7 +386,13 @@ internal fun BarcodeComposeBottomTabBar(
                         onClick = { handleTabClick(index, itemCenterPx) },
                         onLongClick = {
                             hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            if (index == 1) showHistoryMenu = true else showFavoritesMenu = true
+                            if (index == 1) {
+                                showFavoritesMenu = false
+                                showHistoryMenu = true
+                            } else {
+                                showHistoryMenu = false
+                                showFavoritesMenu = true
+                            }
                         },
                     )
                 } else {
@@ -427,58 +431,38 @@ internal fun BarcodeComposeBottomTabBar(
                         Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                     if (index == 1) {
-                        DropdownMenu(
-                            expanded = showHistoryMenu,
-                            onDismissRequest = { showHistoryMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("清空历史记录", color = themeColors.text.destructive) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = DeleteIcon,
-                                        contentDescription = null,
-                                        tint = themeColors.text.destructive,
-                                    )
-                                },
-                                onClick = {
-                                    showHistoryMenu = false
-                                    onHistoryClear()
-                                },
+                        if (showHistoryMenu) {
+                            TabLongPressActionDialog(
+                                dark = dark,
+                                actions = listOf(
+                                    TabLongPressAction(
+                                        label = "清空历史记录",
+                                        icon = DeleteIcon,
+                                        destructive = true,
+                                        onClick = onHistoryClear,
+                                    ),
+                                ),
+                                onDismiss = { showHistoryMenu = false },
                             )
                         }
                     }
                     if (index == 2) {
-                        DropdownMenu(
-                            expanded = showFavoritesMenu,
-                            onDismissRequest = { showFavoritesMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("导入收藏") },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = CloudDownloadIcon,
-                                        contentDescription = null,
-                                        tint = themeColors.text.primary,
-                                    )
-                                },
-                                onClick = {
-                                    showFavoritesMenu = false
-                                    onFavoritesImport()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("导出收藏") },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = CloudUploadIcon,
-                                        contentDescription = null,
-                                        tint = themeColors.text.primary,
-                                    )
-                                },
-                                onClick = {
-                                    showFavoritesMenu = false
-                                    onFavoritesExport()
-                                },
+                        if (showFavoritesMenu) {
+                            TabLongPressActionDialog(
+                                dark = dark,
+                                actions = listOf(
+                                    TabLongPressAction(
+                                        label = "导入收藏",
+                                        icon = CloudDownloadIcon,
+                                        onClick = onFavoritesImport,
+                                    ),
+                                    TabLongPressAction(
+                                        label = "导出收藏",
+                                        icon = CloudUploadIcon,
+                                        onClick = onFavoritesExport,
+                                    ),
+                                ),
+                                onDismiss = { showFavoritesMenu = false },
                             )
                         }
                     }
