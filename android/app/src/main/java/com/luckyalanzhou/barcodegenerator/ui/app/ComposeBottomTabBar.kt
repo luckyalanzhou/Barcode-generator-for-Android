@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,11 +61,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -129,6 +132,7 @@ internal fun BarcodeComposeBottomTabBar(
     var showHistoryMenu by remember { mutableStateOf(false) }
     var showFavoritesMenu by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
+    val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
     val tapScope = rememberCoroutineScope()
     val glassInteractionSource = remember { MutableInteractionSource() }
     val glassPressed by glassInteractionSource.collectIsPressedAsState()
@@ -416,6 +420,16 @@ internal fun BarcodeComposeBottomTabBar(
                         scaleX = itemScale.value
                         scaleY = itemScale.value
                     }
+                        .onGloballyPositioned { coordinates ->
+                            val topLeft = coordinates.localToScreen(Offset.Zero)
+                            val bounds = Rect(
+                                left = topLeft.x,
+                                top = topLeft.y,
+                                right = topLeft.x + coordinates.size.width,
+                                bottom = topLeft.y + coordinates.size.height,
+                            )
+                            if (tabBoundsOnScreen[index] != bounds) tabBoundsOnScreen[index] = bounds
+                        }
                         // Keep press feedback on the capsule; the rail light follows
                         // the same touch position without refracting tab artwork.
                         .then(tabClickModifier)
@@ -443,11 +457,11 @@ internal fun BarcodeComposeBottomTabBar(
                         if (showHistoryMenu) {
                             TabLongPressActionDialog(
                                 dark = dark,
+                                anchorBoundsOnScreen = tabBoundsOnScreen[index],
                                 actions = listOf(
                                     TabLongPressAction(
                                         label = "清空历史记录",
                                         icon = DeleteIcon,
-                                        destructive = true,
                                         onClick = onHistoryClear,
                                     ),
                                 ),
@@ -459,6 +473,7 @@ internal fun BarcodeComposeBottomTabBar(
                         if (showFavoritesMenu) {
                             TabLongPressActionDialog(
                                 dark = dark,
+                                anchorBoundsOnScreen = tabBoundsOnScreen[index],
                                 actions = listOf(
                                     TabLongPressAction(
                                         label = "导入收藏",
@@ -478,6 +493,7 @@ internal fun BarcodeComposeBottomTabBar(
                     if (index == 3 && showSettingsMenu) {
                         TabLongPressActionDialog(
                             dark = dark,
+                            anchorBoundsOnScreen = tabBoundsOnScreen[index],
                             actions = listOf(
                                 TabLongPressAction(
                                     label = "检查更新",
