@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.icons
 
+// Original: Google Material Symbols Outlined, drive_file_move, FILL=0.
+// https://fonts.gstatic.com/render/v1/Material+Symbols+Outlined/24dp/drive_file_move.kt?var=opsz,wght,FILL,GRAD,ROND@24,400,0,0,50
+
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.luckyalanzhou.barcodegenerator.materialPath

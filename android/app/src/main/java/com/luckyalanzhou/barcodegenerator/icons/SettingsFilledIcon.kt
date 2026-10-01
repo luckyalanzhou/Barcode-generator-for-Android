@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.icons
 
+// Original: Google Material Symbols Outlined, settings, FILL=1.
+// https://fonts.gstatic.com/render/v1/Material+Symbols+Outlined/24dp/settings.kt?var=opsz,wght,FILL,GRAD,ROND@24,400,1,0,50
+
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.luckyalanzhou.barcodegenerator.materialPath
@@ -45,7 +48,7 @@ internal val SettingsFilledIcon: ImageVector by lazy {
         close()
 
         moveToRelative(2.8f, -6.5f)
-        quadToRelative(1.45f, -0.2f, 2.47f, -1.03f)
+        quadToRelative(1.45f, 0f, 2.47f, -1.03f)
         reflectiveQuadTo(15.55f, 12f)
         reflectiveQuadTo(14.53f, 9.52f)
         quadToRelative(-1.47f, -1.02f, -2.48f, -1.02f)

@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-/** Lucide clock icon used by the History tab. */
+/** Original: Lucide clock SVG, used by the History tab. https://lucide.dev/icons/clock */
 internal val HistoryIcon: ImageVector by lazy {
     ImageVector.Builder("history", 24.dp, 24.dp, 24f, 24f).path(
         fill = null,

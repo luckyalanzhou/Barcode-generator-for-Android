@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-/** Filled Tabler clock used while the History tab is selected. */
+/** Original: user-provided filled Tabler `icon-tabler-clock` SVG, used while the History tab is selected. */
 internal val HistoryFilledIcon: ImageVector by lazy {
     ImageVector.Builder("history_filled", 24.dp, 24.dp, 24f, 24f).path(
         fill = SolidColor(Color.Black),

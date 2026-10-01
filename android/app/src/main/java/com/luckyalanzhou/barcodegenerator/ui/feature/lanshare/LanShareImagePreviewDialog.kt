@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 import android.graphics.Bitmap
 import android.os.Build
 import android.view.Window
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -45,6 +45,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowCompat
+import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
 
 @Composable
 internal fun LanShareImagePreviewDialog(
@@ -140,22 +141,12 @@ internal fun LanShareImagePreviewDialog(
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Canvas(Modifier.size(18.dp)) {
-                            val inset = size.minDimension * 0.18f
-                            val end = size.minDimension - inset
-                            drawLine(
-                                color = Color.White,
-                                start = Offset(inset, inset),
-                                end = Offset(end, end),
-                                strokeWidth = 2.dp.toPx(),
-                            )
-                            drawLine(
-                                color = Color.White,
-                                start = Offset(end, inset),
-                                end = Offset(inset, end),
-                                strokeWidth = 2.dp.toPx(),
-                            )
-                        }
+                        Icon(
+                            imageVector = CloseSmallIcon,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                 }
             }
