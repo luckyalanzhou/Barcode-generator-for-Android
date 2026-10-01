@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -37,6 +38,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,9 +54,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-internal fun formatHistoryTime(time: Long): String {
+internal fun formatHistoryTime(time: Long, nowMillis: Long = System.currentTimeMillis()): String {
     val date = Date(time)
-    val now = Date()
+    val now = Date(nowMillis)
     val day = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
     return if (day.format(date) == day.format(now)) {
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
@@ -63,6 +69,7 @@ internal fun formatHistoryTime(time: Long): String {
 @Composable
 internal fun HistoryComposePage(
     entries: List<Pair<Long, List<CodeItem>>>,
+    refreshGeneration: Long,
     dark: Boolean,
     onClear: () -> Unit,
     onOpen: (List<CodeItem>) -> Unit,
@@ -75,6 +82,14 @@ internal fun HistoryComposePage(
     val secondary = themeColors.text.secondary
     val clearColor = themeColors.text.destructive
     val hapticView = LocalView.current
+    val listState = rememberLazyListState()
+    var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
+    LaunchedEffect(refreshGeneration) {
+        if (appliedRefreshGeneration != refreshGeneration) {
+            listState.scrollToItem(0)
+            appliedRefreshGeneration = refreshGeneration
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -91,6 +106,7 @@ internal fun HistoryComposePage(
         }
 
         LazyColumn(
+            state = listState,
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),

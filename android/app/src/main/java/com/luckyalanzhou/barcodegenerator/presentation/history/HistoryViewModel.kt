@@ -8,6 +8,9 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistence
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /** Owns history-only actions and publishes snapshots from the shared barcode data session. */
 @HiltViewModel
@@ -20,6 +23,13 @@ class HistoryViewModel @Inject constructor(
     }
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
+    private val mutableRefreshGeneration = MutableStateFlow(0L)
+    val refreshGeneration: StateFlow<Long> = mutableRefreshGeneration.asStateFlow()
+
+    fun refreshHistory() {
+        dataSession.publishDataState()
+        mutableRefreshGeneration.update { it + 1 }
+    }
 
     fun deleteHistoryBatch(batch: List<CodeItem>) {
         coordinator.deleteBatch(batch)

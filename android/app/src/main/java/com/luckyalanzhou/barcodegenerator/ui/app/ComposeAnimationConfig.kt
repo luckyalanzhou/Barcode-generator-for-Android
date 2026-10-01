@@ -9,7 +9,6 @@ object ComposeAnimationConfig {
     const val pageFadeInDurationMillis = 180
     const val pageFadeOutDurationMillis = 140
     const val tabSelectionEnterDurationMillis = 180
-    const val tabSelectionExitDurationMillis = 120
     const val tabItemColorDurationMillis = 100
     const val tabItemScaleDurationMillis = 120
     const val tabJellyResetDelayMillis = 72L

@@ -19,10 +19,10 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import kotlinx.coroutines.flow.collect
 import dev.chrisbanes.haze.HazeState
@@ -105,6 +106,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
     val pageBackdrop = remember { HazeState() }
+    val tabEnterOffset = with(LocalDensity.current) { 20.dp.roundToPx() }
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
         if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
@@ -147,11 +149,15 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     transitionSpec = {
                         when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                             AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
-                            AppPageTransitionKind.TAB_SELECTION ->
-                                (scaleIn(initialScale = .97f, animationSpec = tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis)) +
-                                    fadeIn(tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis))) togetherWith
-                                    (scaleOut(targetScale = 1.02f, animationSpec = tween(ComposeAnimationConfig.tabSelectionExitDurationMillis)) +
-                                        fadeOut(tween(ComposeAnimationConfig.tabSelectionExitDurationMillis))) using SizeTransform(clip = false)
+                            AppPageTransitionKind.TAB_SWIPE, AppPageTransitionKind.TAB_SELECTION ->
+                                (slideInVertically(
+                                    animationSpec = tween(
+                                        ComposeAnimationConfig.tabSelectionEnterDurationMillis,
+                                        easing = FastOutSlowInEasing,
+                                    ),
+                                ) { tabEnterOffset } togetherWith ExitTransition.None).apply {
+                                    targetContentZIndex = 1f
+                                } using SizeTransform(clip = true)
                             AppPageTransitionKind.SECONDARY_PAGE ->
                                 fadeIn(tween(ComposeAnimationConfig.pageFadeInDurationMillis)) togetherWith
                                     fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
@@ -159,7 +165,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     },
                     label = "pageTransition",
                 ) { targetPage ->
-                    Column(Modifier.fillMaxSize()) {
+                    // Incoming pages cover outgoing content instead of blending text.
+                    Column(Modifier.fillMaxSize().background(colors.surfaces.background)) {
                         if (targetPage.chromeVisible) {
                             Box(
                                 modifier = Modifier.fillMaxWidth().height(

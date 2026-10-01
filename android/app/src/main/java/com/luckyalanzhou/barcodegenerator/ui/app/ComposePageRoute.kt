@@ -81,10 +81,12 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             AppRoute.History -> {
                 val historyState by dependencies.historyViewModel.dataState.collectAsStateWithLifecycle()
+                val refreshGeneration by dependencies.historyViewModel.refreshGeneration.collectAsStateWithLifecycle()
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
                 HistoryScreen(
                     dataState = historyState,
+                    refreshGeneration = refreshGeneration,
                     dark = dark,
                     onClear = dependencies.actions::clearHistory,
                     onOpen = { batch ->

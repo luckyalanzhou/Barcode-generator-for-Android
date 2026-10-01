@@ -10,13 +10,15 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 @Composable
 internal fun HistoryScreen(
     dataState: BarcodeDataState,
+    refreshGeneration: Long,
     dark: Boolean,
     onClear: () -> Unit,
     onOpen: (List<CodeItem>) -> Unit,
     onEdit: (List<CodeItem>) -> Unit,
     onDelete: (List<CodeItem>) -> Unit,
 ) {
-    val entries = remember(dataState.items) {
+    val refreshTime = remember(refreshGeneration) { System.currentTimeMillis() }
+    val entries = remember(dataState.items, refreshGeneration) {
         dataState.items
             .asSequence()
             .filter { it.inHistory }
@@ -28,11 +30,12 @@ internal fun HistoryScreen(
 
     HistoryComposePage(
         entries = entries,
+        refreshGeneration = refreshGeneration,
         dark = dark,
         onClear = onClear,
         onOpen = onOpen,
         onEdit = onEdit,
         onDelete = onDelete,
-        timeText = ::formatHistoryTime,
+        timeText = { time -> formatHistoryTime(time, refreshTime) },
     )
 }
