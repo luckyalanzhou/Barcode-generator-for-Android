@@ -65,7 +65,6 @@ internal data class TabLongPressMenuState(
     val anchorBoundsOnScreen: Rect,
     val focusIcon: ImageVector,
     val focusLabel: String,
-    val isSelected: Boolean,
     val focusTint: Color,
     val dark: Boolean,
     val actions: List<TabLongPressAction>,
@@ -151,10 +150,7 @@ internal fun TabLongPressActionOverlay(
                             val scale = 1f + .16f * popupProgress
                             scaleX = scale
                             scaleY = scale
-                        }
-                        .then(
-                            if (state.isSelected) Modifier.tabLiquidGlassSurface(dark, focusTint) else Modifier,
-                        ),
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(

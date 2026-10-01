@@ -166,7 +166,7 @@ internal fun BarcodeComposeBottomTabBar(
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize()
-            .background(themeColors.surfaces.panel)
+            .background(themeColors.surfaces.background)
             .padding(horizontal = 4.dp, vertical = 5.dp)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -329,7 +329,6 @@ internal fun BarcodeComposeBottomTabBar(
                                     anchorBoundsOnScreen = tabBoundsOnScreen[index],
                                     focusIcon = if (selected) tab.selectedIcon else tab.icon,
                                     focusLabel = tab.label,
-                                    isSelected = selected,
                                     focusTint = if (selected) selectedColor else unselectedColor,
                                     dark = dark,
                                     actions = actions,
@@ -393,48 +392,4 @@ private fun View.performSubtleTabHaptic() {
         else -> HapticFeedbackConstants.CLOCK_TICK
     }
     performHapticFeedback(feedback)
-}
-
-internal fun Modifier.tabLiquidGlassSurface(
-    dark: Boolean,
-    accent: Color,
-): Modifier = shadow(
-    elevation = if (dark) .8.dp else 2.5.dp,
-    shape = RoundedCornerShape(50),
-    clip = false,
-    ambientColor = Color.Black.copy(alpha = if (dark) .10f else .06f),
-    spotColor = Color.Black.copy(alpha = if (dark) .13f else .10f),
-).drawBehind {
-    val outline = .8.dp.toPx()
-    val corner = CornerRadius(size.height / 2f)
-    val fill = if (dark) {
-        listOf(Color.White.copy(alpha = .19f), Color.White.copy(alpha = .09f), Color.Black.copy(alpha = .22f))
-    } else {
-        listOf(Color.White.copy(alpha = .94f), accent.copy(alpha = .16f), Color.White.copy(alpha = .62f))
-    }
-    val rim = if (dark) {
-        listOf(Color.White.copy(alpha = .32f), Color.White.copy(alpha = .10f))
-    } else {
-        listOf(Color.White.copy(alpha = .92f), accent.copy(alpha = .28f))
-    }
-    drawRoundRect(brush = Brush.verticalGradient(fill), cornerRadius = corner)
-    drawRoundRect(
-        brush = Brush.radialGradient(
-            colors = listOf(
-                Color.White.copy(alpha = if (dark) .24f else .56f),
-                Color.White.copy(alpha = if (dark) .07f else .14f),
-                Color.Transparent,
-            ),
-            center = Offset(size.width * .26f, size.height * .12f),
-            radius = size.height * 1.15f,
-        ),
-        cornerRadius = corner,
-    )
-    drawRoundRect(
-        brush = Brush.verticalGradient(rim),
-        topLeft = Offset(outline / 2f, outline / 2f),
-        size = androidx.compose.ui.geometry.Size(size.width - outline, size.height - outline),
-        cornerRadius = CornerRadius((size.height - outline) / 2f),
-        style = Stroke(width = outline),
-    )
 }
