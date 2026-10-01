@@ -147,9 +147,6 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             alpha = popupProgress
-                            val scale = 1f + .16f * popupProgress
-                            scaleX = scale
-                            scaleY = scale
                         },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -161,7 +158,7 @@ internal fun TabLongPressActionOverlay(
                             imageVector = focusIcon,
                             contentDescription = focusLabel,
                             tint = focusTint,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(26.dp),
                         )
                         Text(
                             text = focusLabel,
