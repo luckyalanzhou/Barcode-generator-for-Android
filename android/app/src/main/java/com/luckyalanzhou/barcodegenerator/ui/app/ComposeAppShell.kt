@@ -205,6 +205,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         onHistoryClear = dependencies.actions::clearHistory,
                         onFavoritesImport = dependencies.actions::restoreFavorites,
                         onFavoritesExport = dependencies.actions::exportFavorites,
+                        onCheckForUpdates = dependencies.actions::checkForUpdates,
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                             .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                     )

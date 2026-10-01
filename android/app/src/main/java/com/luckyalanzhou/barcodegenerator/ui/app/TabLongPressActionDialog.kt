@@ -157,7 +157,10 @@ internal fun TabLongPressActionDialog(
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
                             modifier = Modifier.fillMaxWidth().height(54.dp)
-                                .clickable(onClick = action.onClick)
+                                .clickable {
+                                    onDismiss()
+                                    action.onClick()
+                                }
                                 .padding(horizontal = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

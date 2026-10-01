@@ -15,6 +15,7 @@ import com.luckyalanzhou.barcodegenerator.icons.HistoryFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
+import com.luckyalanzhou.barcodegenerator.icons.RefreshIcon
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -97,6 +98,7 @@ internal fun BarcodeComposeBottomTabBar(
     onHistoryClear: () -> Unit,
     onFavoritesImport: () -> Unit,
     onFavoritesExport: () -> Unit,
+    onCheckForUpdates: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tabs = remember {
@@ -126,6 +128,7 @@ internal fun BarcodeComposeBottomTabBar(
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
     var showHistoryMenu by remember { mutableStateOf(false) }
     var showFavoritesMenu by remember { mutableStateOf(false) }
+    var showSettingsMenu by remember { mutableStateOf(false) }
     val tapScope = rememberCoroutineScope()
     val glassInteractionSource = remember { MutableInteractionSource() }
     val glassPressed by glassInteractionSource.collectIsPressedAsState()
@@ -379,7 +382,7 @@ internal fun BarcodeComposeBottomTabBar(
                     animationSpec = ComposeAnimationConfig.pressSpring(),
                     label = "tab-tap-glass-response-$index",
                 )
-                val tabClickModifier = if (index == 1 || index == 2) {
+                val tabClickModifier = if (index in 1..3) {
                     Modifier.combinedClickable(
                         interactionSource = glassInteractionSource,
                         indication = null,
@@ -388,10 +391,16 @@ internal fun BarcodeComposeBottomTabBar(
                             hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                             if (index == 1) {
                                 showFavoritesMenu = false
+                                showSettingsMenu = false
                                 showHistoryMenu = true
+                            } else if (index == 2) {
+                                showHistoryMenu = false
+                                showSettingsMenu = false
+                                showFavoritesMenu = true
                             } else {
                                 showHistoryMenu = false
-                                showFavoritesMenu = true
+                                showFavoritesMenu = false
+                                showSettingsMenu = true
                             }
                         },
                     )
@@ -465,6 +474,19 @@ internal fun BarcodeComposeBottomTabBar(
                                 onDismiss = { showFavoritesMenu = false },
                             )
                         }
+                    }
+                    if (index == 3 && showSettingsMenu) {
+                        TabLongPressActionDialog(
+                            dark = dark,
+                            actions = listOf(
+                                TabLongPressAction(
+                                    label = "检查更新",
+                                    icon = RefreshIcon,
+                                    onClick = onCheckForUpdates,
+                                ),
+                            ),
+                            onDismiss = { showSettingsMenu = false },
+                        )
                     }
                 }
             }
