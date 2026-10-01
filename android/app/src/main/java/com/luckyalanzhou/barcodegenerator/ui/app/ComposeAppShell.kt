@@ -219,6 +219,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             onFavoritesExport = dependencies.actions::exportFavorites,
                             onCheckForUpdates = dependencies.actions::checkForUpdates,
                             onLongPressActionMenuRequested = { tabMenuState = it },
+                            showSelectionIndicator = tabMenuState == null,
                             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                                 .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                         )

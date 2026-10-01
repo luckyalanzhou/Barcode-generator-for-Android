@@ -65,6 +65,7 @@ internal data class TabLongPressMenuState(
     val anchorBoundsOnScreen: Rect,
     val focusIcon: ImageVector,
     val focusLabel: String,
+    val isSelected: Boolean,
     val focusTint: Color,
     val dark: Boolean,
     val actions: List<TabLongPressAction>,
@@ -151,21 +152,8 @@ internal fun TabLongPressActionOverlay(
                             scaleX = scale
                             scaleY = scale
                         }
-                        .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(21.dp),
-                            ambientColor = Color.Black.copy(alpha = if (dark) .28f else .16f),
-                            spotColor = Color.Black.copy(alpha = if (dark) .34f else .20f),
-                        )
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = if (dark) {
-                                    listOf(Color(0xFF494950).copy(alpha = .92f), Color(0xFF29292F).copy(alpha = .90f))
-                                } else {
-                                    listOf(Color.White.copy(alpha = .94f), Color(0xFFF5F5F8).copy(alpha = .91f))
-                                },
-                            ),
+                        .then(
+                            if (state.isSelected) Modifier.tabLiquidGlassSurface(dark, focusTint) else Modifier,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {

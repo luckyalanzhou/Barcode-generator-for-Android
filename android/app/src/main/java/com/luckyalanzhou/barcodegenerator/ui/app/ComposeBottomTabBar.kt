@@ -53,11 +53,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
@@ -88,6 +93,7 @@ internal fun BarcodeComposeBottomTabBar(
     onFavoritesExport: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onLongPressActionMenuRequested: (TabLongPressMenuState) -> Unit,
+    showSelectionIndicator: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val tabs = remember {
@@ -108,6 +114,9 @@ internal fun BarcodeComposeBottomTabBar(
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
+    var glassImpact by remember { mutableFloatStateOf(0f) }
+    var glassImpactGeneration by remember { mutableIntStateOf(0) }
+    var dragDirection by remember { mutableFloatStateOf(1f) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
@@ -118,6 +127,21 @@ internal fun BarcodeComposeBottomTabBar(
         animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMediumLow),
         label = "tab-indicator-position",
     )
+    val glassImpactProgress by animateFloatAsState(
+        targetValue = glassImpact,
+        animationSpec = spring(dampingRatio = 0.58f, stiffness = 720f),
+        label = "liquid-glass-tab-impact",
+    )
+
+    fun pulseGlass(amount: Float) {
+        glassImpact = amount.coerceIn(0f, 0.14f)
+        glassImpactGeneration += 1
+        val generation = glassImpactGeneration
+        tapScope.launch {
+            delay(68)
+            if (glassImpactGeneration == generation) glassImpact = 0f
+        }
+    }
 
     fun performTabSwitchHaptic() {
         val now = android.os.SystemClock.uptimeMillis()
@@ -128,6 +152,8 @@ internal fun BarcodeComposeBottomTabBar(
 
     fun handleTabClick(index: Int) {
         if (index != selectedIndex) performTabSwitchHaptic()
+        if (index != selectedIndex) dragDirection = if (index > selectedIndex) 1f else -1f
+        pulseGlass(if (index == selectedIndex) .035f else .085f)
         onTabSelected(index, false)
         tapPulseTab = index
         tapPulseGeneration += 1
@@ -140,11 +166,13 @@ internal fun BarcodeComposeBottomTabBar(
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize()
+            .background(themeColors.surfaces.panel)
             .padding(horizontal = 4.dp, vertical = 5.dp)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragStart = { position ->
                         dragging = true
+                        pulseGlass(.035f)
                         dragProgress = selectedProgress
                         val tabWidth = size.width.toFloat() / tabs.size
                         dragProgress = (position.x / tabWidth - .5f)
@@ -153,22 +181,26 @@ internal fun BarcodeComposeBottomTabBar(
                     },
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
+                        if (kotlin.math.abs(dragAmount) > .1f) dragDirection = if (dragAmount > 0f) 1f else -1f
                         val tabWidth = size.width.toFloat() / tabs.size
                         dragProgress = (dragProgress + dragAmount / tabWidth)
                             .coerceIn(0f, (tabs.size - 1).toFloat())
                         val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                         if (target != lastTarget) {
                             lastTarget = target
+                            pulseGlass(.105f)
                             performTabSwitchHaptic()
                             onTabSelected(target, true)
                         }
                     },
                     onDragEnd = {
                         dragging = false
+                        pulseGlass(.07f)
                         onTabSelected(lastTarget, true)
                     },
                     onDragCancel = {
                         dragging = false
+                        pulseGlass(.04f)
                     },
                 )
             }
@@ -176,16 +208,73 @@ internal fun BarcodeComposeBottomTabBar(
         val tabWidth = maxWidth / tabs.size
         val indicatorProgress = if (dragging) dragProgress else selectedProgress
         val indicatorOffset = tabWidth * indicatorProgress
-        Box(
-            // A quiet selection tint remains; the outer rail and refractive glass are removed.
-            modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxHeight()
-                .align(Alignment.CenterStart)
-                .clip(indicatorShape)
-                .background(
-                    if (dark) Color.White.copy(alpha = .09f)
-                    else selectedColor.copy(alpha = .10f),
-                )
-        )
+        if (showSelectionIndicator) {
+            Box(
+                // Keep the liquid-glass treatment scoped to the selected capsule, not the full rail.
+                modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxHeight()
+                    .align(Alignment.CenterStart)
+                    .graphicsLayer {
+                        scaleX = 1f + glassImpactProgress + if (dragging) .025f else 0f
+                        scaleY = 1f - glassImpactProgress * .26f
+                        transformOrigin = TransformOrigin(
+                            pivotFractionX = if (dragDirection > 0f) 0f else 1f,
+                            pivotFractionY = .5f,
+                        )
+                    }
+                    .shadow(
+                        elevation = if (dark) .8.dp else 2.5.dp,
+                        shape = indicatorShape,
+                        clip = false,
+                        ambientColor = Color.Black.copy(alpha = if (dark) .10f else .06f),
+                        spotColor = Color.Black.copy(alpha = if (dark) .13f else .10f),
+                    )
+                    .drawBehind {
+                        val outline = .8.dp.toPx()
+                        val corner = CornerRadius(size.height / 2f)
+                        val fill = if (dark) {
+                            listOf(
+                                Color.White.copy(alpha = .19f),
+                                Color.White.copy(alpha = .09f),
+                                Color.Black.copy(alpha = .22f),
+                            )
+                        } else {
+                            listOf(
+                                Color.White.copy(alpha = .94f),
+                                selectedColor.copy(alpha = .16f),
+                                Color.White.copy(alpha = .62f),
+                            )
+                        }
+                        val rim = if (dark) {
+                            listOf(Color.White.copy(alpha = .32f), Color.White.copy(alpha = .10f))
+                        } else {
+                            listOf(Color.White.copy(alpha = .92f), selectedColor.copy(alpha = .28f))
+                        }
+                        drawRoundRect(
+                            brush = Brush.verticalGradient(fill),
+                            cornerRadius = corner,
+                        )
+                        drawRoundRect(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (dark) .24f else .56f),
+                                    Color.White.copy(alpha = if (dark) .07f else .14f),
+                                    Color.Transparent,
+                                ),
+                                center = Offset(size.width * if (dragDirection > 0f) .26f else .74f, size.height * .12f),
+                                radius = size.height * 1.15f,
+                            ),
+                            cornerRadius = corner,
+                        )
+                        drawRoundRect(
+                            brush = Brush.verticalGradient(rim),
+                            topLeft = Offset(outline / 2f, outline / 2f),
+                            size = androidx.compose.ui.geometry.Size(size.width - outline, size.height - outline),
+                            cornerRadius = CornerRadius((size.height - outline) / 2f),
+                            style = Stroke(width = outline),
+                        )
+                    }
+            )
+        }
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
@@ -240,6 +329,7 @@ internal fun BarcodeComposeBottomTabBar(
                                     anchorBoundsOnScreen = tabBoundsOnScreen[index],
                                     focusIcon = if (selected) tab.selectedIcon else tab.icon,
                                     focusLabel = tab.label,
+                                    isSelected = selected,
                                     focusTint = if (selected) selectedColor else unselectedColor,
                                     dark = dark,
                                     actions = actions,
@@ -303,4 +393,48 @@ private fun View.performSubtleTabHaptic() {
         else -> HapticFeedbackConstants.CLOCK_TICK
     }
     performHapticFeedback(feedback)
+}
+
+internal fun Modifier.tabLiquidGlassSurface(
+    dark: Boolean,
+    accent: Color,
+): Modifier = shadow(
+    elevation = if (dark) .8.dp else 2.5.dp,
+    shape = RoundedCornerShape(50),
+    clip = false,
+    ambientColor = Color.Black.copy(alpha = if (dark) .10f else .06f),
+    spotColor = Color.Black.copy(alpha = if (dark) .13f else .10f),
+).drawBehind {
+    val outline = .8.dp.toPx()
+    val corner = CornerRadius(size.height / 2f)
+    val fill = if (dark) {
+        listOf(Color.White.copy(alpha = .19f), Color.White.copy(alpha = .09f), Color.Black.copy(alpha = .22f))
+    } else {
+        listOf(Color.White.copy(alpha = .94f), accent.copy(alpha = .16f), Color.White.copy(alpha = .62f))
+    }
+    val rim = if (dark) {
+        listOf(Color.White.copy(alpha = .32f), Color.White.copy(alpha = .10f))
+    } else {
+        listOf(Color.White.copy(alpha = .92f), accent.copy(alpha = .28f))
+    }
+    drawRoundRect(brush = Brush.verticalGradient(fill), cornerRadius = corner)
+    drawRoundRect(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color.White.copy(alpha = if (dark) .24f else .56f),
+                Color.White.copy(alpha = if (dark) .07f else .14f),
+                Color.Transparent,
+            ),
+            center = Offset(size.width * .26f, size.height * .12f),
+            radius = size.height * 1.15f,
+        ),
+        cornerRadius = corner,
+    )
+    drawRoundRect(
+        brush = Brush.verticalGradient(rim),
+        topLeft = Offset(outline / 2f, outline / 2f),
+        size = androidx.compose.ui.geometry.Size(size.width - outline, size.height - outline),
+        cornerRadius = CornerRadius((size.height - outline) / 2f),
+        style = Stroke(width = outline),
+    )
 }
