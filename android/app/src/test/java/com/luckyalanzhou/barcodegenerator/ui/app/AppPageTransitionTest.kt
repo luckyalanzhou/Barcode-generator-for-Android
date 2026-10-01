@@ -12,7 +12,7 @@ class AppPageTransitionTest {
 
     @Test
     fun mainTabTransitionsReflectTheNavigationGesture() {
-        assertEquals(AppPageTransitionKind.TAB_SWIPE, appPageTransitionKind(AppRoute.History, AppRoute.Favorites, true))
+        assertEquals(AppPageTransitionKind.NONE, appPageTransitionKind(AppRoute.History, AppRoute.Favorites, true))
         assertEquals(AppPageTransitionKind.TAB_SELECTION, appPageTransitionKind(AppRoute.Generate, AppRoute.History, false))
     }
 

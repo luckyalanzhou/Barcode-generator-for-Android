@@ -8,9 +8,6 @@ import androidx.compose.animation.core.spring
 object ComposeAnimationConfig {
     const val pageFadeInDurationMillis = 180
     const val pageFadeOutDurationMillis = 140
-    const val tabSwipeEnterDurationMillis = 200
-    const val tabSwipeExitDurationMillis = 160
-    const val tabSwipeFadeDurationMillis = 180
     const val tabSelectionEnterDurationMillis = 180
     const val tabSelectionExitDurationMillis = 120
     const val tabItemColorDurationMillis = 100

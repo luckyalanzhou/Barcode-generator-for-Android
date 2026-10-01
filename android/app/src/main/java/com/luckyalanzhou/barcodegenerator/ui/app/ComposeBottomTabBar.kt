@@ -139,11 +139,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
     )
     val dragLightAlpha by animateFloatAsState(
         targetValue = when {
-            dragging -> 0.62f
-            settlingDrag -> 0.30f
+            dragging -> 0.36f
+            settlingDrag -> 0.12f
             else -> 0f
         },
-        animationSpec = tween(durationMillis = if (dragging) 70 else 260),
+        animationSpec = tween(durationMillis = if (dragging) 70 else 180),
         label = "liquid-glass-drag-light",
     )
     val pressCompression by animateFloatAsState(
@@ -198,14 +198,14 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                         brush = Brush.radialGradient(
                             colors = listOf(
                                 Color.White.copy(alpha = dragLightAlpha * .55f),
-                                selectedColor.copy(alpha = dragLightAlpha * .16f),
+                                Color.White.copy(alpha = dragLightAlpha * .12f),
                                 Color.Transparent,
                             ),
                             center = Offset(
                                 x = (dragTouchX + 6.dp.toPx()).coerceIn(0f, size.width),
                                 y = size.height * .5f,
                             ),
-                            radius = size.height * 1.7f,
+                            radius = size.height * .65f,
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
                     )
@@ -253,13 +253,11 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                         if (target != lastTarget) {
                             lastTarget = target
                             hapticView.performSubtleTabHaptic()
+                            onTabSelected(target, true)
                         }
                     },
                     onDragEnd = {
                         settleIndicator((dragStretch * 0.42f).coerceIn(0.025f, 0.065f))
-                        // Commit navigation only after the finger is released. The glass
-                        // indicator still tracks each tab during the drag, but page content
-                        // no longer starts a new transition every time a tab boundary is crossed.
                         onTabSelected(lastTarget, true)
                     },
                     onDragCancel = {
@@ -289,7 +287,7 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, pageB
                     elevation = 3.dp,
                     shape = RoundedCornerShape(50),
                     clip = false,
-                    ambientColor = selectedColor.copy(alpha = if (dark) .16f else .10f),
+                    ambientColor = Color.Black.copy(alpha = if (dark) .08f else .04f),
                     spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .16f else .08f),
                 )
                 .drawBehind {

@@ -21,8 +21,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.SizeTransform
@@ -149,13 +147,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     transitionSpec = {
                         when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                             AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
-                            AppPageTransitionKind.TAB_SWIPE -> {
-                                val forward = targetState.mainTabIndex!! > initialState.mainTabIndex!!
-                                (slideInHorizontally(tween(ComposeAnimationConfig.tabSwipeEnterDurationMillis)) { if (forward) it / 8 else -it / 8 } +
-                                    fadeIn(tween(ComposeAnimationConfig.tabSwipeFadeDurationMillis))) togetherWith
-                                    (slideOutHorizontally(tween(ComposeAnimationConfig.tabSwipeExitDurationMillis)) { if (forward) -it / 8 else it / 8 } +
-                                        fadeOut(tween(ComposeAnimationConfig.tabSwipeFadeDurationMillis))) using SizeTransform(clip = true)
-                            }
                             AppPageTransitionKind.TAB_SELECTION ->
                                 (scaleIn(initialScale = .97f, animationSpec = tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis)) +
                                     fadeIn(tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis))) togetherWith
