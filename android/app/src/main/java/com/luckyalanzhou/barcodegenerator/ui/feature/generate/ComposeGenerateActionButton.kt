@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +24,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,9 +44,6 @@ internal fun ComposeGenerateActionButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val shape = RoundedCornerShape(18.dp)
-    val transparentTextStyle = LocalTextStyle.current.merge(
-        TextStyle(color = contentColor, background = Color.Transparent),
-    )
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
@@ -73,7 +68,7 @@ internal fun ComposeGenerateActionButton(
                 )
                 Spacer(Modifier.width(contentSpacing))
             }
-            Text(label, style = transparentTextStyle.copy(fontSize = 15.sp))
+            Text(label, color = contentColor, fontSize = 15.sp)
         }
     }
 }

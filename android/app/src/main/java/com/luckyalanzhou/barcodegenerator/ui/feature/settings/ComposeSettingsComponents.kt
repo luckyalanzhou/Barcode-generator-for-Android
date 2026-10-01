@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -81,7 +80,7 @@ internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Co
 internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interactionSource = remember { MutableInteractionSource() }
     Button(onClick = onClick, interactionSource = interactionSource, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp), modifier = modifier.iosPressFeedback(interactionSource).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) {
-        Text(text, maxLines = 1, style = LocalTextStyle.current.copy(background = Color.Transparent))
+        Text(text, maxLines = 1)
     }
 }
 

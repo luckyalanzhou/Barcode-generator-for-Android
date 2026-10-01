@@ -32,7 +32,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -49,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -219,8 +219,8 @@ internal fun SettingsContent(
                     SettingsRow("局域网文件分享", colors.settingsText.primary) {
                         SettingsButton(
                             text = "启动",
-                            color = colors.controls.accent.copy(alpha = if (dark) .20f else .12f),
-                            contentColor = colors.controls.accent,
+                            color = lerp(colors.surfaces.card, colors.controls.accent, if (dark) .24f else .10f),
+                            contentColor = if (dark) colors.settingsText.primary else colors.controls.accent,
                             onClick = onEnterLanShare,
                         )
                     }
