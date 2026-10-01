@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -48,13 +49,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -96,15 +101,64 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
+    var dragDirection by remember { mutableFloatStateOf(1f) }
+    var dragTouchX by remember { mutableFloatStateOf(0f) }
+    var dragStretch by remember { mutableFloatStateOf(0f) }
+    var releaseStretch by remember { mutableFloatStateOf(0f) }
+    var settlingDrag by remember { mutableStateOf(false) }
+    var settleGeneration by remember { mutableIntStateOf(0) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
     val tapScope = rememberCoroutineScope()
     val glassInteractionSource = remember { MutableInteractionSource() }
+    val glassPressed by glassInteractionSource.collectIsPressedAsState()
+    val density = LocalDensity.current
+    val velocityTracker = remember { VelocityTracker() }
     val selectedProgress by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
         animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
         label = "liquid-glass-tab-position",
     )
+    val indicatorStretch by animateFloatAsState(
+        targetValue = 1f + when {
+            dragging -> dragStretch
+            settlingDrag -> releaseStretch
+            else -> 0f
+        },
+        animationSpec = spring(dampingRatio = 0.58f, stiffness = 680f),
+        label = "liquid-glass-tab-stretch",
+    )
+    val dragLightAlpha by animateFloatAsState(
+        targetValue = when {
+            dragging -> 0.62f
+            settlingDrag -> 0.30f
+            else -> 0f
+        },
+        animationSpec = tween(durationMillis = if (dragging) 70 else 260),
+        label = "liquid-glass-drag-light",
+    )
+    val pressCompression by animateFloatAsState(
+        targetValue = if (glassPressed) 0.055f else 0f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 620f),
+        label = "liquid-glass-tab-press",
+    )
+
+    fun settleIndicator(stretch: Float) {
+        dragging = false
+        releaseStretch = stretch.coerceIn(0.02f, 0.10f)
+        settlingDrag = true
+        settleGeneration += 1
+        val generation = settleGeneration
+        tapScope.launch {
+            delay(72)
+            if (settleGeneration == generation) {
+                releaseStretch = 0f
+                delay(260)
+                if (settleGeneration == generation) settlingDrag = false
+            }
+        }
+    }
+
     val themeGlassStyle = remember(dark, themeColors.surfaces.surface) {
         GlassStyle.regular.then {
             tint(themeColors.surfaces.surface.copy(alpha = if (dark) 0.10f else 0.06f))
@@ -132,36 +186,53 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
             )
             .padding(horizontal = 6.dp, vertical = 6.dp)
             .pointerInput(Unit) {
-            detectHorizontalDragGestures(
-                onDragStart = { position ->
-                    dragging = true
-                    dragProgress = selectedProgress
-                    val tabWidth = (size.width - 12.dp.toPx()) / tabs.size
-                    val step = tabWidth + 4.dp.toPx()
-                    dragProgress = ((position.x - tabWidth / 2f) / step)
-                        .coerceIn(0f, (tabs.size - 1).toFloat())
-                    lastTarget = dragProgress.roundToInt().coerceIn(tabs.indices)
-                },
-                onHorizontalDrag = { change, dragAmount ->
-                    change.consume()
-                    val tabWidth = (size.width - 12.dp.toPx()) / tabs.size
-                    val step = tabWidth + 4.dp.toPx()
-                    dragProgress = (dragProgress + dragAmount / step)
-                        .coerceIn(0f, (tabs.size - 1).toFloat())
-                    val target = dragProgress.roundToInt().coerceIn(tabs.indices)
-                    if (target != lastTarget) {
-                        lastTarget = target
-                        hapticView.performSubtleTabHaptic()
-                        onTabSelected(target, true)
-                    }
-                },
-                onDragEnd = {
-                    dragging = false
-                    onTabSelected(lastTarget, true)
-                },
-                onDragCancel = { dragging = false }
-            )
-        }
+                detectHorizontalDragGestures(
+                    onDragStart = { position ->
+                        settleGeneration += 1
+                        settlingDrag = false
+                        releaseStretch = 0f
+                        dragStretch = 0.025f
+                        dragTouchX = position.x
+                        dragDirection = 1f
+                        velocityTracker.resetTracking()
+                        dragging = true
+                        dragProgress = selectedProgress
+                        val tabWidth = (size.width - 12.dp.toPx()) / tabs.size
+                        val step = tabWidth + 4.dp.toPx()
+                        dragProgress = ((position.x - tabWidth / 2f) / step)
+                            .coerceIn(0f, (tabs.size - 1).toFloat())
+                        lastTarget = dragProgress.roundToInt().coerceIn(tabs.indices)
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                        dragTouchX = change.position.x
+                        if (kotlin.math.abs(dragAmount) > 0.1f) {
+                            dragDirection = if (dragAmount > 0f) 1f else -1f
+                        }
+                        val speedFraction = velocityTracker.calculateVelocity().x.let { kotlin.math.abs(it) / 3800f }
+                        dragStretch = (0.025f + speedFraction * 0.12f).coerceAtMost(0.14f)
+
+                        val tabWidth = (size.width - 12.dp.toPx()) / tabs.size
+                        val step = tabWidth + 4.dp.toPx()
+                        dragProgress = (dragProgress + dragAmount / step)
+                            .coerceIn(0f, (tabs.size - 1).toFloat())
+                        val target = dragProgress.roundToInt().coerceIn(tabs.indices)
+                        if (target != lastTarget) {
+                            lastTarget = target
+                            hapticView.performSubtleTabHaptic()
+                            onTabSelected(target, true)
+                        }
+                    },
+                    onDragEnd = {
+                        settleIndicator((dragStretch * 0.42f).coerceIn(0.025f, 0.065f))
+                        onTabSelected(lastTarget, true)
+                    },
+                    onDragCancel = {
+                        settleIndicator((dragStretch * 0.36f).coerceIn(0.02f, 0.055f))
+                    },
+                )
+            }
     ) {
         val tabWidth = (maxWidth - 12.dp) / tabs.size
         val indicatorProgress = if (dragging) dragProgress else selectedProgress
@@ -171,6 +242,15 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
             modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxSize()
                 // 以导航栏左侧为水平基准，避免 Center 先居中后再叠加偏移导致错位。
                 .align(Alignment.CenterStart)
+                .graphicsLayer {
+                    val stretchAmount = (indicatorStretch - 1f).coerceAtLeast(0f)
+                    scaleX = indicatorStretch * (1f - pressCompression * 0.24f)
+                    scaleY = (1f - pressCompression) * (1f - stretchAmount * 0.30f)
+                    transformOrigin = TransformOrigin(
+                        pivotFractionX = if (dragDirection > 0f) 0f else 1f,
+                        pivotFractionY = 0.5f,
+                    )
+                }
                 .shadow(
                     elevation = 3.dp,
                     shape = RoundedCornerShape(50),
@@ -190,6 +270,24 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
                     )
+                    if (dragLightAlpha > 0f) {
+                        val touchCenter = Offset(
+                            x = (dragTouchX - indicatorOffset.toPx()).coerceIn(0f, size.width),
+                            y = size.height * 0.5f,
+                        )
+                        drawRoundRect(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = dragLightAlpha),
+                                    selectedColor.copy(alpha = dragLightAlpha * 0.42f),
+                                    Color.Transparent,
+                                ),
+                                center = touchCenter,
+                                radius = size.height * 1.18f,
+                            ),
+                            cornerRadius = CornerRadius(size.height / 2f),
+                        )
+                    }
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
@@ -228,9 +326,9 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                     label = "tab-item-scale-$index",
                 )
                 val tapScale = animateFloatAsState(
-                    targetValue = if (tapPulseTab == index) .78f else 1f,
-                    animationSpec = ComposeAnimationConfig.jellySpring(),
-                    label = "tab-tap-jelly-scale-$index",
+                    targetValue = if (tapPulseTab == index) .92f else 1f,
+                    animationSpec = ComposeAnimationConfig.pressSpring(),
+                    label = "tab-tap-glass-response-$index",
                 )
                 Box(
                     modifier = Modifier.weight(1f).fillMaxHeight().graphicsLayer {
@@ -244,6 +342,12 @@ internal fun BarcodeComposeBottomTabBar(selectedIndex: Int, dark: Boolean, backd
                             indication = null,
                         ) {
                             hapticView.performSubtleTabHaptic()
+                            val travel = index - selectedIndex
+                            if (travel != 0) dragDirection = if (travel > 0) 1f else -1f
+                            dragTouchX = with(density) { itemCenter.toPx() }
+                            val clickStretch = if (travel == 0) 0.025f
+                            else (0.045f + kotlin.math.abs(travel) * 0.014f).coerceAtMost(0.09f)
+                            settleIndicator(clickStretch)
                             onTabSelected(index, false)
                             tapPulseTab = index
                             tapPulseGeneration += 1
