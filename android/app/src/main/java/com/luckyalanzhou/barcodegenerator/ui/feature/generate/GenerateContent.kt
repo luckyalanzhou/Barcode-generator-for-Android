@@ -211,9 +211,10 @@ internal fun GenerateContent(
                 icon = PhotoCameraIcon,
                 iconDescription = "拍照填充",
                 label = "拍照填充",
-                // 与“添加一行”共用同一张卡片容器，避免单独的描边造成外观不一致。
-                containerColor = cardColor,
-                contentColor = textColor,
+                // 拍照填充是生成页的主要入口之一：使用柔和强调色突出，
+                // 同时让底部实色“生成”按钮继续承担最高优先级。
+                containerColor = themeColors.controls.accent.copy(alpha = if (dark) .20f else .12f),
+                contentColor = themeColors.controls.accent,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )

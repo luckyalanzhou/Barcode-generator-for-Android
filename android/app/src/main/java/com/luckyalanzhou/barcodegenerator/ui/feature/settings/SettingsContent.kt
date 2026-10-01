@@ -216,7 +216,14 @@ internal fun SettingsContent(
 
         item("settings-tools") {
             SettingsCard(colors.surfaces.card, dark) {
-                    SettingsActionRow("局域网文件分享", "启动", colors.settingsText.primary, colors.controls.button, onEnterLanShare)
+                    SettingsRow("局域网文件分享", colors.settingsText.primary) {
+                        SettingsButton(
+                            text = "启动",
+                            color = colors.controls.accent.copy(alpha = if (dark) .20f else .12f),
+                            contentColor = colors.controls.accent,
+                            onClick = onEnterLanShare,
+                        )
+                    }
                     SettingsDivider(dark)
                     SettingsActionRow("恢复默认设置", "恢复", colors.settingsText.primary, colors.controls.button) {
                         val defaults = settings.copy(

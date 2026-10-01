@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -118,6 +119,7 @@ internal fun BarcodeComposeBottomTabBar(
     val unselectedColor = themeColors.navigation.tabUnselected
     val navigationShape = remember { RoundedCornerShape(50) }
     val hapticView = LocalView.current
+    var lastTabHapticAt by remember { mutableLongStateOf(0L) }
     var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
     var dragging by remember { mutableStateOf(false) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
@@ -175,6 +177,13 @@ internal fun BarcodeComposeBottomTabBar(
         label = "liquid-glass-tab-press",
     )
 
+    fun performTabSwitchHaptic() {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastTabHapticAt < TAB_SWITCH_HAPTIC_MIN_INTERVAL_MS) return
+        lastTabHapticAt = now
+        hapticView.performSubtleTabHaptic()
+    }
+
     fun settleIndicator(stretch: Float) {
         dragging = false
         releaseStretch = stretch.coerceIn(0.02f, 0.10f)
@@ -192,7 +201,7 @@ internal fun BarcodeComposeBottomTabBar(
     }
 
     fun handleTabClick(index: Int, centerX: Float) {
-        hapticView.performSubtleTabHaptic()
+        if (index != selectedIndex) performTabSwitchHaptic()
         val travel = index - selectedIndex
         if (travel != 0) dragDirection = if (travel > 0) 1f else -1f
         dragTouchX = centerX
@@ -244,9 +253,11 @@ internal fun BarcodeComposeBottomTabBar(
                             ),
                             center = Offset(
                                 x = (dragTouchX + 6.dp.toPx()).coerceIn(0f, size.width),
-                                y = size.height * .5f,
+                                // Keep the moving specular glint on the rail's upper lip,
+                                // away from the center of the translucent selected capsule.
+                                y = size.height * .06f,
                             ),
-                            radius = size.height * .65f,
+                            radius = size.height * .36f,
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
                     )
@@ -293,7 +304,7 @@ internal fun BarcodeComposeBottomTabBar(
                         val target = dragProgress.roundToInt().coerceIn(tabs.indices)
                         if (target != lastTarget) {
                             lastTarget = target
-                            hapticView.performSubtleTabHaptic()
+                            performTabSwitchHaptic()
                             onTabSelected(target, true)
                         }
                     },
@@ -519,6 +530,8 @@ internal fun BarcodeComposeBottomTabBar(
         }
     }
 }
+
+private const val TAB_SWITCH_HAPTIC_MIN_INTERVAL_MS = 120L
 
 /** Prefer Android's intentionally soft frequent-choice tick, with compatible older-API fallbacks. */
 private fun View.performSubtleTabHaptic() {
