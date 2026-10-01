@@ -191,7 +191,7 @@ internal fun TabLongPressActionDialog(
                     ) {
                         Text(
                             text = "操作",
-                            color = colors.text.secondary,
+                            color = colors.text.placeholder,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                         )

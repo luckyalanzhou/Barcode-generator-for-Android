@@ -69,6 +69,7 @@ internal fun SettingsContent(
     onOcrMaskChange: (Int) -> Unit,
     onEnterLanShare: () -> Unit,
     onShareDebugLog: () -> Unit,
+    onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
     val colors = rememberSettingsColors()
@@ -242,6 +243,13 @@ internal fun SettingsContent(
                     Text("作者：Alan", color = colors.settingsText.secondary, fontSize = 13.sp)
                     Text("版本：${BuildConfig.VERSION_NAME}", color = colors.settingsText.secondary, fontSize = 13.sp)
                 }
+                SettingsActionRow(
+                    "检查更新",
+                    "检查",
+                    colors.settingsText.primary,
+                    colors.controls.button,
+                    onCheckForUpdates,
+                )
             }
         }
     }

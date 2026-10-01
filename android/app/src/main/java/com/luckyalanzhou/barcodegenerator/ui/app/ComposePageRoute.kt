@@ -212,6 +212,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onOcrMaskChange = { dependencies.settingsViewModel.setOcrMaskPersisted(it) },
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
+                    onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onNotice = dependencies.actions::notice,
                 )
             }

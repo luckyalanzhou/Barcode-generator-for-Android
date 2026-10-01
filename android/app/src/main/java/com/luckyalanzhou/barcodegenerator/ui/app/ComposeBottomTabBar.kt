@@ -15,7 +15,7 @@ import com.luckyalanzhou.barcodegenerator.icons.HistoryFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
-import com.luckyalanzhou.barcodegenerator.icons.RefreshIcon
+import com.luckyalanzhou.barcodegenerator.icons.UpgradeIcon
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -325,20 +325,20 @@ internal fun BarcodeComposeBottomTabBar(
                     )
                 }
                 .shadow(
-                    elevation = 3.dp,
+                    elevation = if (dark) 1.dp else 3.dp,
                     shape = RoundedCornerShape(50),
                     clip = false,
-                    ambientColor = Color.Black.copy(alpha = if (dark) .08f else .04f),
-                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .16f else .08f),
+                    ambientColor = Color.Black.copy(alpha = if (dark) .025f else .04f),
+                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = if (dark) .04f else .08f),
                 )
                 .drawBehind {
                     val outline = .7.dp.toPx()
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (dark) .22f else .56f),
-                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .32f else .38f),
-                                selectedColor.copy(alpha = if (dark) .16f else .10f),
+                                Color.White.copy(alpha = if (dark) .10f else .56f),
+                                themeColors.navigation.tabHighlight.copy(alpha = if (dark) .18f else .38f),
+                                selectedColor.copy(alpha = if (dark) .06f else .10f),
                             ),
                         ),
                         cornerRadius = CornerRadius(size.height / 2f),
@@ -346,8 +346,10 @@ internal fun BarcodeComposeBottomTabBar(
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                themeColors.navigation.tabRimTop.copy(alpha = if (dark) .58f else .78f),
-                                themeColors.navigation.tabRimBottom.copy(alpha = if (dark) .20f else .24f),
+                                if (dark) Color.White.copy(alpha = .22f)
+                                else themeColors.navigation.tabRimTop.copy(alpha = .78f),
+                                if (dark) Color.White.copy(alpha = .06f)
+                                else themeColors.navigation.tabRimBottom.copy(alpha = .24f),
                             ),
                         ),
                         topLeft = androidx.compose.ui.geometry.Offset(outline / 2f, outline / 2f),
@@ -497,7 +499,7 @@ internal fun BarcodeComposeBottomTabBar(
                             actions = listOf(
                                 TabLongPressAction(
                                     label = "检查更新",
-                                    icon = RefreshIcon,
+                                    icon = UpgradeIcon,
                                     onClick = onCheckForUpdates,
                                 ),
                             ),
