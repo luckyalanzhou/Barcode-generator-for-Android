@@ -96,7 +96,7 @@ internal fun TabLongPressActionDialog(
                     .clickable(onClick = onDismiss),
             )
 
-            val panelWidth = minOf(maxWidth * .76f, 380.dp)
+            val panelWidth = minOf(maxWidth * .62f, 340.dp)
             AnimatedVisibility(
                 visible = true,
                 modifier = Modifier.align(Alignment.BottomStart)
@@ -124,13 +124,13 @@ internal fun TabLongPressActionDialog(
                             Brush.verticalGradient(
                                 colors = if (dark) {
                                     listOf(
+                                        colors.surfaces.panel.copy(alpha = .94f),
                                         colors.surfaces.panel.copy(alpha = .90f),
-                                        colors.surfaces.panel.copy(alpha = .82f),
                                     )
                                 } else {
                                     listOf(
-                                        Color.White.copy(alpha = .78f),
-                                        colors.surfaces.panel.copy(alpha = .88f),
+                                        Color.White.copy(alpha = .95f),
+                                        colors.surfaces.panel.copy(alpha = .92f),
                                     )
                                 },
                             ),
@@ -142,7 +142,7 @@ internal fun TabLongPressActionDialog(
                         ),
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 20.dp),
+                        modifier = Modifier.fillMaxWidth().height(38.dp).padding(horizontal = 18.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(
@@ -156,9 +156,9 @@ internal fun TabLongPressActionDialog(
                     actions.forEachIndexed { index, action ->
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(64.dp)
+                            modifier = Modifier.fillMaxWidth().height(54.dp)
                                 .clickable(onClick = action.onClick)
-                                .padding(horizontal = 20.dp),
+                                .padding(horizontal = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
