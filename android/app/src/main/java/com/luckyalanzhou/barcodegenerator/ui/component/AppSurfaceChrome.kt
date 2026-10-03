@@ -30,6 +30,19 @@ internal fun Modifier.globalCardSurface(
         shape,
     )
 
+/** Static history/settings groups: separate by fill, without changing other card variants. */
+@Composable
+internal fun Modifier.groupedContentSurface(
+    dark: Boolean,
+    color: Color,
+    shape: RoundedCornerShape,
+): Modifier {
+    val outline = LocalAppColorScheme.current.borders.card
+    return this.clip(shape).background(color).then(
+        if (dark) Modifier else Modifier.border(0.5.dp, outline.copy(alpha = outline.alpha * .4f), shape),
+    )
+}
+
 /** 按钮统一的轻量边缘与浮起效果；按钮本身仍负责颜色、语义和点击反馈。 */
 @Composable
 internal fun Modifier.globalButtonChrome(

@@ -5,7 +5,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
-import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.groupedContentSurface
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
@@ -18,14 +18,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -46,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +62,10 @@ internal fun formatHistoryTime(time: Long, nowMillis: Long = System.currentTimeM
     }
 }
 
+/** Keep the source text intact; Text measures the actual available width before ellipsizing. */
+internal fun historyBatchPreview(batch: List<CodeItem>): String =
+    batch.firstOrNull()?.text?.takeIf { it.isNotBlank() } ?: "无条码内容"
+
 /** 历史页使用完整内容高度展示空状态或历史批次；清空操作由历史 Tab 长按菜单触发。 */
 @Composable
 internal fun HistoryComposePage(
@@ -79,6 +81,7 @@ internal fun HistoryComposePage(
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val hapticView = LocalView.current
+    val dimensions = LocalAppDimensions.current
     val listState = rememberLazyListState()
     var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
     LaunchedEffect(refreshGeneration) {
@@ -91,7 +94,7 @@ internal fun HistoryComposePage(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 96.dp),
+        contentPadding = PaddingValues(bottom = dimensions.bottomTabBarHeight + 24.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (entries.isEmpty()) {
@@ -136,18 +139,18 @@ private fun HistoryBatchCard(
     onDelete: () -> Unit,
 ) {
     val card = LocalAppColorScheme.current.surfaces.card
-    val preview = batch.firstOrNull()?.text.orEmpty().let { text ->
-        if (text.length > 8) text.take(8) + "..." else text
-    }
+    val preview = historyBatchPreview(batch)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp)
-            .globalCardSurface(dark, card, RoundedCornerShape(12.dp), 2.dp)
+            .groupedContentSurface(dark, card, RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = onOpen,
+                onClickLabel = "查看这批条码",
                 onLongClick = onEdit,
+                onLongClickLabel = "编辑这批条码",
+                role = Role.Button,
                 hapticFeedbackEnabled = false,
             ),
         shape = RoundedCornerShape(12.dp),
@@ -156,21 +159,26 @@ private fun HistoryBatchCard(
         shadowElevation = 0.dp,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(46.dp).padding(start = 10.dp, end = 4.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 15.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "${batch.size}条：$preview",
-                modifier = Modifier.weight(1f),
-                color = primary,
-                fontSize = 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(time, color = LocalAppColorScheme.current.text.placeholder, fontSize = 12.sp, maxLines = 1)
-            Spacer(Modifier.width(2.dp))
-            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                Icon(DeleteIcon, "删除这条历史记录", tint = LocalAppColorScheme.current.text.destructive)
+            Column(Modifier.weight(1f).padding(top = 8.dp, bottom = 8.dp, end = 8.dp)) {
+                Text(
+                    text = preview,
+                    color = primary,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${batch.size} 条", color = secondary, fontSize = 12.sp)
+                    Text(" · ", color = secondary, fontSize = 12.sp)
+                    Text(time, color = secondary, fontSize = 12.sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                }
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                Icon(DeleteIcon, "删除这条历史记录", tint = secondary, modifier = Modifier.size(20.dp))
             }
         }
     }

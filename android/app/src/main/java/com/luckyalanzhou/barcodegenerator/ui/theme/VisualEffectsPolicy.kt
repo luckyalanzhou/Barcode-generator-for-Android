@@ -27,13 +27,21 @@ internal data class VisualEffectsPolicy(
     val reduceMotion: Boolean = false,
     val opaqueGlass: Boolean = false,
     val highContrast: Boolean = false,
+    val systemReducedMotion: Boolean = false,
+    val systemHighContrast: Boolean = false,
 )
 
 internal val LocalVisualEffectsPolicy = staticCompositionLocalOf { VisualEffectsPolicy() }
 
 internal fun resolveVisualEffectsPolicy(style: StyleSettings, animationsEnabled: Boolean, systemHighContrast: Boolean): VisualEffectsPolicy {
     val contrast = style.enhanceContrast || systemHighContrast
-    return VisualEffectsPolicy(style.reduceMotion || !animationsEnabled, style.reduceTransparency || contrast, contrast)
+    return VisualEffectsPolicy(
+        reduceMotion = style.reduceMotion || !animationsEnabled,
+        opaqueGlass = style.reduceTransparency || contrast,
+        highContrast = contrast,
+        systemReducedMotion = !animationsEnabled,
+        systemHighContrast = systemHighContrast,
+    )
 }
 
 /** Public system APIs only. Observe live changes and unregister everything with the composition. */

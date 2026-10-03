@@ -13,11 +13,13 @@ class VisualEffectsPolicyTest {
         for (userMotion in listOf(false, true)) for (systemAnimations in listOf(false, true)) {
             val policy = resolveVisualEffectsPolicy(StyleSettings(reduceMotion = userMotion), systemAnimations, false)
             assertEquals(userMotion || !systemAnimations, policy.reduceMotion)
+            assertEquals(!systemAnimations, policy.systemReducedMotion)
         }
         for (userContrast in listOf(false, true)) for (systemContrast in listOf(false, true)) {
             val policy = resolveVisualEffectsPolicy(StyleSettings(enhanceContrast = userContrast), true, systemContrast)
             assertEquals(userContrast || systemContrast, policy.highContrast)
             assertEquals(userContrast || systemContrast, policy.opaqueGlass)
+            assertEquals(systemContrast, policy.systemHighContrast)
         }
     }
 

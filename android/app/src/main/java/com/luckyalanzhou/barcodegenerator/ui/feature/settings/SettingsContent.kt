@@ -43,11 +43,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
 import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 @Composable
 internal fun SettingsContent(
@@ -78,24 +79,21 @@ internal fun SettingsContent(
     val colors = rememberSettingsColors()
     var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
+    var displayEffectsOpen by rememberSaveable { mutableStateOf(false) }
+    val effectsSettings = displayEffectsSettingsState(settings.style, LocalVisualEffectsPolicy.current)
     var schemeButtonWidth by remember { mutableIntStateOf(0) }
     var ocrButtonWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val schemeWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val dimensions = LocalAppDimensions.current
     val listState = rememberLazyListState()
     val contentExceedsViewport by remember(listState) {
         derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val visibleItems = layoutInfo.visibleItemsInfo
-            val firstVisibleItem = visibleItems.firstOrNull()
-            val lastVisibleItem = visibleItems.lastOrNull()
-
-            when {
-                firstVisibleItem == null || lastVisibleItem == null -> false
-                firstVisibleItem.index > 0 || lastVisibleItem.index < layoutInfo.totalItemsCount - 1 -> true
-                else -> lastVisibleItem.offset + lastVisibleItem.size > layoutInfo.viewportSize.height
-            }
+            // LazyListState includes trailing content padding in its measured scroll range.
+            // Keep scrolling enabled at both ends; the final card may fit in the full
+            // viewport while still being covered by the overlaid Tab bar.
+            listState.canScrollForward || listState.canScrollBackward
         }
     }
 
@@ -105,8 +103,8 @@ internal fun SettingsContent(
         modifier = Modifier.fillMaxSize(),
         state = listState,
         userScrollEnabled = contentExceedsViewport,
-        contentPadding = PaddingValues(bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(LocalAppDimensions.current.settingsCardSpacing),
+        contentPadding = PaddingValues(bottom = dimensions.bottomTabBarHeight + 24.dp),
+        verticalArrangement = Arrangement.spacedBy(dimensions.settingsCardSpacing),
     ) {
         item("settings-appearance") {
             SettingsCard(colors.surfaces.card, dark) {
@@ -142,22 +140,11 @@ internal fun SettingsContent(
                         }
                     }
                     SettingsDivider(dark)
-                    SettingsRow("减少导航动画", colors.settingsText.primary, Modifier.heightIn(min = 48.dp).semantics(mergeDescendants = true) {}) {
-                        SettingsToggle(checked = settings.style.reduceMotion, dark = dark,
-                            modifier = Modifier.semantics { contentDescription = "减少导航动画" },
-                            onCheckedChange = { persist(settings.copy(style = settings.style.copy(reduceMotion = it))) })
-                    }
-                    SettingsDivider(dark)
-                    SettingsRow("降低玻璃透明度", colors.settingsText.primary, Modifier.heightIn(min = 48.dp).semantics(mergeDescendants = true) {}) {
-                        SettingsToggle(checked = settings.style.reduceTransparency, dark = dark,
-                            modifier = Modifier.semantics { contentDescription = "降低玻璃透明度" },
-                            onCheckedChange = { persist(settings.copy(style = settings.style.copy(reduceTransparency = it))) })
-                    }
-                    SettingsDivider(dark)
-                    SettingsRow("增强玻璃对比度", colors.settingsText.primary, Modifier.heightIn(min = 48.dp).semantics(mergeDescendants = true) {}) {
-                        SettingsToggle(checked = settings.style.enhanceContrast, dark = dark,
-                            modifier = Modifier.semantics { contentDescription = "增强玻璃对比度" },
-                            onCheckedChange = { persist(settings.copy(style = settings.style.copy(enhanceContrast = it))) })
+                    SettingsRow("显示与动效", colors.settingsText.primary,
+                        Modifier.clickable(role = Role.Button) { displayEffectsOpen = true }) {
+                        Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 14.sp)
+                        Icon(KeyboardArrowRightIcon, contentDescription = null,
+                            tint = colors.settingsText.secondary, modifier = Modifier.padding(start = 6.dp).size(20.dp))
                     }
             }
         }
@@ -282,5 +269,13 @@ internal fun SettingsContent(
                 }
             }
         }
+    }
+    if (displayEffectsOpen) {
+        DisplayEffectsSettingsDialog(
+            style = settings.style,
+            dark = dark,
+            onStyleChange = { persist(settings.copy(style = it)) },
+            onDismiss = { displayEffectsOpen = false },
+        )
     }
 }

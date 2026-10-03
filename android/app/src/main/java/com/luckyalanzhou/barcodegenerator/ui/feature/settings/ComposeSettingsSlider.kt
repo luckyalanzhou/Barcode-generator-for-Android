@@ -36,7 +36,7 @@ internal fun SettingsSliderRow(
 ) {
     val sliderColors = LocalAppColorScheme.current.sliders
     val valueColor = LocalAppColorScheme.current.text.primary
-    Row(Modifier.fillMaxWidth().height(LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
         Slider(
             value = value,

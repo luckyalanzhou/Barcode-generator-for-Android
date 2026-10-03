@@ -17,7 +17,7 @@ internal data class AppDimensions(
     val cardCornerRadius: Dp = 18.dp,
     val buttonCornerRadius: Dp = 16.dp,
     val settingsRowHeight: Dp = 48.dp,
-    val settingsCardSpacing: Dp = 6.dp,
+    val settingsCardSpacing: Dp = 8.dp,
 )
 
 internal val LocalAppDimensions = staticCompositionLocalOf { AppDimensions() }

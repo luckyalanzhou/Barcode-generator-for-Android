@@ -4,7 +4,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
-import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.groupedContentSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
 import com.luckyalanzhou.barcodegenerator.domain.ocrCorrectionOptions
@@ -45,8 +45,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,13 +56,13 @@ internal fun rememberSettingsColors(): AppColorScheme = LocalAppColorScheme.curr
 
 @Composable
 internal fun SettingsCard(color: Color, dark: Boolean, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().globalCardSurface(dark, color, RoundedCornerShape(16.dp), 2.dp).padding(horizontal = SettingsCardHorizontalPadding, vertical = 2.dp), content = content)
+    Column(Modifier.fillMaxWidth().groupedContentSurface(dark, color, RoundedCornerShape(16.dp)).padding(horizontal = SettingsCardHorizontalPadding, vertical = 2.dp), content = content)
 }
 
 @Composable
 internal fun SettingsRow(title: String, color: Color, modifier: Modifier = Modifier, trailing: @Composable () -> Unit) {
     Row(modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(end = 12.dp))
         trailing()
     }
 }
@@ -94,25 +92,16 @@ internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, a
 
 @Composable
 internal fun SettingsDivider(dark: Boolean) {
-    val endExtensionPx = with(LocalDensity.current) { SettingsCardHorizontalPadding.roundToPx() }
     Spacer(
         Modifier
+            .fillMaxWidth()
             .height(if (dark) 0.5.dp else 1.dp)
-            .layout { measurable, constraints ->
-                val dividerWidth = constraints.maxWidth + endExtensionPx
-                val placeable = measurable.measure(
-                    constraints.copy(minWidth = dividerWidth, maxWidth = dividerWidth),
-                )
-                layout(dividerWidth, placeable.height) {
-                    placeable.placeRelative(0, 0)
-                }
-            }
             .background(LocalAppColorScheme.current.borders.divider),
     )
 }
 
 @Composable
-internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
+internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     val themeColors = LocalAppColorScheme.current
     val trackColor = animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
     val thumbOffset = animateDpAsState(if (checked) 20.dp else 0.dp, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-thumb")
@@ -125,7 +114,7 @@ internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier 
                     cornerRadius = CornerRadius(16.dp.toPx()),
                 )
             }
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
