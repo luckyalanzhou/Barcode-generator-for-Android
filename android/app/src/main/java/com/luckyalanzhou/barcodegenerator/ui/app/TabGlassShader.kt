@@ -13,6 +13,7 @@ uniform float2 touchPoint;
 layout(color) uniform half4 backgroundColor;
 layout(color) uniform half4 accentColor;
 uniform float4 material;
+uniform float edgeWidth;
 
 half4 main(float2 p) {
     half4 original = content.eval(p);
@@ -44,7 +45,7 @@ half4 main(float2 p) {
     glassColor = mix(glassColor, accentColor.rgb, half(material.y));
     half3 color = sampled.rgb + (glassColor - backgroundColor.rgb) * half(mask * (1.0 - ink));
 
-    float rim = 1.0 - smoothstep(0.0, 1.2 * optics.w, depth);
+    float rim = 1.0 - smoothstep(0.0, max(edgeWidth, 0.5), depth);
     float2 lightVector = touchPoint - capsule.xy;
     float2 lightDirection = lightVector / max(length(lightVector), 0.001);
     float contactLight = pow(max(dot(normal, lightDirection), 0.0), mix(14.0, 4.0, clamp(optics.z, 0.0, 1.0))) * optics.y;

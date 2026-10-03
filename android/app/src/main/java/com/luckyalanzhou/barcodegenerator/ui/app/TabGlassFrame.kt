@@ -32,6 +32,7 @@ internal fun tabGlassFrame(
     touchX: Float? = null,
     touchY: Float? = null,
     contactSpread: Float = 1f,
+    refractionDp: Float = 2.25f,
 ): TabGlassFrame {
     val safeWidth = width.coerceAtLeast(1f)
     val safeHeight = height.coerceAtLeast(1f)
@@ -55,7 +56,7 @@ internal fun tabGlassFrame(
         halfWidth = halfWidth,
         halfHeight = halfHeight.coerceAtMost(safeHeight * .5f),
         motion = strength,
-        refractionPx = 2.25f * safeDensity * strength,
+        refractionPx = refractionDp.coerceIn(0f, 3f) * safeDensity * strength,
         density = safeDensity,
         touchX = touchX ?: centerX + halfWidth * .6f * direction.coerceIn(-1f, 1f),
         touchY = touchY ?: centerY - halfHeight * .75f,

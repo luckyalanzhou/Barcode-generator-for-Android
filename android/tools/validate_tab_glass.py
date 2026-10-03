@@ -56,6 +56,7 @@ def main():
         builder.setUniform("backgroundColor", skia.V4(bg.fR, bg.fG, bg.fB, bg.fA))
         builder.setUniform("accentColor", skia.V4(0.05, 0.48, 0.95, 1))
         builder.setUniform("material", skia.V4(*material))
+        builder.setUniform("edgeWidth", 2.2)
         surface = skia.Surface(width, height)
         surface.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
         return surface.makeImageSnapshot()
@@ -77,7 +78,7 @@ def main():
             assert np.count_nonzero(difference[distance < -1] > 4) > 300, "Lens does not warp actual grid pixels"
             assert warped[:, :, 3].min() == 255, "Unexpected transparency/duplicate compositing"
         scene, bg = input_image(dark, False)
-        materials = (.055, .035, .16, .10) if dark else (.18, .035, .22, .07)
+        materials = (.04, .021, .14, .085) if dark else (.14, .025, .20, .06)
         still = render(scene, bg, 240, 0, materials)
         active = render(scene, bg, 240, 1, materials)
         comparisons.extend((scene.toarray(), still.toarray(), active.toarray()))

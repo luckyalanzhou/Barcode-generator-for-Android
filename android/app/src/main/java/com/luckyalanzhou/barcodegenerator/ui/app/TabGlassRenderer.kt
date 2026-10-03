@@ -15,11 +15,11 @@ internal class TabGlassRenderer private constructor(private val shader: RuntimeS
     private var previousFrame: TabGlassFrame? = null
     private var previousBackground: Color? = null
     private var previousAccent: Color? = null
-    private var previousDark: Boolean? = null
+    private var previousMaterial: TabGlassMaterial? = null
     private var cachedEffect: androidx.compose.ui.graphics.RenderEffect? = null
 
-    fun effect(frame: TabGlassFrame, background: Color, accent: Color, dark: Boolean): androidx.compose.ui.graphics.RenderEffect {
-        if (frame == previousFrame && background == previousBackground && accent == previousAccent && dark == previousDark) {
+    fun effect(frame: TabGlassFrame, background: Color, accent: Color, material: TabGlassMaterial): androidx.compose.ui.graphics.RenderEffect {
+        if (frame == previousFrame && background == previousBackground && accent == previousAccent && material == previousMaterial) {
             cachedEffect?.let { return it }
         }
         shader.setFloatUniform("resolution", frame.width, frame.height)
@@ -28,12 +28,13 @@ internal class TabGlassRenderer private constructor(private val shader: RuntimeS
         shader.setFloatUniform("touchPoint", frame.touchX, frame.touchY)
         shader.setColorUniform("backgroundColor", background.toArgb())
         shader.setColorUniform("accentColor", accent.toArgb())
-        shader.setFloatUniform("material", if (dark) .055f else .18f, .035f, if (dark) .16f else .22f, if (dark) .10f else .07f)
+        shader.setFloatUniform("material", material.whiteLift, material.accentTint, material.rimLight, material.innerShadow)
+        shader.setFloatUniform("edgeWidth", material.edgeWidthDp * frame.density)
         val effect = RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect()
         previousFrame = frame
         previousBackground = background
         previousAccent = accent
-        previousDark = dark
+        previousMaterial = material
         cachedEffect = effect
         return effect
     }

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
 
 /** A single output layer. Only drawing reads position/contact; child semantics remain unchanged. */
@@ -26,7 +27,6 @@ import androidx.compose.ui.unit.IntSize
 internal fun TabLiquidGlassScene(
     motion: TabGlassMotionState,
     tabCount: Int,
-    dark: Boolean,
     accent: Color,
     background: Color,
     visible: Boolean,
@@ -37,6 +37,11 @@ internal fun TabLiquidGlassScene(
     }
     var sceneSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
+    val material = remember(background, sceneSize.height, density) {
+        tabGlassMaterial(background, sceneSize.height / density)
+    }
+    val useGpu = renderer != null && LocalView.current.isHardwareAccelerated &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     val active = visible && (motion.dragging || motion.settling || motion.pressed)
     val activity = animateFloatAsState(
         targetValue = if (active) 1f else 0f,
@@ -56,18 +61,19 @@ internal fun TabLiquidGlassScene(
             if (animationsEnabled) motion.impact.value else 0f, direction.value,
             motion.touchX.takeIf { it.isFinite() }, motion.touchY.takeIf { it.isFinite() },
             motion.contactSpread.value,
+            material.refractionDp,
         )
     }
-    val effectModifier = if (renderer != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    val effectModifier = if (useGpu && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Modifier.graphicsLayer {
             renderEffect = if (visible && sceneSize.width > 0 && sceneSize.height > 0) {
-                renderer.effect(frameProvider(), background, accent, dark)
+                renderer.effect(frameProvider(), background, accent, material)
             } else null
         }
     } else Modifier
     Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }.then(effectModifier).background(background)) {
-        if (renderer == null && visible) {
-            TabGlassSurface(frameProvider, dark, accent, background)
+        if (!useGpu && visible) {
+            TabGlassSurface(frameProvider, material, accent, background)
         }
         content()
     }

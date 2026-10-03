@@ -19,7 +19,7 @@ import kotlin.math.sqrt
 @Composable
 internal fun TabGlassSurface(
     frameProvider: () -> TabGlassFrame,
-    dark: Boolean,
+    material: TabGlassMaterial,
     accent: Color,
     background: Color,
 ) {
@@ -28,15 +28,15 @@ internal fun TabGlassSurface(
         val topLeft = Offset(frame.centerX - frame.halfWidth, frame.centerY - frame.halfHeight)
         val bounds = Size(frame.halfWidth * 2, frame.halfHeight * 2)
         val corner = CornerRadius(min(frame.halfWidth, frame.halfHeight))
-        val fill = lerp(lerp(background, Color.White, if (dark) .055f else .18f), accent, .035f)
+        val fill = lerp(lerp(background, Color.White, material.whiteLift), accent, material.accentTint)
         drawRoundRect(fill, topLeft, bounds, corner)
-        val stroke = .65f * frame.density
+        val stroke = material.edgeWidthDp * .55f * frame.density
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)
         val innerBounds = Size((bounds.width - stroke).coerceAtLeast(.1f), (bounds.height - stroke).coerceAtLeast(.1f))
         val innerCorner = CornerRadius((corner.x - stroke * .5f).coerceAtLeast(.1f))
         drawRoundRect(
             Brush.verticalGradient(
-                listOf(Color.White.copy(alpha = if (dark) .16f else .22f), Color.Black.copy(alpha = if (dark) .10f else .07f)),
+                listOf(Color.White.copy(alpha = material.rimLight), Color.Black.copy(alpha = material.innerShadow)),
                 startY = topLeft.y, endY = topLeft.y + bounds.height,
             ),
             innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke),
@@ -48,7 +48,7 @@ internal fun TabGlassSurface(
             val light = Offset(frame.centerX + frame.halfWidth * dx / length, frame.centerY + frame.halfHeight * dy / length)
             drawRoundRect(
                 Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = .18f * frame.motion), Color.Transparent),
+                    listOf(Color.White.copy(alpha = material.rimLight * frame.motion), Color.Transparent),
                     center = light, radius = frame.halfHeight * (.6f + frame.contactSpread * .5f),
                 ),
                 innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke),

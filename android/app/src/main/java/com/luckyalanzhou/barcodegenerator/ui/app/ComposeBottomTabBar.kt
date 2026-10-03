@@ -184,7 +184,6 @@ internal fun BarcodeComposeBottomTabBar(
         TabLiquidGlassScene(
             motion = motion,
             tabCount = tabs.size,
-            dark = dark,
             accent = selectedColor,
             background = themeColors.surfaces.background,
             visible = showSelectionIndicator,
