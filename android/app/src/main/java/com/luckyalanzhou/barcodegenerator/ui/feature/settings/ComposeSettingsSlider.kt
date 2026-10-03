@@ -75,10 +75,9 @@ internal fun SettingsSliderRow(
         )
         val valueParts = valueText.split(' ', limit = 2)
         Row(
-            modifier = Modifier.width(74.dp).padding(end = 8.dp),
-            // Keep the numeric value anchored to the slider-side edge. This
-            // mirrors the fixed 6.dp inset on the title side; the unit stays
-            // right-aligned independently of the value width.
+            modifier = Modifier.width(74.dp).padding(end = 8.dp).offset(x = 6.dp),
+            // Shift the complete value display 6.dp right within the reserved
+            // trailing inset, without changing the slider or row measurements.
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
