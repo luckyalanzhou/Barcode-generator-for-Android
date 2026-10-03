@@ -44,6 +44,8 @@ internal fun TabLiquidGlassScene(
     val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, whiteLift = 0f, accentTint = 0f) else material
     val useGpu = !policy.opaqueGlass && renderer != null && LocalView.current.isHardwareAccelerated &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    val backdropReady = LocalGlassBackdrop.current?.ready == true
+    val foregroundMaterial = if (backdropReady) resolvedMaterial.copy(surfaceOpacity = 0f) else resolvedMaterial
     val active = !policy.reduceMotion && visible && (motion.dragging || motion.settling || motion.pressed)
     val activity = animateFloatAsState(
         targetValue = if (active) 1f else 0f,
@@ -66,25 +68,27 @@ internal fun TabLiquidGlassScene(
             resolvedMaterial.refractionDp,
         )
     }
-    val effectModifier = if (useGpu && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    val effectModifier = if (useGpu) {
         Modifier.graphicsLayer {
             renderEffect = if (visible && sceneSize.width > 0 && sceneSize.height > 0) {
-                renderer.effect(frameProvider(), background, accent, resolvedMaterial)
+                renderer.effect(frameProvider(), background, accent, foregroundMaterial)
             } else null
         }
     } else Modifier
     // The page beneath remains visible; the shader paints material only inside the selected capsule.
-    Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }.then(effectModifier)) {
+    Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }) {
         if (useGpu && visible) {
             GlassBackdropSurface(
                 modifier = Modifier.fillMaxSize(), color = background,
                 opacity = material.surfaceOpacity, cornerDp = sceneSize.height / density / 2f,
-                blurDp = 1.5f, refractionDp = { 0f }, capsule = frameProvider, drawFallback = false,
+                blurDp = 1.5f, refractionDp = { frameProvider().refractionPx / density }, capsule = frameProvider, drawFallback = false,
             )
         }
-        if (!useGpu && visible) {
-            TabGlassSurface(frameProvider, resolvedMaterial, accent, background)
+        Box(Modifier.fillMaxSize().then(effectModifier)) {
+            if (!useGpu && visible) {
+                TabGlassSurface(frameProvider, resolvedMaterial.copy(surfaceOpacity = resolvedMaterial.surfaceOpacity.coerceAtLeast(.82f)), accent, background, policy.highContrast)
+            }
+            content()
         }
-        content()
     }
 }

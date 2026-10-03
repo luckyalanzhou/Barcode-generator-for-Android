@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
+import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
@@ -79,7 +80,7 @@ internal fun GlassBackdropSurface(
         origin = it.localToWindow(Offset.Zero)
         size = it.size
     }.graphicsLayer {
-        if (gpu && Build.VERSION.SDK_INT >= 33 && size.width > 0 && size.height > 0) {
+        if (gpu && size.width > 0 && size.height > 0) {
             renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp,
                 if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
         } else renderEffect = null
@@ -109,8 +110,13 @@ private class BackdropRenderer(private val shader: RuntimeShader) {
         shader.setFloatUniform("bounds", capsule?.centerX ?: size.width / 2f, capsule?.centerY ?: size.height / 2f,
             capsule?.halfWidth ?: size.width / 2f, capsule?.halfHeight ?: size.height / 2f)
         shader.setFloatUniform("shape", corner * density, blur * density, refraction * density, opacity)
+        shader.setFloatUniform("contact", capsule?.touchX ?: size.width / 2f, capsule?.touchY ?: 0f,
+            capsule?.motion ?: 0f, capsule?.contactSpread ?: 1f)
         shader.setColorUniform("surfaceColor", color.toArgb())
-        return RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect().also {
+        val lens = RenderEffect.createRuntimeShaderEffect(shader, "content")
+        val effect = if (blur > 0f) RenderEffect.createChainEffect(lens,
+            RenderEffect.createBlurEffect(blur * density, blur * density, Shader.TileMode.CLAMP)) else lens
+        return effect.asComposeRenderEffect().also {
             previous = key
             cached = it
         }

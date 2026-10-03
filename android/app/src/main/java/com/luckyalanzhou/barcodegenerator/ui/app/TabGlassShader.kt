@@ -39,6 +39,8 @@ half4 main(float2 p) {
     float2 samplePoint = clamp(p - displacement, float2(0.5), resolution - float2(0.5));
     half4 refracted = content.eval(samplePoint);
     half4 sampled = mix(original, refracted, half(mask));
+    // With a separate page backdrop this layer only refracts original foreground pixels.
+    if (surfaceOpacity <= 0.0) return sampled;
 
     half3 glassColor = mix(backgroundColor.rgb, half3(1.0), half(material.x));
     glassColor = mix(glassColor, accentColor.rgb, half(material.y));

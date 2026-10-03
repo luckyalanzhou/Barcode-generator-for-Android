@@ -54,6 +54,10 @@ internal fun rememberVisualEffectsPolicy(style: StyleSettings): VisualEffectsPol
             override fun onChange(selfChange: Boolean) { refresh() }
         }
         context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+        val mainHandler = Handler(Looper.getMainLooper())
+        val removeDurationListener = if (Build.VERSION.SDK_INT >= 33) {
+            observeAnimationScale { mainHandler.post { refresh() } }
+        } else ({})
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) refresh()
         }
@@ -65,9 +69,18 @@ internal fun rememberVisualEffectsPolicy(style: StyleSettings): VisualEffectsPol
             context.contentResolver.unregisterContentObserver(observer)
             lifecycle.removeObserver(lifecycleObserver)
             removeContrastListener()
+            removeDurationListener()
+            mainHandler.removeCallbacksAndMessages(null)
         }
     }
     return resolveVisualEffectsPolicy(style, animationsEnabled, contrast)
+}
+
+@RequiresApi(33)
+private fun observeAnimationScale(onChange: () -> Unit): () -> Unit {
+    val listener = ValueAnimator.DurationScaleChangeListener { onChange() }
+    val registered = ValueAnimator.registerDurationScaleChangeListener(listener)
+    return { if (registered) ValueAnimator.unregisterDurationScaleChangeListener(listener) }
 }
 
 @RequiresApi(36)

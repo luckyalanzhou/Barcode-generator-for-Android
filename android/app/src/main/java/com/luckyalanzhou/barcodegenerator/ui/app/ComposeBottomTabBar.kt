@@ -21,6 +21,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.selection.selectableGroup
@@ -62,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -92,8 +94,8 @@ internal fun BarcodeComposeBottomTabBar(
     onFavoritesExport: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onLongPressActionMenuRequested: (TabLongPressMenuState) -> Unit,
-    showSelectionIndicator: Boolean = true,
     modifier: Modifier = Modifier,
+    showSelectionIndicator: Boolean = true,
 ) {
     val tabs = remember {
         listOf(
@@ -106,7 +108,7 @@ internal fun BarcodeComposeBottomTabBar(
     }
     val themeColors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
-    val selectedColor = themeColors.controls.accent
+    val selectedColor = if (effects.highContrast) lerp(themeColors.controls.accent, themeColors.text.primary, .55f) else themeColors.controls.accent
     val unselectedColor = if (effects.highContrast) themeColors.text.primary else themeColors.navigation.tabUnselected
     val hapticView = LocalView.current
     var lastTabHapticAt by remember { mutableLongStateOf(0L) }
@@ -145,6 +147,7 @@ internal fun BarcodeComposeBottomTabBar(
 
     Box(
         modifier = modifier.fillMaxSize()
+            .then(if (effects.opaqueGlass) Modifier.background(themeColors.surfaces.background) else Modifier)
             .padding(horizontal = 4.dp, vertical = 5.dp)
             .pointerInput(motion) {
                 // Observe the real contact location without consuming clicks or long presses.

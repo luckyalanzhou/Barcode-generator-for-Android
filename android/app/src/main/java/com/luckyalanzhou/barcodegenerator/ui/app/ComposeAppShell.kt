@@ -47,7 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
@@ -132,9 +132,13 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         finishedListener = { if (it == 0f) tabMenu.closed() },
         label = "tab-menu-presentation",
     )
+    fun dismissMenu(action: (() -> Unit)? = null) {
+        // A dismiss may precede the first animated frame; do not wait for a non-existent exit.
+        tabMenu.dismiss(immediately = tabMenuProgress.value <= 0f, action = action)
+    }
     val tabEnterOffset = with(LocalDensity.current) { 20.dp.roundToPx() }
-    val configuration = LocalConfiguration.current
-    LaunchedEffect(currentRoute, configuration.screenWidthDp, configuration.screenHeightDp) { tabMenu.dismiss() }
+    val windowSize = LocalWindowInfo.current.containerSize
+    LaunchedEffect(currentRoute, windowSize) { dismissMenu() }
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
         if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
@@ -147,7 +151,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         }
     }
     BackHandler(enabled = tabMenu.menu != null) {
-        tabMenu.dismiss()
+        dismissMenu()
     }
     LaunchedEffect(updateUiState.dialogShowing, updateUiState.availableVersion, updateUiState.availableUrl) {
         if (updateUiState.dialogShowing && updateUiState.availableVersion != null && updateUiState.availableUrl != null) {
@@ -157,6 +161,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
 
     AppTheme(settingsUiState.style.colorScheme) {
         val dark = LocalResolvedAppAppearance.current.isDark
+        LaunchedEffect(dark) { dismissMenu() }
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
         val backdrop = rememberGlassBackdrop()
@@ -187,7 +192,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             bottom = dimensions.pageBottomPadding,
                         ),
                 ) {
-                    Column(Modifier.fillMaxSize().recordGlassBackdrop(backdrop).background(colors.surfaces.background)) {
+                    Column(Modifier.fillMaxSize()
+                        .then(if (chromeVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(backdrop) else Modifier)
+                        .background(colors.surfaces.background)) {
                         if (chromeVisible) {
                             Box(
                                 modifier = Modifier.fillMaxWidth().height(
@@ -266,8 +273,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     progress = tabMenuProgress,
                     interactive = tabMenu.open,
                     onMeasured = tabMenu::measured,
-                    onDismiss = { tabMenu.dismiss() },
-                    onAction = { tabMenu.dismiss(it) },
+                    onDismiss = { dismissMenu() },
+                    onAction = { dismissMenu(it) },
                 )
             }
         }

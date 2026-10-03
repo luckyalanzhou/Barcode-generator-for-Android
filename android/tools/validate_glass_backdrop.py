@@ -21,12 +21,17 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0):
         builder = skia.RuntimeShaderBuilder(effect)
-        builder.setChild("content", page.makeImageSnapshot().makeShader())
+        input_page = page
+        if page_color is not None:
+            input_page = skia.Surface(w, h)
+            input_page.getCanvas().clear(page_color)
+        builder.setChild("content", input_page.makeImageSnapshot().makeShader())
         builder.setUniform("resolution", skia.V2(w, h))
         builder.setUniform("bounds", skia.V4(w / 2, h / 2, 135, 65))
         builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
+        builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
         builder.setUniform("surfaceColor", skia.V4(*((.08, .09, .12, 1) if dark else (.97, .98, 1, 1))))
         output = skia.Surface(w, h)
         output.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
@@ -40,7 +45,15 @@ def main():
         assert np.count_nonzero(np.max(np.abs(rest.astype(int) - active.astype(int)), axis=2) > 4) > 100, "Real page pixels are not refracted"
         solid = render(1, 0, 0, dark)
         assert np.ptp(solid[60:120, 90:230, :3].astype(int), axis=0).max() <= 1, "Opaque fallback leaks page detail"
-        print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation and solid fallback")
+        protected = render(.45, 0, 0, dark, 0xFFFFFFFF if dark else 0xFF000000)
+        center = protected[60:120, 90:230, :3].mean() / 255
+        assert (center < .45 if dark else center > .60), "Opposite-brightness background does not gain contrast protection"
+        lit = render(.45, 0, 0, dark, contact=1)
+        difference = np.max(np.abs(rest.astype(int) - lit.astype(int)), axis=2)
+        assert np.count_nonzero(difference > 3) > 30, "Contact does not light the material rim"
+        assert difference[65:115, 90:230].max() <= 1, "Contact creates a central hot spot"
+        assert np.max(lit[:20, :, 3]) == 0, "Contact produces external glow"
+        print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabMenuPresentationTest {
+    @Test fun measuredMenuBeforeFirstFrameCanCloseImmediately() {
+        val controller = TabMenuPresentation<String>()
+        var calls = 0
+        controller.show("设置")
+        controller.measured()
+        controller.dismiss(immediately = true) { calls++ }
+        assertNull(controller.menu)
+        controller.closed()
+        assertEquals(1, calls)
+    }
+    @Test fun focusRestoresOnlyForDismissNotForActionsOpeningAnotherWindow() {
+        val restored = mutableListOf<String>()
+        val controller = TabMenuPresentation<String> { restored += it }
+        controller.show("历史")
+        controller.measured()
+        controller.dismiss()
+        controller.closed()
+        assertEquals(listOf("历史"), restored)
+        controller.show("收藏")
+        controller.measured()
+        controller.dismiss { restored += "picker" }
+        controller.closed()
+        assertEquals(listOf("历史", "picker"), restored)
+    }
     @Test fun closingRetainsMenuAndRunsActionOnce() {
         val controller = TabMenuPresentation<String>()
         var calls = 0

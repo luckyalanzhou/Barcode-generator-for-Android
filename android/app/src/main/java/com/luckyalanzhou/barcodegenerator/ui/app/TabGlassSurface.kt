@@ -22,6 +22,7 @@ internal fun TabGlassSurface(
     material: TabGlassMaterial,
     accent: Color,
     background: Color,
+    highContrast: Boolean = false,
 ) {
     Box(Modifier.fillMaxSize().drawBehind {
         val frame = frameProvider()
@@ -41,6 +42,9 @@ internal fun TabGlassSurface(
             ),
             innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke),
         )
+        if (highContrast) {
+            drawRoundRect(accent, innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke.coerceAtLeast(frame.density)))
+        }
         if (frame.motion > .001f) {
             val dx = frame.touchX - frame.centerX
             val dy = frame.touchY - frame.centerY

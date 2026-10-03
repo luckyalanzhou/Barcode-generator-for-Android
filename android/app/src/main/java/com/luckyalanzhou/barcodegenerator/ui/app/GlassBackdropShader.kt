@@ -6,6 +6,7 @@ uniform shader content;
 uniform float2 resolution;
 uniform float4 bounds;
 uniform float4 shape;
+uniform float4 contact;
 layout(color) uniform half4 surfaceColor;
 
 half4 main(float2 p) {
@@ -36,7 +37,11 @@ half4 main(float2 p) {
     float opacity = clamp(shape.w + protection, 0.0, 1.0);
     half3 color = mix(scene, surfaceColor.rgb, half(opacity));
     float rim = 1.0 - smoothstep(0.0, 1.5, depth);
+    float2 lightVector = contact.xy - bounds.xy;
+    float2 direction = lightVector / max(length(lightVector), 0.001);
+    float contactLight = pow(max(dot(normal, direction), 0.0), mix(14.0, 4.0, clamp(contact.w, 0.0, 1.0))) * contact.z;
     color += half3(rim * max(-normal.y, 0.0) * mix(0.025, 0.045, targetLuminance));
+    color += half3(rim * contactLight * 0.07);
     color *= half(1.0 - rim * max(normal.y, 0.0) * mix(0.09, 0.06, targetLuminance));
     return half4(clamp(color, half3(0.0), half3(1.0)) * half(mask), half(mask));
 }

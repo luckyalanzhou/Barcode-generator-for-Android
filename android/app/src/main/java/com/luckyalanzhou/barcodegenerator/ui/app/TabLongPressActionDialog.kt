@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -127,27 +126,14 @@ internal fun TabLongPressActionOverlay(
                     .clearAndSetSemantics { },
             )
 
-            val panelMaxWidth = minOf(maxWidth * .62f, 340.dp)
-            val menuWidthPx = panelSize.width.toFloat()
-            val menuHeightPx = panelSize.height.toFloat()
+            val panelMaxWidth = minOf(maxWidth * .62f, 340.dp, (maxWidth - 24.dp).coerceAtLeast(1.dp))
             val screenWidthPx = with(density) { maxWidth.toPx() }
             val edgePaddingPx = with(density) { 12.dp.toPx() }
             val gapPx = with(density) { 8.dp.toPx() }
-            val anchorCenterX = (anchorBoundsOnScreen.left + anchorBoundsOnScreen.right) / 2f - overlayOriginOnScreen.x
-            val desiredLeft = anchorCenterX - menuWidthPx / 2f
-            val leftPx = desiredLeft.coerceIn(
-                edgePaddingPx,
-                (screenWidthPx - menuWidthPx - edgePaddingPx).coerceAtLeast(edgePaddingPx),
-            )
             val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
-            val desiredTop = anchorBoundsOnScreen.top - overlayOriginOnScreen.y - menuHeightPx - gapPx
             val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 10.dp.toPx() }
-            val topPx = desiredTop.coerceAtLeast(statusBarTopPx + gapPx + focusLiftPx)
-            val pivotX = if (menuWidthPx > 0f) {
-                ((anchorCenterX - leftPx) / menuWidthPx).coerceIn(0f, 1f)
-            } else {
-                .5f
-            }
+            val placement = tabMenuPlacement(anchorBoundsOnScreen, overlayOriginOnScreen, panelSize,
+                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
             LaunchedEffect(popupReady) { if (popupReady) onMeasured() }
             LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
@@ -161,7 +147,7 @@ internal fun TabLongPressActionOverlay(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (anchorCenterX - focusWidthPx / 2f).roundToInt(),
+                                (placement.anchorCenterX - focusWidthPx / 2f).roundToInt(),
                                 (focusCenterY - focusHeightPx / 2f - focusLiftPx * progress.value).roundToInt(),
                             )
                         }
@@ -194,14 +180,14 @@ internal fun TabLongPressActionOverlay(
             val availableHeightPx = (anchorBoundsOnScreen.top - overlayOriginOnScreen.y -
                 statusBarTopPx - gapPx * 2f - focusLiftPx).coerceAtLeast(with(density) { 48.dp.toPx() })
             Box(
-                    modifier = Modifier.widthIn(min = 140.dp, max = panelMaxWidth)
+                    modifier = Modifier.widthIn(min = minOf(140.dp, panelMaxWidth), max = panelMaxWidth)
                         .width(IntrinsicSize.Max)
                         .heightIn(max = with(density) { availableHeightPx.toDp() })
                         .onSizeChanged { if (panelSize != it) panelSize = it }
                         .offset {
                             IntOffset(
-                                leftPx.roundToInt(),
-                                (topPx - focusLiftPx * progress.value).roundToInt(),
+                                placement.left.roundToInt(),
+                                (placement.top - focusLiftPx * progress.value).roundToInt(),
                             )
                         }
                         .graphicsLayer {
@@ -209,7 +195,7 @@ internal fun TabLongPressActionOverlay(
                             val scale = if (effects.reduceMotion) 1f else .97f + .03f * progress.value
                             scaleX = scale
                             scaleY = scale
-                            transformOrigin = TransformOrigin(pivotX, 1f)
+                            transformOrigin = TransformOrigin(placement.pivotX, 1f)
                         }
                         .focusRequester(menuFocus)
                         .focusable()
@@ -246,7 +232,7 @@ internal fun TabLongPressActionOverlay(
                     ) {
                         Text(
                             text = "操作",
-                            color = if (effects.highContrast) colors.text.secondary else colors.text.placeholder,
+                            color = if (effects.highContrast) colors.text.primary else colors.text.placeholder,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                         )

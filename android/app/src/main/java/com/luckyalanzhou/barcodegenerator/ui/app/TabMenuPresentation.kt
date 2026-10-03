@@ -25,11 +25,11 @@ internal class TabMenuPresentation<T>(private val onClosed: (T) -> Unit = {}) {
 
     fun measured() { if (menu != null) ready = true }
 
-    fun dismiss(action: (() -> Unit)? = null) {
+    fun dismiss(immediately: Boolean = false, action: (() -> Unit)? = null) {
         if (!open) return
         open = false
         pendingAction = action
-        if (!ready) closed()
+        if (!ready || immediately) closed()
     }
 
     fun closed() {

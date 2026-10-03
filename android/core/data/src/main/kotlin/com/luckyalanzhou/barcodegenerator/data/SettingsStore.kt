@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -57,19 +58,7 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     /**
      * 读取完整条码样式快照。样式字段必须与 [saveStyle] 对称，避免应用重启后只恢复尺寸类设置。
      */
-    override fun loadStyle(): StyleSettings = StyleSettings(
-        showText = get(SHOW_TEXT, true),
-        textPosition = get(TEXT_POSITION, "bottom"),
-        textSize = get(TEXT_SIZE, 14f).coerceIn(10f, 24f),
-        barHeight = get(BAR_HEIGHT, 55).coerceIn(30, 80),
-        barWidth = get(BAR_WIDTH, 220f).coerceIn(120f, 300f),
-        margin = get(MARGIN, 4).coerceIn(0, 10),
-        showFormat = get(SHOW_FORMAT, false),
-        colorScheme = get(COLOR_SCHEME, "system"),
-        reduceMotion = get(REDUCE_MOTION, false),
-        reduceTransparency = get(REDUCE_TRANSPARENCY, false),
-        enhanceContrast = get(ENHANCE_CONTRAST, false),
-    )
+    override fun loadStyle(): StyleSettings = decodeStyleSettings(cachedValues)
 
     override fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = error }
 
@@ -80,18 +69,7 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         return write { it[OCR_CONFUSION_REPLACEMENT_MASK] = mask }
     }
 
-    override fun saveStyle(style: StyleSettings): Job = write {
-        // 清理早期版本遗留的用户条码颜色；新版本颜色完全由外观模式决定。
-        it.remove(intPreferencesKey("style_bar_color"))
-        it.remove(intPreferencesKey("style_bg_color"))
-        it[SHOW_TEXT] = style.showText
-        it[TEXT_POSITION] = style.textPosition; it[TEXT_SIZE] = style.textSize; it[BAR_HEIGHT] = style.barHeight
-        it[BAR_WIDTH] = style.barWidth; it[MARGIN] = style.margin; it[SHOW_FORMAT] = style.showFormat
-        it[COLOR_SCHEME] = style.colorScheme
-        it[REDUCE_MOTION] = style.reduceMotion
-        it[REDUCE_TRANSPARENCY] = style.reduceTransparency
-        it[ENHANCE_CONTRAST] = style.enhanceContrast
-    }
+    override fun saveStyle(style: StyleSettings): Job = write { it.writeStyleSettings(style) }
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }
 
@@ -104,4 +82,37 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         writeTail = next
         next
     }
+}
+
+internal fun decodeStyleSettings(values: Preferences): StyleSettings = with(SettingsStore) {
+    StyleSettings(
+        showText = values[SHOW_TEXT] ?: true,
+        textPosition = values[TEXT_POSITION] ?: "bottom",
+        textSize = (values[TEXT_SIZE] ?: 14f).coerceIn(10f, 24f),
+        barHeight = (values[BAR_HEIGHT] ?: 55).coerceIn(30, 80),
+        barWidth = (values[BAR_WIDTH] ?: 220f).coerceIn(120f, 300f),
+        margin = (values[MARGIN] ?: 4).coerceIn(0, 10),
+        showFormat = values[SHOW_FORMAT] ?: false,
+        colorScheme = values[COLOR_SCHEME] ?: "system",
+        reduceMotion = values[REDUCE_MOTION] ?: false,
+        reduceTransparency = values[REDUCE_TRANSPARENCY] ?: false,
+        enhanceContrast = values[ENHANCE_CONTRAST] ?: false,
+    )
+}
+
+internal fun MutablePreferences.writeStyleSettings(style: StyleSettings) = with(SettingsStore) {
+    // 清理早期版本遗留的用户条码颜色；新版本颜色完全由外观模式决定。
+    remove(intPreferencesKey("style_bar_color"))
+    remove(intPreferencesKey("style_bg_color"))
+    this@writeStyleSettings[SHOW_TEXT] = style.showText
+    this@writeStyleSettings[TEXT_POSITION] = style.textPosition
+    this@writeStyleSettings[TEXT_SIZE] = style.textSize
+    this@writeStyleSettings[BAR_HEIGHT] = style.barHeight
+    this@writeStyleSettings[BAR_WIDTH] = style.barWidth
+    this@writeStyleSettings[MARGIN] = style.margin
+    this@writeStyleSettings[SHOW_FORMAT] = style.showFormat
+    this@writeStyleSettings[COLOR_SCHEME] = style.colorScheme
+    this@writeStyleSettings[REDUCE_MOTION] = style.reduceMotion
+    this@writeStyleSettings[REDUCE_TRANSPARENCY] = style.reduceTransparency
+    this@writeStyleSettings[ENHANCE_CONTRAST] = style.enhanceContrast
 }
