@@ -92,6 +92,7 @@ internal fun TabLongPressActionOverlay(
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
+    val material = menuGlassMaterial(colors.surfaces.panel, panelSize.height / density.density)
 
     BoxWithConstraints(
         Modifier.fillMaxSize().onGloballyPositioned { coordinates ->
@@ -206,8 +207,8 @@ internal fun TabLongPressActionOverlay(
                 ) {
                     GlassBackdropSurface(
                         modifier = Modifier.matchParentSize(), color = colors.surfaces.panel,
-                        opacity = if (dark) .82f else .78f, cornerDp = 24f, blurDp = 8f,
-                        refractionDp = { .65f * progress.value },
+                        opacity = material.opacity, cornerDp = 24f, blurDp = material.blurDp,
+                        refractionDp = { material.refractionDp * progress.value },
                     )
                     Column(Modifier.verticalScroll(rememberScrollState())) {
                     Box(
