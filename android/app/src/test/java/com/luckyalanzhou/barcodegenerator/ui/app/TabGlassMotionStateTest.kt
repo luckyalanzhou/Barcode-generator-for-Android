@@ -86,4 +86,25 @@ class TabGlassMotionStateTest {
         assertEquals(0f, tabDragVelocity(.1f, 0), 0f)
         assertEquals(10f, tabDragVelocity(10f, 1), 0f)
     }
+
+    @Test
+    fun springSettlesUsingFrameTimeAtDifferentRefreshRates() = runBlocking {
+        for (refreshRate in listOf(60, 90, 120, 144, 165)) {
+            val clock = BroadcastFrameClock()
+            val job = SupervisorJob()
+            val state = TabGlassMotionState(CoroutineScope(coroutineContext.minusKey(Job) + job + clock), 0, 4)
+            try {
+                state.select(3)
+                yield()
+                repeat(refreshRate * 2) {
+                    clock.sendFrame((it + 1) * 1_000_000_000L / refreshRate)
+                    yield()
+                }
+                assertEquals("refreshRate=$refreshRate", 3f, state.progress, .001f)
+                assertFalse("refreshRate=$refreshRate", state.settling)
+            } finally {
+                job.cancel()
+            }
+        }
+    }
 }

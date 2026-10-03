@@ -81,8 +81,22 @@ def main():
         materials = (.04, .021, .14, .085) if dark else (.14, .025, .20, .06)
         still = render(scene, bg, 240, 0, materials)
         active = render(scene, bg, 240, 1, materials)
+        scene_pixels = scene.toarray()
+        rest_pixels = still.toarray()
+        active_pixels = active.toarray()
+        qx = np.abs(xx - 240) - (77 - 58)
+        qy = np.abs(yy - height / 2)
+        distance = np.sqrt(np.maximum(qx, 0) ** 2 + qy ** 2) + np.minimum(np.maximum(qx, qy), 0) - 58
+        background_pixels = scene_pixels[0, 0, :3].astype(int)
+        solid_ink = np.max(np.abs(scene_pixels[:, :, :3].astype(int) - background_pixels), axis=2) > 80
+        inside_ink = solid_ink & (distance < -5)
+        assert inside_ink.any(), "Missing foreground sample"
+        rest_difference = np.max(np.abs(rest_pixels.astype(int) - scene_pixels.astype(int)), axis=2)
+        assert rest_difference[inside_ink].max() <= 1, "Resting material distorts foreground glyphs"
+        active_difference = np.max(np.abs(active_pixels.astype(int) - scene_pixels.astype(int)), axis=2)
+        assert active_difference[distance > 1].max() <= 1, "Material produces external glow"
         comparisons.extend((scene.toarray(), still.toarray(), active.toarray()))
-        print(f"PASS: {'dark' if dark else 'light'} static identity, real grid displacement, capsule isolation and alpha")
+        print(f"PASS: {'dark' if dark else 'light'} static identity, real grid displacement, capsule isolation, alpha and resting foreground")
     if args.render:
         args.render.parent.mkdir(parents=True, exist_ok=True)
         skia.Image.fromarray(np.concatenate(comparisons, axis=0)).save(str(args.render), skia.kPNG)
