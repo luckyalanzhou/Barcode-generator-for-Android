@@ -47,7 +47,7 @@ half4 main(float2 p) {
     float rim = 1.0 - smoothstep(0.0, 1.2 * optics.w, depth);
     float2 lightVector = touchPoint - capsule.xy;
     float2 lightDirection = lightVector / max(length(lightVector), 0.001);
-    float contactLight = pow(max(dot(normal, lightDirection), 0.0), 6.0) * optics.y;
+    float contactLight = pow(max(dot(normal, lightDirection), 0.0), mix(14.0, 4.0, clamp(optics.z, 0.0, 1.0))) * optics.y;
     float topLight = max(-normal.y, 0.0);
     float highlight = (topLight * 0.45 + contactLight * 0.65) * material.z;
     // Light stays on the rim, including while dragging: no central hot spot or external glow.

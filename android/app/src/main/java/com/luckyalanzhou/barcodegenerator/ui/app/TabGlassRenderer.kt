@@ -24,7 +24,7 @@ internal class TabGlassRenderer private constructor(private val shader: RuntimeS
         }
         shader.setFloatUniform("resolution", frame.width, frame.height)
         shader.setFloatUniform("capsule", frame.centerX, frame.centerY, frame.halfWidth, frame.halfHeight)
-        shader.setFloatUniform("optics", frame.refractionPx, frame.motion, 0f, frame.density)
+        shader.setFloatUniform("optics", frame.refractionPx, frame.motion, frame.contactSpread, frame.density)
         shader.setFloatUniform("touchPoint", frame.touchX, frame.touchY)
         shader.setColorUniform("backgroundColor", background.toArgb())
         shader.setColorUniform("accentColor", accent.toArgb())

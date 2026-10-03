@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.runtime.Immutable
-import kotlin.math.abs
 import kotlin.math.sin
 
 /** Physical pixels in the tab scene's local coordinates; shared by shader and compatible drawing. */
@@ -18,6 +17,7 @@ internal data class TabGlassFrame(
     val density: Float,
     val touchX: Float,
     val touchY: Float,
+    val contactSpread: Float,
 )
 
 internal fun tabGlassFrame(
@@ -31,6 +31,7 @@ internal fun tabGlassFrame(
     direction: Float,
     touchX: Float? = null,
     touchY: Float? = null,
+    contactSpread: Float = 1f,
 ): TabGlassFrame {
     val safeWidth = width.coerceAtLeast(1f)
     val safeHeight = height.coerceAtLeast(1f)
@@ -58,5 +59,6 @@ internal fun tabGlassFrame(
         density = safeDensity,
         touchX = touchX ?: centerX + halfWidth * .6f * direction.coerceIn(-1f, 1f),
         touchY = touchY ?: centerY - halfHeight * .75f,
+        contactSpread = contactSpread.coerceIn(0f, 1f),
     )
 }
