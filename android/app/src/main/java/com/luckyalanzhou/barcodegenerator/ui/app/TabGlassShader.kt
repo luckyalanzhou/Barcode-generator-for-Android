@@ -14,6 +14,7 @@ layout(color) uniform half4 backgroundColor;
 layout(color) uniform half4 accentColor;
 uniform float4 material;
 uniform float edgeWidth;
+uniform float surfaceOpacity;
 
 half4 main(float2 p) {
     half4 original = content.eval(p);
@@ -39,11 +40,8 @@ half4 main(float2 p) {
     half4 refracted = content.eval(samplePoint);
     half4 sampled = mix(original, refracted, half(mask));
 
-    half3 difference = abs(sampled.rgb - backgroundColor.rgb);
-    float ink = smoothstep(0.03, 0.16, float(max(max(difference.r, difference.g), difference.b)));
     half3 glassColor = mix(backgroundColor.rgb, half3(1.0), half(material.x));
     glassColor = mix(glassColor, accentColor.rgb, half(material.y));
-    half3 color = sampled.rgb + (glassColor - backgroundColor.rgb) * half(mask * (1.0 - ink));
 
     float rim = 1.0 - smoothstep(0.0, max(edgeWidth, 0.5), depth);
     float2 lightVector = touchPoint - capsule.xy;
@@ -52,9 +50,14 @@ half4 main(float2 p) {
     float topLight = max(-normal.y, 0.0);
     float highlight = (topLight * 0.45 + contactLight * 0.65) * material.z;
     // Light stays on the rim, including while dragging: no central hot spot or external glow.
-    float foregroundProtection = 1.0 - ink * 0.9;
-    color += half3(rim * mask * highlight * foregroundProtection);
-    color *= half(1.0 - rim * mask * max(normal.y, 0.0) * material.w * foregroundProtection);
-    return half4(clamp(color, half3(0.0), half3(1.0)), sampled.a);
+    glassColor += half3(rim * highlight);
+    glassColor *= half(1.0 - rim * max(normal.y, 0.0) * material.w);
+    // Source-over in premultiplied space. Transparent input must not become an opaque bar,
+    // and antialiased glyphs retain their original color instead of acquiring dark fringes.
+    half glassAlpha = half(mask * clamp(surfaceOpacity, 0.0, 1.0));
+    half remainingAlpha = glassAlpha * (1.0 - sampled.a);
+    half alpha = sampled.a + remainingAlpha;
+    half3 color = sampled.rgb + clamp(glassColor, half3(0.0), half3(1.0)) * remainingAlpha;
+    return half4(color, alpha);
 }
 """

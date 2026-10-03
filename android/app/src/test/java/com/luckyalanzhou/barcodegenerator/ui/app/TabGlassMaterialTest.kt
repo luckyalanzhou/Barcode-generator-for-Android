@@ -27,6 +27,7 @@ class TabGlassMaterialTest {
             assertTrue(large.edgeWidthDp > small.edgeWidthDp)
             assertTrue(large.refractionDp <= 3f)
             assertTrue(large.edgeWidthDp <= 1.5f)
+            assertTrue(small.surfaceOpacity > 0f && large.surfaceOpacity < .5f)
         }
     }
 }

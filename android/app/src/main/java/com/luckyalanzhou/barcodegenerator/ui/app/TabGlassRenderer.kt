@@ -30,6 +30,7 @@ internal class TabGlassRenderer private constructor(private val shader: RuntimeS
         shader.setColorUniform("accentColor", accent.toArgb())
         shader.setFloatUniform("material", material.whiteLift, material.accentTint, material.rimLight, material.innerShadow)
         shader.setFloatUniform("edgeWidth", material.edgeWidthDp * frame.density)
+        shader.setFloatUniform("surfaceOpacity", material.surfaceOpacity)
         val effect = RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect()
         previousFrame = frame
         previousBackground = background

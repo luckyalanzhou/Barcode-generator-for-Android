@@ -29,7 +29,7 @@ internal fun TabGlassSurface(
         val bounds = Size(frame.halfWidth * 2, frame.halfHeight * 2)
         val corner = CornerRadius(min(frame.halfWidth, frame.halfHeight))
         val fill = lerp(lerp(background, Color.White, material.whiteLift), accent, material.accentTint)
-        drawRoundRect(fill, topLeft, bounds, corner)
+        drawRoundRect(fill.copy(alpha = material.surfaceOpacity), topLeft, bounds, corner)
         val stroke = material.edgeWidthDp * .55f * frame.density
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)
         val innerBounds = Size((bounds.width - stroke).coerceAtLeast(.1f), (bounds.height - stroke).coerceAtLeast(.1f))

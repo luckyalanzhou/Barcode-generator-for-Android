@@ -13,6 +13,7 @@ internal data class TabGlassMaterial(
     val innerShadow: Float,
     val edgeWidthDp: Float,
     val refractionDp: Float,
+    val surfaceOpacity: Float,
 )
 
 internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMaterial {
@@ -27,5 +28,6 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
         innerShadow = if (darkBackground) .075f + thickness * .025f else .05f + thickness * .02f,
         edgeWidthDp = .9f + thickness * .45f,
         refractionDp = 1.6f + thickness * 1.0f,
+        surfaceOpacity = if (darkBackground) .42f + thickness * .06f else .30f + thickness * .08f,
     )
 }

@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,7 +70,15 @@ internal fun TabLiquidGlassScene(
             } else null
         }
     } else Modifier
-    Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }.then(effectModifier).background(background)) {
+    // The page beneath remains visible; the shader paints material only inside the selected capsule.
+    Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }.then(effectModifier)) {
+        if (useGpu && visible) {
+            GlassBackdropSurface(
+                modifier = Modifier.fillMaxSize(), color = background,
+                opacity = material.surfaceOpacity, cornerDp = sceneSize.height / density / 2f,
+                blurDp = 1.5f, refractionDp = { 0f }, capsule = frameProvider, drawFallback = false,
+            )
+        }
         if (!useGpu && visible) {
             TabGlassSurface(frameProvider, material, accent, background)
         }

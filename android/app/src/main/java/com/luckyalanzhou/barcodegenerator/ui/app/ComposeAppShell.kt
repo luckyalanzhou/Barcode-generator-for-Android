@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -139,6 +140,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val dark = LocalResolvedAppAppearance.current.isDark
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
+        val backdrop = rememberGlassBackdrop()
+        CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
             Box(
                 modifier = Modifier.fillMaxSize().blur(tabMenuBackdropBlur),
@@ -153,7 +156,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             bottom = dimensions.pageBottomPadding,
                         ),
                 ) {
-                    Column(Modifier.fillMaxSize().background(colors.surfaces.background)) {
+                    Column(Modifier.fillMaxSize().recordGlassBackdrop(backdrop).background(colors.surfaces.background)) {
                         if (chromeVisible) {
                             Box(
                                 modifier = Modifier.fillMaxWidth().height(
@@ -232,6 +235,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     onDismiss = { tabMenuState = null },
                 )
             }
+        }
         }
     }
 }
