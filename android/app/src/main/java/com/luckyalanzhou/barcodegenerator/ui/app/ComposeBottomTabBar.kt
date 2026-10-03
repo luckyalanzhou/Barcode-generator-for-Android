@@ -60,7 +60,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
-import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -194,141 +193,123 @@ internal fun BarcodeComposeBottomTabBar(
             }
     ) {
         val indicatorProgress = if (dragging) dragProgress else selectedProgress
-        val indicatorInMotion = dragging || kotlin.math.abs(indicatorProgress - selectedIndex) > 0.01f
-        val progressFraction = indicatorProgress - indicatorProgress.toInt().toFloat()
-        val tabHandoff = if (indicatorInMotion) {
-            sin(progressFraction * Math.PI).toFloat().coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-        if (showSelectionIndicator) {
-            TabGlassSurface(
-                progress = indicatorProgress,
-                selectedIndex = selectedIndex,
-                inDrag = dragging,
-                impact = glassImpactProgress,
-                direction = dragDirection,
-                tabCount = tabs.size,
-                dark = dark,
-                accent = selectedColor,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
+        TabLiquidGlassScene(
+            progress = indicatorProgress,
+            selectedIndex = selectedIndex,
+            inDrag = dragging,
+            impact = glassImpactProgress,
+            direction = dragDirection,
+            tabCount = tabs.size,
+            dark = dark,
+            accent = selectedColor,
+            background = themeColors.surfaces.background,
+            visible = showSelectionIndicator,
         ) {
-            tabs.forEachIndexed { index, tab ->
-                val selected = selectedIndex == index
-                val tabProximity = (1f - kotlin.math.abs(indicatorProgress - index)).coerceIn(0f, 1f)
-                val tabRefraction = if (indicatorInMotion) {
-                    tabProximity * (.45f + tabHandoff * .55f)
-                } else {
-                    0f
-                }
-                val itemColor by animateColorAsState(
-                    targetValue = if (selected) selectedColor else unselectedColor,
-                    animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
-                    label = "tab-item-color-$index",
-                )
-                val tapScale = animateFloatAsState(
-                    targetValue = if (tapPulseTab == index) .92f else 1f,
-                    animationSpec = ComposeAnimationConfig.pressSpring(),
-                    label = "tab-icon-tap-response-$index",
-                )
-                val tabClickModifier = if (index in 1..3) {
-                    Modifier.combinedClickable(
-                        onClick = { handleTabClick(index) },
-                        onLongClick = {
-                            hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            val actions = when (index) {
-                                1 -> listOf(
-                                    TabLongPressAction(
-                                        label = "清空历史记录",
-                                        icon = DeleteIcon,
-                                        onClick = onHistoryClear,
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                tabs.forEachIndexed { index, tab ->
+                    val selected = selectedIndex == index
+                    val itemColor by animateColorAsState(
+                        targetValue = if (selected) selectedColor else unselectedColor,
+                        animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
+                        label = "tab-item-color-$index",
+                    )
+                    val tapScale = animateFloatAsState(
+                        targetValue = if (tapPulseTab == index) .92f else 1f,
+                        animationSpec = ComposeAnimationConfig.pressSpring(),
+                        label = "tab-icon-tap-response-$index",
+                    )
+                    val tabClickModifier = if (index in 1..3) {
+                        Modifier.combinedClickable(
+                            onClick = { handleTabClick(index) },
+                            onLongClick = {
+                                hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                val actions = when (index) {
+                                    1 -> listOf(
+                                        TabLongPressAction(
+                                            label = "清空历史记录",
+                                            icon = DeleteIcon,
+                                            onClick = onHistoryClear,
+                                        ),
+                                    )
+                                    2 -> listOf(
+                                        TabLongPressAction(
+                                            label = "导入收藏",
+                                            icon = CloudDownloadIcon,
+                                            onClick = onFavoritesImport,
+                                        ),
+                                        TabLongPressAction(
+                                            label = "导出收藏",
+                                            icon = CloudUploadIcon,
+                                            onClick = onFavoritesExport,
+                                        ),
+                                    )
+                                    else -> listOf(
+                                        TabLongPressAction(
+                                            label = "检查更新",
+                                            icon = UpgradeIcon,
+                                            onClick = onCheckForUpdates,
+                                        ),
+                                    )
+                                }
+                                onLongPressActionMenuRequested(
+                                    TabLongPressMenuState(
+                                        anchorBoundsOnScreen = tabBoundsOnScreen[index],
+                                        focusIcon = if (selected) tab.selectedIcon else tab.icon,
+                                        focusLabel = tab.label,
+                                        focusTint = if (selected) selectedColor else unselectedColor,
+                                        dark = dark,
+                                        actions = actions,
                                     ),
                                 )
-                                2 -> listOf(
-                                    TabLongPressAction(
-                                        label = "导入收藏",
-                                        icon = CloudDownloadIcon,
-                                        onClick = onFavoritesImport,
-                                    ),
-                                    TabLongPressAction(
-                                        label = "导出收藏",
-                                        icon = CloudUploadIcon,
-                                        onClick = onFavoritesExport,
-                                    ),
+                            },
+                        )
+                    } else {
+                        Modifier.clickable(
+                            onClick = { handleTabClick(index) },
+                        )
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                            .onGloballyPositioned { coordinates ->
+                                val topLeft = coordinates.localToScreen(Offset.Zero)
+                                val bounds = Rect(
+                                    left = topLeft.x,
+                                    top = topLeft.y,
+                                    right = topLeft.x + coordinates.size.width,
+                                    bottom = topLeft.y + coordinates.size.height,
                                 )
-                                else -> listOf(
-                                    TabLongPressAction(
-                                        label = "检查更新",
-                                        icon = UpgradeIcon,
-                                        onClick = onCheckForUpdates,
-                                    ),
-                                )
+                                if (tabBoundsOnScreen[index] != bounds) tabBoundsOnScreen[index] = bounds
                             }
-                            onLongPressActionMenuRequested(
-                                TabLongPressMenuState(
-                                    anchorBoundsOnScreen = tabBoundsOnScreen[index],
-                                    focusIcon = if (selected) tab.selectedIcon else tab.icon,
-                                    focusLabel = tab.label,
-                                    focusTint = if (selected) selectedColor else unselectedColor,
-                                    dark = dark,
-                                    actions = actions,
-                                ),
-                            )
-                        },
-                    )
-                } else {
-                    Modifier.clickable(
-                        onClick = { handleTabClick(index) },
-                    )
-                }
-                Box(
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                        .onGloballyPositioned { coordinates ->
-                            val topLeft = coordinates.localToScreen(Offset.Zero)
-                            val bounds = Rect(
-                                left = topLeft.x,
-                                top = topLeft.y,
-                                right = topLeft.x + coordinates.size.width,
-                                bottom = topLeft.y + coordinates.size.height,
-                            )
-                            if (tabBoundsOnScreen[index] != bounds) tabBoundsOnScreen[index] = bounds
-                        }
-                        .then(tabClickModifier)
-                        .padding(vertical = 3.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                            .then(tabClickModifier)
+                            .padding(vertical = 3.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = if (selected) tab.selectedIcon else tab.icon,
-                            contentDescription = tab.description,
-                            tint = itemColor,
-                            modifier = Modifier.size(26.dp).graphicsLayer {
-                                val squash = 1f - tapScale.value
-                                scaleX = (1f + squash * .34f) * (1f + tabRefraction * .05f)
-                                scaleY = tapScale.value * (1f - tabRefraction * .025f)
-                                translationX = dragDirection * tabRefraction * 2.5.dp.toPx()
-                                translationY = squash * 12.dp.toPx() - tabRefraction * .35.dp.toPx()
-                            },
-                        )
-                        Text(
-                            tab.label,
-                            color = itemColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            modifier = Modifier.graphicsLayer {
-                                scaleX = 1f + tabRefraction * .025f
-                                scaleY = 1f - tabRefraction * .015f
-                                translationX = dragDirection * tabRefraction * 1.25.dp.toPx()
-                            },
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.icon,
+                                contentDescription = tab.description,
+                                tint = itemColor,
+                                modifier = Modifier.size(26.dp).graphicsLayer {
+                                    val squash = 1f - tapScale.value
+                                    scaleX = 1f + squash * .34f
+                                    scaleY = tapScale.value
+                                    translationY = squash * 12.dp.toPx()
+                                },
+                            )
+                            Text(
+                                tab.label,
+                                color = itemColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
