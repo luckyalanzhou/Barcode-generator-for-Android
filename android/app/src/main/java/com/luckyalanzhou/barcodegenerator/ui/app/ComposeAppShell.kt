@@ -24,7 +24,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,7 +44,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -109,11 +111,12 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
-    var tabMenuState by remember { mutableStateOf<TabLongPressMenuState?>(null) }
-    val tabMenuBackdropBlur by animateDpAsState(
-        targetValue = if (tabMenuState == null) 0.dp else 20.dp,
+    val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState>() }
+    val tabMenuProgress = animateFloatAsState(
+        targetValue = if (tabMenu.open && tabMenu.ready) 1f else 0f,
         animationSpec = tween(190, easing = FastOutSlowInEasing),
-        label = "tab-menu-background-blur",
+        finishedListener = { if (it == 0f) tabMenu.closed() },
+        label = "tab-menu-presentation",
     )
     val tabEnterOffset = with(LocalDensity.current) { 20.dp.roundToPx() }
     LaunchedEffect(currentRoute) {
@@ -127,8 +130,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             dependencies.actions.notice("数据保存失败，请稍后重试")
         }
     }
-    BackHandler(enabled = tabMenuState != null) {
-        tabMenuState = null
+    BackHandler(enabled = tabMenu.menu != null) {
+        tabMenu.dismiss()
     }
     LaunchedEffect(updateUiState.dialogShowing, updateUiState.availableVersion, updateUiState.availableUrl) {
         if (updateUiState.dialogShowing && updateUiState.availableVersion != null && updateUiState.availableUrl != null) {
@@ -144,7 +147,12 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
             Box(
-                modifier = Modifier.fillMaxSize().blur(tabMenuBackdropBlur),
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    val blurPx = 20.dp.toPx() * tabMenuProgress.value
+                    renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && blurPx > .1f) {
+                        BlurEffect(blurPx, blurPx, TileMode.Clamp)
+                    } else null
+                },
             ) {
                 Box(
                     modifier = Modifier
@@ -221,18 +229,22 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             onFavoritesImport = dependencies.actions::restoreFavorites,
                             onFavoritesExport = dependencies.actions::exportFavorites,
                             onCheckForUpdates = dependencies.actions::checkForUpdates,
-                            onLongPressActionMenuRequested = { tabMenuState = it },
-                            showSelectionIndicator = tabMenuState == null,
+                            onLongPressActionMenuRequested = tabMenu::show,
+                            showSelectionIndicator = tabMenu.menu == null,
                             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                                 .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                         )
                     }
                 }
             }
-            tabMenuState?.let { menuState ->
+            tabMenu.menu?.let { menuState ->
                 TabLongPressActionOverlay(
                     state = menuState,
-                    onDismiss = { tabMenuState = null },
+                    progress = tabMenuProgress,
+                    interactive = tabMenu.open,
+                    onMeasured = tabMenu::measured,
+                    onDismiss = { tabMenu.dismiss() },
+                    onAction = { tabMenu.dismiss(it) },
                 )
             }
         }
