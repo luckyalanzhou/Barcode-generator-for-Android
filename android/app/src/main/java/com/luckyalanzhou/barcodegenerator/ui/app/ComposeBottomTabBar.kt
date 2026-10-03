@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -209,14 +210,27 @@ internal fun BarcodeComposeBottomTabBar(
         val tabWidth = maxWidth / tabs.size
         val indicatorProgress = if (dragging) dragProgress else selectedProgress
         val indicatorOffset = tabWidth * indicatorProgress
+        val indicatorInMotion = dragging || kotlin.math.abs(indicatorProgress - selectedIndex) > 0.01f
+        val progressFraction = indicatorProgress - indicatorProgress.toInt().toFloat()
+        val tabHandoff = if (indicatorInMotion) {
+            sin(progressFraction * Math.PI).toFloat().coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        val surfaceFlowPosition =
+            (indicatorProgress / tabs.lastIndex.coerceAtLeast(1)).coerceIn(0f, 1f)
         if (showSelectionIndicator) {
             Box(
                 // Keep the liquid-glass treatment scoped to the selected capsule, not the full rail.
                 modifier = Modifier.offset(x = indicatorOffset).width(tabWidth).fillMaxHeight()
                     .align(Alignment.CenterStart)
                     .graphicsLayer {
-                        scaleX = 1f + glassImpactProgress + if (dragging) .005f else 0f
-                        scaleY = 1f - glassImpactProgress * .12f
+                        // The capsule stretches while handing off between tabs, rather than
+                        // relying only on the brief pulse emitted at a tab-center crossing.
+                        scaleX = 1f + glassImpactProgress +
+                            if (indicatorInMotion) .025f + tabHandoff * .075f else 0f
+                        scaleY = 1f - if (indicatorInMotion) .012f + tabHandoff * .045f
+                            else glassImpactProgress * .12f
                         transformOrigin = TransformOrigin(
                             pivotFractionX = if (dragDirection > 0f) 0f else 1f,
                             pivotFractionY = .5f,
@@ -250,6 +264,7 @@ internal fun BarcodeComposeBottomTabBar(
                         } else {
                             listOf(Color.White.copy(alpha = .76f), selectedColor.copy(alpha = .16f))
                         }
+                        val flowCenterX = size.width * (.15f + surfaceFlowPosition * .70f)
                         drawRoundRect(
                             brush = Brush.verticalGradient(fill),
                             cornerRadius = corner,
@@ -261,11 +276,29 @@ internal fun BarcodeComposeBottomTabBar(
                                     Color.White.copy(alpha = if (dark) .045f else .09f),
                                     Color.Transparent,
                                 ),
-                                center = Offset(size.width * if (dragDirection > 0f) .26f else .74f, size.height * .12f),
+                                center = Offset(flowCenterX, size.height * .12f),
                                 radius = size.height * 1.15f,
                             ),
                             cornerRadius = corner,
                         )
+                        if (indicatorInMotion) {
+                            // A soft specular lens travels across the glass surface with the
+                            // capsule; the glyphs receive only a separate, subtle parallax response.
+                            val lensHalfWidth = size.width * .22f
+                            drawRoundRect(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.White.copy(alpha = if (dark) .105f else .19f),
+                                        selectedColor.copy(alpha = if (dark) .045f else .075f),
+                                        Color.Transparent,
+                                    ),
+                                    startX = (flowCenterX - lensHalfWidth).coerceAtLeast(0f),
+                                    endX = (flowCenterX + lensHalfWidth).coerceAtMost(size.width),
+                                ),
+                                cornerRadius = corner,
+                            )
+                        }
                         drawRoundRect(
                             brush = Brush.verticalGradient(rim),
                             topLeft = Offset(outline / 2f, outline / 2f),
@@ -282,6 +315,12 @@ internal fun BarcodeComposeBottomTabBar(
         ) {
             tabs.forEachIndexed { index, tab ->
                 val selected = selectedIndex == index
+                val tabProximity = (1f - kotlin.math.abs(indicatorProgress - index)).coerceIn(0f, 1f)
+                val tabRefraction = if (indicatorInMotion) {
+                    tabProximity * (.45f + tabHandoff * .55f)
+                } else {
+                    0f
+                }
                 val itemColor by animateColorAsState(
                     targetValue = if (selected) selectedColor else unselectedColor,
                     animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
@@ -368,12 +407,24 @@ internal fun BarcodeComposeBottomTabBar(
                             tint = itemColor,
                             modifier = Modifier.size(26.dp).graphicsLayer {
                                 val squash = 1f - tapScale.value
-                                scaleX = 1f + squash * .34f
-                                scaleY = tapScale.value
-                                translationY = squash * 12.dp.toPx()
+                                scaleX = (1f + squash * .34f) * (1f + tabRefraction * .05f)
+                                scaleY = tapScale.value * (1f - tabRefraction * .025f)
+                                translationX = dragDirection * tabRefraction * 2.5.dp.toPx()
+                                translationY = squash * 12.dp.toPx() - tabRefraction * .35.dp.toPx()
                             },
                         )
-                        Text(tab.label, color = itemColor, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        Text(
+                            tab.label,
+                            color = itemColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = 1f + tabRefraction * .025f
+                                scaleY = 1f - tabRefraction * .015f
+                                translationX = dragDirection * tabRefraction * 1.25.dp.toPx()
+                            },
+                        )
                     }
                 }
             }
