@@ -13,6 +13,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TabGlassMotionStateTest {
+    @Test fun reducedMotionPreservesNavigationAndDragWithoutSpringOrPulse() = runBlocking {
+        val job = SupervisorJob()
+        val state = TabGlassMotionState(CoroutineScope(coroutineContext.minusKey(Job) + job), 0, 4)
+        try {
+            state.setReducedMotion(true)
+            yield()
+            state.select(3)
+            state.pulse(.03f)
+            state.press(Offset.Zero)
+            yield()
+            assertEquals(3f, state.progress, 0f)
+            assertEquals(0f, state.impact.value, 0f)
+            assertFalse(state.settling)
+            state.beginDrag(Offset.Zero, 100)
+            state.drag(-.6f, Offset.Zero, 116)
+            assertEquals(2.4f, state.progress, .001f)
+            state.release(2)
+            yield()
+            assertEquals(2f, state.progress, 0f)
+            assertFalse(state.dragging)
+            assertFalse(state.settling)
+        } finally { job.cancel() }
+    }
     @Test
     fun releaseHandsOverAtTheRenderedFingerPosition() = runBlocking {
         val clock = BroadcastFrameClock()

@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
 /** A single output layer. Only drawing reads position/contact; child semantics remain unchanged. */
 @Composable
@@ -36,37 +37,39 @@ internal fun TabLiquidGlassScene(
     }
     var sceneSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
+    val policy = LocalVisualEffectsPolicy.current
     val material = remember(background, sceneSize.height, density) {
         tabGlassMaterial(background, sceneSize.height / density)
     }
-    val useGpu = renderer != null && LocalView.current.isHardwareAccelerated &&
+    val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, whiteLift = 0f, accentTint = 0f) else material
+    val useGpu = !policy.opaqueGlass && renderer != null && LocalView.current.isHardwareAccelerated &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-    val active = visible && (motion.dragging || motion.settling || motion.pressed)
+    val active = !policy.reduceMotion && visible && (motion.dragging || motion.settling || motion.pressed)
     val activity = animateFloatAsState(
         targetValue = if (active) 1f else 0f,
-        animationSpec = tween(if (active) 80 else 180, easing = FastOutSlowInEasing),
+        animationSpec = tween(if (policy.reduceMotion) 0 else if (active) 80 else 180, easing = FastOutSlowInEasing),
         label = "tab-glass-optical-strength",
     )
     val direction = animateFloatAsState(
         targetValue = motion.direction,
-        animationSpec = tween(90),
+        animationSpec = tween(if (policy.reduceMotion) 0 else 90),
         label = "tab-glass-light-direction",
     )
     val frameProvider = {
-        val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
+        val animationsEnabled = !policy.reduceMotion && ValueAnimator.areAnimatorsEnabled()
         tabGlassFrame(
             sceneSize.width.toFloat(), sceneSize.height.toFloat(), density, tabCount,
             motion.progress, if (animationsEnabled) activity.value else 0f,
             if (animationsEnabled) motion.impact.value else 0f, direction.value,
             motion.touchX.takeIf { it.isFinite() }, motion.touchY.takeIf { it.isFinite() },
             motion.contactSpread.value,
-            material.refractionDp,
+            resolvedMaterial.refractionDp,
         )
     }
     val effectModifier = if (useGpu && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Modifier.graphicsLayer {
             renderEffect = if (visible && sceneSize.width > 0 && sceneSize.height > 0) {
-                renderer.effect(frameProvider(), background, accent, material)
+                renderer.effect(frameProvider(), background, accent, resolvedMaterial)
             } else null
         }
     } else Modifier
@@ -80,7 +83,7 @@ internal fun TabLiquidGlassScene(
             )
         }
         if (!useGpu && visible) {
-            TabGlassSurface(frameProvider, material, accent, background)
+            TabGlassSurface(frameProvider, resolvedMaterial, accent, background)
         }
         content()
     }

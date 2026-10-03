@@ -87,7 +87,8 @@ class SettingsViewModelTest {
             settingsStore,
             LegacySettingsMigrator(android.app.Application(), settingsStore),
         )
-        val style = StyleSettings(textSize = 18f, barWidth = 260f, colorScheme = "dark")
+        val style = StyleSettings(textSize = 18f, barWidth = 260f, colorScheme = "dark",
+            reduceMotion = true, reduceTransparency = true, enhanceContrast = true)
         viewModel.initialize(StyleSettings(), 0)
 
         viewModel.updateStyle(style)
@@ -97,6 +98,9 @@ class SettingsViewModelTest {
         assertEquals(18f, viewModel.style.textSize, 0f)
         assertEquals(260f, viewModel.style.barWidth, 0f)
         assertEquals("dark", viewModel.uiState.value.scheme)
+        assertTrue(viewModel.uiState.value.style.reduceMotion)
+        assertTrue(viewModel.uiState.value.style.reduceTransparency)
+        assertTrue(viewModel.uiState.value.style.enhanceContrast)
     }
 
     private fun completedJob() = Job().also { it.complete() }

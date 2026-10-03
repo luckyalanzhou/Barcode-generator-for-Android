@@ -46,6 +46,18 @@ internal class TabGlassMotionState(
     private var contactJob: Job? = null
     private var previousEventMillis = 0L
     private var fingerVelocity = 0f
+    private var reduceMotion = false
+
+    fun setReducedMotion(value: Boolean) {
+        if (value == reduceMotion) return
+        reduceMotion = value
+        if (value) {
+            impactJob?.cancel()
+            contactJob?.cancel()
+            scope.launch { impact.snapTo(0f); contactSpread.snapTo(1f) }
+            if (!dragging) animatePosition(requestedTarget, fromFinger = false)
+        }
+    }
 
     val progress: Float
         get() = (if (dragging) fingerProgress else position.value).coerceIn(0f, (tabCount - 1).toFloat())
@@ -53,6 +65,7 @@ internal class TabGlassMotionState(
     fun press(point: Offset) {
         pressed = true
         updateTouch(point)
+        if (reduceMotion) return
         contactJob?.cancel()
         contactJob = scope.launch {
             contactSpread.snapTo(0f)
@@ -109,6 +122,7 @@ internal class TabGlassMotionState(
     fun release(index: Int) = animatePosition(index.coerceIn(0, tabCount - 1), fromFinger = true)
 
     fun pulse(amount: Float) {
+        if (reduceMotion) return
         impactJob?.cancel()
         impactJob = scope.launch {
             impact.snapTo(amount.coerceIn(0f, .035f))
@@ -131,7 +145,7 @@ internal class TabGlassMotionState(
                     if (ticket != generation) return@launch
                     dragging = false
                 }
-                position.animateTo(
+                if (reduceMotion) position.snapTo(target.toFloat()) else position.animateTo(
                     target.toFloat(),
                     spring(dampingRatio = .9f, stiffness = Spring.StiffnessMediumLow),
                     initialVelocity = velocity.coerceIn(-6f, 6f),

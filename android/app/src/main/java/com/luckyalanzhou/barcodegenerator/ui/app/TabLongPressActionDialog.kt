@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.dismiss
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,6 +66,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import kotlin.math.roundToInt
 
 internal data class TabLongPressAction(
@@ -68,6 +82,7 @@ internal data class TabLongPressMenuState(
     val focusTint: Color,
     val dark: Boolean,
     val actions: List<TabLongPressAction>,
+    val restoreFocus: () -> Unit = {},
 )
 
 @Composable
@@ -86,6 +101,8 @@ internal fun TabLongPressActionOverlay(
     val focusTint = state.focusTint
     val actions = state.actions
     val colors = LocalAppColorScheme.current
+    val effects = LocalVisualEffectsPolicy.current
+    val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
     val panelShape = remember { RoundedCornerShape(24.dp) }
     val separator = colors.borders.divider.copy(alpha = if (dark) .36f else .44f)
@@ -104,9 +121,10 @@ internal fun TabLongPressActionOverlay(
             Box(
                 Modifier.fillMaxSize()
                     // Keep the backdrop frosted/light instead of dimming it like a platform dialog.
-                    .background(Color.White.copy(alpha = if (dark) .08f else .16f))
+                    .background(Color.White.copy(alpha = if (effects.opaqueGlass) 0f else if (dark) .08f else .16f))
                     .graphicsLayer { alpha = progress.value }
-                    .clickable(enabled = interactive, onClick = onDismiss),
+                    .clickable(onClick = onDismiss)
+                    .clearAndSetSemantics { },
             )
 
             val panelMaxWidth = minOf(maxWidth * .62f, 340.dp)
@@ -123,7 +141,7 @@ internal fun TabLongPressActionOverlay(
             )
             val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
             val desiredTop = anchorBoundsOnScreen.top - overlayOriginOnScreen.y - menuHeightPx - gapPx
-            val focusLiftPx = with(density) { 10.dp.toPx() }
+            val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 10.dp.toPx() }
             val topPx = desiredTop.coerceAtLeast(statusBarTopPx + gapPx + focusLiftPx)
             val pivotX = if (menuWidthPx > 0f) {
                 ((anchorCenterX - leftPx) / menuWidthPx).coerceIn(0f, 1f)
@@ -132,6 +150,7 @@ internal fun TabLongPressActionOverlay(
             }
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
             LaunchedEffect(popupReady) { if (popupReady) onMeasured() }
+            LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
             if (popupReady) {
                 val focusWidth = 64.dp
                 val focusHeight = 54.dp
@@ -149,7 +168,7 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             alpha = progress.value
-                        },
+                        }.clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(
@@ -187,10 +206,20 @@ internal fun TabLongPressActionOverlay(
                         }
                         .graphicsLayer {
                             alpha = progress.value
-                            val scale = .97f + .03f * progress.value
+                            val scale = if (effects.reduceMotion) 1f else .97f + .03f * progress.value
                             scaleX = scale
                             scaleY = scale
                             transformOrigin = TransformOrigin(pivotX, 1f)
+                        }
+                        .focusRequester(menuFocus)
+                        .focusable()
+                        .onPreviewKeyEvent {
+                            if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { onDismiss(); true } else false
+                        }
+                        .semantics {
+                            paneTitle = "$focusLabel 操作菜单"
+                            isTraversalGroup = true
+                            dismiss { onDismiss(); true }
                         }
                         .shadow(
                             elevation = 18.dp,
@@ -201,7 +230,7 @@ internal fun TabLongPressActionOverlay(
                         .clip(panelShape)
                         .border(
                             width = .8.dp,
-                            color = Color.White.copy(alpha = if (dark) .18f else .54f),
+                            color = if (effects.highContrast) colors.text.primary else Color.White.copy(alpha = if (dark) .18f else .54f),
                             shape = panelShape,
                         ),
                 ) {
@@ -217,7 +246,7 @@ internal fun TabLongPressActionOverlay(
                     ) {
                         Text(
                             text = "操作",
-                            color = colors.text.placeholder,
+                            color = if (effects.highContrast) colors.text.secondary else colors.text.placeholder,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                         )

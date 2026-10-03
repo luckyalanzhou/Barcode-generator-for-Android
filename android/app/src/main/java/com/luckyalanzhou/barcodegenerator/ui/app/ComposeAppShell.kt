@@ -44,6 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
@@ -111,14 +116,25 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val currentRoute = appUiState.page
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
-    val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState>() }
+    val effects = rememberVisualEffectsPolicy(settingsUiState.style)
+    var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }
+    LaunchedEffect(tabMenu.menu) {
+        if (tabMenu.menu == null) {
+            val restore = focusToRestore
+            focusToRestore = null
+            restore?.invoke()
+        }
+    }
     val tabMenuProgress = animateFloatAsState(
         targetValue = if (tabMenu.open && tabMenu.ready) 1f else 0f,
-        animationSpec = tween(190, easing = FastOutSlowInEasing),
+        animationSpec = tween(if (effects.reduceMotion) 0 else 190, easing = FastOutSlowInEasing),
         finishedListener = { if (it == 0f) tabMenu.closed() },
         label = "tab-menu-presentation",
     )
     val tabEnterOffset = with(LocalDensity.current) { 20.dp.roundToPx() }
+    val configuration = LocalConfiguration.current
+    LaunchedEffect(currentRoute, configuration.screenWidthDp, configuration.screenHeightDp) { tabMenu.dismiss() }
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
         if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null) {
@@ -144,15 +160,22 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
         val backdrop = rememberGlassBackdrop()
-        CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+        CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalVisualEffectsPolicy provides effects) {
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val blurPx = 20.dp.toPx() * tabMenuProgress.value
+                    val blurPx = if (effects.opaqueGlass) 0f else 20.dp.toPx() * tabMenuProgress.value
                     renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && blurPx > .1f) {
                         BlurEffect(blurPx, blurPx, TileMode.Clamp)
                     } else null
-                },
+                }.then(if (tabMenu.menu != null) Modifier
+                    .clearAndSetSemantics { }
+                    .focusProperties { canFocus = false }
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                        }
+                    } else Modifier),
             ) {
                 Box(
                     modifier = Modifier
@@ -190,7 +213,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             modifier = Modifier.fillMaxWidth().weight(1f)
                                 .background(colors.surfaces.background),
                             transitionSpec = {
-                                when (appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
+                                when (if (effects.reduceMotion) AppPageTransitionKind.NONE else appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                                     AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
                                     AppPageTransitionKind.TAB_SWIPE, AppPageTransitionKind.TAB_SELECTION ->
                                         (slideInVertically(

@@ -201,6 +201,9 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                                 margin = next.margin.toInt(),
                                 showFormat = next.showFormat,
                                 colorScheme = next.scheme,
+                                reduceMotion = next.style.reduceMotion,
+                                reduceTransparency = next.style.reduceTransparency,
+                                enhanceContrast = next.style.enhanceContrast,
                             ),
                         )
                         val saveJob = viewModel.save()

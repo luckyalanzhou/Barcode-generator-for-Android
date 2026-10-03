@@ -32,6 +32,9 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         val MARGIN = intPreferencesKey("style_margin")
         val SHOW_FORMAT = booleanPreferencesKey("style_show_format")
         val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
+        val REDUCE_MOTION = booleanPreferencesKey("appearance_reduce_motion")
+        val REDUCE_TRANSPARENCY = booleanPreferencesKey("appearance_reduce_transparency")
+        val ENHANCE_CONTRAST = booleanPreferencesKey("appearance_enhance_contrast")
         val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
@@ -63,6 +66,9 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         margin = get(MARGIN, 4).coerceIn(0, 10),
         showFormat = get(SHOW_FORMAT, false),
         colorScheme = get(COLOR_SCHEME, "system"),
+        reduceMotion = get(REDUCE_MOTION, false),
+        reduceTransparency = get(REDUCE_TRANSPARENCY, false),
+        enhanceContrast = get(ENHANCE_CONTRAST, false),
     )
 
     override fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = error }
@@ -82,6 +88,9 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         it[TEXT_POSITION] = style.textPosition; it[TEXT_SIZE] = style.textSize; it[BAR_HEIGHT] = style.barHeight
         it[BAR_WIDTH] = style.barWidth; it[MARGIN] = style.margin; it[SHOW_FORMAT] = style.showFormat
         it[COLOR_SCHEME] = style.colorScheme
+        it[REDUCE_MOTION] = style.reduceMotion
+        it[REDUCE_TRANSPARENCY] = style.reduceTransparency
+        it[ENHANCE_CONTRAST] = style.enhanceContrast
     }
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }

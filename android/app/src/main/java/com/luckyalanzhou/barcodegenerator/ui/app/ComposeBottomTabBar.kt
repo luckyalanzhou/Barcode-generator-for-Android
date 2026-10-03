@@ -23,6 +23,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -37,6 +38,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +51,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -95,8 +105,9 @@ internal fun BarcodeComposeBottomTabBar(
         )
     }
     val themeColors = LocalAppColorScheme.current
+    val effects = LocalVisualEffectsPolicy.current
     val selectedColor = themeColors.controls.accent
-    val unselectedColor = themeColors.navigation.tabUnselected
+    val unselectedColor = if (effects.highContrast) themeColors.text.primary else themeColors.navigation.tabUnselected
     val hapticView = LocalView.current
     var lastTabHapticAt by remember { mutableLongStateOf(0L) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
@@ -105,6 +116,8 @@ internal fun BarcodeComposeBottomTabBar(
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
     val tapScope = rememberCoroutineScope()
     val motion = remember(tabs.size) { TabGlassMotionState(tapScope, selectedIndex, tabs.size) }
+    val tabFocus = remember(tabs.size) { List(tabs.size) { FocusRequester() } }
+    LaunchedEffect(effects.reduceMotion) { motion.setReducedMotion(effects.reduceMotion) }
     val currentSelectedIndex by rememberUpdatedState(selectedIndex)
     val currentOnTabSelected by rememberUpdatedState(onTabSelected)
     LaunchedEffect(selectedIndex) { motion.select(selectedIndex) }
@@ -121,7 +134,7 @@ internal fun BarcodeComposeBottomTabBar(
         motion.select(index)
         motion.pulse(if (index == selectedIndex) .014f else .03f)
         onTabSelected(index, false)
-        tapPulseTab = index
+        tapPulseTab = if (effects.reduceMotion) -1 else index
         tapPulseGeneration += 1
         val generation = tapPulseGeneration
         tapScope.launch {
@@ -187,25 +200,24 @@ internal fun BarcodeComposeBottomTabBar(
             visible = showSelectionIndicator,
         ) {
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().selectableGroup(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 tabs.forEachIndexed { index, tab ->
                     val selected = selectedIndex == index
+                    var tabPlaced by remember { mutableStateOf(false) }
+                    DisposableEffect(Unit) { onDispose { tabPlaced = false } }
                     val itemColor by animateColorAsState(
                         targetValue = if (selected) selectedColor else unselectedColor,
-                        animationSpec = tween(ComposeAnimationConfig.tabItemColorDurationMillis),
+                        animationSpec = tween(if (effects.reduceMotion) 0 else ComposeAnimationConfig.tabItemColorDurationMillis),
                         label = "tab-item-color-$index",
                     )
                     val tapScale = animateFloatAsState(
-                        targetValue = if (tapPulseTab == index) .92f else 1f,
-                        animationSpec = ComposeAnimationConfig.pressSpring(),
+                        targetValue = if (!effects.reduceMotion && tapPulseTab == index) .92f else 1f,
+                        animationSpec = if (effects.reduceMotion) tween(0) else ComposeAnimationConfig.pressSpring(),
                         label = "tab-icon-tap-response-$index",
                     )
-                    val tabClickModifier = if (index in 1..3) {
-                        Modifier.combinedClickable(
-                            onClick = { handleTabClick(index) },
-                            onLongClick = {
+                    val openMenu: () -> Unit = {
                                 hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                                 val actions = when (index) {
                                     1 -> listOf(
@@ -243,18 +255,35 @@ internal fun BarcodeComposeBottomTabBar(
                                         focusTint = if (selected) selectedColor else unselectedColor,
                                         dark = dark,
                                         actions = actions,
+                                        restoreFocus = { if (tabPlaced) tabFocus[index].requestFocus() },
                                     ),
                                 )
-                            },
+                    }
+                    val tabClickModifier = if (index in 1..3) {
+                        Modifier.combinedClickable(
+                            role = Role.Tab,
+                            onClick = { handleTabClick(index) },
+                            onLongClickLabel = "打开${tab.label}操作菜单",
+                            onLongClick = openMenu,
                         )
                     } else {
                         Modifier.clickable(
+                            role = Role.Tab,
                             onClick = { handleTabClick(index) },
                         )
                     }
                     Box(
                         modifier = Modifier.weight(1f).fillMaxHeight()
+                            .focusRequester(tabFocus[index])
+                            .semantics(mergeDescendants = true) {
+                                this.selected = selected
+                                contentDescription = tab.description
+                                if (index in 1..3) customActions = listOf(
+                                    CustomAccessibilityAction("打开${tab.label}操作菜单") { openMenu(); true },
+                                )
+                            }
                             .onGloballyPositioned { coordinates ->
+                                tabPlaced = true
                                 val topLeft = coordinates.localToScreen(Offset.Zero)
                                 val bounds = Rect(
                                     left = topLeft.x,
@@ -274,7 +303,7 @@ internal fun BarcodeComposeBottomTabBar(
                         ) {
                             Icon(
                                 imageVector = if (selected) tab.selectedIcon else tab.icon,
-                                contentDescription = tab.description,
+                                contentDescription = null,
                                 tint = itemColor,
                                 modifier = Modifier.size(26.dp).graphicsLayer {
                                     val squash = 1f - tapScale.value

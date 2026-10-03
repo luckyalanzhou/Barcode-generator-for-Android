@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
 /** Records only the page, never a glass output. Replaying the display list requires no bitmap readback. */
 @Stable
@@ -65,6 +66,7 @@ internal fun GlassBackdropSurface(
     drawFallback: Boolean = true,
 ) {
     val source = LocalGlassBackdrop.current
+    val policy = LocalVisualEffectsPolicy.current
     val renderer = remember {
         if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull() else null
     }
@@ -72,13 +74,14 @@ internal fun GlassBackdropSurface(
     var origin by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
     val gpu = Build.VERSION.SDK_INT >= 33 && renderer != null &&
-        LocalView.current.isHardwareAccelerated && source?.ready == true
+        LocalView.current.isHardwareAccelerated && source?.ready == true && !policy.opaqueGlass
     Canvas(modifier.onGloballyPositioned {
         origin = it.localToWindow(Offset.Zero)
         size = it.size
     }.graphicsLayer {
         if (gpu && Build.VERSION.SDK_INT >= 33 && size.width > 0 && size.height > 0) {
-            renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp, refractionDp(), capsule?.invoke())
+            renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp,
+                if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
         } else renderEffect = null
     }) {
         if (gpu) {
@@ -87,7 +90,7 @@ internal fun GlassBackdropSurface(
             translate(offset.x, offset.y) { drawLayer(source.layer) }
         } else if (drawFallback) {
             drawRoundRect(
-                color.copy(alpha = opacity),
+                color.copy(alpha = if (policy.opaqueGlass || Build.VERSION.SDK_INT < 31) 1f else opacity.coerceAtLeast(.92f)),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerDp * density),
             )
         }

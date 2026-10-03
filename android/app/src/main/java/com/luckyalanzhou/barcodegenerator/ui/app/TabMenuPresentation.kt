@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 
 /** Retain the foreground until the common exit finishes; an action is consumed at most once. */
 @Stable
-internal class TabMenuPresentation<T> {
+internal class TabMenuPresentation<T>(private val onClosed: (T) -> Unit = {}) {
     var menu by mutableStateOf<T?>(null)
         private set
     var ready by mutableStateOf(false)
@@ -35,9 +35,12 @@ internal class TabMenuPresentation<T> {
     fun closed() {
         if (open) return
         val action = pendingAction
+        val oldMenu = menu
         pendingAction = null
         menu = null
         ready = false
+        // Actions may open a picker/dialog: do not steal their focus by restoring the tab.
+        if (oldMenu != null && action == null) onClosed(oldMenu)
         action?.invoke()
     }
 }
