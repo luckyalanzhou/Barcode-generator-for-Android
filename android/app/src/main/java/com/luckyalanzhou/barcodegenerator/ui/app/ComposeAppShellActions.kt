@@ -15,6 +15,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.showComposeConfirmDialog as showComposeConfirmDialogImpl
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.shareResultPage
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.saveResultPage
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
@@ -40,6 +41,7 @@ internal interface ComposeAppShellActions {
     fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit)
     fun saveFavorite()
     fun shareResult()
+    fun saveResult()
     fun applyAppearance()
     fun enterLanShare()
     fun restoreFavorites()
@@ -165,6 +167,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         onCreateFolder = favoritesViewModel::createFavoriteFolder,
     )
     override fun shareResult() = this@composeAppShellActions.shareResultPage()
+    override fun saveResult() = this@composeAppShellActions.saveResultPage()
     override fun applyAppearance() = this@composeAppShellActions.applyAppearance()
     override fun enterLanShare() = this@composeAppShellActions.enterLanShare()
     override fun restoreFavorites() = this@composeAppShellActions.restoreFavoritesImport()

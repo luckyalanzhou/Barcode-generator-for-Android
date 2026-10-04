@@ -34,6 +34,7 @@ import java.util.Locale
 /** 生成 ZIP 后交给系统分享面板，可发送至聊天、邮件、网盘或文件管理器。 */
 internal fun MainActivity.shareFavoritesExportForCompose() {
     val name = timestampedBackupFileName()
+    toast("正在准备收藏备份…")
     lifecycleScope.launch(Dispatchers.IO) {
         val exportFile = File(cacheDir, name)
         val result = runCatching {
@@ -45,11 +46,15 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
                 val share = Intent(Intent.ACTION_SEND).apply {
                     type = "application/zip"
                     putExtra(Intent.EXTRA_STREAM, exportUri)
-                    putExtra(Intent.EXTRA_TITLE, name)
+                    putExtra(Intent.EXTRA_TITLE, "收藏备份 · $name")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     clipData = ClipData.newRawUri("收藏备份", exportUri)
                 }
-                startActivity(Intent.createChooser(share, "导出收藏到"))
+                runCatching { startActivity(Intent.createChooser(share, "分享收藏备份")) }
+                    .onFailure {
+                        exportFile.delete()
+                        toast("无法打开分享面板，请使用保存备份")
+                    }
             }.onFailure {
                 exportFile.delete()
                 toast(formatFavoritesExportError(it))

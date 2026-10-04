@@ -18,6 +18,13 @@ import androidx.core.content.FileProvider
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.graphics.toArgb
 import kotlin.math.roundToInt
+import android.content.ClipData
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import java.io.File
 
 internal fun MainActivity.isDark() =
     resolveDarkAppearance(
@@ -67,18 +74,38 @@ internal fun MainActivity.shareText(text: String) {
 }
 
 internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String) {
-    val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, label.replace(Regex("[^A-Za-z0-9._-]+"), "_").take(80).ifBlank { "barcode" } + ".png")
-        put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-        if (Build.VERSION.SDK_INT >= 29) put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/BarcodeGenerator")
+    lifecycleScope.launch {
+        var createdUri: Uri? = null
+        try {
+            withContext(Dispatchers.IO) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, shareImageFileName(label))
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/BarcodeGenerator")
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                }
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: error("无法创建图片")
+                createdUri = uri
+                contentResolver.openOutputStream(uri)?.use {
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
+                } ?: error("无法写入图片")
+                if (Build.VERSION.SDK_INT >= 29) {
+                    check(contentResolver.update(uri,
+                        ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) > 0)
+                }
+            }
+            toast("已保存到相册")
+        } catch (error: CancellationException) {
+            createdUri?.let { runCatching { contentResolver.delete(it, null, null) } }
+            throw error
+        } catch (_: Exception) {
+            createdUri?.let { runCatching { contentResolver.delete(it, null, null) } }
+            toast("保存失败，请重试")
+        }
     }
-    val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-    if (uri == null) {
-        toast("保存失败")
-        return
-    }
-    contentResolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-    toast("已保存到相册")
 }
 
 internal fun MainActivity.writeBitmapToUri(bitmap: Bitmap, uri: Uri): Boolean = runCatching {
@@ -88,31 +115,34 @@ internal fun MainActivity.writeBitmapToUri(bitmap: Bitmap, uri: Uri): Boolean = 
 }.isSuccess
 
 internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String) {
-    val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, label.replace(Regex("[^A-Za-z0-9._-]+"), "_").take(80).ifBlank { "barcode" } + ".png")
-        put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-        if (Build.VERSION.SDK_INT >= 29) put(MediaStore.Images.Media.IS_PENDING, 1)
-    }
-    val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-    if (uri == null) {
-        toast("分享失败")
-        return
-    }
-    contentResolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-    if (Build.VERSION.SDK_INT >= 29) {
-        contentResolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
-    }
-    startActivity(
-        Intent.createChooser(
-            Intent(Intent.ACTION_SEND).apply {
+    // Sharing is not saving: keep the original user's gallery untouched.
+    lifecycleScope.launch {
+        var shareFile: File? = null
+        try {
+            val uri = withContext(Dispatchers.IO) {
+                val directory = File(cacheDir, "shared-images")
+                check(directory.isDirectory || directory.mkdirs())
+                val file = File.createTempFile(shareImageFileName(label).removeSuffix(".png") + "-", ".png", directory)
+                shareFile = file
+                file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+                FileProvider.getUriForFile(this@shareBitmap, "$packageName.fileprovider", file)
+            }
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_TEXT, label)
+                putExtra(Intent.EXTRA_TITLE, label)
+                clipData = ClipData.newUri(contentResolver, label, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            },
-            "分享条码图片",
-        ),
-    )
+            }, "分享条码图片"))
+            // Do not delete now: the selected receiving app may read after the chooser closes.
+        } catch (error: CancellationException) {
+            shareFile?.delete()
+            throw error
+        } catch (_: Exception) {
+            shareFile?.delete()
+            toast("分享失败，请重试")
+        }
+    }
 }
 
 internal fun MainActivity.toast(s: String) = android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_SHORT).show()

@@ -179,6 +179,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     },
                     onSaveFavorite = dependencies.actions::saveFavorite,
                     onShare = dependencies.actions::shareResult,
+                    onSave = dependencies.actions::saveResult,
                     loadBarcodeImage = { item, isDark, density ->
                         dependencies.resultsViewModel.loadOrCreateBarcodeImage(item, settings.style, isDark, density)
                     },

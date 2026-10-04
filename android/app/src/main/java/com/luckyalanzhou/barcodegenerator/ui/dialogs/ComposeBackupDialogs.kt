@@ -32,11 +32,13 @@ internal fun MainActivity.createFavoritesExportCompose() {
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text("导出收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            ComposeDialogChoice("分享到其他应用", dark) {
+            Text("备份为 ZIP 文件，可用于恢复收藏。", color = LocalAppColorScheme.current.text.secondary,
+                fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+            ComposeDialogChoice("分享备份", dark) {
                 dismiss()
                 shareFavoritesExportForCompose()
             }
-            ComposeDialogChoice("保存到文件", dark) {
+            ComposeDialogChoice("保存备份", dark) {
                 dismiss()
                 createFavoritesDocumentExportForCompose()
             }

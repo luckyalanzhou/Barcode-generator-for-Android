@@ -13,6 +13,7 @@ import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
+import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -62,6 +63,7 @@ internal fun ResultsContent(
     onEdit: () -> Unit,
     onSaveFavorite: () -> Unit,
     onShare: () -> Unit,
+    onSave: () -> Unit,
     loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
 ) {
     val themeColors = LocalAppColorScheme.current
@@ -161,6 +163,7 @@ internal fun ResultsContent(
                     onSaveFavorite,
                 )
                 ResultAction(IosShareIcon, "分享", resultActionBlue, onShare)
+                ResultAction(ArrowDownwardIcon, "保存", resultActionBlue, onSave)
             }
         }
         items(items, key = { it.id }) { item ->

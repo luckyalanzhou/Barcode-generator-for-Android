@@ -109,6 +109,7 @@ class MainActivity : AppCompatActivity() {
     }
     internal var composeShellReady: Boolean = false
     internal var pendingResultImageFile: File? = null
+    internal var preparingResultExport: Boolean = false
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val navigationViewModel: AppNavigationViewModel by viewModels()
     internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()

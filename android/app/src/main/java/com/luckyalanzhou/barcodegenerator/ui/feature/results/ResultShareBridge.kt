@@ -20,74 +20,124 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 
 private data class ResultPageImage(val bitmap: Bitmap, val label: String)
 
 /** 为当前结果批次生成统一的合成图片。 */
-private fun MainActivity.createResultPageImage(): ResultPageImage? {
-    val resultItems = resultsViewModel.resultUiState.value.items
-    val images = resultItems.mapNotNull { item ->
+private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
+    val resultItems = resultsViewModel.resultUiState.value.items.toList()
+    val style = settingsViewModel.style.copy()
+    val dark = isDark()
+    val density = resources.displayMetrics.density
+    return withContext(Dispatchers.Default) {
+    val images = completeExportBatch(resultItems) { item ->
         resultsViewModel.createBarcodeImage(
             item.text,
             barcodeFormats.firstOrNull { it.first == item.format }?.second ?: com.google.zxing.BarcodeFormat.CODE_128,
-            settingsViewModel.style,
-            isDark(),
-            resources.displayMetrics.density,
+            style,
+            dark,
+            density,
         )
-    }
-    if (images.isEmpty()) return null
+    } ?: return@withContext null
     val width = images.maxOf { it.width }
     val spacing = if (resultItems.all { it.format == "Code 128-B" }) {
-        (settingsViewModel.style.margin * resources.displayMetrics.density).toInt().coerceAtLeast(0)
+        (style.margin * density).toInt().coerceAtLeast(0)
     } else 0
     val height = images.sumOf { it.height } + spacing * (images.size - 1)
     val pageImage = createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(pageImage)
-    canvas.drawColor(BarcodeImageColors.background(isDark()))
+    canvas.drawColor(BarcodeImageColors.background(dark))
     var top = 0
     images.forEach { image ->
         canvas.drawBitmap(image, (width - image.width) / 2f, top.toFloat(), null)
         top += image.height + spacing
     }
-    return ResultPageImage(pageImage, "本页生成的 ${images.size} 个条码")
+    ResultPageImage(pageImage, "本页生成的 ${images.size} 个条码")
+    }
 }
 
-/** 结果页分享菜单：保存图片、保存文件或发送给其他应用。 */
-internal fun MainActivity.shareResultPage() {
-    val result = createResultPageImage()
-    if (result == null) {
-        toast("没有可分享的条码")
-        return
+/** Prepare off the UI thread; both actions share the same all-or-nothing snapshot. */
+private fun MainActivity.withResultPageImage(onReady: (ResultPageImage) -> Unit) {
+    if (preparingResultExport) return
+    preparingResultExport = true
+    toast("正在准备条码图片…")
+    lifecycleScope.launch {
+        try {
+            val result = createResultPageImage()
+            if (result == null) toast("条码图片准备失败，请重试") else onReady(result)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            toast("条码图片准备失败，请重试")
+        } finally {
+            preparingResultExport = false
+        }
     }
+}
+
+/** Sharing means opening the system Sharesheet, not a second app-target picker. */
+internal fun MainActivity.shareResultPage() = withResultPageImage { result ->
+    shareBitmap(result.bitmap, result.label)
+}
+
+/** Saving remains discoverable without adding a step to system sharing. */
+internal fun MainActivity.saveResultPage() = withResultPageImage { result ->
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("分享结果", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            DialogAction("保存为图片", dark, { saveBitmap(result.bitmap, result.label); dismiss() }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+            Text("保存条码", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(result.label, color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp,
+                modifier = Modifier.padding(top = 6.dp))
+            Image(result.bitmap.asImageBitmap(), "待保存的条码图片", contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).padding(top = 10.dp))
+            DialogAction("保存到相册", dark, { saveBitmap(result.bitmap, result.label); dismiss() }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
             DialogAction("保存到文件", dark, {
-                val imageFile = runCatching {
-                    File.createTempFile("result-export-", ".png", cacheDir).also { file ->
-                        file.outputStream().use { output ->
-                            check(result.bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
-                        }
-                    }
-                }.getOrNull()
-                if (imageFile == null) {
-                    toast("准备文件失败，请重试")
-                } else {
-                    pendingResultImageFile = imageFile
-                    dismiss()
-                    launchExternalActivity(
-                        Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                            type = "image/png"
-                            putExtra(Intent.EXTRA_TITLE, result.label.replace(Regex("[^A-Za-z0-9._-]+"), "_") + ".png")
-                            addCategory(Intent.CATEGORY_OPENABLE)
-                        },
-                        MainActivity.REQUEST_RESULT_IMAGE_FILE,
-                    )
-                }
+                dismiss()
+                saveResultImageDocument(result)
             }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
-            DialogAction("发送给其他应用", dark, { shareBitmap(result.bitmap, result.label); dismiss() }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+        }
+    }
+}
+
+private fun MainActivity.saveResultImageDocument(result: ResultPageImage) {
+    if (pendingResultImageFile != null || preparingResultExport) return
+    preparingResultExport = true
+    lifecycleScope.launch {
+        var temporary: File? = null
+        try {
+            val file = withContext(Dispatchers.IO) {
+                File.createTempFile("result-export-", ".png", cacheDir).also {
+                    temporary = it
+                    it.outputStream().use { output ->
+                        check(result.bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+                    }
+                }
+            }
+            pendingResultImageFile = file
+            launchExternalActivity(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_TITLE, shareImageFileName(result.label))
+                addCategory(Intent.CATEGORY_OPENABLE)
+            }, MainActivity.REQUEST_RESULT_IMAGE_FILE)
+        } catch (error: CancellationException) {
+            temporary?.delete()
+            pendingResultImageFile = null
+            throw error
+        } catch (_: Exception) {
+            temporary?.delete()
+            pendingResultImageFile = null
+            toast("准备文件失败，请重试")
+        } finally {
+            preparingResultExport = false
         }
     }
 }
