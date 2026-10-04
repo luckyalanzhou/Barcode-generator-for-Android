@@ -4,6 +4,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.abs
 
+// HIG: a context-menu title is useful only when it explains the target or effect.
+internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =
+    title.isNotBlank() && (!tabAnchor || title != "操作")
+
 /** A single reveal coordinate for geometry, light and thickness; no independent fades. */
 internal data class MenuGlassReveal(val scale: Float, val alpha: Float, val thickness: Float, val shadow: Float)
 

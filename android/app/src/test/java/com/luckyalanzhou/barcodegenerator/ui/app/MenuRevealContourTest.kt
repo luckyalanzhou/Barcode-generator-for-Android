@@ -6,6 +6,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MenuRevealContourTest {
+    @Test fun tabRevealKeepsEveryCommandInsideAStableContour() {
+        val size = Size(200f, 80f)
+        for (p in listOf(0f, .1f, .5f, 1f)) {
+            assertEquals(Rect(0f, 0f, 200f, 80f),
+                menuRevealBounds(size, .3f, true, menuGlassReveal(p, true, false), preserveContour = true))
+        }
+    }
+
+    @Test fun genericTabTitleIsOmittedButMeaningfulAndEditingTitlesRemain() {
+        assertFalse(menuShowsTitle(true, "操作"))
+        assertFalse(menuShowsTitle(true, ""))
+        assertTrue(menuShowsTitle(true, "收藏备份"))
+        assertTrue(menuShowsTitle(false, "编辑"))
+    }
     @Test fun contourGrowsFromEitherAnchorWithoutChangingFinalBounds() {
         val size = Size(200f, 198f)
         for (above in listOf(false, true)) for (tab in listOf(false, true)) {

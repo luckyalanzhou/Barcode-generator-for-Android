@@ -11,7 +11,11 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 
 /** Grow the visible contour from its anchor; layout and glyph sizes remain unchanged. */
-internal fun menuRevealBounds(size: Size, pivotX: Float, above: Boolean, reveal: MenuGlassReveal): Rect {
+internal fun menuRevealBounds(size: Size, pivotX: Float, above: Boolean, reveal: MenuGlassReveal,
+    preserveContour: Boolean = false): Rect {
+    // Tab previews and commands remain whole while the surface rises from its source.
+    // Folder/file menus retain their existing anchor-grown contour.
+    if (preserveContour) return Rect(0f, 0f, size.width, size.height)
     val width = size.width * reveal.scale
     val height = size.height * (.2f + .8f * reveal.thickness)
     val left = (size.width - width) * pivotX.coerceIn(0f, 1f)
@@ -29,7 +33,8 @@ internal class MenuRevealContour(
     private val above: Boolean,
     private val reveal: MenuGlassReveal,
     private val radiusPx: Float,
+    private val preserveContour: Boolean = false,
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
-        Outline.Generic(menuRevealPath(menuRevealBounds(size, pivotX, above, reveal), radiusPx))
+        Outline.Generic(menuRevealPath(menuRevealBounds(size, pivotX, above, reveal, preserveContour), radiusPx))
 }

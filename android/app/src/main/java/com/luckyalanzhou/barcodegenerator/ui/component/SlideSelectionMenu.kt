@@ -1,9 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.component
 
-import android.os.Build
 import android.os.SystemClock
-import android.view.HapticFeedbackConstants
-import android.view.View
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Column
@@ -78,6 +75,8 @@ internal class ContextMenuGestureSession {
         menuOpen = true
         ready = false
         continuation = pointerDown
+        // A new presentation must not inherit the previous menu's debounce window.
+        lastHapticAt = 0L
         moved = false
         origin = lastPointer
         feedbackPoint = null
@@ -136,11 +135,10 @@ internal fun Modifier.contextMenuGestures(
     return onGloballyPositioned { session.rootCoordinates = it }.pointerInput(session) {
         fun point(local: Offset): Offset? = session.rootCoordinates?.takeIf { it.isAttached }?.localToScreen(local)
         fun feedback() {
-            if (session.selection.selected == session.gesture.selected) return
+            val previous = session.selection.selected
             session.selection.selected = session.gesture.selected
-            if (session.gesture.selected == null) return
             val now = SystemClock.uptimeMillis()
-            if (now - session.lastHapticAt < 120L) return
+            if (!shouldPerformMenuSelectionHaptic(previous, session.gesture.selected, now, session.lastHapticAt)) return
             session.lastHapticAt = now
             view.performLightMenuHaptic()
         }
@@ -195,16 +193,6 @@ internal fun Modifier.contextMenuGestures(
             }
         }
     }
-}
-
-/** Respect the system setting; never substitute a strong vibration if a soft tick is unavailable. */
-internal fun View.performLightMenuHaptic() {
-    val type = when {
-        Build.VERSION.SDK_INT >= 34 -> HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
-        Build.VERSION.SDK_INT >= 27 -> HapticFeedbackConstants.TEXT_HANDLE_MOVE
-        else -> HapticFeedbackConstants.CLOCK_TICK
-    }
-    performHapticFeedback(type)
 }
 
 /** Preserve keyboard/TalkBack clicks; pointer events are processed by the root host. */

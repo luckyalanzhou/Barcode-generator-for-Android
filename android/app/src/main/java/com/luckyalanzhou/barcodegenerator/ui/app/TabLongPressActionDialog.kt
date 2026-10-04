@@ -124,6 +124,7 @@ internal fun TabLongPressActionOverlay(
     val focusLabel = state.focusLabel
     val focusTint = state.focusTint
     val actions = state.actions
+    val showTitle = menuShowsTitle(state.tabAnchor, state.title)
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val menuFocus = remember { FocusRequester() }
@@ -188,7 +189,7 @@ internal fun TabLongPressActionOverlay(
             val bottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
             val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 10.dp.toPx() }
             val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 40.dp.toPx() }
-            val desiredHeightPx = with(density) { (38 + actions.size * 40).dp.toPx() } + motionMarginPx
+            val desiredHeightPx = with(density) { ((if (showTitle) 38 else 0) + actions.size * 40).dp.toPx() } + motionMarginPx
             val rowMenuAnchor = if (state.tabAnchor) menuAnchorBoundsOnScreen else liftedRowMenuAnchor(
                 anchorBoundsOnScreen, overlayOriginOnScreen, screenHeightPx, statusBarTopPx,
                 bottomInsetPx, gapPx, desiredHeightPx)
@@ -312,7 +313,8 @@ internal fun TabLongPressActionOverlay(
                         .graphicsLayer {
                             val reveal = menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion)
                             alpha = reveal.alpha
-                            shape = MenuRevealContour(placement.pivotX, menuSpace.above, reveal, panelCorner.toPx())
+                            shape = MenuRevealContour(placement.pivotX, menuSpace.above, reveal, panelCorner.toPx(),
+                                preserveContour = state.tabAnchor)
                             clip = true
                             shadowElevation = 18.dp.toPx() * reveal.shadow
                             ambientShadowColor = Color.Black.copy(alpha = if (dark) .25f else .12f)
@@ -344,7 +346,8 @@ internal fun TabLongPressActionOverlay(
                         .drawWithContent {
                             drawContent()
                             val reveal = menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion)
-                            val path = menuRevealPath(menuRevealBounds(size, placement.pivotX, menuSpace.above, reveal), panelCorner.toPx())
+                            val path = menuRevealPath(menuRevealBounds(size, placement.pivotX, menuSpace.above, reveal,
+                                preserveContour = state.tabAnchor), panelCorner.toPx())
                             drawPath(path,
                                 if (effects.highContrast) colors.text.primary else Color.White.copy(alpha = if (dark) .18f else .54f),
                                 style = Stroke(.8.dp.toPx()))
@@ -366,6 +369,7 @@ internal fun TabLongPressActionOverlay(
                     )
                     key(state) {
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
+                    if (showTitle) {
                     Box(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                         contentAlignment = Alignment.CenterStart,
@@ -378,6 +382,7 @@ internal fun TabLongPressActionOverlay(
                         )
                     }
                     ActionSeparator(color = separator)
+                    }
                     actions.forEachIndexed { index, action ->
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
