@@ -1,10 +1,25 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
+import com.luckyalanzhou.barcodegenerator.ui.component.SlideSelectionMenu
+import com.luckyalanzhou.barcodegenerator.ui.component.slideMenuItem
+import com.luckyalanzhou.barcodegenerator.ui.component.ContextMenuGestureSession
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.key
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.abs
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +35,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -50,6 +66,7 @@ import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -58,6 +75,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -82,6 +100,8 @@ internal data class TabLongPressMenuState(
     val dark: Boolean,
     val actions: List<TabLongPressAction>,
     val restoreFocus: () -> Unit = {},
+    val title: String = "操作",
+    val tabAnchor: Boolean = true,
 )
 
 @Composable
@@ -89,6 +109,7 @@ internal fun TabLongPressActionOverlay(
     state: TabLongPressMenuState,
     progress: State<Float>,
     interactive: Boolean,
+    gesture: ContextMenuGestureSession,
     onMeasured: () -> Unit,
     onDismiss: () -> Unit,
     onAction: (() -> Unit) -> Unit,
@@ -109,6 +130,14 @@ internal fun TabLongPressActionOverlay(
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
     val material = menuGlassMaterial(colors.surfaces.panel, panelSize.height / density.density)
+    val follow = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    var restingPanelOnScreen by remember { mutableStateOf(Rect.Zero) }
+    LaunchedEffect(gesture, effects.reduceMotion) {
+        snapshotFlow { menuPanelMotion(gesture.feedbackPoint, restingPanelOnScreen) }.collectLatest { target ->
+            if (effects.reduceMotion) follow.snapTo(Offset.Zero)
+            else follow.animateTo(target, spring(dampingRatio = .86f, stiffness = 700f))
+        }
+    }
 
     BoxWithConstraints(
         Modifier.fillMaxSize().onGloballyPositioned { coordinates ->
@@ -131,15 +160,19 @@ internal fun TabLongPressActionOverlay(
             val edgePaddingPx = with(density) { 12.dp.toPx() }
             val gapPx = with(density) { 8.dp.toPx() }
             val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
+            val bottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
             val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 10.dp.toPx() }
+            val menuSpace = contextMenuSpace(anchorBoundsOnScreen, overlayOriginOnScreen,
+                with(density) { maxHeight.toPx() }, statusBarTopPx, bottomInsetPx,
+                gapPx, focusLiftPx, with(density) { (38 + actions.size * 48).dp.toPx() }, state.tabAnchor)
             val placement = tabMenuPlacement(anchorBoundsOnScreen, overlayOriginOnScreen, panelSize,
-                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx)
+                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
             LaunchedEffect(popupReady) { if (popupReady) onMeasured() }
             LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
             if (popupReady) {
-                val focusWidth = 64.dp
-                val focusHeight = 54.dp
+                val focusWidth = if (state.tabAnchor) 64.dp else with(density) { anchorBoundsOnScreen.width.toDp() }
+                val focusHeight = if (state.tabAnchor) 54.dp else with(density) { anchorBoundsOnScreen.height.toDp() }
                 val focusWidthPx = with(density) { focusWidth.toPx() }
                 val focusHeightPx = with(density) { focusHeight.toPx() }
                 val focusCenterY = (anchorBoundsOnScreen.top + anchorBoundsOnScreen.bottom) / 2f - overlayOriginOnScreen.y
@@ -157,6 +190,7 @@ internal fun TabLongPressActionOverlay(
                         }.clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) {
+                    if (state.tabAnchor) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -175,10 +209,28 @@ internal fun TabLongPressActionOverlay(
                             maxLines = 1,
                         )
                     }
+                    } else {
+                        Row(Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Icon(focusIcon, null, tint = focusTint, modifier = Modifier.size(24.dp))
+                            Text(focusLabel, color = colors.text.primary, fontSize = 17.sp,
+                                fontWeight = FontWeight.Medium, maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
                 }
             }
-            val availableHeightPx = (anchorBoundsOnScreen.top - overlayOriginOnScreen.y -
-                statusBarTopPx - gapPx * 2f - focusLiftPx).coerceAtLeast(with(density) { 48.dp.toPx() })
+            // Leave room for the bounded follow/swell even on tall, large-font menus.
+            val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 24.dp.toPx() }
+            val availableHeightPx = (menuSpace.height - motionMarginPx).coerceAtLeast(with(density) { 48.dp.toPx() })
+            LaunchedEffect(placement, panelSize, overlayOriginOnScreen, focusLiftPx) {
+                // Use resting geometry, not the animated panel's bounds, to avoid feedback loops.
+                restingPanelOnScreen = Rect(placement.left + overlayOriginOnScreen.x,
+                    placement.top - focusLiftPx + overlayOriginOnScreen.y,
+                    placement.left + overlayOriginOnScreen.x + panelSize.width,
+                    placement.top - focusLiftPx + overlayOriginOnScreen.y + panelSize.height)
+            }
             Box(
                     modifier = Modifier.widthIn(min = minOf(140.dp, panelMaxWidth), max = panelMaxWidth)
                         .width(IntrinsicSize.Max)
@@ -193,9 +245,13 @@ internal fun TabLongPressActionOverlay(
                         .graphicsLayer {
                             alpha = progress.value
                             val scale = if (effects.reduceMotion) 1f else .97f + .03f * progress.value
-                            scaleX = scale
-                            scaleY = scale
-                            transformOrigin = TransformOrigin(placement.pivotX, 1f)
+                            val motion = follow.value
+                            val swell = 1f + .025f * maxOf(abs(motion.x), abs(motion.y))
+                            scaleX = scale * swell
+                            scaleY = scale * swell
+                            translationX = motion.x * 5.dp.toPx()
+                            translationY = motion.y * 6.dp.toPx()
+                            transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
                         }
                         .focusRequester(menuFocus)
                         .focusable()
@@ -214,6 +270,14 @@ internal fun TabLongPressActionOverlay(
                             spotColor = Color.Black.copy(alpha = if (dark) .32f else .18f),
                         )
                         .clip(panelShape)
+                        .pointerInput(Unit) {
+                            // Header/empty panel taps must not fall through to the backdrop.
+                            // Consume taps in Main; scrolling from the header remains available.
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false).consume()
+                                waitForUpOrCancellation()?.consume()
+                            }
+                        }
                         .border(
                             width = .8.dp,
                             color = if (effects.highContrast) colors.text.primary else Color.White.copy(alpha = if (dark) .18f else .54f),
@@ -225,13 +289,14 @@ internal fun TabLongPressActionOverlay(
                         opacity = material.opacity, cornerDp = 24f, blurDp = material.blurDp,
                         refractionDp = { material.refractionDp * progress.value },
                     )
-                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                    key(state) {
+                    SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
                     Box(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(
-                            text = "操作",
+                            text = state.title,
                             color = if (effects.highContrast) colors.text.primary else colors.text.placeholder,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
@@ -242,7 +307,8 @@ internal fun TabLongPressActionOverlay(
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                                .clickable(enabled = interactive) { onAction(action.onClick) }
+                                .slideMenuItem(selection, index, interactive, onClick = action.onClick)
+                                .clickable(enabled = interactive, role = Role.Button) { onAction(action.onClick) }
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -255,10 +321,11 @@ internal fun TabLongPressActionOverlay(
                             Icon(
                                 imageVector = action.icon,
                                 contentDescription = null,
-                                tint = colors.text.primary,
+                                tint = if (action.icon == DeleteIcon) colors.content.deleteIcon else colors.text.primary,
                                 modifier = Modifier.padding(start = 12.dp).size(20.dp),
                             )
                         }
+                    }
                     }
                     }
                 }

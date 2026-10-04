@@ -1,8 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.app.LocalLongPressMenuHost
+import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressAction
+import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressMenuState
+import com.luckyalanzhou.barcodegenerator.ui.component.boundsOnScreen
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -19,7 +21,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -28,6 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -43,10 +49,7 @@ internal fun FavoriteFolderRow(
     secondary: Color,
     folderColor: Color,
     animation: ComposeAnimationConfig,
-    menuExpanded: Boolean,
-    onMenuDismiss: () -> Unit,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
     onShowSubfolderEditor: (String) -> Unit,
     onShowFolderEditor: (String, (String) -> Unit) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
@@ -54,6 +57,33 @@ internal fun FavoriteFolderRow(
     onDeleteFolder: (String) -> Unit,
 ) {
     val interactionSource = remember(row.path) { MutableInteractionSource() }
+    val menuHost = LocalLongPressMenuHost.current
+    val view = LocalView.current
+    val focus = remember(row.path) { FocusRequester() }
+    var anchor by remember(row.path) { mutableStateOf(Rect.Zero) }
+    DisposableEffect(row.path) { onDispose { anchor = Rect.Zero } }
+    val openMenu: () -> Unit = {
+        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        val labels = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
+        menuHost(TabLongPressMenuState(anchor, FolderIcon, row.label, folderColor, dark,
+            actions = labels.map { label ->
+                TabLongPressAction(label, when (label) {
+                    "新建文件夹" -> CreateNewFolderIcon
+                    "重命名" -> EditIcon
+                    else -> DeleteIcon
+                }) {
+                    when (label) {
+                        "新建文件夹" -> onShowSubfolderEditor(row.path)
+                        "重命名" -> onShowFolderEditor(row.path) { renamed ->
+                            val parent = row.path.substringBeforeLast('/', "")
+                            onRenameFolder(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
+                        }
+                        else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { onDeleteFolder(row.path) }
+                    }
+                }
+            }, restoreFocus = { if (anchor != Rect.Zero) focus.requestFocus() },
+            title = "编辑文件夹", tabAnchor = false))
+    }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
     val background = animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
@@ -67,6 +97,8 @@ internal fun FavoriteFolderRow(
     Box(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().height(if (row.level == 0) 50.dp else 43.dp)
+                .onGloballyPositioned { anchor = it.boundsOnScreen() }
+                .focusRequester(focus)
                 .clip(RoundedCornerShape(14.dp))
                 .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
                 .padding(start = indent, end = 5.dp)
@@ -78,7 +110,8 @@ internal fun FavoriteFolderRow(
                     interactionSource,
                     indication = null,
                     onClick = onClick,
-                    onLongClick = onLongClick,
+                    onLongClick = openMenu,
+                    onLongClickLabel = "编辑文件夹",
                     hapticFeedbackEnabled = false,
                 ),
             verticalAlignment = Alignment.CenterVertically,
@@ -93,45 +126,6 @@ internal fun FavoriteFolderRow(
                 tint = secondary,
                 modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation.value },
             )
-        }
-        AnchoredDropdownMenu(
-            dark = dark,
-            expanded = menuExpanded,
-            onDismissRequest = onMenuDismiss,
-            shape = RoundedCornerShape(16.dp),
-            containerColor = LocalAppColorScheme.current.surfaces.overlay,
-            tonalElevation = 0.dp,
-            shadowElevation = 1.dp,
-            menuWidth = 160.dp,
-        ) {
-            DropdownMenuItem(modifier = Modifier.requiredHeight(40.dp), enabled = false, text = { Text("编辑文件夹", color = LocalAppColorScheme.current.text.placeholder, fontWeight = FontWeight.SemiBold) }, onClick = {})
-            ComposeDropdownDivider(dark)
-            val actions = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
-            actions.forEachIndexed { index, label ->
-                if (index > 0) ComposeDropdownDivider(dark)
-                val deleteAction = label == "删除"
-                DropdownMenuItem(
-                    modifier = Modifier.requiredHeight(40.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    text = { Text(label) },
-                    trailingIcon = if (deleteAction) {
-                        { Icon(DeleteIcon, contentDescription = "删除文件夹", tint = LocalAppColorScheme.current.text.destructive, modifier = Modifier.size(20.dp)) }
-                    } else {
-                        { Icon(if (label == "新建文件夹") CreateNewFolderIcon else EditIcon, contentDescription = label, tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp)) }
-                    },
-                    onClick = {
-                        onMenuDismiss()
-                        when {
-                            row.level == 0 && index == 0 -> onShowSubfolderEditor(row.path)
-                            index == if (row.level == 0) 1 else 0 -> onShowFolderEditor(row.path) { renamed ->
-                                val parent = row.path.substringBeforeLast('/', "")
-                                onRenameFolder(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
-                            }
-                            else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { onDeleteFolder(row.path) }
-                        }
-                    },
-                )
-            }
         }
     }
 }

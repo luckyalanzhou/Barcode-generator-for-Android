@@ -48,6 +48,7 @@ internal val LightAppColorScheme = AppColorScheme(
         tabUnselected = AppColorTokens.Light.tabUnselected,
     ),
     content = AppContentColors(
+        deleteIcon = AppColorTokens.deleteIcon,
         favoriteActive = AppColorTokens.Light.favoriteActive,
         icon = AppColorTokens.black,
         folder = AppColorTokens.Light.folder,

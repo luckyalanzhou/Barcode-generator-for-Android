@@ -164,7 +164,7 @@ internal fun ComposeGenerateInputPanel(
                         Spacer(Modifier.width(4.dp))
                         GenerateInputAction(ArrowUpwardIcon, "上移", index > 0, 27.dp) { onMoveUp(index) }
                         GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex, 27.dp) { onMoveDown(index) }
-                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, deleteTint = themeColors.text.destructive, onLongClick = onDeleteLongClick) { onDelete(index) }
+                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, onLongClick = onDeleteLongClick) { onDelete(index) }
                     }
                 }
         }
@@ -178,13 +178,12 @@ private fun GenerateInputAction(
     description: String,
     enabled: Boolean,
     iconSize: androidx.compose.ui.unit.Dp,
-    deleteTint: Color? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
     val tint = if (enabled) {
-        if (description == "删除") deleteTint ?: themeColors.text.destructive else themeColors.controls.accent
+        if (description == "删除") themeColors.content.deleteIcon else themeColors.controls.accent
     } else themeColors.text.disabled.copy(alpha = 0.42f)
     Surface(
         modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(

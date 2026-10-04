@@ -90,9 +90,8 @@ internal fun SettingsContent(
     val listState = rememberLazyListState()
     val contentExceedsViewport by remember(listState) {
         derivedStateOf {
-            // LazyListState includes trailing content padding in its measured scroll range.
-            // Keep scrolling enabled at both ends; the final card may fit in the full
-            // viewport while still being covered by the overlaid Tab bar.
+            // The shell bounds this viewport above the Tab bar. Check both directions
+            // so a scrolled-to-bottom list can still return to the top.
             listState.canScrollForward || listState.canScrollBackward
         }
     }
@@ -103,7 +102,7 @@ internal fun SettingsContent(
         modifier = Modifier.fillMaxSize(),
         state = listState,
         userScrollEnabled = contentExceedsViewport,
-        contentPadding = PaddingValues(bottom = dimensions.bottomTabBarHeight + 24.dp),
+        contentPadding = PaddingValues(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(dimensions.settingsCardSpacing),
     ) {
         item("settings-appearance") {

@@ -67,7 +67,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.PlatformTextStyle
@@ -115,10 +114,7 @@ internal fun FavoritesContent(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
-    val hapticView = LocalView.current
     val density = LocalDensity.current.density
-    var folderMenu by remember { mutableStateOf<Pair<String, Int>?>(null) }
-    var fileMenu by remember { mutableStateOf<FavoriteGroup?>(null) }
     val animation = ComposeAnimationConfig
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
@@ -294,7 +290,7 @@ internal fun FavoritesContent(
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 96.dp),
+            contentPadding = PaddingValues(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
 
@@ -386,13 +382,7 @@ internal fun FavoritesContent(
                             secondary = secondary,
                             folderColor = if (row.level == 0) rootFolderColor else childFolderColor,
                             animation = animation,
-                            menuExpanded = folderMenu?.first == row.path,
-                            onMenuDismiss = { folderMenu = null },
                             onClick = { onToggleFolder(row.path, folderPaths) },
-                            onLongClick = {
-                                hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                                folderMenu = row.path to row.level
-                            },
                             onShowSubfolderEditor = onShowSubfolderEditor,
                             onShowFolderEditor = onShowFolderEditor,
                             onConfirm = onConfirm,
@@ -408,18 +398,12 @@ internal fun FavoritesContent(
                                 secondary = secondary,
                                 fileColor = fileColor,
                                 animation = animation,
-                                menuExpanded = fileMenu?.id == group.id,
-                                onMenuDismiss = { fileMenu = null },
                                 onClick = {
                                     onRememberListPosition(
                                         listState.firstVisibleItemIndex,
                                         listState.firstVisibleItemScrollOffset,
                                     )
                                     onOpenGroup(group, style, dark, density)
-                                },
-                                onLongClick = {
-                                    hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                                    fileMenu = group
                                 },
                                 onShowMoveDialog = onShowMoveDialog,
                                 onShowRenameDialog = onShowRenameDialog,

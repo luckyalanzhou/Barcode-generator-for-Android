@@ -75,6 +75,8 @@ internal object AppColorTokens {
     }
 
     internal val black = Color.Black
+    // Soft red shared by every delete glyph; destructive text/buttons keep their own token.
+    internal val deleteIcon = Color(0xffdb6d6d)
     internal val white = Color.White
     internal val progressHighlight = Color.White.copy(alpha = .78f)
 }

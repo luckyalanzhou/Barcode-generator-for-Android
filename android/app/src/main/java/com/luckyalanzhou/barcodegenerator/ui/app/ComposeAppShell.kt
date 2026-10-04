@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -63,6 +64,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.flow.collect
+import com.luckyalanzhou.barcodegenerator.ui.component.ContextMenuGestureSession
+import com.luckyalanzhou.barcodegenerator.ui.component.contextMenuGestures
 
 internal data class ComposeAppShellDependencies(
     val navigationViewModel: AppNavigationViewModel,
@@ -119,6 +122,12 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val effects = rememberVisualEffectsPolicy(settingsUiState.style)
     var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
     val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }
+    val menuGesture = remember { ContextMenuGestureSession() }
+    fun showMenu(state: TabLongPressMenuState) {
+        if (state.anchorBoundsOnScreen.width <= 0f || state.anchorBoundsOnScreen.height <= 0f || state.actions.isEmpty()) return
+        menuGesture.open()
+        tabMenu.show(state)
+    }
     LaunchedEffect(tabMenu.menu) {
         if (tabMenu.menu == null) {
             val restore = focusToRestore
@@ -133,6 +142,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         label = "tab-menu-presentation",
     )
     fun dismissMenu(action: (() -> Unit)? = null) {
+        menuGesture.close()
         // A dismiss may precede the first animated frame; do not wait for a non-existent exit.
         tabMenu.dismiss(immediately = tabMenuProgress.value <= 0f, action = action)
     }
@@ -165,8 +175,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
         val backdrop = rememberGlassBackdrop()
-        CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalVisualEffectsPolicy provides effects) {
-        Box(Modifier.fillMaxSize().background(colors.surfaces.background)) {
+        CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalVisualEffectsPolicy provides effects,
+            LocalLongPressMenuHost provides ::showMenu) {
+        Box(Modifier.fillMaxSize().background(colors.surfaces.background)
+            .contextMenuGestures(menuGesture, onDismiss = { dismissMenu() }, onAction = { dismissMenu(it) })) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     val blurPx = if (effects.opaqueGlass) 0f else 20.dp.toPx() * tabMenuProgress.value
@@ -215,9 +227,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
 
                         AnimatedContent(
                             targetState = currentRoute,
-                            // Keep scrollable content behind the floating navigation rail;
-                            // main-tab lists reserve a trailing inset so their final items remain reachable.
+                            // History, Favorites and Settings use a viewport above the Tab bar.
                             modifier = Modifier.fillMaxWidth().weight(1f)
+                                .padding(bottom = pageContentBottomInset(currentRoute, dimensions.bottomTabBarHeight))
+                                .clipToBounds()
                                 .background(colors.surfaces.background),
                             transitionSpec = {
                                 when (if (effects.reduceMotion) AppPageTransitionKind.NONE else appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
@@ -242,7 +255,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             Box(
                                 Modifier.fillMaxSize()
                                     .background(colors.surfaces.background)
-                                    .padding(horizontal = dimensions.pageHorizontalPadding),
+                                    .padding(
+                                        horizontal = dimensions.pageHorizontalPadding,
+                                    )
+                                    .clipToBounds(),
                             ) {
                                 pageStateHolder.SaveableStateProvider(targetPage.pageName) {
                                     ComposePageRenderer(dependencies, targetPage, dark)
@@ -259,7 +275,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             onFavoritesImport = dependencies.actions::restoreFavorites,
                             onFavoritesExport = dependencies.actions::exportFavorites,
                             onCheckForUpdates = dependencies.actions::checkForUpdates,
-                            onLongPressActionMenuRequested = tabMenu::show,
+                            onLongPressActionMenuRequested = ::showMenu,
                             showSelectionIndicator = tabMenu.menu == null,
                             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                                 .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
@@ -272,7 +288,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     state = menuState,
                     progress = tabMenuProgress,
                     interactive = tabMenu.open,
-                    onMeasured = tabMenu::measured,
+                    gesture = menuGesture,
+                    onMeasured = { menuGesture.ready = true; tabMenu.measured() },
                     onDismiss = { dismissMenu() },
                     onAction = { dismissMenu(it) },
                 )

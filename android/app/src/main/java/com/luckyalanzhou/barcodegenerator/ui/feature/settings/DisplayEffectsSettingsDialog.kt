@@ -1,12 +1,13 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -29,11 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
-/** Compact secondary settings; the heading and close action stay visible as options scroll. */
+/** Compact secondary settings; only each switch is interactive, outside tap/back dismiss. */
 @Composable
 internal fun DisplayEffectsSettingsDialog(
     style: StyleSettings,
@@ -45,7 +47,8 @@ internal fun DisplayEffectsSettingsDialog(
     val state = displayEffectsSettingsState(style, LocalVisualEffectsPolicy.current)
     val maxHeight = with(LocalDensity.current) { (LocalWindowInfo.current.containerSize.height * .85f).toDp() }
     val scroll = rememberScrollState()
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = true, dismissOnBackPress = true)) {
         Surface(
             modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth().heightIn(max = maxHeight)
                 .semantics { paneTitle = "显示与动效" },
@@ -72,11 +75,6 @@ internal fun DisplayEffectsSettingsDialog(
                         onStyleChange(style.copy(enhanceContrast = it))
                     }
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("完成", color = colors.controls.accent)
-                    }
-                }
             }
         }
     }
@@ -92,19 +90,25 @@ private fun DisplayEffectOptionRow(
     val colors = LocalAppColorScheme.current
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            .toggleable(value = state.checked, enabled = state.enabled, role = Role.Switch,
-                onValueChange = onCheckedChange)
-            .padding(vertical = 10.dp)
-            .semantics(mergeDescendants = true) {},
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+        Column(Modifier.weight(1f).padding(end = 12.dp).clearAndSetSemantics {}) {
             Text(title, color = colors.text.primary, fontSize = 16.sp)
             Text(state.explanation, color = colors.text.secondary, fontSize = 13.sp,
                 modifier = Modifier.padding(top = 4.dp))
         }
-        // The complete row is the single 48dp+ touch/accessibility target.
-        SettingsToggle(checked = state.checked, dark = dark, enabled = false,
-            modifier = Modifier.clearAndSetSemantics {}, onCheckedChange = {})
+        // Only this switch target handles touch. The visual track has no nested
+        // toggleable (even a disabled one), so it cannot swallow its parent's tap.
+        Box(
+            modifier = Modifier.width(52.dp).heightIn(min = 48.dp)
+                .toggleable(value = state.checked, enabled = state.enabled, role = Role.Switch,
+                    onValueChange = onCheckedChange)
+                .semantics { contentDescription = "$title。${state.explanation}" },
+            contentAlignment = Alignment.Center,
+        ) {
+            SettingsToggle(checked = state.checked, dark = dark, interactive = false,
+                modifier = Modifier.clearAndSetSemantics {}, onCheckedChange = {})
+        }
     }
 }

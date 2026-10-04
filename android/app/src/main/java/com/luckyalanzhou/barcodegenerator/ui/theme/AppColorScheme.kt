@@ -60,6 +60,7 @@ internal data class AppNavigationColors(
 
 @Immutable
 internal data class AppContentColors(
+    val deleteIcon: Color,
     val favoriteActive: Color,
     val icon: Color,
     val folder: Color,

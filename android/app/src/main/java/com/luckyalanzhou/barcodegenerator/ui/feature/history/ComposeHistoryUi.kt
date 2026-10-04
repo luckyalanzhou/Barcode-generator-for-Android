@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
@@ -62,10 +63,6 @@ internal fun formatHistoryTime(time: Long, nowMillis: Long = System.currentTimeM
     }
 }
 
-/** Keep the source text intact; Text measures the actual available width before ellipsizing. */
-internal fun historyBatchPreview(batch: List<CodeItem>): String =
-    batch.firstOrNull()?.text?.takeIf { it.isNotBlank() } ?: "无条码内容"
-
 /** 历史页使用完整内容高度展示空状态或历史批次；清空操作由历史 Tab 长按菜单触发。 */
 @Composable
 internal fun HistoryComposePage(
@@ -81,7 +78,6 @@ internal fun HistoryComposePage(
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val hapticView = LocalView.current
-    val dimensions = LocalAppDimensions.current
     val listState = rememberLazyListState()
     var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
     LaunchedEffect(refreshGeneration) {
@@ -94,7 +90,7 @@ internal fun HistoryComposePage(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = dimensions.bottomTabBarHeight + 24.dp),
+        contentPadding = PaddingValues(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (entries.isEmpty()) {
@@ -113,7 +109,6 @@ internal fun HistoryComposePage(
                     time = timeText(time),
                     dark = dark,
                     primary = primary,
-                    secondary = secondary,
                     onOpen = { onOpen(batch) },
                     onEdit = {
                         hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
@@ -133,13 +128,12 @@ private fun HistoryBatchCard(
     time: String,
     dark: Boolean,
     primary: Color,
-    secondary: Color,
     onOpen: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val card = LocalAppColorScheme.current.surfaces.card
-    val preview = historyBatchPreview(batch)
+    val colors = LocalAppColorScheme.current
+    val card = colors.surfaces.card
 
     Surface(
         modifier = Modifier
@@ -159,26 +153,16 @@ private fun HistoryBatchCard(
         shadowElevation = 0.dp,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 15.dp, end = 4.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 15.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f).padding(top = 8.dp, bottom = 8.dp, end = 8.dp)) {
-                Text(
-                    text = preview,
-                    color = primary,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${batch.size} 条", color = secondary, fontSize = 12.sp)
-                    Text(" · ", color = secondary, fontSize = 12.sp)
-                    Text(time, color = secondary, fontSize = 12.sp, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                }
-            }
+            Text("${batch.size} 条", color = primary, fontSize = 16.sp, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+            Text(time, color = colors.text.placeholder, fontSize = 12.sp, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
+                modifier = Modifier.weight(2f).padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
-                Icon(DeleteIcon, "删除这条历史记录", tint = secondary, modifier = Modifier.size(20.dp))
+                Icon(DeleteIcon, "删除这条历史记录", tint = colors.content.deleteIcon, modifier = Modifier.size(20.dp))
             }
         }
     }

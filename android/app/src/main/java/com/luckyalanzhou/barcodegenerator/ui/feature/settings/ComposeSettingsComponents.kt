@@ -101,7 +101,7 @@ internal fun SettingsDivider(dark: Boolean) {
 }
 
 @Composable
-internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
+internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, interactive: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     val themeColors = LocalAppColorScheme.current
     val trackColor = animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
     val thumbOffset = animateDpAsState(if (checked) 20.dp else 0.dp, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-thumb")
@@ -114,7 +114,8 @@ internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier 
                     cornerRadius = CornerRadius(16.dp.toPx()),
                 )
             }
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+            .then(if (interactive) Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch,
+                onValueChange = onCheckedChange) else Modifier)
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
