@@ -27,7 +27,7 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
         rimLight = if (darkBackground) .12f + thickness * .055f else .18f + thickness * .045f,
         innerShadow = if (darkBackground) .075f + thickness * .025f else .05f + thickness * .02f,
         edgeWidthDp = .9f + thickness * .45f,
-        refractionDp = 1.6f + thickness * 1.0f,
+        refractionDp = 2.0f + thickness * 1.0f,
         surfaceOpacity = if (darkBackground) .58f + thickness * .06f else .54f + thickness * .06f,
     )
 }

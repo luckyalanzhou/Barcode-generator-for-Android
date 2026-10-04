@@ -51,7 +51,7 @@ internal fun tabGlassFrame(
     val safeProgress = progress.coerceIn(0f, (tabCount.coerceAtLeast(1) - 1).toFloat())
     val strength = motion.coerceIn(0f, 1f)
     val speed = if (velocityTabsPerSecond.isFinite()) (abs(velocityTabsPerSecond) / 4f).coerceIn(0f, 1f) else 0f
-    val opticalStrength = strength * (.50f + .50f * speed)
+    val opticalStrength = strength * (.65f + .35f * speed)
     val fraction = safeProgress - safeProgress.toInt()
     val handoff = sin(fraction * Math.PI).toFloat().coerceIn(0f, 1f) * strength * (.45f + .55f * speed)
     val cellWidth = safeWidth / tabCount.coerceAtLeast(1)

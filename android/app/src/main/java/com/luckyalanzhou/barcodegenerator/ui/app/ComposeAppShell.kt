@@ -25,6 +25,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -117,6 +118,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
     val currentRoute = appUiState.page
+    val pageTransition = updateTransition(currentRoute, label = "pageTransition")
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
     val effects = rememberVisualEffectsPolicy(settingsUiState.style)
@@ -226,13 +228,15 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             }
                         }
 
-                        AnimatedContent(
-                            targetState = currentRoute,
-                            // History, Favorites and Settings use a viewport above the Tab bar.
-                            modifier = Modifier.fillMaxWidth().weight(1f)
-                                .padding(bottom = pageContentBottomInset(currentRoute, dimensions.bottomTabBarHeight))
+                        // A stationary parent clips both incoming and outgoing animated layers.
+                        // Retain the outgoing page's inset until it is disposed, including Generate.
+                        Box(Modifier.fillMaxWidth().weight(1f)
+                                .padding(bottom = pageTransitionBottomInset(pageTransition.currentState,
+                                    pageTransition.targetState, dimensions.bottomTabBarHeight))
                                 .clipToBounds()
-                                .background(colors.surfaces.background),
+                                .background(colors.surfaces.background)) {
+                        pageTransition.AnimatedContent(
+                            modifier = Modifier.fillMaxSize(),
                             transitionSpec = {
                                 when (if (effects.reduceMotion) AppPageTransitionKind.NONE else appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                                     AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null
@@ -251,7 +255,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                             fadeOut(tween(ComposeAnimationConfig.pageFadeOutDurationMillis)) using SizeTransform(clip = false)
                                 }
                             },
-                            label = "pageTransition",
                         ) { targetPage ->
                             // Keep the title stationary while only the page body enters from below.
                             Box(
@@ -266,6 +269,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                     ComposePageRenderer(dependencies, targetPage, dark)
                                 }
                             }
+                        }
                         }
                     }
                     if (chromeVisible) {

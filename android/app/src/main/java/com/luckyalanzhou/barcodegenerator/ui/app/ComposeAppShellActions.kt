@@ -114,7 +114,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun clearHistory() = this@composeAppShellActions.confirmClearCompose(false)
 
     override fun editHistory(batch: List<CodeItem>) {
-        if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::deleteBarcodeItem, barcodeItemViewModel::updateBarcodeItem)
+        if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
         else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
     }
 
@@ -124,7 +124,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
             group = group,
             onLoaded = { content ->
                 resultsViewModel.prepareFavoriteGroupForEditing(content) { batch ->
-                    if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::deleteBarcodeItem, barcodeItemViewModel::updateBarcodeItem)
+                    if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
                     else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
                 }
             },

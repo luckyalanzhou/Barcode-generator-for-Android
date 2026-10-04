@@ -370,7 +370,10 @@ internal fun TabLongPressActionOverlay(
                             }
                         },
                 ) {
-                    GlassBackdropSurface(
+                    if (state.tabAnchor) {
+                        // Tab menus use a stable surface, not a live glass shader.
+                        Box(Modifier.matchParentSize().background(colors.surfaces.panel))
+                    } else GlassBackdropSurface(
                         modifier = Modifier.matchParentSize(), color = colors.surfaces.panel,
                         opacity = material.opacity, cornerDp = panelCorner.value, blurDp = material.blurDp,
                         refractionDp = { material.refractionDp * menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion).thickness },

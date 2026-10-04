@@ -24,12 +24,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 internal fun MainActivity.showItemEditorCompose(
     item: CodeItem,
-    onDelete: (Long) -> Unit,
     onUpdate: (Long, String, String) -> Unit,
 ) {
     showComposeDialog(compact = false) { dismiss ->
@@ -41,7 +42,8 @@ internal fun MainActivity.showItemEditorCompose(
             OutlinedTextField(
                 value,
                 { value = it },
-                Modifier.fillMaxWidth().padding(top = 12.dp),
+                Modifier.fillMaxWidth().padding(top = 12.dp)
+                    .semantics { contentDescription = "条码内容" },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = LocalAppColorScheme.current.text.primary,
@@ -52,7 +54,6 @@ internal fun MainActivity.showItemEditorCompose(
                     unfocusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("条码内容", color = LocalAppColorScheme.current.text.secondary) },
             )
             Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                 ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark,
@@ -61,11 +62,6 @@ internal fun MainActivity.showItemEditorCompose(
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
-                DialogAction("删除", dark, {
-                    dismiss()
-                    showComposeConfirmDialog("删除条目", "确定删除此条码吗？", "删除") { onDelete(item.id) }
-                }, modifier = Modifier.padding(start = 20.dp), destructive = true)
                 DialogAction("保存", dark, {
                     val text = value
                     val format = barcodeFormats[selectedIndex].first
@@ -76,7 +72,7 @@ internal fun MainActivity.showItemEditorCompose(
                         onUpdate(item.id, text, format)
                         dismiss()
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                })
             }
         }
     }

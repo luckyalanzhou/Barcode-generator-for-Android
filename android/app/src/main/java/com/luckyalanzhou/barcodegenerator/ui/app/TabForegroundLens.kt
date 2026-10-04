@@ -16,7 +16,7 @@ internal fun tabForegroundDisplacement(frame: TabGlassFrame, velocity: Float): F
     // Slow drags retain a lens; a short continuous zero-speed ramp prevents a rest jump.
     val movement = (.55f + .45f * (speed / .8f).coerceIn(0f, 1f)) *
         (speed / .06f).coerceIn(0f, 1f)
-    return minOf(frame.refractionPx.coerceAtLeast(0f) * .85f, 1.8f * frame.density) * movement
+    return minOf(frame.refractionPx.coerceAtLeast(0f), 1.8f * frame.density) * movement
 }
 
 internal const val TAB_FOREGROUND_LENS_SHADER = """
