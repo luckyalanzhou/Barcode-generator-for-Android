@@ -184,11 +184,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             .contextMenuGestures(menuGesture, onDismiss = { dismissMenu() }, onAction = { dismissMenu(it) })) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val blurPx = if (effects.opaqueGlass) 0f else 20.dp.toPx() * tabMenuProgress.value
+                    val blurPx = menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass)
                     renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && blurPx > .1f) {
                         BlurEffect(blurPx, blurPx, TileMode.Clamp)
                     } else null
-                }.then(if (tabMenu.menu != null) Modifier
+                }.background(colors.surfaces.background).then(if (tabMenu.menu != null) Modifier
                     .clearAndSetSemantics { }
                     .focusProperties { canFocus = false }
                     .pointerInput(Unit) {

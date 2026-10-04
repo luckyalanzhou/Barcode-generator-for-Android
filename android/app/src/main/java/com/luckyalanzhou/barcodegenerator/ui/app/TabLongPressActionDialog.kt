@@ -177,9 +177,7 @@ internal fun TabLongPressActionOverlay(
     ) {
             Box(
                 Modifier.fillMaxSize()
-                    // Keep the backdrop frosted/light instead of dimming it like a platform dialog.
-                    .background(Color.White.copy(alpha = if (effects.opaqueGlass) 0f else if (dark) .08f else .16f))
-                    .graphicsLayer { alpha = progress.value }
+                    // Transparent hit target: blur must not whiten or dim the original theme.
                     .clickable(onClick = onDismiss)
                     .clearAndSetSemantics { },
             )
