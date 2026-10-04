@@ -38,14 +38,19 @@ internal class SlideSelectionMenuScope {
     internal val entries = mutableMapOf<Int, Entry>()
     internal var coordinates: LayoutCoordinates? = null
     internal var selected by mutableStateOf<Int?>(null)
+    private val hitBounds = linkedMapOf<Int, Rect>()
 
     fun bounds(): Map<Int, Rect> {
-        val viewport = coordinates?.takeIf { it.isAttached }?.boundsOnScreen() ?: return emptyMap()
-        return entries.filterValues { it.coordinates.isAttached }.mapValues { (_, entry) ->
+        hitBounds.clear()
+        val viewport = coordinates?.takeIf { it.isAttached }?.boundsOnScreen() ?: return hitBounds
+        for ((key, entry) in entries) {
+            if (!entry.coordinates.isAttached) continue
             val rect = entry.coordinates.boundsOnScreen()
-            Rect(max(viewport.left, rect.left), max(viewport.top, rect.top),
+            val clipped = Rect(max(viewport.left, rect.left), max(viewport.top, rect.top),
                 min(viewport.right, rect.right), min(viewport.bottom, rect.bottom))
-        }.filterValues { it.width > 0f && it.height > 0f }
+            if (clipped.width > 0f && clipped.height > 0f) hitBounds[key] = clipped
+        }
+        return hitBounds
     }
 }
 

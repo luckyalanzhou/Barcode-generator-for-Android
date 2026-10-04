@@ -132,13 +132,22 @@ internal fun TabLongPressActionOverlay(
     val follow = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     val anchorMotionRangePx = with(density) { 64.dp.toPx() }
     var restingPanelOnScreen by remember { mutableStateOf(Rect.Zero) }
+    fun pointerMotion(): Offset = if (gesture.continuation)
+        menuAnchorMotion(gesture.feedbackPoint, gesture.origin, anchorMotionRangePx)
+    else menuPanelMotion(gesture.feedbackPoint, restingPanelOnScreen)
+    // Read only from graphicsLayer: active input is direct, springs are release-only.
+    fun displayedMotion(): Offset = menuMotionForDrawing(
+        if (gesture.feedbackPoint != null) pointerMotion() else null,
+        effects.reduceMotion,
+    ) { follow.value }
     LaunchedEffect(gesture, effects.reduceMotion, anchorMotionRangePx) {
         snapshotFlow {
-            if (gesture.continuation) menuAnchorMotion(gesture.feedbackPoint, gesture.origin, anchorMotionRangePx)
-            else menuPanelMotion(gesture.feedbackPoint, restingPanelOnScreen)
-        }.collectLatest { target ->
+            val point = gesture.feedbackPoint
+            point to pointerMotion()
+        }.collectLatest { (point, target) ->
             if (effects.reduceMotion) follow.snapTo(Offset.Zero)
-            else follow.animateTo(target, spring(dampingRatio = .86f, stiffness = 700f))
+            else if (point != null) follow.snapTo(target)
+            else follow.animateTo(Offset.Zero, spring(dampingRatio = .86f, stiffness = 700f))
         }
     }
 
@@ -191,10 +200,11 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             alpha = progress.value
-                            translationX = (follow.value.x * 28.dp.toPx()).coerceIn(
+                            val motion = displayedMotion()
+                            translationX = (motion.x * 28.dp.toPx()).coerceIn(
                                 minOf(0f, edgePaddingPx - placement.left),
                                 maxOf(0f, screenWidthPx - edgePaddingPx - placement.left - panelSize.width))
-                            translationY = (follow.value.y * 32.dp.toPx()).coerceIn(
+                            translationY = (motion.y * 32.dp.toPx()).coerceIn(
                                 minOf(0f, statusBarTopPx - (placement.top - focusLiftPx)),
                                 maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
                                     (placement.top - focusLiftPx) - panelSize.height))
@@ -256,7 +266,7 @@ internal fun TabLongPressActionOverlay(
                         .graphicsLayer {
                             alpha = progress.value
                             val scale = if (effects.reduceMotion) 1f else .97f + .03f * progress.value
-                            val motion = follow.value
+                            val motion = displayedMotion()
                             val dragScale = menuDragScale(motion)
                             scaleX = scale * dragScale
                             scaleY = scale * dragScale

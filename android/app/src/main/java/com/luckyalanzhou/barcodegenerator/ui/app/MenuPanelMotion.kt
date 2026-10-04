@@ -24,3 +24,8 @@ internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): O
 
 internal fun menuDragScale(motion: Offset): Float =
     1f - .20f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
+
+/** Do not subscribe active dragging to the independently animated return state. */
+internal inline fun menuMotionForDrawing(
+    dragMotion: Offset?, reduceMotion: Boolean, returnMotion: () -> Offset,
+): Offset = if (reduceMotion) Offset.Zero else dragMotion ?: returnMotion()
