@@ -77,23 +77,31 @@ def main():
         glyphs.getCanvas().drawLine(x, 55, x, 125, skia.Paint(Color=0xFF2684FF, StrokeWidth=2))
     image = glyphs.makeImageSnapshot()
 
-    def foreground(displacement, center_x, background=None, opacity=.3):
+    def foreground(displacement, center_x, background=None, opacity=.3, crop=None):
         builder = skia.RuntimeShaderBuilder(foreground_effect)
-        input_image = image
+        left, right = (0, w) if crop is None else crop
+        width = right - left
+        glyph_image = image
+        if crop is not None:
+            cropped = skia.Surface(width, h)
+            cropped.getCanvas().clear(0)
+            cropped.getCanvas().drawImage(image, -left, 0)
+            glyph_image = cropped.makeImageSnapshot()
+        input_image = glyph_image
         if background is not None:
-            atlas = skia.Surface(w * 2, h)
+            atlas = skia.Surface(width * 2, h)
             atlas.getCanvas().clear(0)
-            atlas.getCanvas().drawRect(skia.Rect.MakeWH(w, h), skia.Paint(Color=background))
-            atlas.getCanvas().drawImage(image, w, 0)
+            atlas.getCanvas().drawRect(skia.Rect.MakeWH(width, h), skia.Paint(Color=background))
+            atlas.getCanvas().drawImage(glyph_image, width, 0)
             input_image = atlas.makeImageSnapshot()
         builder.setChild("content", input_image.makeShader(skia.SamplingOptions(skia.FilterMode.kLinear)))
-        builder.setUniform("resolution", skia.V2(w, h))
-        builder.setUniform("capsule", skia.V4(center_x, h / 2, 42, 28))
+        builder.setUniform("resolution", skia.V2(width, h))
+        builder.setUniform("capsule", skia.V4(center_x - left, h / 2, 42, 28))
         builder.setUniform("lens", skia.V2(displacement, 1))
         builder.setUniform("atlasMode", 1.0 if background is not None else 0.0)
         builder.setUniform("surfaceOpacity", opacity)
         builder.setUniform("surfaceColor", skia.V4(.97, .98, 1, 1))
-        surface = skia.Surface(w * 2 if background is not None else w, h)
+        surface = skia.Surface(width * 2 if background is not None else width, h)
         surface.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
         return surface.makeImageSnapshot().toarray()
 
@@ -118,6 +126,23 @@ def main():
     stationary_atlas = foreground(0, 140, 0xFFFFFFFF)
     assert np.array_equal(stationary_atlas[:, :w], original), "Adaptive atlas changes stationary foreground"
     print("PASS: shared GPU input contrast response, unchanged alpha, invisible input half and stationary identity")
+
+    for center_x in (45, 80, 140, 200, 275):
+        left, right = max(0, center_x - 50), min(w, center_x + 50)
+        for background in (0xFF000000, 0xFFFFFFFF):
+            full = foreground(1.2, center_x, background)[:, :w]
+            cropped = foreground(1.2, center_x, background, crop=(left, right))
+            stitched = original.copy()
+            stitched[:, left:right] = cropped[:, :right-left]
+            delta = np.abs(stitched.astype(int) - full.astype(int))
+            # toarray returns unpremultiplied channels: a one-step stored-color rounding
+            # difference is amplified at low alpha. Compare actual composited contribution.
+            full_contribution = np.rint(full[:, :, :3].astype(float) * full[:, :, 3:4] / 255)
+            cropped_contribution = np.rint(stitched[:, :, :3].astype(float) * stitched[:, :, 3:4] / 255)
+            premultiplied_delta = np.abs(full_contribution - cropped_contribution)
+            assert delta[:, :, 3].max() <= 1 and premultiplied_delta.max() <= 1, "Cropped foreground has a visible seam or coordinate mismatch"
+            assert np.max(cropped[:, right-left:, 3]) == 0, "Cropped input half leaks into other tabs"
+    print("PASS: cropped foreground matches full-width pixels across positions and backgrounds, with no seam or input leakage")
 
 
 if __name__ == "__main__":

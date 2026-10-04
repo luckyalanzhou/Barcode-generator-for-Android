@@ -117,6 +117,7 @@ internal class BackdropRenderer(private val shader: RuntimeShader) {
         val opacity: Float, val corner: Float, val blur: Float, val refraction: Float, val capsule: TabGlassFrame?)
     private var previous: EffectKey? = null
     private var cached: androidx.compose.ui.graphics.RenderEffect? = null
+    private val blurCache = SingleEffectCache<Float, RenderEffect>()
 
     fun effect(size: IntSize, density: Float, color: Color, opacity: Float, corner: Float, blur: Float, refraction: Float, capsule: TabGlassFrame?): androidx.compose.ui.graphics.RenderEffect {
         val key = EffectKey(size, density, color, opacity, corner, blur, refraction, capsule)
@@ -130,8 +131,13 @@ internal class BackdropRenderer(private val shader: RuntimeShader) {
         shader.setFloatUniform("capsuleMode", if (capsule == null) 0f else 1f)
         shader.setColorUniform("surfaceColor", color.toArgb())
         val lens = RenderEffect.createRuntimeShaderEffect(shader, "content")
-        val effect = if (blur > 0f) RenderEffect.createChainEffect(lens,
-            RenderEffect.createBlurEffect(blur * density, blur * density, Shader.TileMode.CLAMP)) else lens
+        val effect = if (blur > 0f) {
+            val blurPx = blur * density
+            val blurEffect = blurCache.get(blurPx) {
+                RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
+            }
+            RenderEffect.createChainEffect(lens, blurEffect)
+        } else lens
         return effect.asComposeRenderEffect().also {
             previous = key
             cached = it

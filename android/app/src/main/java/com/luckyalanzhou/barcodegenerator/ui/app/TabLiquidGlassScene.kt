@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.drawscope.translate
@@ -97,26 +98,36 @@ internal fun TabLiquidGlassScene(
             val frame = frameProvider()
             val displacement = if (visible && !policy.reduceMotion && !policy.opaqueGlass &&
                 ValueAnimator.areAnimatorsEnabled()) tabForegroundDisplacement(frame, motion.velocity) else 0f
-            val atlasSize = tabForegroundAtlasSize(IntSize(size.width.toInt(), size.height.toInt()))
+            val region = tabForegroundRegion(frame, IntSize(size.width.toInt(), size.height.toInt()))
+            val atlasSize = region?.let { tabForegroundAtlasSize(it.size) }
             val foregroundRenderer = if (Build.VERSION.SDK_INT >= 33 && backdropAvailable &&
                 backdropSource?.ready == true && displacement > .001f && atlasSize != null)
                 foregroundFactory.value else null
             if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && backdropSource != null && atlasSize != null) {
+                val localFrame = region.localFrame(frame)
+                // Outside the integer-aligned crop, draw the original pixels once, without a shader.
+                clipRect(region.left.toFloat(), 0f, region.right.toFloat(), frame.height, ClipOp.Difference) {
+                    this@drawWithContent.drawContent()
+                }
                 traceGlassDraw("TabGlass.ForegroundRecord") {
                     foregroundLayer.record { this@drawWithContent.drawContent() }
                 }
                 traceGlassDraw("TabGlass.AtlasRecord") {
-                atlasLayer.record(size = atlasSize) {
-                    clipRect(0f, 0f, frame.width, frame.height) {
-                        drawRect(background)
-                        val offset = backdropSource.origin - foregroundOrigin
-                        translate(offset.x, offset.y) { drawLayer(backdropSource.layer) }
+                    atlasLayer.record(size = atlasSize) {
+                        clipRect(0f, 0f, localFrame.width, localFrame.height) {
+                            drawRect(background)
+                            val offset = backdropSource.origin - foregroundOrigin
+                            translate(offset.x - region.left, offset.y) { drawLayer(backdropSource.layer) }
+                        }
+                        clipRect(localFrame.width, 0f, localFrame.width * 2f, localFrame.height) {
+                            translate(localFrame.width - region.left, 0f) { drawLayer(foregroundLayer) }
+                        }
                     }
-                    translate(frame.width, 0f) { drawLayer(foregroundLayer) }
                 }
+                atlasLayer.renderEffect = foregroundRenderer.effect(localFrame, displacement, background, material.surfaceOpacity)
+                traceGlassDraw("TabGlass.AtlasDraw") {
+                    translate(region.left.toFloat(), 0f) { drawLayer(atlasLayer) }
                 }
-                atlasLayer.renderEffect = foregroundRenderer.effect(frame, displacement, background, material.surfaceOpacity)
-                traceGlassDraw("TabGlass.AtlasDraw") { drawLayer(atlasLayer) }
             } else {
                 atlasLayer.renderEffect = null
                 drawContent()

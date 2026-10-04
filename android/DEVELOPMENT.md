@@ -103,6 +103,8 @@ Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单�
 
 ### 液态玻璃的本地自动验证
 
+移动前景的 GPU 双区输入裁到胶囊水平范围，加上 4dp 采样余量，左右边界对齐物理整像素；其余区域直接绘制原前景。背景与前景采用相同裁剪原点，shader 使用局部坐标；两半输入各自裁切，不允许原图层溢出另一半。四 Tab 的常见尺寸下，逻辑输入像素数少于原整条输入的三分之一，这不等同总帧耗时减少三分之二。`TabGlassDrawBudgetTest` 检查整个滑动路径、两端与非法尺寸，原生 Skia 测试对比裁剪版和整条版像素，检查接缝、坐标与覆盖率。背景 Gaussian RenderEffect 按实际模糊半径复用最近一个实例，不因位置变化反复创建；密度或半径变化时替换，不缓存无限个动画位置。新版未安装到真机前，不报告帧率改善或视觉验收通过。
+
 `TabGlassMotionStateTest` 用 Compose 帧时钟验证拖动到回弹的连续交接、动画重定向以及不同刷新率下的收敛；`TabGlassFrameTest` 检查胶囊不越界和静止零折射；`TabGlassMaterialTest` 检查材质对比度与尺寸适配边界。这些测试包含在下方 Beta App 单元测试命令中。
 
 `GlassBackdropMaterialTest` 检查菜单尺寸适配边界，`TabMenuPlacementTest` 检查实际锚点、窗口原点和屏幕边缘定位，`TabMenuPresentationTest` 检查退出保留、早期关闭、重复操作与焦点回调，`VisualEffectsPolicyTest` 检查系统与应用限制的优先级。数据模块 `SettingsStyleCodecTest` 覆盖旧字段默认值、三项开关的所有组合往返、滑块修改保留开关和旧值范围限制。
