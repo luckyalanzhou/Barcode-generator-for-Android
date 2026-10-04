@@ -38,6 +38,9 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
     val style = settingsViewModel.style.copy()
     val dark = isDark()
     val density = resources.displayMetrics.density
+    val fontScale = resources.configuration.fontScale
+    // Measured viewport width also covers landscape, split screen and window insets.
+    val contentWidth = resultImageContentWidthPx.takeIf { it > 0 } ?: return null
     return withContext(Dispatchers.Default) {
     val images = completeExportBatch(resultItems) { item ->
         resultsViewModel.createBarcodeImage(
@@ -46,17 +49,16 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
             style,
             dark,
             density,
-        )
+        )?.let { composeResultRowImage(it, item, style, dark, contentWidth, density, fontScale) }
     } ?: return@withContext null
     val width = images.maxOf { it.width }
-    val spacing = if (resultItems.all { it.format == "Code 128-B" }) {
-        (style.margin * density).toInt().coerceAtLeast(0)
-    } else 0
-    val height = images.sumOf { it.height } + spacing * (images.size - 1)
+    val spacing = resultImageSpacing(style.margin, density)
+    val outerPadding = (8 * density).toInt()
+    val height = images.sumOf { it.height } + spacing * (images.size - 1) + outerPadding * 2
     val pageImage = createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(pageImage)
-    canvas.drawColor(BarcodeImageColors.background(dark))
-    var top = 0
+    canvas.drawColor(resultPageBackground(dark))
+    var top = outerPadding
     images.forEach { image ->
         canvas.drawBitmap(image, (width - image.width) / 2f, top.toFloat(), null)
         top += image.height + spacing

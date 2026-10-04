@@ -242,7 +242,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                                 ComposeAnimationConfig.tabSelectionEnterDurationMillis,
                                                 easing = FastOutSlowInEasing,
                                             ),
-                                        ) { tabEnterOffset } togetherWith ExitTransition.None).apply {
+                                        ) { tabEnterOffset } + fadeIn(tween(ComposeAnimationConfig.tabSelectionEnterDurationMillis))
+                                            togetherWith fadeOut(tween(70))).apply {
                                             targetContentZIndex = 1f
                                         } using SizeTransform(clip = true)
                                     AppPageTransitionKind.SECONDARY_PAGE ->

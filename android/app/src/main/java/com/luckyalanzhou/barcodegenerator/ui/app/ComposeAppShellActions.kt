@@ -43,6 +43,7 @@ internal interface ComposeAppShellActions {
     fun saveFavorite()
     fun shareResult()
     fun saveResult()
+    fun updateResultImageWidth(width: Int)
     fun applyAppearance()
     fun enterLanShare()
     fun restoreFavorites()
@@ -172,6 +173,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     )
     override fun shareResult() = this@composeAppShellActions.shareResultPage()
     override fun saveResult() = this@composeAppShellActions.saveResultPage()
+    override fun updateResultImageWidth(width: Int) { resultImageContentWidthPx = width }
     override fun applyAppearance() = this@composeAppShellActions.applyAppearance()
     override fun enterLanShare() = this@composeAppShellActions.enterLanShare()
     override fun restoreFavorites() = this@composeAppShellActions.restoreFavoritesImport()

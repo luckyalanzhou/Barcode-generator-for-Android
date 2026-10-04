@@ -94,10 +94,10 @@ internal fun FavoriteFolderRow(
     val background = animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-folder-background")
     val arrowRotation = animateFloatAsState(
         targetValue = if (row.collapsed) -90f else 0f,
-        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(),
+        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(160),
         label = "favorite-folder-arrow-rotation",
     )
-    val indent = if (row.level == 0) 11.dp else 26.dp
+    val indent = 11.dp + 20.dp * row.level
 
     Box(Modifier.fillMaxWidth()) {
         Row(
@@ -123,7 +123,7 @@ internal fun FavoriteFolderRow(
         ) {
             Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
             Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
-            Text(row.label, color = LocalAppColorScheme.current.text.primary, fontSize = if (row.level == 0) 18.sp else 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(row.label, color = LocalAppColorScheme.current.text.primary, fontSize = if (row.level == 0) 18.sp else 16.sp, fontWeight = if (row.level == 0) FontWeight.SemiBold else FontWeight.Medium, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Icon(
                 imageVector = KeyboardArrowDownIcon,

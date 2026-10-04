@@ -63,6 +63,10 @@ internal fun formatHistoryTime(time: Long, nowMillis: Long = System.currentTimeM
     }
 }
 
+internal fun historyBatchSummary(batch: List<CodeItem>): String =
+    batch.firstOrNull()?.text.orEmpty().replace('\n', ' ').replace('\r', ' ') +
+        if (batch.size > 1) "…" else ""
+
 /** 历史页使用完整内容高度展示空状态或历史批次；清空操作由历史 Tab 长按菜单触发。 */
 @Composable
 internal fun HistoryComposePage(
@@ -78,11 +82,13 @@ internal fun HistoryComposePage(
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val hapticView = LocalView.current
+    val reduceMotion = LocalVisualEffectsPolicy.current.reduceMotion
     val listState = rememberLazyListState()
     var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
     LaunchedEffect(refreshGeneration) {
         if (appliedRefreshGeneration != refreshGeneration) {
-            listState.animateScrollToItem(0)
+            if (reduceMotion) listState.scrollToItem(0)
+            else listState.animateScrollToItem(0)
             appliedRefreshGeneration = refreshGeneration
         }
     }
@@ -156,11 +162,11 @@ private fun HistoryBatchCard(
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 15.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("${batch.size} 条", color = primary, fontSize = 16.sp, maxLines = 1,
+            Text(historyBatchSummary(batch), color = primary, fontSize = 16.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
             Text(time, color = colors.text.placeholder, fontSize = 12.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
-                modifier = Modifier.weight(2f).padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
+                modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
                 Icon(DeleteIcon, "删除这条历史记录", tint = colors.content.deleteIcon, modifier = Modifier.size(20.dp))
             }

@@ -91,15 +91,22 @@ internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Co
 @Composable
 internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false) {
     val interactionSource = remember { MutableInteractionSource() }
-    Button(onClick = onClick, enabled = !busy, interactionSource = interactionSource, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor, disabledContainerColor = color, disabledContentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp), modifier = modifier.iosPressFeedback(interactionSource).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).heightIn(min = 48.dp)) {
+    Box(modifier.heightIn(min = 48.dp).iosPressFeedback(interactionSource)
+        .clickable(enabled = !busy, interactionSource = interactionSource, indication = null,
+            role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+      Row(Modifier.clip(RoundedCornerShape(10.dp)).background(color)
+          .globalButtonChrome(RoundedCornerShape(10.dp), 1.dp)
+          .heightIn(min = 34.dp).padding(horizontal = 10.dp, vertical = 4.dp),
+          verticalAlignment = Alignment.CenterVertically) {
         if (busy) {
             androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = contentColor, strokeWidth = 2.dp)
             androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
         }
-        Text(text, maxLines = 1)
+        Text(text, color = contentColor, fontSize = 14.sp, maxLines = 1)
         if (showDisclosure) Icon(KeyboardArrowDownIcon, contentDescription = null,
             tint = LocalAppColorScheme.current.settingsText.secondary,
             modifier = Modifier.padding(start = 6.dp).size(16.dp))
+    }
     }
 }
 

@@ -25,12 +25,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -39,11 +40,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.key
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +58,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -74,14 +75,19 @@ internal fun ResultsContent(
     onSaveFavorite: () -> Unit,
     onShare: () -> Unit,
     onSave: () -> Unit,
+    onImageWidthChanged: (Int) -> Unit,
     loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
 ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
     val themeColors = LocalAppColorScheme.current
     val dimensions = LocalAppDimensions.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val items = resultState.items
     val density = LocalDensity.current.density
+    val fontScale = LocalDensity.current.fontScale
+    val rowWidth = with(LocalDensity.current) { (maxWidth - 24.dp).roundToPx().coerceAtLeast(1) }
+    SideEffect { onImageWidthChanged(rowWidth) }
     val isFavorite = resultState.hasSavedFavoriteFile()
 
     if (items.isEmpty()) {
@@ -98,36 +104,43 @@ internal fun ResultsContent(
                 modifier = Modifier.padding(vertical = 40.dp),
             )
         }
-        return
+        return@BoxWithConstraints
     }
 
     // Do not reveal a partially populated result list. This also covers restored results
     // whose image cache may have been cleared while the app was stopped.
-    val allImagesReady by produceState<Boolean?>(
+    val preparedRows by key(items, settings.style, dark, density, rowWidth, fontScale) {
+      produceState<List<Bitmap>?>(
         initialValue = null,
         items,
         settings.style,
         dark,
         density,
+        rowWidth,
+        fontScale,
     ) {
         value = try {
             withContext(Dispatchers.Default.limitedParallelism(8)) {
-                items.chunked(8).all { batch ->
+                items.chunked(8).flatMap { batch ->
                     coroutineScope {
                         batch.map { item ->
-                            async { loadBarcodeImage(item, dark, density) != null }
-                        }.awaitAll().all { it }
+                            async {
+                                val raw = checkNotNull(loadBarcodeImage(item, dark, density))
+                                composeResultRowImage(raw, item, settings.style, dark, rowWidth, density, fontScale)
+                            }
+                        }.awaitAll()
                     }
                 }
             }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            false
+            emptyList()
         }
     }
+    }
 
-    if (allImagesReady != true) {
+    if (preparedRows?.size != items.size) {
         Column(
             Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -140,13 +153,13 @@ internal fun ResultsContent(
                 modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
             )
             Text(
-                if (allImagesReady == false) "条码准备失败，请返回后重试" else "正在准备全部条码…",
+                if (preparedRows != null) "条码准备失败，请返回后重试" else "正在准备全部条码…",
                 color = secondary,
                 fontSize = 17.sp,
                 modifier = Modifier.padding(vertical = 40.dp),
             )
         }
-        return
+        return@BoxWithConstraints
     }
 
     Column(Modifier.fillMaxSize().padding(top = dimensions.pageTopPadding)) {
@@ -158,16 +171,20 @@ internal fun ResultsContent(
             onShare = onShare,
             onSave = onSave,
         )
-        HorizontalDivider(color = themeColors.borders.divider, thickness = 0.5.dp)
         LazyColumn(
             modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(settings.style.margin.coerceIn(0, 10).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            items(items, key = { it.id }) { item ->
-                ComposeResultBarcode(item, primary, settings, dark, loadBarcodeImage)
+            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                Image(preparedRows!![index].asImageBitmap(), resultImageLabel(item, settings.style.showFormat),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                        .aspectRatio(preparedRows!![index].width.toFloat() / preparedRows!![index].height))
             }
         }
+    }
     }
 }
 
@@ -227,60 +244,3 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
         Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
     }
 }
-
-@Composable
-internal fun ComposeResultBarcode(
-    item: CodeItem,
-    textColor: Color,
-    settings: SettingsUiState,
-    dark: Boolean,
-    loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
-) {
-    val isCode128 = item.format == "Code 128-B"
-    val style = settings.style
-    val density = LocalDensity.current.density
-    val barHeight = style.barHeight.coerceIn(30, 80).coerceAtLeast(1)
-    val barWidth = style.barWidth.roundToInt().coerceIn(120, 300)
-    val textSize = style.textSize.coerceIn(10f, 24f)
-    val showFormat = style.showFormat
-    // 整批结果通过就绪检查后才会显示；此处读取已准备好的缓存图片。
-    val displayed by produceState<Bitmap?>(initialValue = null, item, barWidth, barHeight, textSize, showFormat, dark) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            loadBarcodeImage(item, dark, density)
-        }
-    }
-
-    Column(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (displayed == null) {
-            // 先保留稳定占位高度，避免后台生成期间列表上下跳动。
-            Spacer(Modifier.fillMaxWidth().height(if (isCode128) barHeight.dp else 200.dp))
-        } else if (isCode128) {
-            Image(
-                bitmap = displayed!!.asImageBitmap(),
-                contentDescription = "${item.format} 条码",
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.width(barWidth.dp).height(barHeight.dp),
-            )
-            Text(
-                text = if (showFormat) "${item.text} · ${item.format}" else item.text,
-                color = textColor,
-                fontSize = textSize.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
-            )
-        } else {
-            Image(
-                bitmap = displayed!!.asImageBitmap(),
-                contentDescription = "${item.format} 条码",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxWidth().aspectRatio(
-                    displayed!!.width.toFloat() / displayed!!.height.toFloat(),
-                ),
-            )
-        }
-    }
-}
-

@@ -5,9 +5,15 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +21,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,13 +63,20 @@ internal fun SettingsSliderRow(
     val valueColor = LocalAppColorScheme.current.text.primary
     var draft by remember { mutableFloatStateOf(value) }
     var dragging by remember { mutableStateOf(false) }
-    var inputOpen by remember { mutableStateOf(false) }
-    var input by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf(false) }
+    var warning by remember { mutableStateOf(false) }
+    var input by remember { mutableStateOf(TextFieldValue(value.roundToInt().toString())) }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     val latestValue by rememberUpdatedState(value)
     val latestOnChange by rememberUpdatedState(onChange)
-    LaunchedEffect(value) { if (!dragging) draft = value }
+    LaunchedEffect(value) { if (!dragging) draft = value
+        if (!editing && !warning) input = TextFieldValue(value.roundToInt().toString()) }
     DisposableEffect(Unit) {
-        onDispose { if (dragging && draft != latestValue) latestOnChange(draft) }
+        onDispose {
+            val finalValue = if (editing) parseSliderValue(input.text, range) else if (dragging) draft else null
+            if (finalValue != null && finalValue != latestValue) latestOnChange(finalValue)
+        }
     }
     val unit = valueText.substringAfter(' ', "")
     val shownValue = "${draft.roundToInt()} $unit"
@@ -72,6 +84,11 @@ internal fun SettingsSliderRow(
     fun commitDraft() {
         dragging = false
         if (draft != latestValue) latestOnChange(draft)
+    }
+    fun applyInput() {
+        val parsed = parseSliderValue(input.text, range)
+        if (parsed == null) warning = true
+        else { draft = parsed; commitDraft() }
     }
     val slider: @Composable (Modifier) -> Unit = { sliderModifier ->
         Slider(
@@ -117,20 +134,33 @@ internal fun SettingsSliderRow(
         Row(
             modifier = Modifier.width((74f * fontScale.coerceAtLeast(1f)).dp).heightIn(min = 48.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                .clickable(role = Role.Button, onClickLabel = "精确设置$title") {
-                    input = draft.roundToInt().toString(); inputOpen = true
-                }.semantics { contentDescription = "$title，$shownValue，点击输入数值" }
+                .semantics { contentDescription = "$title，$shownValue，点击输入数值" }
                 .padding(end = 8.dp).offset(x = 6.dp),
             // Shift the complete value display 6.dp right within the reserved
             // trailing inset, without changing the slider or row measurements.
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                valueParts.firstOrNull().orEmpty(),
-                style = TextStyle(color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.Normal),
-                textAlign = TextAlign.Start,
-                modifier = Modifier.width((38f * fontScale.coerceAtLeast(1f)).dp),
+            BasicTextField(
+                value = if (editing || warning) input else TextFieldValue(draft.roundToInt().toString()),
+                onValueChange = { input = it }, singleLine = true,
+                textStyle = TextStyle(color = if ((editing || warning) && parseSliderValue(input.text, range) == null)
+                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 15.sp),
+                cursorBrush = SolidColor(valueColor),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    keyboard?.hide(); focusManager.clearFocus()
+                }),
+                decorationBox = { field -> Box(Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.CenterStart) { field() } },
+                modifier = Modifier.width((38f * fontScale.coerceAtLeast(1f)).dp).heightIn(min = 48.dp)
+                    .onFocusChanged { state ->
+                        if (state.isFocused && !editing) {
+                            val text = draft.roundToInt().toString()
+                            input = TextFieldValue(text, TextRange(0, text.length)); editing = true
+                        } else if (!state.isFocused && editing) {
+                            editing = false; applyInput()
+                        }
+                    }.semantics { contentDescription = "$title，范围 ${range.start.toInt()} 到 ${range.endInclusive.toInt()}" },
             )
             Spacer(Modifier.weight(1f))
             Text(
@@ -158,27 +188,14 @@ internal fun SettingsSliderRow(
             }
         }
     }
-    if (inputOpen) {
-        val parsed = parseSliderValue(input, range)
-        fun applyInput() {
-            if (parsed != null) {
-                draft = parsed
-                commitDraft()
-                inputOpen = false
-            }
-        }
+    if (warning) {
         AlertDialog(
-            onDismissRequest = { inputOpen = false },
-            title = { Text(title) },
-            text = {
-                OutlinedTextField(value = input, onValueChange = { input = it }, singleLine = true,
-                    label = { Text("数值（$unit）") }, isError = parsed == null,
-                    supportingText = { Text("请输入 ${range.start.toInt()}～${range.endInclusive.toInt()} 的整数") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { applyInput() }))
-            },
-            confirmButton = { TextButton(onClick = { applyInput() }, enabled = parsed != null) { Text("确定") } },
-            dismissButton = { TextButton(onClick = { inputOpen = false }) { Text("取消") } },
+            onDismissRequest = { warning = false; input = TextFieldValue(draft.roundToInt().toString()) },
+            title = { Text("数值超出范围") },
+            text = { Text("$title 请输入 ${range.start.toInt()}～${range.endInclusive.toInt()} 的整数，未保存无效数值。") },
+            confirmButton = { TextButton(onClick = {
+                warning = false; input = TextFieldValue(draft.roundToInt().toString())
+            }) { Text("知道了") } },
         )
     }
 }

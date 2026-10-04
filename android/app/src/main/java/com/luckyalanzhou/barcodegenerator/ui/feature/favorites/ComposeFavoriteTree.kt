@@ -16,6 +16,10 @@ internal data class ComposeFavoriteRow(
     val group: FavoriteGroup? = null,
 )
 
+/** Existing lazy rows must not replay expansion when recomposed after scrolling. */
+internal fun favoriteRowInitiallyVisible(key: String, enteringKeys: Set<String>): Boolean =
+    key !in enteringKeys
+
 /** Treat folders not yet synchronized into the view-model tree as collapsed during projection. */
 internal fun effectiveCollapsedFavoriteFolders(
     treeState: FavoriteTreeUiState,

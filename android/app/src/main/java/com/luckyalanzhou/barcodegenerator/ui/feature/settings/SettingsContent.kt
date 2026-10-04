@@ -268,7 +268,7 @@ internal fun SettingsContent(
                         color = colors.controls.button,
                         contentColor = colors.settingsText.primary,
                         onClick = onCheckForUpdates,
-                        modifier = Modifier.width(132.dp),
+                        modifier = Modifier.width(112.dp),
                     )
                 }
             }

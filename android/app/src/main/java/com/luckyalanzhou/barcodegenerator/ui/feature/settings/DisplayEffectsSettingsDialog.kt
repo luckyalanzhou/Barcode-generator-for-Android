@@ -45,7 +45,7 @@ internal fun DisplayEffectsSettingsDialog(
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnClickOutside = true, dismissOnBackPress = true)) {
         Surface(
-            modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth().heightIn(max = maxHeight)
+            modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth().heightIn(max = maxHeight)
                 .semantics { paneTitle = "显示与动效" },
             shape = RoundedCornerShape(20.dp),
             color = colors.surfaces.surface,
@@ -54,8 +54,6 @@ internal fun DisplayEffectsSettingsDialog(
                 Text("显示与动效", color = colors.text.primary, fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(vertical = 4.dp).semantics { heading() })
-                Text("更改即时保存，仅影响导航与菜单效果。", color = colors.text.secondary,
-                    fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
                 Column(Modifier.weight(1f, fill = false).verticalScroll(scroll,
                     enabled = scroll.canScrollForward || scroll.canScrollBackward)) {
                     DisplayEffectOptionRow("减少动态效果", state.motion, dark) {
@@ -81,13 +79,11 @@ private fun DisplayEffectOptionRow(
     val colors = LocalAppColorScheme.current
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            .padding(vertical = 10.dp),
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(end = 12.dp).clearAndSetSemantics {}) {
             Text(title, color = colors.text.primary, fontSize = 16.sp)
-            Text(state.explanation, color = colors.text.secondary, fontSize = 13.sp,
-                modifier = Modifier.padding(top = 4.dp))
         }
         SettingsSwitchTarget(title = title, checked = state.checked, enabled = state.enabled,
             explanation = state.explanation, onCheckedChange = onCheckedChange)

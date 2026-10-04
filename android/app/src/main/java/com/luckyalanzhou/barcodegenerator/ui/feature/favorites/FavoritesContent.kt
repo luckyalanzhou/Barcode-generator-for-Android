@@ -31,8 +31,6 @@ import androidx.compose.ui.semantics.contentDescription
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -189,22 +187,30 @@ internal fun FavoritesContent(
     }
     var displayedRows by remember { mutableStateOf<List<ComposeFavoriteRow>?>(null) }
     var targetRowKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var enteringRowKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(enteringRowKeys) {
+        if (enteringRowKeys.isNotEmpty()) {
+            delay(ComposeAnimationConfig.favoriteRowExpandDurationMillis.toLong())
+            enteringRowKeys = emptySet()
+        }
+    }
 
-    LaunchedEffect(rows, listPositionRestored) {
+    LaunchedEffect(rows, listPositionRestored, reduceMotion) {
         val targetRows = rows ?: return@LaunchedEffect
         val targetKeys = targetRows.mapTo(mutableSetOf(), rowKey)
         val previousRows = displayedRows
         val previousKeys = previousRows.orEmpty().mapTo(mutableSetOf(), rowKey)
         val removedKeys = previousKeys - targetKeys
         val addedKeys = targetKeys - previousKeys
+        enteringRowKeys = if (previousRows != null && listPositionRestored) addedKeys else emptySet()
         targetRowKeys = targetKeys
 
-        if (previousRows == null || !listPositionRestored || removedKeys.isEmpty() || addedKeys.isNotEmpty()) {
+        if (reduceMotion || previousRows == null || !listPositionRestored || removedKeys.isEmpty() || addedKeys.isNotEmpty()) {
             displayedRows = targetRows
             return@LaunchedEffect
         }
 
-        // Keep collapsing rows composed until their height/fade transition finishes;
+        // Keep collapsing rows composed until their height transition finishes;
         // LazyColumn remains virtualized, and a rapid re-expand cancels this delay.
         delay(ComposeAnimationConfig.favoriteRowCollapseDurationMillis + ComposeAnimationConfig.favoriteRowRemovalBufferMillis)
         displayedRows = targetRows
@@ -318,7 +324,7 @@ internal fun FavoritesContent(
             state = listState,
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
 
         if (!favoritesState.isReady) {
@@ -359,39 +365,28 @@ internal fun FavoritesContent(
                 val key = rowKey(row)
                 val targetVisible = !listPositionRestored || key in targetRowKeys
                 val visibility = remember(key) {
-                    MutableTransitionState(!listPositionRestored)
+                    // Off-screen rows returning during scroll are already visible.
+                    MutableTransitionState(favoriteRowInitiallyVisible(key, enteringRowKeys))
                 }
                 LaunchedEffect(targetVisible) {
                     visibility.targetState = targetVisible
                 }
                 AnimatedVisibility(
                     visibleState = visibility,
-                    // AnimatedVisibility handles row size/fade; animateItem moves
-                    // surviving keyed rows into their new flattened-list positions.
+                    // One size transition only: do not also animate placement,
+                    // which causes following rows to chase their moving layout.
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(themeColors.surfaces.background)
                         .animateItem(
                             fadeInSpec = null,
-                            placementSpec = if (reduceMotion || listState.isScrollInProgress) {
-                                null
-                            } else {
-                                tween(
-                                    durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
-                                    easing = FastOutSlowInEasing,
-                                )
-                            },
+                            placementSpec = null,
                             fadeOutSpec = null,
                         ),
                     enter = if (reduceMotion) androidx.compose.animation.EnterTransition.None else expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = tween(
                             durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
-                            easing = FastOutSlowInEasing,
-                        ),
-                    ) + fadeIn(
-                        animationSpec = tween(
-                            durationMillis = ComposeAnimationConfig.favoriteRowFadeDurationMillis,
                             easing = FastOutSlowInEasing,
                         ),
                     ),
@@ -401,13 +396,9 @@ internal fun FavoritesContent(
                             durationMillis = ComposeAnimationConfig.favoriteRowCollapseDurationMillis,
                             easing = FastOutLinearInEasing,
                         ),
-                    ) + fadeOut(
-                        animationSpec = tween(
-                            durationMillis = ComposeAnimationConfig.favoriteRowFadeDurationMillis,
-                            easing = FastOutLinearInEasing,
-                        ),
                     ),
                 ) {
+                  Column(Modifier.padding(bottom = 6.dp)) {
                     if (row.folder) {
                         FavoriteFolderRow(
                             row = row,
@@ -446,6 +437,7 @@ internal fun FavoritesContent(
                             )
                         }
                     }
+                  }
                 }
             }
         }

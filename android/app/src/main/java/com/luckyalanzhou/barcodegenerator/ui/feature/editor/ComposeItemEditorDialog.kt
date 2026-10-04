@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -51,8 +54,11 @@ internal fun MainActivity.showItemEditorCompose(
                 ),
                 label = { Text("条码内容", color = LocalAppColorScheme.current.text.secondary) },
             )
-            ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark) { choice ->
-                selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+                ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark,
+                    modifier = Modifier.widthIn(max = 200.dp)) { choice ->
+                    selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
+                }
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("取消", dark, dismiss)

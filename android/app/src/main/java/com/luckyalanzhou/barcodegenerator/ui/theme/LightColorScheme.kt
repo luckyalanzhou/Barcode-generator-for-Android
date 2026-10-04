@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
 
 internal val LightAppColorScheme = AppColorScheme(
     text = AppTextColors(
@@ -53,7 +54,7 @@ internal val LightAppColorScheme = AppColorScheme(
         icon = AppColorTokens.black,
         folder = AppColorTokens.Light.folder,
         childFolder = AppColorTokens.Light.childFolder,
-        file = AppColorTokens.black,
+        file = Color(0xff347A65),
         sentContent = AppColorTokens.white,
     ),
     barcode = AppBarcodeColors(

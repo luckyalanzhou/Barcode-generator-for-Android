@@ -11,7 +11,7 @@ internal object AppColorTokens {
         val accent = Color(0xff007aff)
         val favoriteActive = Color(0xffd97706)
         val folder = Color(0xff5b8def)
-        val childFolder = Color(0xff83aeea)
+        val childFolder = Color(0xff6883A5)
         // Neutral system-gray surface for secondary actions; primary actions
         // use the system accent below so the hierarchy remains clear.
         val button = Color(0xfff2f2f7)
@@ -67,7 +67,7 @@ internal object AppColorTokens {
         val settingsPrimaryText = Color(0xffffffff)
         val settingsSecondaryText = Color(0xffebebf5).copy(alpha = .60f)
         val folder = Color(0xff8abcf5)
-        val childFolder = Color(0xffb8d4f5)
+        val childFolder = Color(0xffA1B6CF)
         val file = Color(0xff9bd8c0)
         val icon = Color(0xfff2f4f8)
         val qrForeground = Color(0xff111318)

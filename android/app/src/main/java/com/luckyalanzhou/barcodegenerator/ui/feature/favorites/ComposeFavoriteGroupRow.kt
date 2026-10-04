@@ -106,7 +106,7 @@ internal fun FavoriteGroupRow(
             Modifier.fillMaxWidth().height(44.dp)
                 .onGloballyPositioned { anchor = it.boundsOnScreen() }
                 .focusRequester(focus)
-                .padding(start = if (row.level <= 1) 20.dp else 38.dp, end = 4.dp)
+                .padding(start = 11.dp + 20.dp * row.level, end = 4.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
                 .graphicsLayer {
@@ -125,7 +125,7 @@ internal fun FavoriteGroupRow(
         ) {
             Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
-            Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp, fontWeight = FontWeight.Normal, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)), color = LocalAppColorScheme.current.text.placeholder, fontSize = 11.sp, maxLines = 1)
         }
     }
