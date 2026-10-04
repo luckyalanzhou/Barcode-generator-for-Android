@@ -74,6 +74,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -377,12 +378,7 @@ internal fun FavoritesContent(
                     // which causes following rows to chase their moving layout.
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(themeColors.surfaces.background)
-                        .animateItem(
-                            fadeInSpec = null,
-                            placementSpec = null,
-                            fadeOutSpec = null,
-                        ),
+                        .background(themeColors.surfaces.background),
                     enter = if (reduceMotion) androidx.compose.animation.EnterTransition.None else expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = tween(
@@ -398,7 +394,9 @@ internal fun FavoritesContent(
                         ),
                     ),
                 ) {
-                  Column(Modifier.padding(bottom = 6.dp)) {
+                  // Cache the full row display list while its outer height is animated.
+                  // Keep placement disabled: neighboring rows must not chase layout changes.
+                  Column(Modifier.graphicsLayer().padding(bottom = 6.dp)) {
                     if (row.folder) {
                         FavoriteFolderRow(
                             row = row,

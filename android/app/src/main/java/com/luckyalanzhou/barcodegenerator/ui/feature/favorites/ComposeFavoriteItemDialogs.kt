@@ -179,7 +179,7 @@ internal fun MainActivity.showGroupEditorCompose(
                         onClearSelection()
                         onNavigateFavorites()
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), destructive = true)
                 DialogAction("保存", dark, {
                     val cleanName = name.trim()
                     val cleanFolder = folder.trim().ifEmpty { "默认" }

@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Icon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import androidx.compose.ui.semantics.semantics
@@ -54,6 +55,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextStyle
 
 private val SettingsCardHorizontalPadding = 15.dp
 
@@ -94,21 +96,26 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
     Box(modifier.heightIn(min = 48.dp).iosPressFeedback(interactionSource)
         .clickable(enabled = !busy, interactionSource = interactionSource, indication = null,
             role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-      Row(Modifier.clip(RoundedCornerShape(10.dp)).background(color)
-          .globalButtonChrome(RoundedCornerShape(10.dp), 1.dp)
+      Row(Modifier.globalButtonChrome(RoundedCornerShape(10.dp), 1.dp)
+          .clip(RoundedCornerShape(10.dp)).background(color)
           .heightIn(min = 34.dp).padding(horizontal = 10.dp, vertical = 4.dp),
           verticalAlignment = Alignment.CenterVertically) {
         if (busy) {
             androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = contentColor, strokeWidth = 2.dp)
             androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
         }
-        Text(text, color = contentColor, fontSize = 14.sp, maxLines = 1)
+        Text(text, color = contentColor, fontSize = 14.sp, maxLines = 1,
+            style = settingsButtonTextStyle(LocalTextStyle.current))
         if (showDisclosure) Icon(KeyboardArrowDownIcon, contentDescription = null,
             tint = LocalAppColorScheme.current.settingsText.secondary,
             modifier = Modifier.padding(start = 6.dp).size(16.dp))
     }
     }
 }
+
+/** A button owns its surface; inherited host text backgrounds must never paint another rectangle. */
+internal fun settingsButtonTextStyle(inherited: TextStyle): TextStyle =
+    inherited.copy(background = Color.Transparent)
 
 @Composable
 internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {

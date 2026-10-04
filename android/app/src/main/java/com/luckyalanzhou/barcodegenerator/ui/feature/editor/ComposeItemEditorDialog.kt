@@ -65,7 +65,7 @@ internal fun MainActivity.showItemEditorCompose(
                 DialogAction("删除", dark, {
                     dismiss()
                     showComposeConfirmDialog("删除条目", "确定删除此条码吗？", "删除") { onDelete(item.id) }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), destructive = true)
                 DialogAction("保存", dark, {
                     val text = value
                     val format = barcodeFormats[selectedIndex].first
