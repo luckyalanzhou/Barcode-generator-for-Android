@@ -99,7 +99,7 @@ Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单�
 
 `DisplayEffectsSettingsStateTest` 覆盖两个应用开关与两个系统限制的 16 种组合、摘要与实际生效值、系统控制项的说明与可编辑状态，以及对比度取消后恢复透明材质。`SettingsStyleCodecTest` 验证旧透明度设置被忽略且保存时清理。设备回归另需检查入口整行点击打开、弹窗仅开关可切换且文字不可切换、外部点击/返回关闭、即时保存与重启恢复、浅色/深色、大字体及横屏的滚动边界和 TalkBack 单一开关节点。
 
-液态玻璃遵循 [Apple WWDC25 Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/) 的导航层、Regular 自适应材质和避免玻璃叠玻璃原则。Android 实现不是 Apple 原生材质。真实像素只在 `GlassBackdropShader.kt` 中折射；`TabLiquidGlassScene.kt` 将图标与文字作为独立前景绘制，兼容路径由 `TabGlassSurface.kt` 绘制材质，不再对前景应用第二个 shader。
+液态玻璃遵循 [Apple WWDC25 Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/) 的导航层、Regular 自适应材质和避免玻璃叠玻璃原则。Android 实现不是 Apple 原生材质。真实像素只在 `GlassBackdropShader.kt` 中折射；`TabLiquidGlassScene.kt` 将图标与文字作为独立前景绘制，兼容路径由 `TabGlassSurface.kt` 绘制材质，不再对前景应用第二个 shader。按住拖动直接使用手指位置，释放交给同一位置所有者的阻尼弹簧。指针时间戳计算拖动速度，释放后读取弹簧速度；速度连续控制有上限的胶囊形变、背景折射与边缘接触光，不按固定帧数推进。静止折射归零，前景始终保持原始几何形态。
 
 可选脚本 `tools/validate_glass_backdrop.py` 使用原生 Skia 编译实际背景 shader，检查真实网格位移、边界与对比保护。本机使用以下固定环境，不加入 Android 依赖或远程工作流：
 

@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.runtime.Immutable
 import kotlin.math.sin
+import kotlin.math.abs
 
 /** Physical pixels in the tab scene's local coordinates; shared by shader and compatible drawing. */
 @Immutable
@@ -33,19 +34,22 @@ internal fun tabGlassFrame(
     touchY: Float? = null,
     contactSpread: Float = 1f,
     refractionDp: Float = 2.25f,
+    velocityTabsPerSecond: Float = 4f,
 ): TabGlassFrame {
     val safeWidth = width.coerceAtLeast(1f)
     val safeHeight = height.coerceAtLeast(1f)
     val safeDensity = density.coerceAtLeast(.1f)
     val safeProgress = progress.coerceIn(0f, (tabCount.coerceAtLeast(1) - 1).toFloat())
     val strength = motion.coerceIn(0f, 1f)
+    val speed = if (velocityTabsPerSecond.isFinite()) (abs(velocityTabsPerSecond) / 4f).coerceIn(0f, 1f) else 0f
+    val opticalStrength = strength * (.22f + .78f * speed)
     val fraction = safeProgress - safeProgress.toInt()
-    val handoff = sin(fraction * Math.PI).toFloat().coerceIn(0f, 1f) * strength
+    val handoff = sin(fraction * Math.PI).toFloat().coerceIn(0f, 1f) * strength * (.25f + .75f * speed)
     val cellWidth = safeWidth / tabCount.coerceAtLeast(1)
     val halfWidth = ((cellWidth * .5f - 3f * safeDensity).coerceAtLeast(1f) *
-        (1f + impact.coerceIn(0f, .035f) + handoff * .075f)).coerceAtMost(safeWidth * .5f)
+        (1f + impact.coerceIn(0f, .035f) + handoff * .05f)).coerceAtMost(safeWidth * .5f)
     val halfHeight = (safeHeight * .5f - 2f * safeDensity).coerceAtLeast(.5f) *
-        (1f - handoff * .045f)
+        (1f - handoff * .03f)
     val centerX = (cellWidth * (safeProgress + .5f)).coerceIn(halfWidth, safeWidth - halfWidth)
     val centerY = safeHeight * .5f
     return TabGlassFrame(
@@ -55,8 +59,8 @@ internal fun tabGlassFrame(
         centerY = centerY,
         halfWidth = halfWidth,
         halfHeight = halfHeight.coerceAtMost(safeHeight * .5f),
-        motion = strength,
-        refractionPx = refractionDp.coerceIn(0f, 3f) * safeDensity * strength,
+        motion = opticalStrength,
+        refractionPx = refractionDp.coerceIn(0f, 3f) * safeDensity * opticalStrength,
         density = safeDensity,
         touchX = touchX ?: centerX + halfWidth * .6f * direction.coerceIn(-1f, 1f),
         touchY = touchY ?: centerY - halfHeight * .75f,

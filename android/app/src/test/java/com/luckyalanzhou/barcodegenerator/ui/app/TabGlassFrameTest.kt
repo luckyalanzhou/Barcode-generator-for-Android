@@ -5,6 +5,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TabGlassFrameTest {
+    @Test fun fasterMotionHasBoundedStrainAndOpticsWithoutDistortingForeground() {
+        val slow = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 0f)
+        val fast = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 4f)
+        val capped = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 100f)
+        assertTrue(fast.refractionPx > slow.refractionPx)
+        assertTrue(fast.halfWidth > slow.halfWidth)
+        assertEquals(fast, capped)
+        assertEquals(fast, tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = -4f))
+    }
+
+    @Test fun reducedMotionSuppressesOpticsEvenWithHighVelocity() {
+        val frame = tabGlassFrame(360f, 60f, 1f, 4, .5f, 0f, 0f, 1f, velocityTabsPerSecond = 100f)
+        assertEquals(0f, frame.refractionPx, 0f)
+        assertEquals(0f, frame.motion, 0f)
+        assertEquals(42f, frame.halfWidth, .001f)
+    }
     @Test
     fun capsuleStaysInsideSceneAcrossTheWholeDrag() {
         for (width in listOf(0f, 1f, 64f, 360f, 1080f)) {

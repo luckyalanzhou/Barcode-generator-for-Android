@@ -56,6 +56,7 @@ internal fun TabLiquidGlassScene(
             motion.touchX.takeIf { it.isFinite() }, motion.touchY.takeIf { it.isFinite() },
             motion.contactSpread.value,
             resolvedMaterial.refractionDp,
+            velocityTabsPerSecond = motion.velocity,
         )
     }
     // One background lens only. Foreground glyphs are never passed through a RenderEffect.

@@ -62,6 +62,10 @@ internal class TabGlassMotionState(
     val progress: Float
         get() = (if (dragging) fingerProgress else position.value).coerceIn(0f, (tabCount - 1).toFloat())
 
+    /** Tabs/second; release uses the spring's current velocity, never event counts. */
+    val velocity: Float
+        get() = if (reduceMotion) 0f else if (dragging) fingerVelocity else position.velocity
+
     fun press(point: Offset) {
         pressed = true
         updateTouch(point)
