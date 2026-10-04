@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.component
 import android.os.Build
 import android.os.SystemClock
 import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Column
@@ -59,6 +60,7 @@ internal class ContextMenuGestureSession {
     var continuation = false
     var moved = false
     var origin = Offset.Zero
+    var sourceBounds = Rect.Zero
     var lastHapticAt = 0L
     var feedbackPoint by mutableStateOf<Offset?>(null)
         private set
@@ -85,6 +87,7 @@ internal class ContextMenuGestureSession {
         val chosen = if (ready) gesture.release(point, bounds) else null
         val result = when {
             chosen != null -> ContextMenuRelease.Select(chosen)
+            continuation && sourceBounds.contains(point) -> ContextMenuRelease.KeepOpen
             continuation && !moved -> ContextMenuRelease.KeepOpen
             !ready -> ContextMenuRelease.KeepOpen
             else -> ContextMenuRelease.Dismiss
@@ -130,14 +133,9 @@ internal fun Modifier.contextMenuGestures(
             session.selection.selected = session.gesture.selected
             if (session.gesture.selected == null) return
             val now = SystemClock.uptimeMillis()
-            if (now - session.lastHapticAt < 60L) return
+            if (now - session.lastHapticAt < 120L) return
             session.lastHapticAt = now
-            val type = when {
-                Build.VERSION.SDK_INT >= 34 -> HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
-                Build.VERSION.SDK_INT >= 27 -> HapticFeedbackConstants.TEXT_HANDLE_MOVE
-                else -> HapticFeedbackConstants.CLOCK_TICK
-            }
-            view.performHapticFeedback(type)
+            view.performLightMenuHaptic()
         }
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -184,6 +182,16 @@ internal fun Modifier.contextMenuGestures(
             }
         }
     }
+}
+
+/** Respect the system setting; never substitute a strong vibration if a soft tick is unavailable. */
+internal fun View.performLightMenuHaptic() {
+    val type = when {
+        Build.VERSION.SDK_INT >= 34 -> HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
+        Build.VERSION.SDK_INT >= 27 -> HapticFeedbackConstants.TEXT_HANDLE_MOVE
+        else -> HapticFeedbackConstants.CLOCK_TICK
+    }
+    performHapticFeedback(type)
 }
 
 /** Preserve keyboard/TalkBack clicks; pointer events are processed by the root host. */

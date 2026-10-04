@@ -8,6 +8,14 @@ import org.junit.Test
 class ContextMenuGestureSessionTest {
     private val bounds = mapOf(0 to Rect(10f, 100f, 200f, 148f), 1 to Rect(10f, 149f, 200f, 197f))
 
+    @Test fun draggingWithinSourceIconThenReleasingKeepsMenuOpen() {
+        val session = longPress()
+        session.sourceBounds = Rect(60f, 220f, 140f, 280f)
+        session.move(Offset(120f, 270f), 8f, bounds)
+        assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(120f, 270f), bounds))
+        assertNull(session.feedbackPoint)
+    }
+
     private fun longPress(): ContextMenuGestureSession = ContextMenuGestureSession().apply {
         pointerDown = true
         lastPointer = Offset(100f, 250f)

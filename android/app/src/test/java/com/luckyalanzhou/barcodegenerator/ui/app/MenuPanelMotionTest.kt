@@ -8,6 +8,16 @@ import org.junit.Test
 class MenuPanelMotionTest {
     private val panel = Rect(20f, 100f, 220f, 300f)
 
+    @Test fun sourceDragStartsAtRestAndFollowsAllFourDirections() {
+        val origin = Offset(100f, 400f)
+        assertEquals(Offset.Zero, menuAnchorMotion(origin, origin, 64f))
+        assertEquals(Offset(.5f, -.5f), menuAnchorMotion(origin + Offset(32f, -32f), origin, 64f))
+        assertEquals(Offset(-.5f, .5f), menuAnchorMotion(origin + Offset(-32f, 32f), origin, 64f))
+        assertEquals(Offset(1f, -1f), menuAnchorMotion(origin + Offset(1000f, -1000f), origin, 64f))
+        assertEquals(Offset.Zero, menuAnchorMotion(null, origin, 64f))
+        assertEquals(Offset.Zero, menuAnchorMotion(origin, origin, 0f))
+    }
+
     @Test fun noTouchAndPanelCenterAreAtRest() {
         assertEquals(Offset.Zero, menuPanelMotion(null, panel))
         assertEquals(Offset.Zero, menuPanelMotion(panel.center, panel))

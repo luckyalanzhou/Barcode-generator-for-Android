@@ -11,3 +11,11 @@ internal fun menuPanelMotion(point: Offset?, panel: Rect): Offset {
         ((point.y - panel.center.y) / (panel.height / 2f)).coerceIn(-1f, 1f),
     )
 }
+
+/** The finger stays on the source icon: displacement starts at the long-press origin. */
+internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): Offset {
+    if (point == null || rangePx <= 0f) return Offset.Zero
+    val delta = point - origin
+    return Offset((delta.x / rangePx).coerceIn(-1f, 1f),
+        (delta.y / rangePx).coerceIn(-1f, 1f))
+}

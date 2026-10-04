@@ -131,9 +131,13 @@ internal fun TabLongPressActionOverlay(
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
     val material = menuGlassMaterial(colors.surfaces.panel, panelSize.height / density.density)
     val follow = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    val anchorMotionRangePx = with(density) { 64.dp.toPx() }
     var restingPanelOnScreen by remember { mutableStateOf(Rect.Zero) }
-    LaunchedEffect(gesture, effects.reduceMotion) {
-        snapshotFlow { menuPanelMotion(gesture.feedbackPoint, restingPanelOnScreen) }.collectLatest { target ->
+    LaunchedEffect(gesture, effects.reduceMotion, anchorMotionRangePx) {
+        snapshotFlow {
+            if (gesture.continuation) menuAnchorMotion(gesture.feedbackPoint, gesture.origin, anchorMotionRangePx)
+            else menuPanelMotion(gesture.feedbackPoint, restingPanelOnScreen)
+        }.collectLatest { target ->
             if (effects.reduceMotion) follow.snapTo(Offset.Zero)
             else follow.animateTo(target, spring(dampingRatio = .86f, stiffness = 700f))
         }
@@ -187,6 +191,8 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             alpha = progress.value
+                            translationX = follow.value.x * 5.dp.toPx()
+                            translationY = follow.value.y * 6.dp.toPx()
                         }.clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) {

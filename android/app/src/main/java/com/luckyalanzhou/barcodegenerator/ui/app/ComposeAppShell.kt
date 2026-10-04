@@ -126,6 +126,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     fun showMenu(state: TabLongPressMenuState) {
         if (state.anchorBoundsOnScreen.width <= 0f || state.anchorBoundsOnScreen.height <= 0f || state.actions.isEmpty()) return
         menuGesture.open()
+        menuGesture.sourceBounds = state.anchorBoundsOnScreen
         tabMenu.show(state)
     }
     LaunchedEffect(tabMenu.menu) {

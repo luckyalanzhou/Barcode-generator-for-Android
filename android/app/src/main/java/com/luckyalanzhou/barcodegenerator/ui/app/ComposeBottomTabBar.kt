@@ -268,6 +268,7 @@ internal fun BarcodeComposeBottomTabBar(
                             onClick = { handleTabClick(index) },
                             onLongClickLabel = "打开${tab.label}操作菜单",
                             onLongClick = openMenu,
+                            hapticFeedbackEnabled = false,
                         )
                     } else {
                         Modifier.clickable(
