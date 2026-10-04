@@ -62,6 +62,7 @@ internal fun FavoriteFolderRow(
     val view = LocalView.current
     val focus = remember(row.path) { FocusRequester() }
     var anchor by remember(row.path) { mutableStateOf(Rect.Zero) }
+    var titleAnchor by remember(row.path) { mutableStateOf(Rect.Zero) }
     DisposableEffect(row.path) { onDispose { anchor = Rect.Zero } }
     val openMenu: () -> Unit = {
         view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
@@ -83,7 +84,8 @@ internal fun FavoriteFolderRow(
                     }
                 }
             }, restoreFocus = { if (anchor != Rect.Zero) focus.requestFocus() },
-            title = "编辑文件夹", tabAnchor = false))
+            title = "编辑文件夹", tabAnchor = false,
+            menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor))
     }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
@@ -119,7 +121,7 @@ internal fun FavoriteFolderRow(
         ) {
             Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
             Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
-            Text(row.label, color = LocalAppColorScheme.current.text.primary, fontSize = if (row.level == 0) 18.sp else 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(row.label, color = LocalAppColorScheme.current.text.primary, fontSize = if (row.level == 0) 18.sp else 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Icon(
                 imageVector = KeyboardArrowDownIcon,

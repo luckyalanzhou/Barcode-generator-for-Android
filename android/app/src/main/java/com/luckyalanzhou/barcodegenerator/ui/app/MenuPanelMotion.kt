@@ -25,6 +25,17 @@ internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): O
 internal fun menuDragScale(motion: Offset): Float =
     1f - .20f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
 
+/** Sliding toward the menu selects rows, rather than pushing the menu away. */
+internal fun menuSourceInteractionMotion(
+    point: Offset?, origin: Offset, rangePx: Float, menuAbove: Boolean,
+): Offset {
+    if (point == null) return Offset.Zero
+    val delta = point - origin
+    val towardMenu = if (menuAbove) delta.y < 0f else delta.y > 0f
+    if (towardMenu && abs(delta.y) >= abs(delta.x)) return Offset.Zero
+    return menuAnchorMotion(point, origin, rangePx)
+}
+
 /** Do not subscribe active dragging to the independently animated return state. */
 internal inline fun menuMotionForDrawing(
     dragMotion: Offset?, reduceMotion: Boolean, returnMotion: () -> Offset,

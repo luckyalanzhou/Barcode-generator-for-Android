@@ -94,8 +94,8 @@ internal class ContextMenuGestureSession {
         val chosen = if (ready) gesture.release(point, bounds) else null
         val result = when {
             chosen != null -> ContextMenuRelease.Select(chosen)
-            continuation && sourceBounds.inflate(sourceDragMarginPx).contains(point) -> ContextMenuRelease.KeepOpen
-            continuation && !moved -> ContextMenuRelease.KeepOpen
+            // Releasing a source drag ends the drag, not the context-menu presentation.
+            continuation -> ContextMenuRelease.KeepOpen
             !ready -> ContextMenuRelease.KeepOpen
             else -> ContextMenuRelease.Dismiss
         }

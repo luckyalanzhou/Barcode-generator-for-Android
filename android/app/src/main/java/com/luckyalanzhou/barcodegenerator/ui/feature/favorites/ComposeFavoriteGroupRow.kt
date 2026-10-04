@@ -79,6 +79,7 @@ internal fun FavoriteGroupRow(
     val view = LocalView.current
     val focus = remember(group.id) { FocusRequester() }
     var anchor by remember(group.id) { mutableStateOf(Rect.Zero) }
+    var titleAnchor by remember(group.id) { mutableStateOf(Rect.Zero) }
     DisposableEffect(group.id) { onDispose { anchor = Rect.Zero } }
     val openMenu: () -> Unit = {
         view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
@@ -91,7 +92,8 @@ internal fun FavoriteGroupRow(
                     onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { onDelete(group) }
                 },
             ), restoreFocus = { if (anchor != Rect.Zero) focus.requestFocus() },
-            title = "编辑收藏文件", tabAnchor = false))
+            title = "编辑收藏文件", tabAnchor = false,
+            menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor))
     }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-group-scale")
@@ -121,7 +123,7 @@ internal fun FavoriteGroupRow(
         ) {
             Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
             Spacer(Modifier.width(8.dp))
-            Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)), color = LocalAppColorScheme.current.text.placeholder, fontSize = 11.sp, maxLines = 1)
         }
     }

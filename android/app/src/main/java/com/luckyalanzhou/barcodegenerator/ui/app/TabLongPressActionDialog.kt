@@ -101,6 +101,7 @@ internal data class TabLongPressMenuState(
     val restoreFocus: () -> Unit = {},
     val title: String = "操作",
     val tabAnchor: Boolean = true,
+    val menuAnchorBoundsOnScreen: Rect = anchorBoundsOnScreen,
 )
 
 @Composable
@@ -115,6 +116,7 @@ internal fun TabLongPressActionOverlay(
 ) {
     val dark = state.dark
     val anchorBoundsOnScreen = state.anchorBoundsOnScreen
+    val menuAnchorBoundsOnScreen = state.menuAnchorBoundsOnScreen
     val focusIcon = state.focusIcon
     val focusLabel = state.focusLabel
     val focusTint = state.focusTint
@@ -124,6 +126,7 @@ internal fun TabLongPressActionOverlay(
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
     val panelShape = remember { RoundedCornerShape(24.dp) }
+    val sourceCardShape = remember { RoundedCornerShape(16.dp) }
     val separator = colors.borders.divider.copy(alpha = if (dark) .36f else .44f)
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
@@ -132,9 +135,12 @@ internal fun TabLongPressActionOverlay(
     val follow = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     val anchorMotionRangePx = with(density) { 64.dp.toPx() }
     var restingPanelOnScreen by remember { mutableStateOf(Rect.Zero) }
-    fun pointerMotion(): Offset = if (gesture.continuation)
-        menuAnchorMotion(gesture.feedbackPoint, gesture.origin, anchorMotionRangePx)
-    else menuPanelMotion(gesture.feedbackPoint, restingPanelOnScreen)
+    fun pointerMotion(): Offset = when {
+        gesture.selection.selected != null -> Offset.Zero
+        gesture.continuation -> menuSourceInteractionMotion(gesture.feedbackPoint,
+            gesture.origin, anchorMotionRangePx, restingPanelOnScreen.center.y < gesture.origin.y)
+        else -> Offset.Zero // A separate touch on the menu is selection, never panel dragging.
+    }
     // Read only from graphicsLayer: active input is direct, springs are release-only.
     fun displayedMotion(): Offset = menuMotionForDrawing(
         if (gesture.feedbackPoint != null) pointerMotion() else null,
@@ -175,10 +181,12 @@ internal fun TabLongPressActionOverlay(
             val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
             val bottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
             val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 10.dp.toPx() }
-            val menuSpace = contextMenuSpace(anchorBoundsOnScreen, overlayOriginOnScreen,
+            val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 40.dp.toPx() }
+            val desiredHeightPx = with(density) { (38 + actions.size * 40).dp.toPx() } + motionMarginPx
+            val menuSpace = contextMenuSpace(menuAnchorBoundsOnScreen, overlayOriginOnScreen,
                 with(density) { maxHeight.toPx() }, statusBarTopPx, bottomInsetPx,
-                gapPx, focusLiftPx, with(density) { (38 + actions.size * 48).dp.toPx() }, state.tabAnchor)
-            val placement = tabMenuPlacement(anchorBoundsOnScreen, overlayOriginOnScreen, panelSize,
+                gapPx, focusLiftPx, desiredHeightPx, state.tabAnchor)
+            val placement = tabMenuPlacement(menuAnchorBoundsOnScreen, overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
             LaunchedEffect(popupReady) { if (popupReady) onMeasured() }
@@ -193,7 +201,7 @@ internal fun TabLongPressActionOverlay(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (placement.anchorCenterX - focusWidthPx / 2f).roundToInt(),
+                                (anchorBoundsOnScreen.center.x - overlayOriginOnScreen.x - focusWidthPx / 2f).roundToInt(),
                                 (focusCenterY - focusHeightPx / 2f - focusLiftPx * progress.value).roundToInt(),
                             )
                         }
@@ -208,7 +216,19 @@ internal fun TabLongPressActionOverlay(
                                 minOf(0f, statusBarTopPx - (placement.top - focusLiftPx)),
                                 maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
                                     (placement.top - focusLiftPx) - panelSize.height))
-                        }.clearAndSetSemantics { },
+                        }
+                        .then(if (state.tabAnchor) Modifier else Modifier
+                            // Only folder/file sources get a lifted card. Tabs remain unframed.
+                            .shadow(12.dp, sourceCardShape, clip = false,
+                                ambientColor = Color.Black.copy(alpha = if (dark) .24f else .10f),
+                                spotColor = Color.Black.copy(alpha = if (dark) .30f else .16f))
+                            .background(colors.surfaces.card, sourceCardShape)
+                            .border(if (effects.highContrast) 1.dp else .7.dp,
+                                if (effects.highContrast) colors.text.primary
+                                else colors.borders.card.copy(alpha = if (dark) .55f else .65f),
+                                sourceCardShape)
+                            .clip(sourceCardShape))
+                        .clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) {
                     if (state.tabAnchor) {
@@ -243,7 +263,6 @@ internal fun TabLongPressActionOverlay(
                 }
             }
             // Leave room for the bounded follow/swell even on tall, large-font menus.
-            val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 40.dp.toPx() }
             val availableHeightPx = (menuSpace.height - motionMarginPx).coerceAtLeast(with(density) { 48.dp.toPx() })
             LaunchedEffect(placement, panelSize, overlayOriginOnScreen, focusLiftPx) {
                 // Use resting geometry, not the animated panel's bounds, to avoid feedback loops.
@@ -253,7 +272,7 @@ internal fun TabLongPressActionOverlay(
                     placement.top - focusLiftPx + overlayOriginOnScreen.y + panelSize.height)
             }
             Box(
-                    modifier = Modifier.widthIn(min = minOf(140.dp, panelMaxWidth), max = panelMaxWidth)
+                    modifier = Modifier.widthIn(min = minOf(200.dp, panelMaxWidth), max = panelMaxWidth)
                         .width(IntrinsicSize.Max)
                         .heightIn(max = with(density) { availableHeightPx.toDp() })
                         .onSizeChanged { if (panelSize != it) panelSize = it }
@@ -333,22 +352,24 @@ internal fun TabLongPressActionOverlay(
                     actions.forEachIndexed { index, action ->
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
                                 .slideMenuItem(selection, index, interactive, onClick = action.onClick)
                                 .clickable(enabled = interactive, role = Role.Button) { onAction(action.onClick) }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // Destructive menu labels and icons share the same fixed red in both themes.
+                            val actionColor = if (action.icon == DeleteIcon) colors.content.deleteIcon else colors.text.primary
                             Text(
                                 text = action.label,
                                 modifier = Modifier.weight(1f),
-                                color = colors.text.primary,
+                                color = actionColor,
                                 style = MaterialTheme.typography.labelLarge,
                             )
                             Icon(
                                 imageVector = action.icon,
                                 contentDescription = null,
-                                tint = if (action.icon == DeleteIcon) colors.content.deleteIcon else colors.text.primary,
+                                tint = actionColor,
                                 modifier = Modifier.padding(start = 12.dp).size(20.dp),
                             )
                         }

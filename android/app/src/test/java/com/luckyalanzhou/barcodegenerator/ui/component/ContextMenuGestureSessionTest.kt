@@ -16,7 +16,7 @@ class ContextMenuGestureSessionTest {
         assertNull(session.feedbackPoint)
     }
 
-    @Test fun extendedSourceAreaKeepsMenuButDistantReleaseStillDismisses() {
+    @Test fun bothNearbyAndDistantSourceReleasesKeepMenuOpen() {
         val session = longPress()
         session.sourceBounds = Rect(60f, 220f, 140f, 280f)
         session.sourceDragMarginPx = 48f
@@ -26,7 +26,10 @@ class ContextMenuGestureSessionTest {
         outside.sourceBounds = session.sourceBounds
         outside.sourceDragMarginPx = 48f
         outside.move(Offset(300f, 350f), 8f, bounds)
-        assertEquals(ContextMenuRelease.Dismiss, outside.release(Offset(300f, 350f), bounds))
+        assertEquals(ContextMenuRelease.KeepOpen, outside.release(Offset(300f, 350f), bounds))
+        assertTrue(outside.menuOpen)
+        assertNull(outside.feedbackPoint)
+        assertFalse(outside.gesture.active)
     }
 
     private fun longPress(): ContextMenuGestureSession = ContextMenuGestureSession().apply {
@@ -57,11 +60,34 @@ class ContextMenuGestureSessionTest {
         assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(102f, 251f), bounds))
     }
 
-    @Test fun slideOutsideThenReleaseDismissesWithoutChoosingOldSelection() {
+    @Test fun sourceDragOutsideThenReleaseKeepsMenuWithoutChoosingOldSelection() {
         val session = longPress()
         session.move(Offset(100f, 170f), 8f, bounds)
         session.move(Offset(220f, 170f), 8f, bounds)
-        assertEquals(ContextMenuRelease.Dismiss, session.release(Offset(220f, 170f), bounds))
+        assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(220f, 170f), bounds))
+        assertNull(session.selection.selected)
+        assertTrue(session.menuOpen)
+    }
+
+    @Test fun independentMenuRowDragOutsideStillDismissesWithoutExecuting() {
+        val session = ContextMenuGestureSession()
+        session.open()
+        session.ready = true
+        assertTrue(session.gesture.begin(Offset(100f, 124f), bounds))
+        session.move(Offset(300f, 350f), 8f, bounds)
+        assertEquals(ContextMenuRelease.Dismiss, session.release(Offset(300f, 350f), bounds))
+        assertNull(session.selection.selected)
+    }
+
+    @Test fun sourceDragCanBeRearmedAfterReleaseAndStillSelectExactlyOnce() {
+        val session = longPress()
+        session.move(Offset(500f, 400f), 8f, bounds)
+        assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(500f, 400f), bounds))
+        session.continuation = true
+        session.gesture.arm()
+        session.move(Offset(100f, 170f), 8f, bounds)
+        assertEquals(ContextMenuRelease.Select(1), session.release(Offset(100f, 170f), bounds))
+        assertFalse(session.release(Offset(100f, 170f), bounds) is ContextMenuRelease.Select)
     }
 
     @Test fun releaseBeforeMeasurementDoesNotRunUnmeasuredAction() {

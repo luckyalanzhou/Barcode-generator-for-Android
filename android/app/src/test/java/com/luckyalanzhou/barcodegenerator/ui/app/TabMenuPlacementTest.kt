@@ -7,6 +7,26 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabMenuPlacementTest {
+    @Test fun titleMenuPrefersBelowEvenWhenBothSidesFitAndAboveIsLarger() {
+        val title = Rect(70f, 450f, 270f, 475f)
+        val space = contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f, 8f, 10f, 200f, false)
+        assertFalse(space.above)
+        assertTrue(space.height >= 200f)
+        val placement = tabMenuPlacement(title, Offset.Zero, IntSize(180, 200),
+            400f, 24f, 12f, 8f, 10f, space.above)
+        assertEquals(title.bottom + 8f, placement.top - 10f, 0f)
+    }
+
+    @Test fun titleMenuFallsBackAboveOnlyWhenBelowCannotFit() {
+        val title = Rect(70f, 560f, 270f, 585f)
+        assertFalse(contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f,
+            8f, 10f, 160f, false).above)
+        assertTrue(contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f,
+            8f, 10f, 200f, false).above)
+        assertTrue(contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f,
+            8f, 10f, 160f, true).above)
+    }
+
     @Test fun topRowOpensBelowAndBottomTabStaysAbove() {
         val row = Rect(20f, 70f, 380f, 120f)
         val space = contextMenuSpace(row, Offset.Zero, 800f, 24f, 24f, 8f, 10f, 200f, false)

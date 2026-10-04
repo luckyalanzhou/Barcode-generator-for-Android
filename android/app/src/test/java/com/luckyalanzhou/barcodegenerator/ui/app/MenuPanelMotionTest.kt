@@ -8,6 +8,16 @@ import org.junit.Test
 class MenuPanelMotionTest {
     private val panel = Rect(20f, 100f, 220f, 300f)
 
+    @Test fun upwardSelectionKeepsMenuStationaryButSideAndDownDragsStillFollow() {
+        val origin = Offset(100f, 400f)
+        assertEquals(Offset.Zero, menuSourceInteractionMotion(Offset(105f, 300f), origin, 64f, true))
+        assertEquals(Offset.Zero, menuSourceInteractionMotion(Offset(100f, 100f), origin, 64f, true))
+        assertTrue(menuSourceInteractionMotion(Offset(164f, 395f), origin, 64f, true).x > 0f)
+        assertTrue(menuSourceInteractionMotion(Offset(100f, 464f), origin, 64f, true).y > 0f)
+        assertEquals(Offset.Zero, menuSourceInteractionMotion(Offset(105f, 500f), origin, 64f, false))
+        assertTrue(menuSourceInteractionMotion(Offset(100f, 336f), origin, 64f, false).y < 0f)
+    }
+
     @Test fun draggingUsesLatestPointerWithoutReadingSpringState() {
         var reads = 0
         val pointer = Offset(.7f, -.4f)

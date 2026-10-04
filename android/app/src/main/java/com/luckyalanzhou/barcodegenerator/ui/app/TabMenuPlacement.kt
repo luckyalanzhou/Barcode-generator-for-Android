@@ -23,13 +23,13 @@ internal fun tabMenuPlacement(
 
 internal data class ContextMenuSpace(val above: Boolean, val height: Float)
 
-/** Bottom Tabs remain above their anchor; rows choose the side with enough usable space. */
+/** Tabs always open above; title menus prefer below and fall back above only when needed. */
 internal fun contextMenuSpace(
     anchor: Rect, origin: Offset, screenHeight: Float, statusTop: Float, bottomInset: Float,
     gap: Float, lift: Float, desiredHeight: Float, tabAnchor: Boolean,
 ): ContextMenuSpace {
     val above = (anchor.top - origin.y - statusTop - gap * 2 - lift).coerceAtLeast(0f)
     val below = (screenHeight - bottomInset - gap * 2 - anchor.bottom + origin.y - lift).coerceAtLeast(0f)
-    val useAbove = tabAnchor || above >= desiredHeight || above >= below
+    val useAbove = tabAnchor || below < desiredHeight
     return ContextMenuSpace(useAbove, if (useAbove) above else below)
 }
