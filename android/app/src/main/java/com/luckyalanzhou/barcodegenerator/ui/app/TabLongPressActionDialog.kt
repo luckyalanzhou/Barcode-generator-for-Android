@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +68,8 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -126,13 +129,15 @@ internal fun TabLongPressActionOverlay(
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
     val panelCorner = 12.dp
-    val panelShape = remember(panelCorner) { RoundedCornerShape(panelCorner) }
     val sourceCardShape = remember { RoundedCornerShape(16.dp) }
     val separator = colors.borders.divider.copy(alpha = if (dark) .36f else .44f)
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
     val material = menuGlassMaterial(colors.surfaces.panel, panelSize.height / density.density)
+    val actionsReady by remember(progress, effects.reduceMotion, interactive) {
+        derivedStateOf { interactive && (effects.reduceMotion || progress.value >= .99f) }
+    }
     val follow = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     val anchorMotionRangePx = with(density) { 64.dp.toPx() }
     var restingPanelOnScreen by remember { mutableStateOf(Rect.Zero) }
@@ -203,7 +208,15 @@ internal fun TabLongPressActionOverlay(
             else rowMenuPlacement(rowMenuAnchor, overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
-            LaunchedEffect(popupReady) { if (popupReady) onMeasured() }
+            LaunchedEffect(popupReady) {
+                if (popupReady) {
+                    onMeasured() // Measurement starts the reveal; it must not wait for the reveal.
+                    gesture.ready = actionsReady
+                }
+            }
+            LaunchedEffect(popupReady, actionsReady) {
+                gesture.ready = popupReady && actionsReady
+            }
             LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
             if (popupReady) {
                 val focusWidth = if (state.tabAnchor) 64.dp else with(density) { anchorBoundsOnScreen.width.toDp() }
@@ -299,15 +312,15 @@ internal fun TabLongPressActionOverlay(
                         .graphicsLayer {
                             val reveal = menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion)
                             alpha = reveal.alpha
-                            val scale = reveal.scale
-                            shape = panelShape
+                            shape = MenuRevealContour(placement.pivotX, menuSpace.above, reveal, panelCorner.toPx())
+                            clip = true
                             shadowElevation = 18.dp.toPx() * reveal.shadow
                             ambientShadowColor = Color.Black.copy(alpha = if (dark) .25f else .12f)
                             spotShadowColor = Color.Black.copy(alpha = if (dark) .32f else .18f)
                             val motion = displayedMotion()
                             val dragScale = menuDragScale(motion)
-                            scaleX = scale * dragScale
-                            scaleY = scale * dragScale
+                            scaleX = dragScale
+                            scaleY = dragScale
                             // Stable, unscaled bounds make edge limiting independent of animation.
                             translationX = (motion.x * 28.dp.toPx()).coerceIn(
                                 minOf(0f, edgePaddingPx - placement.left),
@@ -328,7 +341,14 @@ internal fun TabLongPressActionOverlay(
                             isTraversalGroup = true
                             dismiss { onDismiss(); true }
                         }
-                        .clip(panelShape)
+                        .drawWithContent {
+                            drawContent()
+                            val reveal = menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion)
+                            val path = menuRevealPath(menuRevealBounds(size, placement.pivotX, menuSpace.above, reveal), panelCorner.toPx())
+                            drawPath(path,
+                                if (effects.highContrast) colors.text.primary else Color.White.copy(alpha = if (dark) .18f else .54f),
+                                style = Stroke(.8.dp.toPx()))
+                        }
                         .pointerInput(Unit) {
                             // Header/empty panel taps must not fall through to the backdrop.
                             // Consume taps in Main; scrolling from the header remains available.
@@ -336,12 +356,7 @@ internal fun TabLongPressActionOverlay(
                                 awaitFirstDown(requireUnconsumed = false).consume()
                                 waitForUpOrCancellation()?.consume()
                             }
-                        }
-                        .border(
-                            width = .8.dp,
-                            color = if (effects.highContrast) colors.text.primary else Color.White.copy(alpha = if (dark) .18f else .54f),
-                            shape = panelShape,
-                        ),
+                        },
                 ) {
                     GlassBackdropSurface(
                         modifier = Modifier.matchParentSize(), color = colors.surfaces.panel,
@@ -367,8 +382,8 @@ internal fun TabLongPressActionOverlay(
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
-                                .slideMenuItem(selection, index, interactive, onClick = action.onClick)
-                                .clickable(enabled = interactive, role = Role.Button) { onAction(action.onClick) }
+                                .slideMenuItem(selection, index, actionsReady, onClick = action.onClick)
+                                .clickable(enabled = actionsReady, role = Role.Button) { onAction(action.onClick) }
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
