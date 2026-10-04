@@ -45,7 +45,6 @@ internal fun TabLiquidGlassScene(
     val foregroundFactory = remember { lazy {
         if (Build.VERSION.SDK_INT >= 33) TabForegroundLensRenderer.createOrNull() else null
     } }
-    val foregroundRenderer = if (backdropAvailable && !policy.reduceMotion) foregroundFactory.value else null
     val foregroundLayer = rememberGraphicsLayer()
     val atlasLayer = rememberGraphicsLayer()
     val backdropSource = LocalGlassBackdrop.current
@@ -98,10 +97,16 @@ internal fun TabLiquidGlassScene(
             val frame = frameProvider()
             val displacement = if (visible && !policy.reduceMotion && !policy.opaqueGlass &&
                 ValueAnimator.areAnimatorsEnabled()) tabForegroundDisplacement(frame, motion.velocity) else 0f
-            if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && backdropSource?.ready == true &&
-                displacement > .001f && size.width > 0f && size.height > 0f) {
-                foregroundLayer.record { this@drawWithContent.drawContent() }
-                atlasLayer.record(size = IntSize(size.width.toInt() * 2, size.height.toInt())) {
+            val atlasSize = tabForegroundAtlasSize(IntSize(size.width.toInt(), size.height.toInt()))
+            val foregroundRenderer = if (Build.VERSION.SDK_INT >= 33 && backdropAvailable &&
+                backdropSource?.ready == true && displacement > .001f && atlasSize != null)
+                foregroundFactory.value else null
+            if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && backdropSource != null && atlasSize != null) {
+                traceGlassDraw("TabGlass.ForegroundRecord") {
+                    foregroundLayer.record { this@drawWithContent.drawContent() }
+                }
+                traceGlassDraw("TabGlass.AtlasRecord") {
+                atlasLayer.record(size = atlasSize) {
                     clipRect(0f, 0f, frame.width, frame.height) {
                         drawRect(background)
                         val offset = backdropSource.origin - foregroundOrigin
@@ -109,8 +114,9 @@ internal fun TabLiquidGlassScene(
                     }
                     translate(frame.width, 0f) { drawLayer(foregroundLayer) }
                 }
+                }
                 atlasLayer.renderEffect = foregroundRenderer.effect(frame, displacement, background, material.surfaceOpacity)
-                drawLayer(atlasLayer)
+                traceGlassDraw("TabGlass.AtlasDraw") { drawLayer(atlasLayer) }
             } else {
                 atlasLayer.renderEffect = null
                 drawContent()

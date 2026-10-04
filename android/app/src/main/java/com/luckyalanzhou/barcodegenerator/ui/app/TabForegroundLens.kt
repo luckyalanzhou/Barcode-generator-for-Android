@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import kotlin.math.abs
 
-/** Only moving foreground pixels are displaced; no second material, blur or tint. */
+/** Movement-only displacement; contrast correction is separate and preserves foreground alpha. */
 internal fun tabForegroundDisplacement(frame: TabGlassFrame, velocity: Float): Float {
     if (!velocity.isFinite() || !frame.refractionPx.isFinite()) return 0f
     val movement = (abs(velocity) / .8f).coerceIn(0f, 1f)
