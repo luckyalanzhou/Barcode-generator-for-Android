@@ -11,7 +11,6 @@ data class StyleSettings(
     var showFormat: Boolean = false,
     var colorScheme: String = "system",
     var reduceMotion: Boolean = false,
-    var reduceTransparency: Boolean = false,
     var enhanceContrast: Boolean = false,
 )
 

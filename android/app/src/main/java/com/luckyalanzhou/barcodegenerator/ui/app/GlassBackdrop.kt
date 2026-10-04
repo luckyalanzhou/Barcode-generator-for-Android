@@ -40,6 +40,16 @@ internal class GlassBackdropSource(val layer: GraphicsLayer) {
 internal val LocalGlassBackdrop = staticCompositionLocalOf<GlassBackdropSource?> { null }
 
 @Composable
+internal fun glassBackdropAvailable(policy: com.luckyalanzhou.barcodegenerator.ui.theme.VisualEffectsPolicy): Boolean =
+    Build.VERSION.SDK_INT >= 33 && LocalView.current.isHardwareAccelerated &&
+        LocalGlassBackdrop.current?.ready == true && !policy.opaqueGlass && rememberBackdropRenderer() != null
+
+@Composable
+private fun rememberBackdropRenderer(): BackdropRenderer? = remember {
+    if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull() else null
+}
+
+@Composable
 internal fun rememberGlassBackdrop(): GlassBackdropSource {
     val layer = rememberGraphicsLayer()
     return remember(layer) { GlassBackdropSource(layer) }
@@ -68,9 +78,7 @@ internal fun GlassBackdropSurface(
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
-    val renderer = remember {
-        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull() else null
-    }
+    val renderer = rememberBackdropRenderer()
     val density = LocalDensity.current.density
     var origin by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }

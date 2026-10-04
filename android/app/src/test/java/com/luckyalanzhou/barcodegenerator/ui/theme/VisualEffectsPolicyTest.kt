@@ -23,10 +23,10 @@ class VisualEffectsPolicyTest {
         }
     }
 
-    @Test fun transparencyAndMotionAreIndependent() {
-        val policy = resolveVisualEffectsPolicy(StyleSettings(reduceTransparency = true), true, false)
+    @Test fun contrastAndMotionAreIndependent() {
+        val policy = resolveVisualEffectsPolicy(StyleSettings(enhanceContrast = true), true, false)
         assertTrue(policy.opaqueGlass)
         assertFalse(policy.reduceMotion)
-        assertFalse(policy.highContrast)
+        assertTrue(policy.highContrast)
     }
 }

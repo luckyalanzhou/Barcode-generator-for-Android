@@ -10,24 +10,22 @@ class DisplayEffectsSettingsStateTest {
         val style = StyleSettings()
         val state = displayEffectsSettingsState(style, resolveVisualEffectsPolicy(style, true, false))
         assertEquals("默认", state.summary)
-        for (option in listOf(state.motion, state.transparency, state.contrast)) {
+        for (option in listOf(state.motion, state.contrast)) {
             assertFalse(option.checked)
             assertTrue(option.enabled)
         }
     }
 
     @Test fun everyUserAndSystemCombinationShowsEffectiveValuesWithoutMutatingPreferences() {
-        for (bits in 0 until 8) for (animationsEnabled in listOf(false, true)) for (systemContrast in listOf(false, true)) {
+        for (bits in 0 until 4) for (animationsEnabled in listOf(false, true)) for (systemContrast in listOf(false, true)) {
             val style = StyleSettings(reduceMotion = bits and 1 != 0,
-                reduceTransparency = bits and 2 != 0, enhanceContrast = bits and 4 != 0)
+                enhanceContrast = bits and 2 != 0)
             val saved = style.copy()
             val policy = resolveVisualEffectsPolicy(style, animationsEnabled, systemContrast)
             val state = displayEffectsSettingsState(style, policy)
             assertEquals(policy.reduceMotion, state.motion.checked)
-            assertEquals(policy.opaqueGlass, state.transparency.checked)
             assertEquals(policy.highContrast, state.contrast.checked)
             assertEquals(animationsEnabled, state.motion.enabled)
-            assertEquals(!policy.highContrast, state.transparency.enabled)
             assertEquals(!systemContrast, state.contrast.enabled)
             assertEquals(when {
                 bits != 0 -> "已调整"
@@ -38,18 +36,15 @@ class DisplayEffectsSettingsStateTest {
         }
     }
 
-    @Test fun disablingContrastRestoresTheUsersTransparencyChoice() {
-        for (savedTransparency in listOf(false, true)) {
-            val style = StyleSettings(reduceTransparency = savedTransparency, enhanceContrast = true)
-            val constrained = displayEffectsSettingsState(style, resolveVisualEffectsPolicy(style, true, false))
-            assertTrue(constrained.transparency.checked)
-            assertFalse(constrained.transparency.enabled)
-            assertTrue(constrained.transparency.explanation.contains("已包含"))
-            val restoredStyle = style.copy(enhanceContrast = false)
-            val restored = displayEffectsSettingsState(restoredStyle, resolveVisualEffectsPolicy(restoredStyle, true, false))
-            assertEquals(savedTransparency, restored.transparency.checked)
-            assertTrue(restored.transparency.enabled)
-        }
+    @Test fun disablingContrastRestoresTransparentMaterial() {
+        val style = StyleSettings(enhanceContrast = true)
+        assertTrue(resolveVisualEffectsPolicy(style, true, false).opaqueGlass)
+        val restoredStyle = style.copy(enhanceContrast = false)
+        val policy = resolveVisualEffectsPolicy(restoredStyle, true, false)
+        val restored = displayEffectsSettingsState(restoredStyle, policy)
+        assertFalse(policy.opaqueGlass)
+        assertFalse(restored.contrast.checked)
+        assertEquals("默认", restored.summary)
     }
 
     @Test fun systemOverrideIsExplainedAndDoesNotBecomeAnAppPreference() {
@@ -61,7 +56,6 @@ class DisplayEffectsSettingsStateTest {
         val restored = displayEffectsSettingsState(style, resolveVisualEffectsPolicy(style, true, false))
         assertEquals("默认", restored.summary)
         assertFalse(restored.motion.checked)
-        assertFalse(restored.transparency.checked)
         assertFalse(restored.contrast.checked)
     }
 }

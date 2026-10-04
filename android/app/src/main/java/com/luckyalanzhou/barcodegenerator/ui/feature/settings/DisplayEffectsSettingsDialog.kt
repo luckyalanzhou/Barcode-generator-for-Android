@@ -67,10 +67,6 @@ internal fun DisplayEffectsSettingsDialog(
                         onStyleChange(style.copy(reduceMotion = it))
                     }
                     HorizontalDivider(color = colors.borders.divider)
-                    DisplayEffectOptionRow("使用不透明导航与菜单", state.transparency, dark) {
-                        onStyleChange(style.copy(reduceTransparency = it))
-                    }
-                    HorizontalDivider(color = colors.borders.divider)
                     DisplayEffectOptionRow("提高导航与菜单对比度", state.contrast, dark) {
                         onStyleChange(style.copy(enhanceContrast = it))
                     }

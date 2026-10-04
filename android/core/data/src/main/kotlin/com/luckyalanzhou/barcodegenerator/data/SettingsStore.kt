@@ -34,7 +34,6 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         val SHOW_FORMAT = booleanPreferencesKey("style_show_format")
         val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
         val REDUCE_MOTION = booleanPreferencesKey("appearance_reduce_motion")
-        val REDUCE_TRANSPARENCY = booleanPreferencesKey("appearance_reduce_transparency")
         val ENHANCE_CONTRAST = booleanPreferencesKey("appearance_enhance_contrast")
         val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
         val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
@@ -95,7 +94,6 @@ internal fun decodeStyleSettings(values: Preferences): StyleSettings = with(Sett
         showFormat = values[SHOW_FORMAT] ?: false,
         colorScheme = values[COLOR_SCHEME] ?: "system",
         reduceMotion = values[REDUCE_MOTION] ?: false,
-        reduceTransparency = values[REDUCE_TRANSPARENCY] ?: false,
         enhanceContrast = values[ENHANCE_CONTRAST] ?: false,
     )
 }
@@ -113,6 +111,6 @@ internal fun MutablePreferences.writeStyleSettings(style: StyleSettings) = with(
     this@writeStyleSettings[SHOW_FORMAT] = style.showFormat
     this@writeStyleSettings[COLOR_SCHEME] = style.colorScheme
     this@writeStyleSettings[REDUCE_MOTION] = style.reduceMotion
-    this@writeStyleSettings[REDUCE_TRANSPARENCY] = style.reduceTransparency
+    remove(booleanPreferencesKey("appearance_reduce_transparency"))
     this@writeStyleSettings[ENHANCE_CONTRAST] = style.enhanceContrast
 }

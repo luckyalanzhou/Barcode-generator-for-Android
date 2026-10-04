@@ -37,7 +37,7 @@ internal fun resolveVisualEffectsPolicy(style: StyleSettings, animationsEnabled:
     val contrast = style.enhanceContrast || systemHighContrast
     return VisualEffectsPolicy(
         reduceMotion = style.reduceMotion || !animationsEnabled,
-        opaqueGlass = style.reduceTransparency || contrast,
+        opaqueGlass = contrast,
         highContrast = contrast,
         systemReducedMotion = !animationsEnabled,
         systemHighContrast = systemHighContrast,

@@ -203,7 +203,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                                 showFormat = next.showFormat,
                                 colorScheme = next.scheme,
                                 reduceMotion = next.style.reduceMotion,
-                                reduceTransparency = next.style.reduceTransparency,
                                 enhanceContrast = next.style.enhanceContrast,
                             ),
                         )

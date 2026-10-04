@@ -88,7 +88,7 @@ class SettingsViewModelTest {
             LegacySettingsMigrator(android.app.Application(), settingsStore),
         )
         val style = StyleSettings(textSize = 18f, barWidth = 260f, colorScheme = "dark",
-            reduceMotion = true, reduceTransparency = true, enhanceContrast = true)
+            reduceMotion = true, enhanceContrast = true)
         viewModel.initialize(StyleSettings(), 0)
 
         viewModel.updateStyle(style)
@@ -99,7 +99,6 @@ class SettingsViewModelTest {
         assertEquals(260f, viewModel.style.barWidth, 0f)
         assertEquals("dark", viewModel.uiState.value.scheme)
         assertTrue(viewModel.uiState.value.style.reduceMotion)
-        assertTrue(viewModel.uiState.value.style.reduceTransparency)
         assertTrue(viewModel.uiState.value.style.enhanceContrast)
     }
 

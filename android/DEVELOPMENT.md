@@ -66,17 +66,16 @@ Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单�
 
 设置页外观卡片仅显示外观选择与“显示与动效”入口。入口摘要：有应用自定义限制时为“已调整”；没有应用限制、系统限制生效时为“跟随系统”；其余为“默认”。点击打开二级弹窗，标题固定，选项区域在内容溢出时滚动；文字可换行。只有右侧开关可切换，文字和整行不响应切换；开关提供 52×48dp 的单一触摸与无障碍目标，内部装饰轨道不注册指针事件。没有“完成”按钮，更改即时保存，外部点击与返回只关闭弹窗，不撤销已经保存的设置。
 
-三个独立开关默认关闭，仍沿现有 SettingsViewModel → SettingsRepository → DataStore 路径保存；没有新增存储字段，旧安装保留原先的开关值：
+两个独立开关默认关闭，沿现有 SettingsViewModel → SettingsRepository → DataStore 路径保存。旧安装的动态效果与对比度选择继续保留；已移除的不透明导航设置不再读取，保存设置时清理其遗留键：
 
 | 选项 | 实际范围 |
 | --- | --- |
 | 减少动态效果 | 关闭主 Tab 弹性、装饰性形变、动态折射、主页面切换和操作菜单的位移/缩放动画；手指拖动与切页操作仍可用。不是关闭整个应用全部组件的动画。 |
-| 使用不透明导航与菜单 | Tab 导航底色与胶囊、操作菜单使用清晰不透明表面，停止背景折射与模糊；不影响普通内容卡片。 |
 | 提高导航与菜单对比度 | 使用不透明降级，提高 Tab 文字/图标与选中边界的辨识度，菜单标题改用清晰主文字色；未启用时仍保留原占位文字色。 |
 
-系统关闭动画时，即使应用开关关闭，导航仍减少动态效果；监听系统动画时长变化并在应用恢复前台时刷新状态。Android 16（API 36）及以上使用公开的高对比文字查询/监听接口，系统要求高对比时应用不能用自身开关抵消；更低版本通过应用内“提高导航与菜单对比度”补充，不使用隐藏 API。系统限制对应的开关显示实际生效值、禁用手动切换并说明系统原因；对比度已开启时，不透明开关显示开启并说明效果已包含。上述显示状态不改写用户原值，系统限制或对比度取消后恢复原选择。开启 TalkBack 本身不自动关闭材质或改变导航行为。Tab 提供角色、选中状态和操作菜单的无障碍动作，图标不重复播报；长按菜单操作行最小 40dp，上下各 8dp 内边距，顶部标题最小 38dp，字体与图标大小不变；高字体倍率允许换行并在有限空间内滚动。
+系统关闭动画时，即使应用开关关闭，导航仍减少动态效果；监听系统动画时长变化并在应用恢复前台时刷新状态。Android 16（API 36）及以上使用公开的高对比文字查询/监听接口，系统要求高对比时应用不能用自身开关抵消；更低版本通过应用内“提高导航与菜单对比度”补充，不使用隐藏 API。系统限制对应的开关显示实际生效值、禁用手动切换并说明系统原因。上述显示状态不改写用户原值，系统限制取消后恢复原选择。不透明材质仅由应用或系统高对比度策略启用。开启 TalkBack 本身不自动关闭材质或改变导航行为。Tab 提供角色、选中状态和操作菜单的无障碍动作，图标不重复播报；长按菜单操作行最小 40dp，上下各 8dp 内边距，顶部标题最小 38dp，字体与图标大小不变；高字体倍率允许换行并在有限空间内滚动。
 
-兼容策略：Android 13+ 硬件加速与 shader 初始化成功时使用 GPU 背景材质；Android 12 可保留页面模糊并使用高覆盖率菜单表面；更低版本、软件渲染或效果不可用时使用清晰静态表面。无障碍不透明策略始终优先。设备验证应覆盖浅色/深色、字体倍率、系统关闭动画、应用三个开关和 TalkBack，不能仅由编译成功推断无障碍完全可用。
+兼容策略：Android 13+ 硬件加速与 shader 初始化成功时使用 GPU 背景材质；Android 12 可保留页面模糊并使用高覆盖率菜单表面；更低版本、软件渲染或效果不可用时使用清晰静态表面。无障碍不透明策略始终优先。设备验证应覆盖浅色/深色、字体倍率、系统关闭动画、应用两个开关和 TalkBack，不能仅由编译成功推断无障碍完全可用。
 
 发布后由用户手动更新 Beta。浅色/深色下检查四个 Tab：点击和横向滑动时，选中胶囊应平滑跟随当前项，材质对比度适中、无明显塑料描边或大块高光；Android 13+ 的胶囊经过其他图标/文字时有轻微局部折射，但不能整组放大、重影或妨碍辨认，松手后恢复清晰。光影仅在胶囊边缘，不应有中心亮斑或胶囊外的蓝色光晕。中途抓住正在移动的胶囊、快速反向拖动、连续点击不同 Tab 时，不跳位、不被旧动画拉回。滑动经过其他 Tab 中心时页面立即切换。系统关闭动画时不应保留动态折射。长按历史、收藏、设置 Tab 时，不论该 Tab 当前是否选中，都应显示对应的 Tab 图标和标题；浮起 Tab 无描边或选中胶囊，操作菜单应与其同步上移并保持锚定在上方，背景模糊但不整体压暗。主 Tab 点击与滑动仍使用短距离进入动画，快速连续切换时不应叠影；三个条码结果页仍保持无切页动画。另检查重复点击收藏折叠、系统导航栏、长列表末尾，以及深色模式下生成、历史、收藏、设置和对话框卡片边缘是否柔和且可辨。编译与 lint 不替代真机视觉和帧率验证。
 
@@ -98,9 +97,11 @@ Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单�
 
 `GlassBackdropMaterialTest` 检查菜单尺寸适配边界，`TabMenuPlacementTest` 检查实际锚点、窗口原点和屏幕边缘定位，`TabMenuPresentationTest` 检查退出保留、早期关闭、重复操作与焦点回调，`VisualEffectsPolicyTest` 检查系统与应用限制的优先级。数据模块 `SettingsStyleCodecTest` 覆盖旧字段默认值、三项开关的所有组合往返、滑块修改保留开关和旧值范围限制。
 
-`DisplayEffectsSettingsStateTest` 覆盖三个应用开关与两个系统限制的 32 种组合、摘要与实际生效值、系统控制项的说明与可编辑状态，以及对比度取消后恢复原透明度选择。设备回归另需检查入口整行点击打开、弹窗仅开关可切换且文字不可切换、外部点击/返回关闭、即时保存与重启恢复、浅色/深色、大字体及横屏的滚动边界和 TalkBack 单一开关节点。
+`DisplayEffectsSettingsStateTest` 覆盖两个应用开关与两个系统限制的 16 种组合、摘要与实际生效值、系统控制项的说明与可编辑状态，以及对比度取消后恢复透明材质。`SettingsStyleCodecTest` 验证旧透明度设置被忽略且保存时清理。设备回归另需检查入口整行点击打开、弹窗仅开关可切换且文字不可切换、外部点击/返回关闭、即时保存与重启恢复、浅色/深色、大字体及横屏的滚动边界和 TalkBack 单一开关节点。
 
-可选脚本 `tools/validate_tab_glass.py` 使用原生 Skia 编译实际 Kotlin 文件中的 shader，并检查静止像素、真实网格位移、胶囊外像素隔离、透明度与前景清晰度。本机使用以下固定环境，不加入 Android 依赖或远程工作流：
+液态玻璃遵循 [Apple WWDC25 Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/) 的导航层、Regular 自适应材质和避免玻璃叠玻璃原则。Android 实现不是 Apple 原生材质。真实像素只在 `GlassBackdropShader.kt` 中折射；`TabLiquidGlassScene.kt` 将图标与文字作为独立前景绘制，兼容路径由 `TabGlassSurface.kt` 绘制材质，不再对前景应用第二个 shader。
+
+可选脚本 `tools/validate_glass_backdrop.py` 使用原生 Skia 编译实际背景 shader，检查真实网格位移、边界与对比保护。本机使用以下固定环境，不加入 Android 依赖或远程工作流：
 
 - Python：`C:\Users\zhimi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe`。
 - 原生 Skia：`skia-python==138.0`，仅安装在 `D:\Barcode_build\glass-validation\python-packages`；numpy 使用该 Python 已有的版本。
@@ -108,13 +109,12 @@ Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单�
 在仓库根目录执行（不是 `android` 子目录）：
 
 ```powershell
-& 'C:\Users\zhimi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' android/tools/validate_tab_glass.py --runtime-package-dir D:\Barcode_build\glass-validation\python-packages
 & 'C:\Users\zhimi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' android/tools/validate_glass_backdrop.py --runtime-package-dir D:\Barcode_build\glass-validation\python-packages
 ```
 
 背景脚本编译实际 `GlassBackdropShader.kt`，验证真实背景像素位移、圆角外透明隔离、局部对比保护及不透明结果；它不运行 Android 的 RenderEffect 高斯模糊链、Compose 布局、TalkBack 或设备 GPU 驱动。真机需在密集文字/图片背景、连续拖动和反复开关菜单下确认：静止无重影、菜单前景清晰、边缘无外溢、窗口变化不留旧菜单。帧率按设备实际刷新率的帧时间预算评估（如 60Hz 约 16.7ms，120Hz 约 8.3ms），比较修改前后的掉帧与帧耗时，不能以本地数学动画测试代替设备性能验收。
 
-缺少上述环境时，这项可选像素检查不能运行，不应自动尝试其他 Python 或安装位置。需要合成对比图时追加 `--render D:\Barcode_build\glass-validation\comparison.png`，查看后删除该临时图片。它不是手机截图，也不能证明 Android GPU 驱动兼容性或真机帧率；发布后仍按前节做设备视觉回归。
+缺少上述环境时，这项可选像素检查不能运行，不应自动尝试其他 Python 或安装位置。它不是手机截图，也不能证明 Android GPU 驱动兼容性或真机帧率；发布后仍按前节做设备视觉回归。
 
 在 PowerShell 中执行：
 
