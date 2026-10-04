@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 
 /** 更新领域的协调器，负责检查、下载、校验以及一次性更新事件。 */
 class UpdateCoordinator(
@@ -38,12 +39,16 @@ class UpdateCoordinator(
 
     private val downloadGeneration = AtomicLong(0L)
     private var downloadJob: Job? = null
+    private val checkMutex = Mutex()
 
     fun setStartupCheckStarted(value: Boolean) {
         _uiState.update { it.copy(startupCheckStarted = value) }
     }
 
     suspend fun checkForUpdates(): UpdateCheckResult {
+        if (!checkMutex.tryLock()) return UpdateCheckResult.InProgress
+        _uiState.update { it.copy(checking = true) }
+        try {
         return when (val result = updateCatalogGateway.check()) {
             is UpdateLookupResult.Available -> {
                 setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
@@ -57,6 +62,14 @@ class UpdateCoordinator(
                 clearAvailableUpdate()
                 UpdateCheckResult.Failed(result.reason)
             }
+        }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            return UpdateCheckResult.Failed("检查更新失败，请重试")
+        } finally {
+            _uiState.update { it.copy(checking = false) }
+            checkMutex.unlock()
         }
     }
 

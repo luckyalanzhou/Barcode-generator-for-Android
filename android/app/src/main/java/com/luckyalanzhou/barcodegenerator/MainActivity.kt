@@ -1,6 +1,10 @@
 package com.luckyalanzhou.barcodegenerator
 
 import android.Manifest
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import com.luckyalanzhou.barcodegenerator.ui.app.ResultExportAction
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
@@ -109,7 +113,8 @@ class MainActivity : AppCompatActivity() {
     }
     internal var composeShellReady: Boolean = false
     internal var pendingResultImageFile: File? = null
-    internal var preparingResultExport: Boolean = false
+    internal var resultExportAction by mutableStateOf<ResultExportAction?>(null)
+    internal val preparingResultExport: Boolean get() = resultExportAction != null
     // Tab 选中状态可能在布局刷新时回调；此标志防止回调再次嵌套进入 render。
     internal val navigationViewModel: AppNavigationViewModel by viewModels()
     internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()

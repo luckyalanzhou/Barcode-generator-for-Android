@@ -114,9 +114,10 @@ internal fun MainActivity.writeBitmapToUri(bitmap: Bitmap, uri: Uri): Boolean = 
     } ?: error("无法打开文件")
 }.isSuccess
 
-internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String) {
+internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String, onStarted: () -> Unit = {}, onFinished: () -> Unit = {}) {
     // Sharing is not saving: keep the original user's gallery untouched.
     lifecycleScope.launch {
+        onStarted()
         var shareFile: File? = null
         try {
             val uri = withContext(Dispatchers.IO) {
@@ -141,6 +142,8 @@ internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String) {
         } catch (_: Exception) {
             shareFile?.delete()
             toast("分享失败，请重试")
+        } finally {
+            onFinished()
         }
     }
 }

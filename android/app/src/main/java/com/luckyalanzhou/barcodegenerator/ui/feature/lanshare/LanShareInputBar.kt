@@ -62,6 +62,7 @@ internal fun BoxScope.LanShareInputBar(
     val themeColors = LocalAppColorScheme.current
     val attachmentInteraction = remember { MutableInteractionSource() }
     val sendInteraction = remember { MutableInteractionSource() }
+    val sendEnabled = canSendLanContent(message, pendingUploadName)
     Surface(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
         color = panel,
@@ -101,9 +102,13 @@ internal fun BoxScope.LanShareInputBar(
                 },
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onSend, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(44.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent)) {
-                Text("发送", color = themeColors.content.sentContent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(48.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = themeColors.content.sentContent,
+                disabledContainerColor = themeColors.controls.button, disabledContentColor = themeColors.text.disabled)) {
+                Text("发送", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
 }
+
+internal fun canSendLanContent(message: String, pendingUploadName: String?): Boolean =
+    message.isNotBlank() || pendingUploadName != null

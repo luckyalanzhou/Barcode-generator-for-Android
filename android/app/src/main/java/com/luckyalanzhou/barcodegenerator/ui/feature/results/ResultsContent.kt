@@ -14,6 +14,11 @@ import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
 import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -57,6 +62,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun ResultsContent(
+    exportAction: ResultExportAction?,
     resultState: ResultUiState,
     settings: SettingsUiState,
     dark: Boolean,
@@ -153,17 +159,17 @@ internal fun ResultsContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Spacer(Modifier.weight(1f))
-                ResultAction(EditIcon, "编辑", resultActionBlue) {
-                    onEdit()
-                }
+                ResultAction(EditIcon, "编辑", resultActionBlue, onClick = onEdit)
                 ResultAction(
                     favoriteActionIcon,
                     "收藏",
                     if (isFavorite) themeColors.content.favoriteActive else resultActionBlue,
                     onSaveFavorite,
                 )
-                ResultAction(IosShareIcon, "分享", resultActionBlue, onShare)
-                ResultAction(ArrowDownwardIcon, "保存", resultActionBlue, onSave)
+                ResultAction(IosShareIcon, if (exportAction == ResultExportAction.Share) "准备中…" else "分享", resultActionBlue,
+                    onShare, enabled = exportAction == null, busy = exportAction == ResultExportAction.Share)
+                ResultAction(ArrowDownwardIcon, if (exportAction == ResultExportAction.Save) "准备中…" else "保存", resultActionBlue,
+                    onSave, enabled = exportAction == null, busy = exportAction == ResultExportAction.Save)
             }
         }
         items(items, key = { it.id }) { item ->
@@ -176,16 +182,20 @@ internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
     selectedFavoriteGroup != null && returnPage == NavigationRoute.Favorites
 
 @Composable
-private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit,
+    enabled: Boolean = true, busy: Boolean = false) {
+    val interaction = remember { MutableInteractionSource() }
+    val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
     Column(
-        Modifier.width(64.dp)
+        Modifier.width(64.dp).heightIn(min = 48.dp).iosPressFeedback(interaction)
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.width(25.dp).height(27.dp))
-        Text(label, color = tint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
+        if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(25.dp).height(27.dp), color = contentTint, strokeWidth = 2.dp)
+        else Icon(icon, contentDescription = label, tint = contentTint, modifier = Modifier.width(25.dp).height(27.dp))
+        Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
     }
 }
 

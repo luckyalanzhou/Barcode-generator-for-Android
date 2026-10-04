@@ -4,6 +4,10 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.CircularProgressIndicator
 
 import com.luckyalanzhou.barcodegenerator.presentation.GenerateEditorState
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
@@ -270,18 +274,25 @@ internal fun GenerateContent(
             }
         }
 
+        val generateInteraction = remember { MutableInteractionSource() }
         Box(
-            modifier = Modifier.fillMaxWidth().globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).height(52.dp)
-                .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled) {
+            modifier = Modifier.fillMaxWidth().iosPressFeedback(generateInteraction)
+                .globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled,
+                    interactionSource = generateInteraction, indication = null, role = Role.Button) {
                 onGenerate(values.toList(), formatName)
             },
             contentAlignment = Alignment.Center
         ) {
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (isPreparingResult) CircularProgressIndicator(Modifier.size(18.dp), color = generateContent, strokeWidth = 2.dp)
             Text(
                 if (isPreparingResult) "正在准备全部条码…" else "\u751f\u6210 $count \u4e2a\u6761\u7801",
                 color = generateContent,
                 fontSize = 16.sp,
             )
+            }
         }
     }
 }

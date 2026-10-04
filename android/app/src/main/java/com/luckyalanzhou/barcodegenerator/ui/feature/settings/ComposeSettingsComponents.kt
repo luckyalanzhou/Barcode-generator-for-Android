@@ -78,9 +78,13 @@ internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Co
 }
 
 @Composable
-internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false) {
     val interactionSource = remember { MutableInteractionSource() }
-    Button(onClick = onClick, interactionSource = interactionSource, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp), modifier = modifier.iosPressFeedback(interactionSource).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).height(40.dp)) {
+    Button(onClick = onClick, enabled = !busy, interactionSource = interactionSource, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor, disabledContainerColor = color, disabledContentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp), modifier = modifier.iosPressFeedback(interactionSource).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).heightIn(min = 48.dp)) {
+        if (busy) {
+            androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = contentColor, strokeWidth = 2.dp)
+            androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+        }
         Text(text, maxLines = 1)
     }
 }

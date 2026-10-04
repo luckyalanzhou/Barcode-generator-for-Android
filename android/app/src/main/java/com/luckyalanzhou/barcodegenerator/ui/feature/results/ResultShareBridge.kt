@@ -66,31 +66,36 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
 }
 
 /** Prepare off the UI thread; both actions share the same all-or-nothing snapshot. */
-private fun MainActivity.withResultPageImage(onReady: (ResultPageImage) -> Unit) {
+private fun MainActivity.withResultPageImage(action: ResultExportAction, onReady: (ResultPageImage) -> Unit) {
     if (preparingResultExport) return
-    preparingResultExport = true
-    toast("正在准备条码图片…")
+    resultExportAction = action
     lifecycleScope.launch {
+        var sharingStarted = false
         try {
             val result = createResultPageImage()
-            if (result == null) toast("条码图片准备失败，请重试") else onReady(result)
+            if (result == null) toast("条码图片准备失败，请重试") else {
+                onReady(result)
+                // PNG encoding and chooser launch own the busy state after preparation.
+                sharingStarted = action == ResultExportAction.Share
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
             toast("条码图片准备失败，请重试")
         } finally {
-            preparingResultExport = false
+            if (!sharingStarted) resultExportAction = null
         }
     }
 }
 
 /** Sharing means opening the system Sharesheet, not a second app-target picker. */
-internal fun MainActivity.shareResultPage() = withResultPageImage { result ->
-    shareBitmap(result.bitmap, result.label)
+internal fun MainActivity.shareResultPage() = withResultPageImage(ResultExportAction.Share) { result ->
+    shareBitmap(result.bitmap, result.label, onStarted = { resultExportAction = ResultExportAction.Share },
+        onFinished = { resultExportAction = null })
 }
 
 /** Saving remains discoverable without adding a step to system sharing. */
-internal fun MainActivity.saveResultPage() = withResultPageImage { result ->
+internal fun MainActivity.saveResultPage() = withResultPageImage(ResultExportAction.Save) { result ->
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
@@ -110,7 +115,7 @@ internal fun MainActivity.saveResultPage() = withResultPageImage { result ->
 
 private fun MainActivity.saveResultImageDocument(result: ResultPageImage) {
     if (pendingResultImageFile != null || preparingResultExport) return
-    preparingResultExport = true
+    resultExportAction = ResultExportAction.Save
     lifecycleScope.launch {
         var temporary: File? = null
         try {
@@ -137,7 +142,7 @@ private fun MainActivity.saveResultImageDocument(result: ResultPageImage) {
             pendingResultImageFile = null
             toast("准备文件失败，请重试")
         } finally {
-            preparingResultExport = false
+            resultExportAction = null
         }
     }
 }

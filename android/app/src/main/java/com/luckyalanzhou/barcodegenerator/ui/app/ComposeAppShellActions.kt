@@ -24,6 +24,7 @@ import com.luckyalanzhou.barcodegenerator.ui.support.logging.shareDebugLog
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */
 internal interface ComposeAppShellActions {
+    val resultExportAction: ResultExportAction?
     fun navigateTo(route: AppRoute)
     fun selectTab(index: Int, fromSwipe: Boolean)
     fun syncBarcodeDisplaySettings(isResults: Boolean)
@@ -57,6 +58,7 @@ internal interface ComposeAppShellActions {
 
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
 internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = object : ComposeAppShellActions {
+    override val resultExportAction get() = this@composeAppShellActions.resultExportAction
     override fun navigateTo(route: AppRoute) {
         if (route != AppRoute.Results) {
             resultsViewModel.cancelPendingResults()

@@ -51,6 +51,7 @@ data class CameraCaptureState(
 )
 
 data class UpdateUiState(
+    val checking: Boolean = false,
     val startupCheckStarted: Boolean = false,
     val availableVersion: String? = null,
     val availableUrl: String? = null,
@@ -78,6 +79,7 @@ sealed interface UpdateEvent {
 }
 
 sealed interface UpdateCheckResult {
+    data object InProgress : UpdateCheckResult
     data class Available(
         val version: String,
         val downloadUrl: String,

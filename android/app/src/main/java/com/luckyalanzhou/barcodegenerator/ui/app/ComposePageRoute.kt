@@ -169,6 +169,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val resultState by dependencies.resultsViewModel.resultUiState.collectAsStateWithLifecycle()
                 ResultsContent(
+                    exportAction = dependencies.actions.resultExportAction,
                     resultState = resultState,
                     settings = settings,
                     dark = dark,
@@ -187,8 +188,10 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             }
             AppRoute.Settings -> {
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                val update by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
                 val scope = rememberCoroutineScope()
                 SettingsContent(
+                    checkingForUpdates = update.checking,
                     settings = settings,
                     dark = dark,
                     onPersist = { next ->

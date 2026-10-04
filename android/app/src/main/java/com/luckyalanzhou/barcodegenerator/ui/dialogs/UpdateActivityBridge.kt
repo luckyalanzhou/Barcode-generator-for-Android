@@ -28,6 +28,7 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
     DebugLog.record("update", "check started silent=${silent} current=${BuildConfig.VERSION_NAME}")
     lifecycleScope.launch {
         when (val result = updateViewModel.checkForUpdates()) {
+            UpdateCheckResult.InProgress -> Unit
             is UpdateCheckResult.Available -> {
                 DebugLog.record("update", "latest=${result.version} available=true")
                 if (!updateViewModel.uiState.value.dialogShowing) updateViewModel.setDialogShowing(true)

@@ -22,6 +22,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.heightIn
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUploadingFile
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -34,6 +39,7 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingFile, onCancel: ()
     val fill = colors.controls.accent.copy(alpha = .38f)
     val track = colors.surfaces.overlay
     val label = colors.text.primary
+    val cancelInteraction = remember { MutableInteractionSource() }
 
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp),
@@ -65,15 +71,14 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingFile, onCancel: ()
                 }
                 Spacer(Modifier.width(10.dp))
                 Text("${upload.progressPercent}%", color = label, fontSize = 13.sp, maxLines = 1)
-                Text(
-                    "取消",
-                    modifier = Modifier
-                        .clickable(role = Role.Button, onClick = onCancel)
-                        .padding(start = 10.dp, top = 8.dp, bottom = 8.dp),
+                TextButton(onClick = onCancel, interactionSource = cancelInteraction,
+                    modifier = Modifier.iosPressFeedback(cancelInteraction).widthIn(min = 48.dp).heightIn(min = 48.dp)) {
+                Text("取消",
                     color = label.copy(alpha = .82f),
                     fontSize = 12.sp,
                     maxLines = 1,
                 )
+                }
             }
         }
     }

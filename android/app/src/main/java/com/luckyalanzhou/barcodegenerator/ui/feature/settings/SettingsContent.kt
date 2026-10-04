@@ -67,6 +67,7 @@ import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 @Composable
 internal fun SettingsContent(
+    checkingForUpdates: Boolean,
     settings: SettingsUiState,
     dark: Boolean,
     onPersist: (SettingsUiState) -> Unit,
@@ -259,7 +260,8 @@ internal fun SettingsContent(
                         Text("版本：${BuildConfig.VERSION_NAME}", color = colors.settingsText.secondary, fontSize = 13.sp)
                     }
                     SettingsButton(
-                        text = "检查更新",
+                        text = if (checkingForUpdates) "检查中…" else "检查更新",
+                        busy = checkingForUpdates,
                         color = colors.controls.button,
                         contentColor = colors.settingsText.primary,
                         onClick = onCheckForUpdates,
