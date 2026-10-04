@@ -57,6 +57,15 @@ def main():
         capsule_rest = render(.45, 0, 0, dark, capsule=True)
         capsule_contact = render(.45, 0, 0, dark, contact=1, capsule=True)
         assert np.array_equal(capsule_rest, capsule_contact), "Tab background duplicates foreground rim light"
+        menu_bright = render(.56, 0, 0, dark, 0xFFFFFFFF)
+        menu_dark = render(.56, 0, 0, dark, 0xFF000000)
+        interior_response = np.abs(menu_bright[65:115, 90:230, :3].astype(int) - menu_dark[65:115, 90:230, :3].astype(int)).max()
+        assert interior_response <= 21, "Menu content region still exposes strong background lettering"
+        edge_response = np.abs(menu_bright[65:115, 27:29, :3].astype(int) - menu_dark[65:115, 27:29, :3].astype(int)).mean()
+        assert edge_response > interior_response, "Menu rim loses its environment response"
+        tab_bright = render(.56, 0, 0, dark, 0xFFFFFFFF, capsule=True)
+        tab_dark = render(.56, 0, 0, dark, 0xFF000000, capsule=True)
+        assert np.abs(tab_bright[65:115, 90:230, :3].astype(int) - tab_dark[65:115, 90:230, :3].astype(int)).mean() > 30, "Menu protection accidentally makes capsules opaque"
         print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
 
     # Exercise the actual foreground lens independently: it must add no material or duplicate layer.

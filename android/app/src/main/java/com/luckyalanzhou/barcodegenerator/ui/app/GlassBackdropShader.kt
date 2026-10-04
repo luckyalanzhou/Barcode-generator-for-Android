@@ -37,6 +37,11 @@ half4 main(float2 p) {
     float detail = smoothstep(0.015, 0.35, length(float3(center - scene)));
     float protection = smoothstep(0.12, 0.75, abs(luminance - targetLuminance)) * 0.24 + detail * 0.10;
     float opacity = clamp(shape.w + protection, 0.0, 1.0);
+    // Menus contain labels: quiet the interior without making the rim an opaque slab.
+    // Capsules keep their existing material; this protection must not tint the whole tab bar.
+    float interior = smoothstep(1.5, 12.0, depth) * (1.0 - capsuleMode);
+    float interiorOpacity = mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance));
+    opacity = max(opacity, mix(shape.w, interiorOpacity, interior));
     half3 color = mix(scene, surfaceColor.rgb, half(opacity));
     // Tab rim is drawn once by TabGlassSurface; only menu backgrounds own their rim here.
     float rim = (1.0 - smoothstep(0.0, 1.5, depth)) * (1.0 - capsuleMode);
