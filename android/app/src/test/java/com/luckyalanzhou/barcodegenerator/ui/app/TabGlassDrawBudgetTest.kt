@@ -5,28 +5,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabGlassDrawBudgetTest {
-    @Test fun movingCropContainsLensAtEveryTabAndReducesInputArea() {
+    @Test fun fullInputSizeDoesNotChangeWhileLensMovesOrReverses() {
         val size = IntSize(1440, 200)
-        for (step in 0..30) {
+        for (step in (0..30) + (30 downTo 0)) {
             val frame = tabGlassFrame(1440f, 200f, 3f, 4, step / 10f, 1f, .03f, 1f)
-            val region = requireNotNull(tabForegroundRegion(frame, size))
-            assertTrue(region.left >= 0 && region.right <= size.width)
-            assertTrue(region.left <= frame.centerX - frame.halfWidth)
-            assertTrue(region.right >= frame.centerX + frame.halfWidth)
-            assertTrue(region.size.width * 3 < size.width)
-            val local = region.localFrame(frame)
-            assertEquals(frame.centerX, local.centerX + region.left, .0001f)
-            assertEquals(frame.touchX, local.touchX + region.left, .0001f)
+            assertEquals(IntSize(2880, 200), tabForegroundAtlasSize(size))
+            assertEquals(size.width.toFloat(), frame.width, 0f)
+            assertTrue(frame.centerX - frame.halfWidth >= 0f)
+            assertTrue(frame.centerX + frame.halfWidth <= frame.width)
         }
     }
 
-    @Test fun invalidCropUsesOriginalForeground() {
-        val frame = tabGlassFrame(1440f, 200f, 3f, 4, 0f, 1f, 0f, 1f)
-        assertNull(tabForegroundRegion(frame.copy(centerX = Float.NaN), IntSize(1440, 200)))
-        assertNull(tabForegroundRegion(frame.copy(density = Float.POSITIVE_INFINITY), IntSize(1440, 200)))
-        assertNull(tabForegroundRegion(frame, IntSize.Zero))
-    }
-    @Test fun normalPhoneNavigationUsesSmallTwoInputSurface() {
+    @Test fun normalPhoneNavigationFitsBoundedFullWidthSurface() {
         assertEquals(IntSize(2160, 200), tabForegroundAtlasSize(IntSize(1080, 200)))
         assertEquals(IntSize(2880, 300), tabForegroundAtlasSize(IntSize(1440, 300)))
     }

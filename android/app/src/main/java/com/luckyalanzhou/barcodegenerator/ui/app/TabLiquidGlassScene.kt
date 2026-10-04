@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.drawscope.translate
@@ -99,40 +98,34 @@ internal fun TabLiquidGlassScene(
             val frame = frameProvider()
             val displacement = if (visible && !policy.reduceMotion && !policy.opaqueGlass &&
                 ValueAnimator.areAnimatorsEnabled()) tabForegroundDisplacement(frame, motion.velocity) else 0f
-            val region = tabForegroundRegion(frame, IntSize(size.width.toInt(), size.height.toInt()))
-            val atlasSize = region?.let { tabForegroundAtlasSize(it.size) }
+            val foregroundSize = IntSize(size.width.toInt(), size.height.toInt())
+            val atlasSize = tabForegroundAtlasSize(foregroundSize)
             val foregroundRenderer = if (Build.VERSION.SDK_INT >= 33 && backdropAvailable &&
                 backdropSource?.ready == true && displacement > .001f && atlasSize != null)
                 foregroundFactory.value else null
             if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && backdropSource != null && atlasSize != null) {
-                val localFrame = region.localFrame(frame)
-                // Record children exactly once before replaying into either destination.
-                // Direct drawing followed by recording can move child RenderNodes between
-                // different positions/clips within one frame on Android.
+                // Use fixed full-width coordinates for both inputs and a single output draw.
+                // Remove moving crop/split replay, where device validation showed missing glyphs.
                 traceGlassDraw("TabGlass.ForegroundRecord") {
-                    foregroundLayer.record(size = IntSize(size.width.toInt(), size.height.toInt())) {
+                    foregroundLayer.record(size = foregroundSize) {
                         this@drawWithContent.drawContent()
                     }
                 }
-                // Replay the same foreground recording outside the crop and into the atlas.
-                clipRect(region.left.toFloat(), 0f, region.right.toFloat(), frame.height, ClipOp.Difference) {
-                    drawLayer(foregroundLayer)
-                }
                 traceGlassDraw("TabGlass.AtlasRecord") {
                     atlasLayer.record(size = atlasSize) {
-                        clipRect(0f, 0f, localFrame.width, localFrame.height) {
+                        clipRect(0f, 0f, frame.width, frame.height) {
                             drawRect(background)
                             val offset = backdropSource.origin - foregroundOrigin
-                            translate(offset.x - region.left, offset.y) { drawLayer(backdropSource.layer) }
+                            translate(offset.x, offset.y) { drawLayer(backdropSource.layer) }
                         }
-                        clipRect(localFrame.width, 0f, localFrame.width * 2f, localFrame.height) {
-                            translate(localFrame.width - region.left, 0f) { drawLayer(foregroundLayer) }
+                        clipRect(frame.width, 0f, frame.width * 2f, frame.height) {
+                            translate(frame.width, 0f) { drawLayer(foregroundLayer) }
                         }
                     }
                 }
-                atlasLayer.renderEffect = foregroundRenderer.effect(localFrame, displacement, materialColor, material.surfaceOpacity)
+                atlasLayer.renderEffect = foregroundRenderer.effect(frame, displacement, materialColor, material.surfaceOpacity)
                 traceGlassDraw("TabGlass.AtlasDraw") {
-                    translate(region.left.toFloat(), 0f) { drawLayer(atlasLayer) }
+                    drawLayer(atlasLayer)
                 }
             } else {
                 atlasLayer.renderEffect = null

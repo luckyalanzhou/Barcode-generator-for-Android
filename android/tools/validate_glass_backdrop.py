@@ -12,15 +12,16 @@ def main():
         sys.path.insert(0, str(args.runtime_package_dir))
     # Native Skia cannot model Compose child RenderNodes changing draw destinations.
     scene_source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/TabLiquidGlassScene.kt").read_text(encoding="utf-8")
-    gpu_branch = scene_source.split("val localFrame = region.localFrame(frame)", 1)[1].split("} else {", 1)[0]
+    gpu_branch = scene_source.split('// Use fixed full-width coordinates', 1)[1].split("} else {", 1)[0]
     assert gpu_branch.count("this@drawWithContent.drawContent()") == 1, "GPU path must record child content exactly once"
-    recording = gpu_branch.index("foregroundLayer.record(size = IntSize")
-    outside = gpu_branch.index("ClipOp.Difference")
+    recording = gpu_branch.index("foregroundLayer.record(size = foregroundSize)")
     atlas = gpu_branch.index("atlasLayer.record(size = atlasSize)")
-    assert recording < outside < atlas, "Record complete foreground before either replay destination"
-    outside_branch = gpu_branch[outside:atlas]
-    assert "drawLayer(foregroundLayer)" in outside_branch and "drawContent()" not in outside_branch, "Outside crop must replay, not redraw child nodes"
-    print("PASS: Compose foreground records children once at full size before outside/atlas replay (source contract, not device validation)")
+    assert recording < atlas, "Record complete foreground before atlas replay"
+    assert "ClipOp.Difference" not in scene_source and "region.left" not in scene_source, "Moving split/crop must not return"
+    assert gpu_branch.count("drawLayer(foregroundLayer)") == 1, "Foreground must have one replay destination"
+    assert gpu_branch.count("drawLayer(atlasLayer)") == 1, "Output must be drawn once"
+    assert "foregroundRenderer.effect(frame," in gpu_branch, "Shader must use full scene coordinates"
+    print("PASS: full-width Compose input, single foreground replay and single output (source contract, not device validation)")
     import numpy as np
     import skia
     source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
@@ -101,16 +102,10 @@ def main():
         glyphs.getCanvas().drawLine(x, 55, x, 125, skia.Paint(Color=0xFF2684FF, StrokeWidth=2))
     image = glyphs.makeImageSnapshot()
 
-    def foreground(displacement, center_x, background=None, opacity=.3, crop=None):
+    def foreground(displacement, center_x, background=None, opacity=.3):
         builder = skia.RuntimeShaderBuilder(foreground_effect)
-        left, right = (0, w) if crop is None else crop
-        width = right - left
+        width = w
         glyph_image = image
-        if crop is not None:
-            cropped = skia.Surface(width, h)
-            cropped.getCanvas().clear(0)
-            cropped.getCanvas().drawImage(image, -left, 0)
-            glyph_image = cropped.makeImageSnapshot()
         input_image = glyph_image
         if background is not None:
             atlas = skia.Surface(width * 2, h)
@@ -120,7 +115,7 @@ def main():
             input_image = atlas.makeImageSnapshot()
         builder.setChild("content", input_image.makeShader(skia.SamplingOptions(skia.FilterMode.kLinear)))
         builder.setUniform("resolution", skia.V2(width, h))
-        builder.setUniform("capsule", skia.V4(center_x - left, h / 2, 42, 28))
+        builder.setUniform("capsule", skia.V4(center_x, h / 2, 42, 28))
         builder.setUniform("lens", skia.V2(displacement, 1))
         builder.setUniform("atlasMode", 1.0 if background is not None else 0.0)
         builder.setUniform("surfaceOpacity", opacity)
@@ -151,22 +146,15 @@ def main():
     assert np.array_equal(stationary_atlas[:, :w], original), "Adaptive atlas changes stationary foreground"
     print("PASS: shared GPU input contrast response, unchanged alpha, invisible input half and stationary identity")
 
-    for center_x in (45, 80, 140, 200, 275):
-        left, right = max(0, center_x - 50), min(w, center_x + 50)
+    positions = list(range(45, 276, 5))
+    for center_x in positions + positions[::-1]:
         for background in (0xFF000000, 0xFFFFFFFF):
             full = foreground(1.2, center_x, background)[:, :w]
-            cropped = foreground(1.2, center_x, background, crop=(left, right))
-            stitched = original.copy()
-            stitched[:, left:right] = cropped[:, :right-left]
-            delta = np.abs(stitched.astype(int) - full.astype(int))
-            # toarray returns unpremultiplied channels: a one-step stored-color rounding
-            # difference is amplified at low alpha. Compare actual composited contribution.
-            full_contribution = np.rint(full[:, :, :3].astype(float) * full[:, :, 3:4] / 255)
-            cropped_contribution = np.rint(stitched[:, :, :3].astype(float) * stitched[:, :, 3:4] / 255)
-            premultiplied_delta = np.abs(full_contribution - cropped_contribution)
-            assert delta[:, :, 3].max() <= 1 and premultiplied_delta.max() <= 1, "Cropped foreground has a visible seam or coordinate mismatch"
-            assert np.max(cropped[:, right-left:, 3]) == 0, "Cropped input half leaks into other tabs"
-    print("PASS: cropped foreground matches full-width pixels across positions and backgrounds, with no seam or input leakage")
+            outside = np.ones((h, w), dtype=bool)
+            outside[62:118, center_x-42:center_x+42] = False
+            assert np.array_equal(full[outside], original[outside]), "Moving full-width atlas erases other tabs"
+            assert abs(full[:, :, 3].astype(float).sum() / original[:, :, 3].sum() - 1) < .02, "Foreground coverage lost during movement"
+    print("PASS: full-width forward/reverse lens sweep preserves outside glyphs and total coverage on dark/light backgrounds")
 
 
 if __name__ == "__main__":
