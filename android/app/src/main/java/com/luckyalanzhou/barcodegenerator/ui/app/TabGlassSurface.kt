@@ -11,7 +11,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -29,7 +28,7 @@ internal fun TabGlassSurface(
         val topLeft = Offset(frame.centerX - frame.halfWidth, frame.centerY - frame.halfHeight)
         val bounds = Size(frame.halfWidth * 2, frame.halfHeight * 2)
         val corner = CornerRadius(min(frame.halfWidth, frame.halfHeight))
-        val fill = lerp(lerp(background, Color.White, material.whiteLift), accent, material.accentTint)
+        val fill = tabGlassFill(background, accent, material)
         drawRoundRect(fill.copy(alpha = material.surfaceOpacity), topLeft, bounds, corner)
         val stroke = material.edgeWidthDp * .55f * frame.density
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)

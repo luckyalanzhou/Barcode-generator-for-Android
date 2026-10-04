@@ -53,7 +53,8 @@ internal fun TabLiquidGlassScene(
     val material = remember(background, sceneSize.height, density) {
         tabGlassMaterial(background, sceneSize.height / density)
     }
-    val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, whiteLift = 0f, accentTint = 0f) else material
+    val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, bodyTintStrength = 0f, accentTint = 0f) else material
+    val materialColor = tabGlassFill(background, accent, resolvedMaterial)
     val active = !policy.reduceMotion && visible && (motion.dragging || motion.settling || motion.pressed)
     val activity = animateFloatAsState(
         targetValue = if (active) 1f else 0f,
@@ -81,7 +82,7 @@ internal fun TabLiquidGlassScene(
     Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }) {
         if (visible && !policy.opaqueGlass) {
             GlassBackdropSurface(
-                modifier = Modifier.fillMaxSize(), color = background,
+                modifier = Modifier.fillMaxSize(), color = materialColor,
                 opacity = material.surfaceOpacity, cornerDp = sceneSize.height / density / 2f,
                 blurDp = 1.5f, refractionDp = { frameProvider().refractionPx / density }, capsule = frameProvider, drawFallback = false,
                 renderer = renderer,
@@ -124,7 +125,7 @@ internal fun TabLiquidGlassScene(
                         }
                     }
                 }
-                atlasLayer.renderEffect = foregroundRenderer.effect(localFrame, displacement, background, material.surfaceOpacity)
+                atlasLayer.renderEffect = foregroundRenderer.effect(localFrame, displacement, materialColor, material.surfaceOpacity)
                 traceGlassDraw("TabGlass.AtlasDraw") {
                     translate(region.left.toFloat(), 0f) { drawLayer(atlasLayer) }
                 }

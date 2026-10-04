@@ -21,7 +21,7 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None):
         builder = skia.RuntimeShaderBuilder(effect)
         input_page = page
         if page_color is not None:
@@ -33,7 +33,7 @@ def main():
         builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
         builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
         builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
-        builder.setUniform("surfaceColor", skia.V4(*((.08, .09, .12, 1) if dark else (.97, .98, 1, 1))))
+        builder.setUniform("surfaceColor", skia.V4(*(surface_color if surface_color is not None else ((.08, .09, .12, 1) if dark else (.97, .98, 1, 1)))))
         output = skia.Surface(w, h)
         output.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
         return output.makeImageSnapshot().toarray()
@@ -67,6 +67,19 @@ def main():
         tab_dark = render(.56, 0, 0, dark, 0xFF000000, capsule=True)
         assert np.abs(tab_bright[65:115, 90:230, :3].astype(int) - tab_dark[65:115, 90:230, :3].astype(int)).mean() > 30, "Menu protection accidentally makes capsules opaque"
         print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
+
+    # Representative neutral fills; the exact material formula is covered by Kotlin tests.
+    # Even with zero refraction/contact, a pure-color page must not erase the selected body.
+    for dark, page_color, fill in ((False, 0xFFF2F3F8, (.86, .87, .90, 1)),
+                                  (True, 0xFF17191D, (.20, .21, .22, 1))):
+        static = render(.60, 0, 0, dark, page_color, capsule=True, surface_color=fill)
+        reference = skia.Surface(w, h)
+        reference.getCanvas().clear(page_color)
+        backdrop = reference.makeImageSnapshot().toarray()
+        delta = np.abs(static[65:115, 90:230, :3].astype(int) - backdrop[65:115, 90:230, :3].astype(int))
+        assert delta.mean() >= 8, "Stationary selected body disappears on a uniform page"
+        assert np.max(static[:20, :, 3]) == 0, "Stationary material creates an external frame or glow"
+    print("PASS: stationary light/dark neutral capsule body remains visible without contact or refraction")
 
     # Exercise the actual foreground lens independently: it must add no material or duplicate layer.
     foreground_source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/TabForegroundLens.kt").read_text(encoding="utf-8").split('"""', 2)[1]
