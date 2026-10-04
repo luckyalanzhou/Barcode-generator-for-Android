@@ -138,7 +138,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     }
     val tabMenuProgress = animateFloatAsState(
         targetValue = if (tabMenu.open && tabMenu.ready) 1f else 0f,
-        animationSpec = tween(if (effects.reduceMotion) 0 else 190, easing = FastOutSlowInEasing),
+        animationSpec = tween(if (effects.reduceMotion) 0 else if (tabMenu.menu?.tabAnchor == false) 240 else 190, easing = FastOutSlowInEasing),
         finishedListener = { if (it == 0f) tabMenu.closed() },
         label = "tab-menu-presentation",
     )

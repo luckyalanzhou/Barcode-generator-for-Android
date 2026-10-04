@@ -7,6 +7,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabMenuPlacementTest {
+    @Test fun rowMenuAlignsToSourceLeftRatherThanTitleCenter() {
+        val row = Rect(20f, 200f, 380f, 250f)
+        val placement = rowMenuPlacement(row, Offset.Zero, IntSize(200, 160),
+            400f, 24f, 12f, 8f, 10f, false)
+        assertEquals(20f, placement.left, 0f)
+        assertEquals(0f, placement.pivotX, 0f)
+        assertEquals(row.bottom + 8f, placement.top - 10f, 0f)
+    }
+
+    @Test fun lowerSourceLiftsEnoughToKeepMenuBelowAndOnScreen() {
+        val row = Rect(20f, 650f, 380f, 700f)
+        val lifted = liftedRowMenuAnchor(row, Offset.Zero, 800f, 24f, 24f, 8f, 200f)
+        assertTrue(lifted.top < row.top)
+        assertEquals(row.width, lifted.width, 0f)
+        assertTrue(lifted.bottom + 8f + 200f <= 768f)
+        assertTrue(lifted.top >= 32f)
+    }
+
+    @Test fun upperSourceStaysInPlaceAndOversizedMenuUsesFallback() {
+        val row = Rect(20f, 70f, 380f, 120f)
+        assertEquals(row, liftedRowMenuAnchor(row, Offset.Zero, 800f, 24f, 24f, 8f, 200f))
+        assertEquals(row, liftedRowMenuAnchor(row, Offset.Zero, 160f, 24f, 24f, 8f, 200f))
+    }
+
     @Test fun titleMenuPrefersBelowEvenWhenBothSidesFitAndAboveIsLarger() {
         val title = Rect(70f, 450f, 270f, 475f)
         val space = contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f, 8f, 10f, 200f, false)
