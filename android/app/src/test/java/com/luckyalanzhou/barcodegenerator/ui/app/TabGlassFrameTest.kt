@@ -52,7 +52,14 @@ class TabGlassFrameTest {
         val three = tabGlassFrame(1080f, 180f, 3f, 4, 1f, 1f, 0f, 1f, refractionDp = 2f)
         assertEquals(one.refractionPx * 3f, three.refractionPx, .001f)
         val limited = tabGlassFrame(360f, 60f, 1f, 4, 1f, 99f, 99f, 1f, refractionDp = 99f)
-        assertEquals(3f, limited.refractionPx, 0f)
+        assertEquals(3.6f, limited.refractionPx, 0f)
         assertEquals(1f, limited.motion, 0f)
+    }
+
+    @Test fun slowMotionRetainsEightyPercentOfDynamicRefraction() {
+        val slow = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f,
+            refractionDp = 3f, velocityTabsPerSecond = 0f)
+        assertEquals(2.4f, slow.refractionPx, .0001f)
+        assertEquals(.8f, slow.motion, .0001f)
     }
 }

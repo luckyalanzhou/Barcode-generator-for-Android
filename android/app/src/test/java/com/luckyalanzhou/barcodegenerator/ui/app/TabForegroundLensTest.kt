@@ -15,7 +15,7 @@ class TabForegroundLensTest {
 
     @Test fun displacementIsBoundedAndScalesInPhysicalPixels() {
         val one = tabForegroundDisplacement(frame(), 4f)
-        assertTrue(one > 1.2f && one <= 1.8f)
+        assertTrue(one > 1.8f && one <= 2.4f)
         assertEquals(one * 3f, tabForegroundDisplacement(frame(3f), 4f), .0001f)
         assertEquals(one, tabForegroundDisplacement(frame(), -4f), 0f)
         assertEquals(one, tabForegroundDisplacement(frame(), 100f), 0f)
@@ -37,5 +37,14 @@ class TabForegroundLensTest {
         assertEquals(tabForegroundDisplacement(slowFrame, .1f), tabForegroundDisplacement(slowFrame, -.1f), 0f)
         assertTrue(tabForegroundDisplacement(slowFrame, .00001f) < .001f)
         assertEquals(0f, tabForegroundDisplacement(slowFrame, 0f), 0f)
+    }
+
+    @Test fun strongerRefractionCannotExceedForegroundLimit() {
+        for (density in listOf(1f, 2f, 3f)) {
+            val strong = tabGlassFrame(360f * density, 60f * density, density, 4,
+                .5f, 1f, 0f, 1f, refractionDp = 99f)
+            assertEquals(2.4f * density, tabForegroundDisplacement(strong, 4f), .0001f)
+            assertEquals(0f, tabForegroundDisplacement(strong, 0f), 0f)
+        }
     }
 }

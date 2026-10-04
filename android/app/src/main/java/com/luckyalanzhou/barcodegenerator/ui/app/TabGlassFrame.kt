@@ -19,6 +19,7 @@ internal data class TabGlassFrame(
     val touchX: Float,
     val touchY: Float,
     val contactSpread: Float,
+    val travelStrength: Float = 0f,
 )
 
 /** Test the rendered capsule, not the whole navigation bar or the selected tab's cell. */
@@ -51,14 +52,15 @@ internal fun tabGlassFrame(
     val safeProgress = progress.coerceIn(0f, (tabCount.coerceAtLeast(1) - 1).toFloat())
     val strength = motion.coerceIn(0f, 1f)
     val speed = if (velocityTabsPerSecond.isFinite()) (abs(velocityTabsPerSecond) / 4f).coerceIn(0f, 1f) else 0f
-    val opticalStrength = strength * (.65f + .35f * speed)
+    val opticalStrength = strength * (.80f + .20f * speed)
     val fraction = safeProgress - safeProgress.toInt()
     val handoff = sin(fraction * Math.PI).toFloat().coerceIn(0f, 1f) * strength * (.45f + .55f * speed)
     val cellWidth = safeWidth / tabCount.coerceAtLeast(1)
+    val strain = tabContactStrain(touchX, cellWidth * (safeProgress + .5f), cellWidth, strength)
     val halfWidth = ((cellWidth * .5f - 3f * safeDensity).coerceAtLeast(1f) *
-        (1f + impact.coerceIn(0f, .035f) + handoff * .05f)).coerceAtMost(safeWidth * .5f)
+        (1f + impact.coerceIn(0f, .035f) + handoff * .05f + strain)).coerceAtMost(safeWidth * .5f)
     val halfHeight = (safeHeight * .5f - 2f * safeDensity).coerceAtLeast(.5f) *
-        (1f - handoff * .03f)
+        (1f - handoff * .03f - strain * .5f)
     val centerX = (cellWidth * (safeProgress + .5f)).coerceIn(halfWidth, safeWidth - halfWidth)
     val centerY = safeHeight * .5f
     return TabGlassFrame(
@@ -69,10 +71,12 @@ internal fun tabGlassFrame(
         halfWidth = halfWidth,
         halfHeight = halfHeight.coerceAtMost(safeHeight * .5f),
         motion = opticalStrength,
-        refractionPx = refractionDp.coerceIn(0f, 3f) * safeDensity * opticalStrength,
+        refractionPx = refractionDp.coerceIn(0f, 3.6f) * safeDensity * opticalStrength,
         density = safeDensity,
         touchX = touchX ?: centerX + halfWidth * .6f * direction.coerceIn(-1f, 1f),
         touchY = touchY ?: centerY - halfHeight * .75f,
         contactSpread = contactSpread.coerceIn(0f, 1f),
+        travelStrength = opticalStrength * (if (velocityTabsPerSecond.isFinite())
+            (abs(velocityTabsPerSecond) / .06f).coerceIn(0f, 1f) else 0f),
     )
 }

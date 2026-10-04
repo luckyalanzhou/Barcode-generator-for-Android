@@ -11,7 +11,7 @@ class TabGlassMaterialTest {
     fun bodyContrastIsBoundedAndAccentStaysSubtle() {
         val dark = tabGlassMaterial(Color(0xFF17191D), 56f)
         val light = tabGlassMaterial(Color(0xFFF5F7FC), 56f)
-        assertTrue(dark.bodyTintStrength in .11f.. .15f)
+        assertTrue(dark.bodyTintStrength in .085f.. .105f)
         assertTrue(light.bodyTintStrength in .14f.. .17f)
         assertTrue(dark.accentTint < .01f && light.accentTint < .015f)
     }
@@ -25,7 +25,7 @@ class TabGlassMaterialTest {
             assertEquals(large, tabGlassMaterial(background, 1000f))
             assertTrue(large.refractionDp > small.refractionDp)
             assertTrue(large.edgeWidthDp > small.edgeWidthDp)
-            assertTrue(large.refractionDp <= 3f)
+            assertTrue(large.refractionDp <= 3.6f)
             assertTrue(large.edgeWidthDp <= 1.5f)
             assertTrue(small.surfaceOpacity >= .54f && large.surfaceOpacity <= .65f)
         }
@@ -42,7 +42,7 @@ class TabGlassMaterialTest {
                 background.blue + (fill.blue - background.blue) * alpha)
             val difference = maxOf(kotlin.math.abs(composite.red - background.red),
                 kotlin.math.abs(composite.green - background.green), kotlin.math.abs(composite.blue - background.blue))
-            assertTrue("Stationary capsule body must remain visible", difference >= .04f)
+            assertTrue("Stationary capsule body must remain visible", difference >= .03f)
             if (background.luminance() < .35f) assertTrue(composite.luminance() > background.luminance())
             else assertTrue(composite.luminance() < background.luminance())
             assertTrue(material.edgeWidthDp * .55f < .8f)
@@ -53,5 +53,24 @@ class TabGlassMaterialTest {
         val background = Color(0xFF17191D)
         val material = tabGlassMaterial(background, 56f).copy(bodyTintStrength = 0f, accentTint = 0f)
         assertEquals(background, tabGlassFill(background, Color.Blue, material))
+    }
+
+    @Test fun bevelStaysThinInPhysicalPixelsAcrossDisplayDensities() {
+        val material = tabGlassMaterial(Color.White, 56f)
+        for (density in listOf(1f, 2f, 3f, 4f)) {
+            assertTrue(tabGlassEdgeWidthPx(material, density) in 1f..1.5f)
+        }
+    }
+
+    @Test fun outlineSeparatesLightAndDarkWithoutAccentGlow() {
+        val light = tabGlassMaterial(Color.White, 56f)
+        val dark = tabGlassMaterial(Color.Black, 56f)
+        val lightOutline = tabGlassOutlineColor(Color.White, light)
+        val darkOutline = tabGlassOutlineColor(Color.Black, dark)
+        assertEquals(0f, lightOutline.red, 0f)
+        assertEquals(1f, darkOutline.red, 0f)
+        assertTrue(lightOutline.alpha in .03f.. .05f)
+        assertTrue(darkOutline.alpha in .04f.. .06f)
+        assertTrue(dark.rimLight in .15f.. .25f)
     }
 }

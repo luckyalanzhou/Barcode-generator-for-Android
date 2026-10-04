@@ -5,6 +5,21 @@ import androidx.compose.ui.geometry.Rect
 import kotlin.math.abs
 import androidx.compose.ui.graphics.TransformOrigin
 
+/** Lower drag gain slows the source without queuing animations for every pointer update. */
+internal object TabMenuSourceMotion {
+    const val dragRangeDp = 96f
+    const val horizontalLimitDp = 20f
+    const val verticalLimitDp = 22f
+    const val returnStiffness = 300f
+    const val returnDamping = .95f
+}
+
+internal fun tabMenuIconMotion(motion: Offset): Offset {
+    val ratio = TabMenuSourceMotion.dragRangeDp / 64f
+    fun resist(value: Float): Float = value / (ratio + (1f - ratio) * abs(value))
+    return Offset(resist(motion.x), resist(motion.y))
+}
+
 /** Tab menus stay in place and contract toward their own lower corner. */
 internal fun tabMenuDragOrigin(anchorCenterX: Float, screenWidth: Float): TransformOrigin =
     TransformOrigin(if (anchorCenterX < screenWidth * .5f) 0f else 1f, 1f)

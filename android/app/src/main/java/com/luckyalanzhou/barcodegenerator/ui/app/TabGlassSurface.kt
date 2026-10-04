@@ -30,13 +30,19 @@ internal fun TabGlassSurface(
         val corner = CornerRadius(min(frame.halfWidth, frame.halfHeight))
         val fill = tabGlassFill(background, accent, material)
         drawRoundRect(fill.copy(alpha = material.surfaceOpacity), topLeft, bounds, corner)
-        val stroke = material.edgeWidthDp * .55f * frame.density
+        val stroke = tabGlassEdgeWidthPx(material, frame.density)
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)
         val innerBounds = Size((bounds.width - stroke).coerceAtLeast(.1f), (bounds.height - stroke).coerceAtLeast(.1f))
         val innerCorner = CornerRadius((corner.x - stroke * .5f).coerceAtLeast(.1f))
+        // Both passes share one contour: no offset second frame and no outside halo.
+        drawRoundRect(tabGlassOutlineColor(background, material), innerTopLeft, innerBounds,
+            innerCorner, style = Stroke(stroke))
         drawRoundRect(
             Brush.verticalGradient(
-                listOf(Color.White.copy(alpha = material.rimLight), Color.Black.copy(alpha = material.innerShadow)),
+                0f to Color.White.copy(alpha = material.rimLight),
+                .30f to Color.White.copy(alpha = material.rimLight * .12f),
+                .55f to Color.Transparent,
+                1f to Color.Black.copy(alpha = material.innerShadow),
                 startY = topLeft.y, endY = topLeft.y + bounds.height,
             ),
             innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke),

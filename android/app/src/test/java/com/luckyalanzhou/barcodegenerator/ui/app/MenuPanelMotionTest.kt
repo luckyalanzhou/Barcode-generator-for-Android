@@ -8,6 +8,23 @@ import org.junit.Test
 class MenuPanelMotionTest {
     private val panel = Rect(20f, 100f, 220f, 300f)
 
+    @Test fun tabSourceHasSmallerTravelAndLowerDragGainThanRowSources() {
+        for (distance in listOf(8f, 32f, 64f, 192f, 10000f)) {
+            val point = Offset(distance, distance)
+            val row = menuAnchorMotion(point, Offset.Zero, 64f)
+            val tab = tabMenuIconMotion(row)
+            val expected = menuAnchorMotion(point, Offset.Zero, TabMenuSourceMotion.dragRangeDp)
+            assertEquals(expected.x, tab.x, .0001f)
+            assertEquals(expected.y, tab.y, .0001f)
+            assertTrue(tab.x * TabMenuSourceMotion.horizontalLimitDp < row.x * 28f)
+            assertTrue(tab.y * TabMenuSourceMotion.verticalLimitDp < row.y * 32f)
+            assertTrue(tab.x * TabMenuSourceMotion.horizontalLimitDp < 20f)
+            assertTrue(tab.y * TabMenuSourceMotion.verticalLimitDp < 22f)
+        }
+        assertTrue(TabMenuSourceMotion.returnStiffness < 700f)
+        assertTrue(TabMenuSourceMotion.returnDamping in .9f..1f)
+    }
+
     @Test fun tabMenusUseTheirOwnLeftOrRightLowerCorner() {
         assertEquals(androidx.compose.ui.graphics.TransformOrigin(0f, 1f), tabMenuDragOrigin(100f, 400f))
         assertEquals(androidx.compose.ui.graphics.TransformOrigin(1f, 1f), tabMenuDragOrigin(300f, 400f))

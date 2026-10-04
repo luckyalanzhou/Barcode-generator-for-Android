@@ -155,14 +155,16 @@ internal fun TabLongPressActionOverlay(
         if (gesture.feedbackPoint != null) pointerMotion() else null,
         effects.reduceMotion,
     ) { follow.value }
-    LaunchedEffect(gesture, effects.reduceMotion, anchorMotionRangePx) {
+    LaunchedEffect(gesture, effects.reduceMotion, anchorMotionRangePx, state.tabAnchor) {
         snapshotFlow {
             val point = gesture.feedbackPoint
             point to pointerMotion()
         }.collectLatest { (point, target) ->
             if (effects.reduceMotion) follow.snapTo(Offset.Zero)
             else if (point != null) follow.snapTo(target)
-            else follow.animateTo(Offset.Zero, spring(dampingRatio = .86f, stiffness = 700f))
+            else follow.animateTo(Offset.Zero, spring(
+                dampingRatio = if (state.tabAnchor) TabMenuSourceMotion.returnDamping else .86f,
+                stiffness = if (state.tabAnchor) TabMenuSourceMotion.returnStiffness else 700f))
         }
     }
 
@@ -238,11 +240,14 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             alpha = progress.value
-                            val motion = displayedMotion()
-                            translationX = (motion.x * 28.dp.toPx()).coerceIn(
+                            val rawMotion = displayedMotion()
+                            val motion = if (state.tabAnchor) tabMenuIconMotion(rawMotion) else rawMotion
+                            translationX = (motion.x * (if (state.tabAnchor)
+                                TabMenuSourceMotion.horizontalLimitDp else 28f).dp.toPx()).coerceIn(
                                 minOf(0f, edgePaddingPx - placement.left),
                                 maxOf(0f, screenWidthPx - edgePaddingPx - placement.left - panelSize.width))
-                            translationY = (motion.y * 32.dp.toPx()).coerceIn(
+                            translationY = (motion.y * (if (state.tabAnchor)
+                                TabMenuSourceMotion.verticalLimitDp else 32f).dp.toPx()).coerceIn(
                                 minOf(0f, statusBarTopPx - (placement.top - focusLiftPx)),
                                 maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
                                     (placement.top - focusLiftPx) - panelSize.height))

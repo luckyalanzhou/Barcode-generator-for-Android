@@ -14,6 +14,7 @@ internal data class TabGlassMaterial(
     val edgeWidthDp: Float,
     val refractionDp: Float,
     val surfaceOpacity: Float,
+    val outlineOpacity: Float,
 )
 
 internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMaterial {
@@ -22,19 +23,20 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     val darkBackground = luminance < .35f
     val darkness = (1f - luminance / .35f).coerceIn(0f, 1f)
     return TabGlassMaterial(
-        bodyTintStrength = if (darkBackground) .11f + darkness * .02f + thickness * .01f else .14f + thickness * .025f,
+        bodyTintStrength = if (darkBackground) .085f + darkness * .015f + thickness * .005f else .14f + thickness * .02f,
         accentTint = if (darkBackground) .006f + thickness * .003f else .008f + thickness * .004f,
-        rimLight = if (darkBackground) .12f + thickness * .055f else .18f + thickness * .045f,
-        innerShadow = if (darkBackground) .075f + thickness * .025f else .05f + thickness * .02f,
+        rimLight = if (darkBackground) .20f + thickness * .025f else .32f + thickness * .035f,
+        innerShadow = if (darkBackground) .085f + thickness * .015f else .035f + thickness * .01f,
         edgeWidthDp = .9f + thickness * .45f,
-        refractionDp = 2.0f + thickness * 1.0f,
+        refractionDp = 2.8f + thickness * .8f,
         surfaceOpacity = if (darkBackground) .58f + thickness * .06f else .54f + thickness * .06f,
+        outlineOpacity = if (darkBackground) .045f + thickness * .01f else .035f + thickness * .01f,
     )
 }
 
 /** Same baseline on GPU and fallback: a visible neutral body, not a blue glow or white highlight. */
 internal fun tabGlassFill(background: Color, accent: Color, material: TabGlassMaterial): Color {
-    val neutral = (if (background.luminance() < .35f) Color.White else Color(0xFF64748B)).convert(background.colorSpace)
+    val neutral = (if (background.luminance() < .35f) Color.White else Color(0xFF9098A2)).convert(background.colorSpace)
     val tint = accent.convert(background.colorSpace)
     val body = material.bodyTintStrength.coerceIn(0f, 1f)
     val emphasis = material.accentTint.coerceIn(0f, 1f)
@@ -46,3 +48,11 @@ internal fun tabGlassFill(background: Color, accent: Color, material: TabGlassMa
         channel(background.green, neutral.green, tint.green),
         channel(background.blue, neutral.blue, tint.blue), 1f, background.colorSpace)
 }
+
+/** Optical bevel uses physical pixels; 1dp would become a thick ring on dense displays. */
+internal fun tabGlassEdgeWidthPx(material: TabGlassMaterial, density: Float): Float =
+    (material.edgeWidthDp * .55f * density).coerceIn(1f, 1.5f)
+
+internal fun tabGlassOutlineColor(background: Color, material: TabGlassMaterial): Color =
+    (if (background.luminance() < .35f) Color.White else Color.Black)
+        .copy(alpha = material.outlineOpacity)

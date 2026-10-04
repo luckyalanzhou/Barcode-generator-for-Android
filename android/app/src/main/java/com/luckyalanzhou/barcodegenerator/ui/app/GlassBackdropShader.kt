@@ -8,6 +8,7 @@ uniform float4 bounds;
 uniform float4 shape;
 uniform float4 contact;
 uniform float capsuleMode;
+uniform float2 capsuleOptics;
 layout(color) uniform half4 surfaceColor;
 
 half4 main(float2 p) {
@@ -43,6 +44,21 @@ half4 main(float2 p) {
     float interiorOpacity = mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance));
     opacity = max(opacity, mix(shape.w, interiorOpacity, interior));
     half3 color = mix(scene, surfaceColor.rgb, half(opacity));
+    // Capsule-only, movement-only edge optics. Never sample/recolor the foreground atlas.
+    // Two extra taps are confined to the inner edge band; no frame history or CPU readback.
+    float capsuleEdge = capsuleMode * (1.0 - smoothstep(0.0, 2.0, depth)) *
+        smoothstep(0.0, 0.65, depth);
+    if (capsuleEdge > 0.001 && capsuleOptics.x > 0.001) {
+        float2 split = normal * capsuleOptics.x;
+        half3 redSide = content.eval(clamp(samplePoint + split, float2(0.5), resolution - 0.5)).rgb;
+        half3 blueSide = content.eval(clamp(samplePoint - split, float2(0.5), resolution - 0.5)).rgb;
+        half3 spectrum = half3(redSide.r, center.g, blueSide.b);
+        color += (spectrum - center) * half(capsuleEdge * (1.0 - opacity) * 0.45);
+        // Bounded local environmental color, not Add/Color Dodge or an outside neon glow.
+        float darkSurface = 1.0 - smoothstep(0.05, 0.35, targetLuminance);
+        color += clamp(scene - half3(luminance), half3(-0.35), half3(0.35)) *
+            half(capsuleEdge * capsuleOptics.y * darkSurface);
+    }
     // Tab rim is drawn once by TabGlassSurface; only menu backgrounds own their rim here.
     float rim = (1.0 - smoothstep(0.0, 1.5, depth)) * (1.0 - capsuleMode);
     float2 lightVector = contact.xy - bounds.xy;
