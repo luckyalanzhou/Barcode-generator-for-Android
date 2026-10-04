@@ -32,6 +32,8 @@ internal fun TabLiquidGlassScene(
     var sceneSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
     val policy = LocalVisualEffectsPolicy.current
+    val renderer = rememberGlassBackdropRenderer()
+    val backdropAvailable = glassBackdropAvailable(policy, renderer)
     val material = remember(background, sceneSize.height, density) {
         tabGlassMaterial(background, sceneSize.height / density)
     }
@@ -66,11 +68,12 @@ internal fun TabLiquidGlassScene(
                 modifier = Modifier.fillMaxSize(), color = background,
                 opacity = material.surfaceOpacity, cornerDp = sceneSize.height / density / 2f,
                 blurDp = 1.5f, refractionDp = { frameProvider().refractionPx / density }, capsule = frameProvider, drawFallback = false,
+                renderer = renderer,
             )
         }
         if (visible) {
             TabGlassSurface(frameProvider, resolvedMaterial.copy(surfaceOpacity =
-                if (glassBackdropAvailable(policy)) 0f else resolvedMaterial.surfaceOpacity.coerceAtLeast(.82f)),
+                if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity.coerceAtLeast(.82f)),
                 accent, background, policy.highContrast)
         }
         content()

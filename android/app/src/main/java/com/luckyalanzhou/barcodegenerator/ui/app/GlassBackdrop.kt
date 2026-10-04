@@ -40,13 +40,16 @@ internal class GlassBackdropSource(val layer: GraphicsLayer) {
 internal val LocalGlassBackdrop = staticCompositionLocalOf<GlassBackdropSource?> { null }
 
 @Composable
-internal fun glassBackdropAvailable(policy: com.luckyalanzhou.barcodegenerator.ui.theme.VisualEffectsPolicy): Boolean =
-    Build.VERSION.SDK_INT >= 33 && LocalView.current.isHardwareAccelerated &&
-        LocalGlassBackdrop.current?.ready == true && !policy.opaqueGlass && rememberBackdropRenderer() != null
+internal fun glassBackdropAvailable(policy: com.luckyalanzhou.barcodegenerator.ui.theme.VisualEffectsPolicy, renderer: BackdropRenderer?): Boolean =
+    glassGpuAvailable(Build.VERSION.SDK_INT, LocalView.current.isHardwareAccelerated,
+        LocalGlassBackdrop.current?.ready == true, renderer != null, policy.opaqueGlass)
 
 @Composable
-private fun rememberBackdropRenderer(): BackdropRenderer? = remember {
-    if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull() else null
+internal fun rememberGlassBackdropRenderer(): BackdropRenderer? {
+    val factory = remember { lazy {
+        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull() else null
+    } }
+    return if (LocalVisualEffectsPolicy.current.opaqueGlass) null else factory.value
 }
 
 @Composable
@@ -76,26 +79,26 @@ internal fun GlassBackdropSurface(
     capsule: (() -> TabGlassFrame)? = null,
     drawFallback: Boolean = true,
     thicknessProgress: () -> Float = { 1f },
+    renderer: BackdropRenderer? = rememberGlassBackdropRenderer(),
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
-    val renderer = rememberBackdropRenderer()
     val density = LocalDensity.current.density
     var origin by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
-    val gpu = Build.VERSION.SDK_INT >= 33 && renderer != null &&
-        LocalView.current.isHardwareAccelerated && source?.ready == true && !policy.opaqueGlass
+    val gpu = glassGpuAvailable(Build.VERSION.SDK_INT, LocalView.current.isHardwareAccelerated,
+        source?.ready == true, renderer != null, policy.opaqueGlass)
     Canvas(modifier.onGloballyPositioned {
         origin = it.localToWindow(Offset.Zero)
         size = it.size
     }.graphicsLayer {
-        if (gpu && size.width > 0 && size.height > 0) {
+        if (Build.VERSION.SDK_INT >= 33 && gpu && renderer != null && size.width > 0 && size.height > 0) {
             val thickness = thicknessProgress().coerceIn(0f, 1f)
             renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp * (.45f + .55f * thickness),
                 if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
         } else renderEffect = null
     }) {
-        if (gpu) {
+        if (gpu && source != null) {
             drawRect(color)
             val offset = source.origin - origin
             translate(offset.x, offset.y) { drawLayer(source.layer) }
@@ -109,12 +112,14 @@ internal fun GlassBackdropSurface(
 }
 
 @RequiresApi(33)
-private class BackdropRenderer(private val shader: RuntimeShader) {
-    private var previous: List<Any>? = null
+internal class BackdropRenderer(private val shader: RuntimeShader) {
+    private data class EffectKey(val size: IntSize, val density: Float, val color: Color,
+        val opacity: Float, val corner: Float, val blur: Float, val refraction: Float, val capsule: TabGlassFrame?)
+    private var previous: EffectKey? = null
     private var cached: androidx.compose.ui.graphics.RenderEffect? = null
 
     fun effect(size: IntSize, density: Float, color: Color, opacity: Float, corner: Float, blur: Float, refraction: Float, capsule: TabGlassFrame?): androidx.compose.ui.graphics.RenderEffect {
-        val key = listOf(size, density, color, opacity, corner, blur, refraction, capsule ?: Unit)
+        val key = EffectKey(size, density, color, opacity, corner, blur, refraction, capsule)
         if (key == previous) cached?.let { return it }
         shader.setFloatUniform("resolution", size.width.toFloat(), size.height.toFloat())
         shader.setFloatUniform("bounds", capsule?.centerX ?: size.width / 2f, capsule?.centerY ?: size.height / 2f,
