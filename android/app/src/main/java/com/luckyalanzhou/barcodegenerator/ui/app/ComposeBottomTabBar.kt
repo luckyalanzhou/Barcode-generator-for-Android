@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
+import com.luckyalanzhou.barcodegenerator.ui.component.performLightMenuOpenHaptic
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
@@ -221,7 +222,7 @@ internal fun BarcodeComposeBottomTabBar(
                         label = "tab-icon-tap-response-$index",
                     )
                     val openMenu: () -> Unit = {
-                                hapticView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                hapticView.performLightMenuOpenHaptic()
                                 val actions = when (index) {
                                     1 -> listOf(
                                         TabLongPressAction(

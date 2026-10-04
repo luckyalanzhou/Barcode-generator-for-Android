@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.LocalLongPressMenuHost
 import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressAction
 import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressMenuState
 import com.luckyalanzhou.barcodegenerator.ui.component.boundsOnScreen
+import com.luckyalanzhou.barcodegenerator.ui.component.performLightMenuOpenHaptic
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -65,7 +66,7 @@ internal fun FavoriteFolderRow(
     var titleAnchor by remember(row.path) { mutableStateOf(Rect.Zero) }
     DisposableEffect(row.path) { onDispose { anchor = Rect.Zero } }
     val openMenu: () -> Unit = {
-        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        view.performLightMenuOpenHaptic()
         val labels = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
         menuHost(TabLongPressMenuState(anchor, FolderIcon, row.label, folderColor, dark,
             actions = labels.map { label ->

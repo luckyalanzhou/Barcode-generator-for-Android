@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.LocalLongPressMenuHost
 import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressAction
 import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressMenuState
 import com.luckyalanzhou.barcodegenerator.ui.component.boundsOnScreen
+import com.luckyalanzhou.barcodegenerator.ui.component.performLightMenuOpenHaptic
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -82,7 +83,7 @@ internal fun FavoriteGroupRow(
     var titleAnchor by remember(group.id) { mutableStateOf(Rect.Zero) }
     DisposableEffect(group.id) { onDispose { anchor = Rect.Zero } }
     val openMenu: () -> Unit = {
-        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        view.performLightMenuOpenHaptic()
         menuHost(TabLongPressMenuState(anchor, AttachFileIcon, group.name, fileColor, dark,
             actions = listOf(
                 TabLongPressAction("查看", VisibilityIcon) { onEdit(group) },
