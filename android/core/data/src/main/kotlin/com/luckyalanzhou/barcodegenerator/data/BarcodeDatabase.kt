@@ -81,6 +81,12 @@ interface BarcodeDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertNewGroups(groups: List<FavoriteGroupEntity>)
     @Query("UPDATE code_items SET favorite = EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id), folder = CASE WHEN EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id) THEN folder ELSE '' END")
     suspend fun reconcileFavoriteFlags()
+    @Query("DELETE FROM favorite_group_items WHERE itemId = :itemId") suspend fun deleteItemLinks(itemId: Long)
+    @Query("DELETE FROM code_items WHERE id = :itemId") suspend fun deleteItem(itemId: Long)
+    @Query("UPDATE favorite_groups SET savedAt = :savedAt WHERE id IN (SELECT groupId FROM favorite_group_items WHERE itemId = :itemId)")
+    suspend fun touchGroupsForItem(itemId: Long, savedAt: Long)
+    @Query("UPDATE favorite_groups SET name = :name, folder = :folder, savedAt = :savedAt WHERE id = :groupId")
+    suspend fun updateGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long)
     @Query("SELECT * FROM code_items ORDER BY createdAt DESC, id DESC") suspend fun loadItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500") suspend fun loadStartupItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE id IN (:ids)") suspend fun loadItemsByIds(ids: List<Long>): List<CodeItemEntity>

@@ -17,6 +17,34 @@ import org.junit.Test
 
 class FavoritesTransferManagerTest {
     @Test
+    fun mixedFormatImportPreservesEachItemFormatAndOrder() {
+        val backup = InterchangeBackup(listOf(InterchangeFavorite(null, "mixed", "", "", "code128", 1,
+            listOf("ABC", "12345670"), listOf("code39", "ean8"))), emptyList())
+        val restored = FavoritesTransferManager.appendEntities(backup, emptyList(), emptyList(), emptyList())
+        assertEquals(listOf("Code 39", "EAN-8"), restored.items.map { it.format })
+        assertEquals(listOf("ABC", "12345670"), restored.items.map { it.text })
+        assertEquals(listOf(0, 1), restored.links.map { it.position })
+    }
+
+    @Test
+    fun mixedFormatExportWritesAlignedPerItemTypes() {
+        val snapshot = BarcodeSnapshot(
+            listOf(CodeItem(1, "ABC", "Code 39"), CodeItem(2, "12345670", "EAN-8")),
+            listOf(FavoriteGroup(1, "", "mixed", 1, mutableListOf(2, 1))),
+            listOf(FavoriteGroupItem(1, 2, 0), FavoriteGroupItem(1, 1, 1)), emptyList(),
+        )
+        val output = ByteArrayOutputStream()
+        FavoritesTransferManager.export(output, snapshot)
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            var content = ""
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name.endsWith(".json")) content = zip.readBytes().toString(Charsets.UTF_8)
+            }
+            assertTrue(content.contains("\"formats\":[\"ean8\",\"code39\"]"))
+        }
+    }
+    @Test
     fun importEntitiesPreserveFolderAndTexts() {
         val backup = InterchangeBackup(
             favorites = listOf(InterchangeFavorite(null, "文件", "一级", "二级", "code128", 11L, listOf("  A B  "))),

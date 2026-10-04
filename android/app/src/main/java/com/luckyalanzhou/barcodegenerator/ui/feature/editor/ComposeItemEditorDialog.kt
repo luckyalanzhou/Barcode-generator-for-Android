@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.editor
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeValidator
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -61,9 +62,12 @@ internal fun MainActivity.showItemEditorCompose(
                 }, modifier = Modifier.padding(start = 20.dp))
                 DialogAction("保存", dark, {
                     val text = value
+                    val format = barcodeFormats[selectedIndex].first
+                    val validation = BarcodeValidator.validate(text, format)
                     if (text.isBlank()) toast("请输入条码内容")
+                    else if (!validation.valid) toast(validation.message)
                     else {
-                        onUpdate(item.id, text, barcodeFormats[selectedIndex].first)
+                        onUpdate(item.id, text, format)
                         dismiss()
                     }
                 }, modifier = Modifier.padding(start = 20.dp))

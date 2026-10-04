@@ -79,6 +79,22 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> =
         database.withTransaction { insertGeneratedItemsWithAllocatedIds(dao, items) }
 
+    override suspend fun deleteItem(itemId: Long, modifiedAt: Long) {
+        database.withTransaction {
+            dao.touchGroupsForItem(itemId, modifiedAt)
+            dao.deleteItemLinks(itemId)
+            dao.deleteItem(itemId)
+        }
+    }
+
+    override suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) {
+        require(name.isNotBlank()) { "收藏文件名不能为空" }
+        database.withTransaction {
+            dao.updateGroupMetadata(groupId, name, folder, savedAt)
+            if (folder.isNotBlank()) dao.saveFolders(listOf(FavoriteFolderEntity(folder)))
+        }
+    }
+
     override suspend fun upsertItems(items: List<CodeItem>) {
         if (items.isNotEmpty()) dao.upsertItems(items.map(CodeItem::toEntity))
     }

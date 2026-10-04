@@ -11,7 +11,17 @@ import org.junit.Test
 
 class BarcodeItemMutationCoordinatorTest {
     @Test
-    fun deletingItemRemovesAllGroupLinksAndPersistsFavoriteSnapshot() {
+    fun invalidEditDoesNotChangeStoredItemOrQueueAWrite() {
+        val original = CodeItem(1, "ABC", "Code 39", 1)
+        val store = LibraryStateStore().apply { replace(listOf(original), emptyList(), emptyList()) }
+        var writes = 0
+        val coordinator = BarcodeItemMutationCoordinator(store, { writes++ }, { writes++ }, { _, _ -> })
+        coordinator.updateItem(1, "lowercase", "Code 39")
+        assertEquals("ABC", store.itemsSnapshot().single().text)
+        assertEquals(0, writes)
+    }
+    @Test
+    fun deletingItemRemovesAllGroupLinksAndPersistsExplicitDeletion() {
         val store = LibraryStateStore()
         val removed = CodeItem(1, "removed", "CODE_128", 1L, favorite = true, folder = "Work", inHistory = true)
         val retained = CodeItem(2, "retained", "CODE_128", 2L, favorite = true, folder = "Work", inHistory = true)
@@ -25,17 +35,20 @@ class BarcodeItemMutationCoordinatorTest {
         )
         var favoriteWrites = 0
         var itemWrites = 0
+        val deletedIds = mutableListOf<Long>()
         val coordinator = BarcodeItemMutationCoordinator(
             store = store,
             persistAllFavorites = { favoriteWrites++ },
             persistItems = { itemWrites++ },
+            persistDeletion = { id, _ -> deletedIds += id },
         )
 
         coordinator.deleteItem(removed.id)
 
         assertEquals(listOf(retained.id), store.itemsSnapshot().map { it.id })
         assertEquals(listOf(listOf(retained.id), emptyList<Long>()), store.groupsSnapshot().map { it.itemIds })
-        assertEquals(1, favoriteWrites)
+        assertEquals(0, favoriteWrites)
+        assertEquals(listOf(removed.id), deletedIds)
         assertEquals(0, itemWrites)
     }
 
@@ -56,6 +69,7 @@ class BarcodeItemMutationCoordinatorTest {
             store = store,
             persistAllFavorites = { favoriteWrites++ },
             persistItems = { itemWrites++ },
+            persistDeletion = { _, _ -> },
         )
 
         coordinator.updateItem(favorite.id, "favorite updated", "QR_CODE")

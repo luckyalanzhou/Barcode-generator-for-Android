@@ -165,6 +165,8 @@ private class FakeFavoriteRepository(
     override suspend fun saveItems(items: List<CodeItem>) = Unit
     override suspend fun upsertItems(items: List<CodeItem>) = Unit
     override suspend fun insertGeneratedItems(items: List<CodeItem>) = error("Generation is not used by these query tests")
+    override suspend fun deleteItem(itemId: Long, modifiedAt: Long) = Unit
+    override suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) = Unit
     override suspend fun loadItemsByIds(ids: List<Long>) = emptyList<CodeItem>()
     override suspend fun clearFavoriteFlags(ids: List<Long>) = Unit
     override suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>) = Unit

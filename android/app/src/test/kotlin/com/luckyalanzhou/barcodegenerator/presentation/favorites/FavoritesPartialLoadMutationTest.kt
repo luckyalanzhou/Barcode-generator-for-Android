@@ -11,6 +11,31 @@ import java.util.concurrent.TimeUnit
 
 class FavoritesPartialLoadMutationTest {
     @Test
+    fun searchOnlyGroupRenamePersistsByIdAndUpdatesSearchCache() {
+        val group = FavoriteGroup(200, "old", "original", 1, mutableListOf(10))
+        val store = LibraryStateStore().apply { replace(emptyList(), emptyList(), listOf("old"), listOf(group)) }
+        val search = LibraryStateStore().apply { replace(emptyList(), listOf(group), listOf("old")) }
+        val written = CountDownLatch(1)
+        var editedId = 0L
+        var editedName = ""
+        val repository = Proxy.newProxyInstance(BarcodeRepository::class.java.classLoader, arrayOf(BarcodeRepository::class.java)) { _, method, args ->
+            check(method.name == "updateFavoriteGroupMetadata")
+            editedId = args[0] as Long
+            editedName = args[1] as String
+            written.countDown()
+            Unit
+        } as BarcodeRepository
+        val persistence = BarcodePersistenceCoordinator(repository, object : BarcodeDataMigration {
+            override suspend fun migrateIfNeeded() = Unit
+        })
+        assertTrue(FavoritesMutationCoordinator(store, persistence, search).renameGroupAndPersist(200, "renamed"))
+        assertTrue(written.await(5, TimeUnit.SECONDS))
+        assertEquals(200L, editedId)
+        assertEquals("renamed", editedName)
+        assertEquals("renamed", search.groupsSnapshot().single().name)
+        assertTrue(store.groupsSnapshot().isEmpty())
+    }
+    @Test
     fun savingNewFavoriteDoesNotClearFavoriteWhoseLinksAreNotLoaded() {
         val existing = CodeItem(10, "existing", "QR_CODE", 1, true, "old")
         val generated = CodeItem(20, "new", "QR_CODE", 2)

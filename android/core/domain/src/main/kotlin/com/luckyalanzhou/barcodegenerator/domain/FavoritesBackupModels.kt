@@ -8,6 +8,8 @@ data class InterchangeFavorite(
     val type: String,
     val time: Long,
     val texts: List<String>,
+    /** Optional aligned per-item types; old backups fall back to the file-wide type. */
+    val formats: List<String> = emptyList(),
 ) {
     val folder: String get() = listOf(rootFolder, subFolder).filter { it.isNotBlank() }.joinToString("/")
 }

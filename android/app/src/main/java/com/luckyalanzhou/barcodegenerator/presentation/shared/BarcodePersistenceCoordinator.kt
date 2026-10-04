@@ -108,6 +108,14 @@ class BarcodePersistenceCoordinator @Inject constructor(
         return enqueue { barcodeRepository.deleteFavoriteGroups(groupIds) }
     }
 
+    fun deleteItem(itemId: Long, modifiedAt: Long) = enqueue { barcodeRepository.deleteItem(itemId, modifiedAt) }
+
+    internal suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
+
+    fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) = enqueue {
+        barcodeRepository.updateFavoriteGroupMetadata(groupId, name, folder, savedAt)
+    }
+
     fun clearAllFavoriteGroups(): Deferred<Result<Unit>> {
         return enqueue { barcodeRepository.clearAllFavoriteGroups() }
     }

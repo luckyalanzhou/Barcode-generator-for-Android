@@ -38,7 +38,10 @@ class FavoritesViewModel @Inject constructor(
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
-    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence) { dataSession.publishDataState() }
+    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, querySession.searchStore) {
+        dataSession.publishDataState()
+        querySession.publishSearchState()
+    }
     private val groupContent = FavoriteGroupContentCoordinator(
         loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
         regularStore = dataSession.store,
@@ -233,6 +236,16 @@ class FavoritesViewModel @Inject constructor(
 
     private fun publishAfterMutation() {
         querySession.coordinator.onMutation()
+        querySession.publishSearchState()
         dataSession.publishDataState()
+        if (query.value.isNotBlank()) {
+            searchJob?.cancel()
+            searchJob = viewModelScope.launch {
+                persistence.awaitPendingWrites()
+                querySession.coordinator.clearSearch()
+                querySession.coordinator.search(query.value.trim().lowercase(Locale.ROOT))
+                querySession.publishSearchState()
+            }
+        }
     }
 }

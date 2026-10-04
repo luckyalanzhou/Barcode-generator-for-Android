@@ -24,6 +24,7 @@ class BarcodeItemViewModel @Inject constructor(
             )
         },
         persistItems = { persistence.persistItems(store.itemsSnapshot()) },
+        persistDeletion = { id, time -> persistence.deleteItem(id, time) },
     )
     private val queryCoordinator = querySession.coordinator
 

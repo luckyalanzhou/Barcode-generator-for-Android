@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 internal class FavoritesMutationCoordinator(
     private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
+    private val searchStore: LibraryStateStore = store,
     private val onReconciled: () -> Unit = {},
 ) {
     fun renameFolder(path: String, renamedPath: String): Boolean {
@@ -44,12 +45,13 @@ internal class FavoritesMutationCoordinator(
     }
 
     fun deleteGroup(groupId: Long): Boolean {
+        val identity = store.favoriteIdentity(groupId) ?: return false
         val removed = store.edit {
-            val group = groups.firstOrNull { it.id == groupId } ?: return@edit false
             groups.removeAll { it.id == groupId }
-            if (group.folder !in folders) folders.add(group.folder)
+            if (identity.folder !in folders) folders.add(identity.folder)
             true
         }
+        if (searchStore !== store) searchStore.edit { groups.removeAll { it.id == groupId } }
         if (removed) store.removeFavoriteIdentity(groupId)
         return removed
     }
@@ -114,28 +116,30 @@ internal class FavoritesMutationCoordinator(
     }
     fun renameGroupAndPersist(groupId: Long, name: String): Boolean {
         val identity = store.favoriteIdentity(groupId) ?: return false
+        if (name.isBlank()) return false
         if (store.hasFavoriteIdentity(identity.folder, name, setOf(groupId))) return false
-        store.edit {
-            val index = groups.indexOfFirst { it.id == groupId }
-            if (index < 0) return@edit
-            groups[index] = groups[index].copy(name = name, savedAt = System.currentTimeMillis())
-        }
+        val savedAt = System.currentTimeMillis()
+        updateLoadedGroupMetadata(groupId, name, identity.folder, savedAt)
         store.setFavoriteIdentity(groupId, identity.folder, name)
-        persistAllFavorites()
+        persistence.updateFavoriteGroupMetadata(groupId, name, identity.folder, savedAt)
         return true
     }
     fun moveGroupAndPersist(groupId: Long, folder: String): Boolean {
         val identity = store.favoriteIdentity(groupId) ?: return false
         if (store.hasFavoriteIdentity(folder, identity.name, setOf(groupId))) return false
-        store.edit {
-            val index = groups.indexOfFirst { it.id == groupId }
-            if (index < 0) return@edit
-            groups[index] = groups[index].copy(folder = folder, savedAt = System.currentTimeMillis())
-            if (folder.isNotBlank() && folder !in folders) folders.add(folder)
-        }
+        val savedAt = System.currentTimeMillis()
+        updateLoadedGroupMetadata(groupId, identity.name, folder, savedAt)
         store.setFavoriteIdentity(groupId, folder, identity.name)
-        persistAllFavorites()
+        persistence.updateFavoriteGroupMetadata(groupId, identity.name, folder, savedAt)
         return true
+    }
+
+    private fun updateLoadedGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) {
+        listOf(store, searchStore).distinct().forEach { cache -> cache.edit {
+            val index = groups.indexOfFirst { it.id == groupId }
+            if (index >= 0) groups[index] = groups[index].copy(name = name, folder = folder, savedAt = savedAt)
+            if (folder.isNotBlank() && folder !in folders) folders.add(folder)
+        } }
     }
     fun deleteGroupAndPersist(groupId: Long) {
         if (deleteGroup(groupId)) {

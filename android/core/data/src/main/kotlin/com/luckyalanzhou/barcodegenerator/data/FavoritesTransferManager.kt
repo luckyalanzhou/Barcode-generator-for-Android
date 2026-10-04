@@ -68,6 +68,7 @@ object FavoritesTransferManager {
             val favorite = InterchangeFavorite(
                 id = group.id.toString(), name = group.name, rootFolder = parts.first, subFolder = parts.second,
                 type = types.firstOrNull() ?: "code128", time = group.savedAt, texts = groupItems.map { it.text },
+                formats = groupItems.map { toTransferType(it.format) },
             )
             val path = favoriteZipPath(favorite, writtenFavoritePaths)
             ensureDirectories(path.substringBeforeLast('/'))
@@ -211,12 +212,17 @@ object FavoritesTransferManager {
         val subFolder = value.optString("subFolder", legacyPath.substringAfter('/', "")).trim()
         val name = value.optString("name").trim()
         // 收藏条码正文保留原始空格；仅过滤完全空白的无效条目。
-        val texts = value.optJSONArray("texts").toStrings().filter { it.isNotBlank() }
+        val originalTexts = value.optJSONArray("texts").toStrings()
+        val originalFormats = value.optJSONArray("formats").toStrings()
+        require(originalFormats.isEmpty() || originalFormats.size == originalTexts.size) { "收藏条码格式与内容数量不一致" }
+        val keptIndices = originalTexts.indices.filter { originalTexts[it].isNotBlank() }
+        val texts = keptIndices.map(originalTexts::get)
+        val formats = if (originalFormats.isEmpty()) emptyList() else keptIndices.map { toTransferType(originalFormats[it]) }
         require(name.isNotBlank()) { "收藏文件缺少文件名" }
         require(texts.isNotEmpty()) { "收藏文件“$name”没有有效内容，无法导入" }
         require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
         require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }
-        return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts)
+        return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts, formats)
     }
 
     private fun copyEntryLimited(
@@ -241,6 +247,7 @@ object FavoritesTransferManager {
         require(backup.favorites.all { favorite -> favorite.texts.any { it.isNotBlank() } }) {
             "收藏文件存在空内容，无法导入"
         }
+        require(backup.favorites.all { it.formats.isEmpty() || it.formats.size == it.texts.size }) { "收藏条码格式与内容数量不一致" }
         var nextItemId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L
         var nextGroupId = (existingGroups.maxOfOrNull { it.id } ?: 0L) + 1L
         val itemsById = existingItems.associateBy { it.id }
@@ -255,7 +262,7 @@ object FavoritesTransferManager {
             // 这样不会因为文件名/正文相同而静默丢失合法收藏。
             if (existingKeys.contains(key)) return@forEach
             val group = FavoriteGroupEntity(nextGroupId++, favorite.folder, favorite.name, favorite.time)
-            val groupItems = favorite.texts.map { text -> CodeItemEntity(nextItemId++, text, toAndroidFormat(favorite.type), favorite.time, true, favorite.folder, false) }
+            val groupItems = favorite.texts.mapIndexed { index, text -> CodeItemEntity(nextItemId++, text, toAndroidFormat(favorite.formats.getOrNull(index) ?: favorite.type), favorite.time, true, favorite.folder, false) }
             groups += group
             items += groupItems
             links += groupItems.mapIndexed { position, item -> FavoriteGroupItemEntity(group.id, item.id, position) }
@@ -294,7 +301,16 @@ object FavoritesTransferManager {
             if (index > 0) append(',')
             appendJsonString(text)
         }
-        append("]}")
+        append(']')
+        if (favorite.formats.isNotEmpty()) {
+            append(",\"formats\":[")
+            favorite.formats.forEachIndexed { index, type ->
+                if (index > 0) append(',')
+                appendJsonString(type)
+            }
+            append(']')
+        }
+        append('}')
     }
 
     private fun StringBuilder.appendJsonField(name: String, value: String?) {

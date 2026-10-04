@@ -69,6 +69,8 @@ interface BarcodeRepository {
     suspend fun upsertItems(items: List<CodeItem>)
     /** Allocates IDs against all persisted rows and inserts, never overwriting an existing item. */
     suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem>
+    suspend fun deleteItem(itemId: Long, modifiedAt: Long)
+    suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long)
     suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem>
     suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem>
     suspend fun clearFavoriteFlags(ids: List<Long>)
