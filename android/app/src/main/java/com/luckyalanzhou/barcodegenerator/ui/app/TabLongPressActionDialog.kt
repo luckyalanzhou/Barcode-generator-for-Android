@@ -125,7 +125,7 @@ internal fun TabLongPressActionOverlay(
     val effects = LocalVisualEffectsPolicy.current
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
-    val panelShape = remember { RoundedCornerShape(24.dp) }
+    val panelShape = remember { RoundedCornerShape(12.dp) }
     val sourceCardShape = remember { RoundedCornerShape(16.dp) }
     val separator = colors.borders.divider.copy(alpha = if (dark) .36f else .44f)
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
