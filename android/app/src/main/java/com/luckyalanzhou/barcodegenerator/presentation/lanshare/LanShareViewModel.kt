@@ -43,6 +43,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 data class LanShareUploadingFile(
     val id: String,
@@ -97,6 +99,10 @@ class LanShareViewModel @Inject constructor(
     private val activeUploadTasks = ConcurrentHashMap<String, ActiveUploadTask>()
     @Volatile
     private var previewFilesById: Map<String, java.io.File> = emptyMap()
+    private val previewDecodeSlots = Semaphore(2)
+    private val decodedPreviews = object : android.util.LruCache<String, Bitmap>(24 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
+    }
 
     init {
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -218,6 +224,7 @@ class LanShareViewModel @Inject constructor(
         refreshGuard.invalidate()
         refreshJob?.cancel()
         refreshJob = null
+        decodedPreviews.evictAll()
         activeUploadTasks.entries.toList().forEach { (id, task) ->
             task.job.cancel()
             lanShareGateway.cancelUpload(id)
@@ -237,25 +244,35 @@ class LanShareViewModel @Inject constructor(
     }
 
     /** Resolves and decodes the image source off the UI thread; Compose only receives a Bitmap. */
-    suspend fun loadImagePreview(file: LanShareFile): Bitmap? {
+    suspend fun loadImagePreview(file: LanShareFile): Bitmap? = loadImagePreview(file, 768)
+
+    suspend fun loadFullImagePreview(file: LanShareFile): Bitmap? =
+        loadImagePreview(file, LanShareImagePreviewDecoder.MAX_DECODE_EDGE)
+
+    private suspend fun loadImagePreview(file: LanShareFile, maxEdge: Int): Bitmap? {
         if (!isLanShareImage(file.name, file.mimeType)) return null
         val session = _uiState.value.session ?: return null
         val ticket = refreshGuard.currentGeneration()
-        return withContext(Dispatchers.IO) {
+        val key = "${session.baseUrl}|${file.id}|${file.modifiedAt}|${file.size}|$maxEdge"
+        decodedPreviews.get(key)?.let { return it }
+        return previewDecodeSlots.withPermit { withContext(Dispatchers.IO) {
             if (!refreshGuard.isCurrent(session, ticket)) return@withContext null
             val localFile = lanShareGateway.localFile(file.id)
             val source = (localFile ?: previewFilesById[file.id])?.takeIf(java.io.File::isFile)
                 ?: return@withContext null
             val bitmap = if (localFile != null && isLanShareTiff(file.name, file.mimeType)) {
-                LanShareTiffPreviewDecoder.decode(source, LanShareImagePreviewDecoder.MAX_DECODE_EDGE)
+                LanShareTiffPreviewDecoder.decode(source, maxEdge)
             } else {
-                LanShareImagePreviewDecoder.decode(source, LanShareImagePreviewDecoder.MAX_DECODE_EDGE)
+                LanShareImagePreviewDecoder.decode(source, maxEdge)
             }
-            if (refreshGuard.isCurrent(session, ticket)) bitmap else {
+            if (refreshGuard.isCurrent(session, ticket)) {
+                bitmap?.let { decodedPreviews.put(key, it) }
+                bitmap
+            } else {
                 bitmap?.recycle()
                 null
             }
-        }
+        } }
     }
 
     fun uploadFile(session: LanShareSession, uri: android.net.Uri, temporaryFile: java.io.File? = null) {

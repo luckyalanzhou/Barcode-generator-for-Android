@@ -141,7 +141,7 @@ function createFileItem(file) {
         preview.tabIndex = 0;
         preview.setAttribute('role', 'button');
         preview.setAttribute('aria-label', '预览图片：' + (file.name || '图片'));
-        preview.dataset.fullSrc = url;
+        preview.dataset.fullSrc = previewUrl(file);
         preview.addEventListener('error', () => {
             preview.remove();
             item.classList.remove('image-item');
@@ -462,7 +462,7 @@ function renderTimeline() {
             if (size) size.textContent = formatSize(file.size);
             const preview = item.querySelector('img');
             const imageUrl = previewUrl(file);
-            if (preview) preview.dataset.fullSrc = url;
+            if (preview) preview.dataset.fullSrc = imageUrl;
             if (preview && preview.src !== new URL(imageUrl, location.href).href) preview.src = imageUrl;
         }
         setPeerBubbleColor(item, file, peerColorIndices, usePeerColors);

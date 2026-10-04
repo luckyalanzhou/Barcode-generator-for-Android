@@ -9,14 +9,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.get
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
-import java.security.MessageDigest
-import kotlin.math.roundToInt
 
 /**
  * 结果页条码图像的生成和缓存边界。
@@ -26,39 +23,24 @@ import kotlin.math.roundToInt
 class BarcodeImageRenderer(
     private val imageCache: BarcodeImageCache,
 ) {
+    private val renderLocks = Array(64) { Any() }
     fun loadOrCreate(
         item: CodeItem,
         style: StyleSettings,
         dark: Boolean,
         density: Float,
     ): Bitmap? {
-        val width = style.barWidth.toInt().coerceIn(120, 300)
-        val height = style.barHeight.coerceIn(30, 80).coerceAtLeast(1)
-        val textSize = style.textSize.coerceIn(10f, 24f)
-        val key = imageKey(item, width, height, textSize, style.showFormat, dark)
-        imageCache.readImage(key)?.let { return it }
         val format = barcodeFormats.firstOrNull { it.first == item.format }?.second ?: BarcodeFormat.CODE_128
+        val key = barcodeRenderKey(item, barcodeRenderSize(format, style, density), dark)
+        return synchronized(renderLocks[(key.hashCode() and Int.MAX_VALUE) % renderLocks.size]) {
+        imageCache.readImage(key)?.let { return it }
         val encoded = encode(item.text, format, style, dark, density) ?: return null
-        val image = if (item.format == "Code 128-B") {
-            addQuietZone(trim(encoded), BarcodeImageColors.background(dark))
+        val image = if (format == BarcodeFormat.CODE_128) {
+            addQuietZone(trim(encoded, BarcodeImageColors.foreground(dark)), BarcodeImageColors.background(dark))
         } else encoded
         imageCache.writeImage(key, image)
-        return image
-    }
-
-    private fun imageKey(
-        item: CodeItem,
-        width: Int,
-        height: Int,
-        textSize: Float,
-        showFormat: Boolean,
-        dark: Boolean,
-    ): String {
-        val raw = listOf("barcode-bg-v2", item.text, item.format, width, height, textSize, showFormat, dark)
-            .joinToString("|")
-        return MessageDigest.getInstance("SHA-256")
-            .digest(raw.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+        image
+        }
     }
 
     fun create(
@@ -71,7 +53,7 @@ class BarcodeImageRenderer(
     ): Bitmap? {
         val encoded = encode(text, format, style, dark, density, withBackground) ?: return null
         return if (format == BarcodeFormat.CODE_128) {
-            addQuietZone(trim(encoded), if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT)
+            addQuietZone(trim(encoded, BarcodeImageColors.foreground(dark)), if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT)
         } else encoded
     }
 
@@ -83,30 +65,27 @@ class BarcodeImageRenderer(
         density: Float,
         withBackground: Boolean = true,
     ): Bitmap? = runCatching {
-        val code128 = format == BarcodeFormat.CODE_128
-        val width = if (code128) (style.barWidth.roundToInt().coerceIn(120, 300) * density).roundToInt().coerceAtLeast(1) else 500
-        val barcodeHeight = if (code128) (style.barHeight.coerceIn(30, 80) * density).roundToInt().coerceAtLeast(1)
-        else if (format == BarcodeFormat.QR_CODE) 500 else 200
+        val (width, barcodeHeight) = barcodeRenderSize(format, style, density)
         val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, mapOf(EncodeHintType.MARGIN to 0))
-        val paint = Paint().apply { color = BarcodeImageColors.foreground(dark) }
-        createBitmap(width, barcodeHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
-            val canvas = Canvas(bitmap)
-            canvas.drawColor(if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT)
-            for (x in 0 until matrix.width) for (y in 0 until matrix.height) {
-                if (matrix[x, y]) canvas.drawRect(x.toFloat(), y.toFloat(), (x + 1).toFloat(), (y + 1).toFloat(), paint)
-            }
+        val foreground = BarcodeImageColors.foreground(dark)
+        val background = if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT
+        val pixels = IntArray(matrix.width * matrix.height) { index ->
+            if (matrix[index % matrix.width, index / matrix.width]) foreground else background
+        }
+        createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.setPixels(pixels, 0, matrix.width, 0, 0, matrix.width, matrix.height)
         }
     }.getOrNull()
 
-    private fun trim(source: Bitmap): Bitmap {
+    private fun trim(source: Bitmap, foreground: Int): Bitmap {
+        val pixels = IntArray(source.width * source.height)
+        source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
         var left = source.width
         var right = -1
         for (x in 0 until source.width) {
             var hasBar = false
             for (y in 0 until source.height) {
-                val pixel = source[x, y]
-                val luminance = (Color.red(pixel) * 299 + Color.green(pixel) * 587 + Color.blue(pixel) * 114) / 1000
-                if (Color.alpha(pixel) > 0 && luminance < 200) { hasBar = true; break }
+                if (pixels[y * source.width + x] == foreground) { hasBar = true; break }
             }
             if (hasBar) { left = minOf(left, x); right = maxOf(right, x) }
         }

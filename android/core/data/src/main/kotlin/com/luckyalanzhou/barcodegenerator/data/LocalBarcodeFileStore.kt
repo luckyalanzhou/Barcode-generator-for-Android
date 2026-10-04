@@ -11,6 +11,8 @@ class LocalBarcodeFileStore(context: Context) {
     private val root = File(context.cacheDir, "barcode-data")
     private val imageDirectory = File(root, "images")
     private val legacyImageDirectory = File(File(context.filesDir, "barcode-data"), "images")
+    private val imageLocks = Array(64) { Any() }
+    private val pruneLock = Any()
 
     init {
         removeLegacyImageCache()
@@ -22,9 +24,9 @@ class LocalBarcodeFileStore(context: Context) {
             (value.rowBytes * value.height / 1024).coerceAtLeast(1)
     }
 
-    @Synchronized
     fun readImage(key: String): Bitmap? {
         if (!isValidKey(key)) return null
+        return synchronized(imageLocks[(key.hashCode() and Int.MAX_VALUE) % imageLocks.size]) {
         imageMemoryCache.get(key)?.let {
             touchImage(key)
             return it
@@ -33,11 +35,12 @@ class LocalBarcodeFileStore(context: Context) {
             touchImage(key)
             imageMemoryCache.put(key, it)
         }
+        }
     }
 
-    @Synchronized
     fun writeImage(key: String, bitmap: Bitmap) {
         if (!isValidKey(key)) return
+        synchronized(imageLocks[(key.hashCode() and Int.MAX_VALUE) % imageLocks.size]) {
         imageMemoryCache.put(key, bitmap)
         imageDirectory.mkdirs()
         val target = File(imageDirectory, "$key.png")
@@ -55,7 +58,8 @@ class LocalBarcodeFileStore(context: Context) {
             temporary.delete()
             return
         }
-        BarcodeImageCachePolicy.prune(imageDirectory, target)
+        synchronized(pruneLock) { BarcodeImageCachePolicy.prune(imageDirectory, target) }
+        }
     }
 
     private fun isValidKey(key: String): Boolean = key.length == 64 && key.all { it in '0'..'9' || it in 'a'..'f' }

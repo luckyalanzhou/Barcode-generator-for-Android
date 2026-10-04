@@ -44,6 +44,7 @@ internal fun LanShareScreen(
         onSetQrVisible = viewModel::setQrVisible,
         onCancelUpload = viewModel::cancelUpload,
         onLoadImagePreview = viewModel::loadImagePreview,
+        onLoadFullImagePreview = viewModel::loadFullImagePreview,
         onSend = { text ->
             val state = viewModel.uiState.value
             if (state.pendingUploadUri != null) {

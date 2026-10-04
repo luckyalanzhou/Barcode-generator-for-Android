@@ -44,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,6 +102,7 @@ internal fun LanShareContent(
     onSend: (String) -> Unit,
     onCancelUpload: (String) -> Unit,
     onLoadImagePreview: suspend (LanShareFile) -> Bitmap?,
+    onLoadFullImagePreview: suspend (LanShareFile) -> Bitmap?,
     onOpenCamera: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
@@ -115,6 +117,12 @@ internal fun LanShareContent(
     val accent = themeColors.controls.accent
     val qrOpen = lanState.qrVisible
     var imagePreview by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
+    var imagePreviewFile by remember { mutableStateOf<LanShareFile?>(null) }
+    LaunchedEffect(imagePreviewFile?.id, imagePreviewFile?.modifiedAt) {
+        imagePreviewFile?.let { file ->
+            onLoadFullImagePreview(file)?.let { imagePreview = file.name to it }
+        }
+    }
     var attachmentMenu by remember { mutableStateOf(false) }
     val session = lanState.session
 
@@ -175,7 +183,10 @@ internal fun LanShareContent(
                             secondary = secondary,
                             onSaveFile = onSaveFile,
                             peerColorIndex = peerColorIndices[file.sender],
-                            onPreviewImage = { bitmap -> imagePreview = file.name to bitmap },
+                            onPreviewImage = { bitmap ->
+                                imagePreview = file.name to bitmap
+                                imagePreviewFile = file
+                            },
                         )
                     }
                     is LanShareTimelineEntry.UploadEntry -> {
@@ -230,7 +241,7 @@ internal fun LanShareContent(
         LanShareImagePreviewDialog(
             fileName = fileName,
             bitmap = bitmap,
-            onDismiss = { imagePreview = null },
+            onDismiss = { imagePreview = null; imagePreviewFile = null },
         )
     }
 }
