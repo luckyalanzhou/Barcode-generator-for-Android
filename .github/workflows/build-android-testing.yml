@@ -172,7 +172,9 @@ jobs:
             --notes "channel: beta
           versionName: ${VERSION_NAME}
           versionCode: ${VERSION_CODE}
-          sha256: ${SHA256}"
+          sha256: ${SHA256}
+          commit: ${GITHUB_SHA}
+          workflowRun: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
       - name: Remove temporary keystore
         if: always()
         run: rm -f release.jks

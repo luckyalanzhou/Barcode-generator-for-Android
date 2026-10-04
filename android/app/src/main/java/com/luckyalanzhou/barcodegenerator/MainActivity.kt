@@ -301,13 +301,22 @@ class MainActivity : AppCompatActivity() {
             val imageFile = pendingResultImageFile
             pendingResultImageFile = null
             if (resultCode == RESULT_OK && imageFile?.isFile == true && data?.data != null) {
-                val written = runCatching {
-                    contentResolver.openOutputStream(data.data!!)?.use { output ->
-                        imageFile.inputStream().use { input -> input.copyTo(output) }
-                    } ?: error("无法打开目标文件")
-                }.isSuccess
-                if (written) toast("已保存到文件")
-                else toast("保存到文件失败")
+                val targetUri = data.data!!
+                lifecycleScope.launch {
+                    try {
+                        val written = withContext(Dispatchers.IO) {
+                            runCatching {
+                                contentResolver.openOutputStream(targetUri)?.use { output ->
+                                    imageFile.inputStream().use { input -> input.copyTo(output) }
+                                } ?: error("无法打开目标文件")
+                            }.isSuccess
+                        }
+                        toast(if (written) "已保存到文件" else "保存到文件失败")
+                    } finally {
+                        imageFile.delete()
+                    }
+                }
+                return
             }
             imageFile?.delete()
             return

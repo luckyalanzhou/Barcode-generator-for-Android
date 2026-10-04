@@ -97,8 +97,9 @@ internal fun FavoriteGroupRow(
             menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor))
     }
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-group-scale")
-    val background = animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-group-background")
+    val reduceMotion = com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy.current.reduceMotion
+    val scale = animateFloatAsState(if (pressed && !reduceMotion) .965f else 1f, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-group-scale")
+    val background = animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-group-background")
 
     Box(Modifier.fillMaxWidth()) {
         Row(

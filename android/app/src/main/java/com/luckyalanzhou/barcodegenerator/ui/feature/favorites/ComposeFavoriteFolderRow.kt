@@ -89,11 +89,12 @@ internal fun FavoriteFolderRow(
             menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor))
     }
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale = animateFloatAsState(if (pressed) .965f else 1f, animation.settleSpring(), label = "favorite-folder-scale")
-    val background = animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, animation.settleSpring(), label = "favorite-folder-background")
+    val reduceMotion = com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy.current.reduceMotion
+    val scale = animateFloatAsState(if (pressed && !reduceMotion) .965f else 1f, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-folder-scale")
+    val background = animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-folder-background")
     val arrowRotation = animateFloatAsState(
         targetValue = if (row.collapsed) -90f else 0f,
-        animationSpec = animation.settleSpring(),
+        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(),
         label = "favorite-folder-arrow-rotation",
     )
     val indent = if (row.level == 0) 11.dp else 26.dp

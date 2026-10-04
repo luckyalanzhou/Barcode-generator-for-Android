@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import java.io.File
 import java.net.HttpURLConnection
+import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -120,21 +121,20 @@ class LanShareServerUploadTest {
     fun abortedUploadRemovesTemporaryFileWithoutCommittingPartialBytes() {
         val folder = temporaryFolder.newFolder()
         val server = newServer(folder)
-        var connection: HttpURLConnection? = null
+        var connection: Socket? = null
         try {
             server.start(5_000, false)
             val partialPayload = ByteArray(256 * 1024) { index -> index.toByte() }
-            val uploadConnection = URL("http://127.0.0.1:${server.listeningPort}/upload?name=partial.bin&client=cbrowser123")
-                .openConnection() as HttpURLConnection
+            val uploadConnection = Socket("127.0.0.1", server.listeningPort)
             connection = uploadConnection
-            uploadConnection.connectTimeout = 5_000
-            uploadConnection.readTimeout = 5_000
-            uploadConnection.requestMethod = "PUT"
-            uploadConnection.setRequestProperty("X-File-Size", (2 * 1024 * 1024).toString())
-            uploadConnection.setRequestProperty("Content-Type", "application/octet-stream")
-            uploadConnection.doOutput = true
-            uploadConnection.setFixedLengthStreamingMode(2 * 1024 * 1024)
-            val output = uploadConnection.outputStream
+            val output = uploadConnection.getOutputStream()
+            output.write((
+                "PUT /upload?name=partial.bin&client=cbrowser123 HTTP/1.1\r\n" +
+                    "Host: 127.0.0.1:${server.listeningPort}\r\n" +
+                    "Content-Type: application/octet-stream\r\n" +
+                    "Content-Length: ${2 * 1024 * 1024}\r\n" +
+                    "X-File-Size: ${2 * 1024 * 1024}\r\n\r\n"
+                ).toByteArray(StandardCharsets.US_ASCII))
             output.write(partialPayload)
             output.flush()
 
@@ -146,8 +146,8 @@ class LanShareServerUploadTest {
                 it.name.startsWith(".lan-upload-")
             })
 
-            uploadConnection.disconnect()
-            runCatching { output.close() }
+            // Close the actual TCP stream, not an HttpURLConnection-managed connection.
+            uploadConnection.close()
 
             val cleanupDeadline = System.nanoTime() + 5_000_000_000L
             while (folder.listFiles().orEmpty().isNotEmpty() && System.nanoTime() < cleanupDeadline) {
@@ -155,7 +155,7 @@ class LanShareServerUploadTest {
             }
             assertTrue("cancelled upload must not leave staged or committed files", folder.listFiles().orEmpty().isEmpty())
         } finally {
-            connection?.disconnect()
+            connection?.close()
             server.stop()
         }
     }

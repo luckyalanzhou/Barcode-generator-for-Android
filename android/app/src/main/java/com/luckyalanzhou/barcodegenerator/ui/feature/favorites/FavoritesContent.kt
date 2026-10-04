@@ -116,6 +116,7 @@ internal fun FavoritesContent(
 ) {
     val density = LocalDensity.current.density
     val animation = ComposeAnimationConfig
+    val reduceMotion = LocalVisualEffectsPolicy.current.reduceMotion
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
@@ -151,10 +152,10 @@ internal fun FavoritesContent(
             .collect { (index, offset) -> onRememberListPosition(index, offset) }
     }
 
-    LaunchedEffect(listState, listPositionRestored, scrollToTopEvents) {
+    LaunchedEffect(listState, listPositionRestored, scrollToTopEvents, reduceMotion) {
         if (!listPositionRestored) return@LaunchedEffect
         scrollToTopEvents.collect {
-            listState.animateScrollToItem(0)
+            if (reduceMotion) listState.scrollToItem(0) else listState.animateScrollToItem(0)
         }
     }
 
@@ -340,7 +341,7 @@ internal fun FavoritesContent(
                         .background(themeColors.surfaces.background)
                         .animateItem(
                             fadeInSpec = null,
-                            placementSpec = if (listState.isScrollInProgress) {
+                            placementSpec = if (reduceMotion || listState.isScrollInProgress) {
                                 null
                             } else {
                                 tween(
@@ -350,7 +351,7 @@ internal fun FavoritesContent(
                             },
                             fadeOutSpec = null,
                         ),
-                    enter = expandVertically(
+                    enter = if (reduceMotion) androidx.compose.animation.EnterTransition.None else expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = tween(
                             durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
@@ -362,7 +363,7 @@ internal fun FavoritesContent(
                             easing = FastOutSlowInEasing,
                         ),
                     ),
-                    exit = shrinkVertically(
+                    exit = if (reduceMotion) androidx.compose.animation.ExitTransition.None else shrinkVertically(
                         shrinkTowards = Alignment.Top,
                         animationSpec = tween(
                             durationMillis = ComposeAnimationConfig.favoriteRowCollapseDurationMillis,

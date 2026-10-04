@@ -20,4 +20,25 @@ class ArchitectureBoundaryTest {
             listOf(data, dependencyInjection, icons, presentation, ui).include()
         }
     }
+
+    @Test
+    fun `UI cannot import data implementations`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            ui.doesNotDependOn(data)
+            data.include()
+        }
+    }
+
+    @Test
+    fun `data cannot depend on presentation or UI`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            data.doesNotDependOn(presentation, ui)
+            listOf(presentation, ui).include()
+        }
+    }
 }
