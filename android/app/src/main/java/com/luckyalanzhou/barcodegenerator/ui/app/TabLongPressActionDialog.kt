@@ -297,9 +297,13 @@ internal fun TabLongPressActionOverlay(
                             )
                         }
                         .graphicsLayer {
-                            alpha = progress.value
-                            val scale = if (effects.reduceMotion) 1f else if (state.tabAnchor)
-                                .97f + .03f * progress.value else .82f + .18f * progress.value
+                            val reveal = menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion)
+                            alpha = reveal.alpha
+                            val scale = reveal.scale
+                            shape = panelShape
+                            shadowElevation = 18.dp.toPx() * reveal.shadow
+                            ambientShadowColor = Color.Black.copy(alpha = if (dark) .25f else .12f)
+                            spotShadowColor = Color.Black.copy(alpha = if (dark) .32f else .18f)
                             val motion = displayedMotion()
                             val dragScale = menuDragScale(motion)
                             scaleX = scale * dragScale
@@ -324,12 +328,6 @@ internal fun TabLongPressActionOverlay(
                             isTraversalGroup = true
                             dismiss { onDismiss(); true }
                         }
-                        .shadow(
-                            elevation = 18.dp,
-                            shape = panelShape,
-                            ambientColor = Color.Black.copy(alpha = if (dark) .25f else .12f),
-                            spotColor = Color.Black.copy(alpha = if (dark) .32f else .18f),
-                        )
                         .clip(panelShape)
                         .pointerInput(Unit) {
                             // Header/empty panel taps must not fall through to the backdrop.
@@ -348,7 +346,8 @@ internal fun TabLongPressActionOverlay(
                     GlassBackdropSurface(
                         modifier = Modifier.matchParentSize(), color = colors.surfaces.panel,
                         opacity = material.opacity, cornerDp = panelCorner.value, blurDp = material.blurDp,
-                        refractionDp = { material.refractionDp * progress.value },
+                        refractionDp = { material.refractionDp * menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion).thickness },
+                        thicknessProgress = { menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion).thickness },
                     )
                     key(state) {
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->

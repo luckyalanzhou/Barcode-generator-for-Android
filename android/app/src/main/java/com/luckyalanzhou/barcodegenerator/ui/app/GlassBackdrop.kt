@@ -75,6 +75,7 @@ internal fun GlassBackdropSurface(
     refractionDp: () -> Float,
     capsule: (() -> TabGlassFrame)? = null,
     drawFallback: Boolean = true,
+    thicknessProgress: () -> Float = { 1f },
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
@@ -89,7 +90,8 @@ internal fun GlassBackdropSurface(
         size = it.size
     }.graphicsLayer {
         if (gpu && size.width > 0 && size.height > 0) {
-            renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp,
+            val thickness = thicknessProgress().coerceIn(0f, 1f)
+            renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp * (.45f + .55f * thickness),
                 if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
         } else renderEffect = null
     }) {
