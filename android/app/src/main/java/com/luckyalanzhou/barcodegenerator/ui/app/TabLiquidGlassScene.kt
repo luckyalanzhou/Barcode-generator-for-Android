@@ -106,12 +106,17 @@ internal fun TabLiquidGlassScene(
                 foregroundFactory.value else null
             if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && backdropSource != null && atlasSize != null) {
                 val localFrame = region.localFrame(frame)
-                // Outside the integer-aligned crop, draw the original pixels once, without a shader.
-                clipRect(region.left.toFloat(), 0f, region.right.toFloat(), frame.height, ClipOp.Difference) {
-                    this@drawWithContent.drawContent()
-                }
+                // Record children exactly once before replaying into either destination.
+                // Direct drawing followed by recording can move child RenderNodes between
+                // different positions/clips within one frame on Android.
                 traceGlassDraw("TabGlass.ForegroundRecord") {
-                    foregroundLayer.record { this@drawWithContent.drawContent() }
+                    foregroundLayer.record(size = IntSize(size.width.toInt(), size.height.toInt())) {
+                        this@drawWithContent.drawContent()
+                    }
+                }
+                // Replay the same foreground recording outside the crop and into the atlas.
+                clipRect(region.left.toFloat(), 0f, region.right.toFloat(), frame.height, ClipOp.Difference) {
+                    drawLayer(foregroundLayer)
                 }
                 traceGlassDraw("TabGlass.AtlasRecord") {
                     atlasLayer.record(size = atlasSize) {

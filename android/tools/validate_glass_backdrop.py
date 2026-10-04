@@ -10,6 +10,17 @@ def main():
     args = parser.parse_args()
     if args.runtime_package_dir:
         sys.path.insert(0, str(args.runtime_package_dir))
+    # Native Skia cannot model Compose child RenderNodes changing draw destinations.
+    scene_source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/TabLiquidGlassScene.kt").read_text(encoding="utf-8")
+    gpu_branch = scene_source.split("val localFrame = region.localFrame(frame)", 1)[1].split("} else {", 1)[0]
+    assert gpu_branch.count("this@drawWithContent.drawContent()") == 1, "GPU path must record child content exactly once"
+    recording = gpu_branch.index("foregroundLayer.record(size = IntSize")
+    outside = gpu_branch.index("ClipOp.Difference")
+    atlas = gpu_branch.index("atlasLayer.record(size = atlasSize)")
+    assert recording < outside < atlas, "Record complete foreground before either replay destination"
+    outside_branch = gpu_branch[outside:atlas]
+    assert "drawLayer(foregroundLayer)" in outside_branch and "drawContent()" not in outside_branch, "Outside crop must replay, not redraw child nodes"
+    print("PASS: Compose foreground records children once at full size before outside/atlas replay (source contract, not device validation)")
     import numpy as np
     import skia
     source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
