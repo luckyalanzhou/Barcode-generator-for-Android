@@ -7,6 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
@@ -30,6 +32,7 @@ internal fun ComposeChoiceField(
     dark: Boolean,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    compact: Boolean = false,
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -39,10 +42,14 @@ internal fun ComposeChoiceField(
         OutlinedButton(
             onClick = { if (enabled) expanded = true },
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth().onGloballyPositioned { buttonWidth = it.size.width },
+            modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
+                .onGloballyPositioned { buttonWidth = it.size.width },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
+            border = BorderStroke(if (compact) 1.dp else 0.5.dp,
+                if (compact) LocalAppColorScheme.current.text.primary.copy(alpha = .28f) else LocalAppColorScheme.current.borders.button),
+            contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary,
+                containerColor = if (compact) LocalAppColorScheme.current.controls.button else androidx.compose.ui.graphics.Color.Transparent),
         ) {
             Text(value, color = LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -54,7 +61,10 @@ internal fun ComposeChoiceField(
             containerColor = LocalAppColorScheme.current.surfaces.overlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
-            menuWidth = buttonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } },
+            menuWidth = buttonWidth.takeIf { it > 0 }?.let {
+                val measured = with(density) { it.toDp() }
+                if (compact) measured.coerceAtLeast(160.dp) else measured
+            },
         ) {
             options.forEachIndexed { index, option ->
                 if (index > 0) ComposeDropdownDivider(dark)

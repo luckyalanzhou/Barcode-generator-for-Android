@@ -3,6 +3,11 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.abs
+import androidx.compose.ui.graphics.TransformOrigin
+
+/** Tab menus stay in place and contract toward their own lower corner. */
+internal fun tabMenuDragOrigin(anchorCenterX: Float, screenWidth: Float): TransformOrigin =
+    TransformOrigin(if (anchorCenterX < screenWidth * .5f) 0f else 1f, 1f)
 
 // HIG: a context-menu title is useful only when it explains the target or effect.
 internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =

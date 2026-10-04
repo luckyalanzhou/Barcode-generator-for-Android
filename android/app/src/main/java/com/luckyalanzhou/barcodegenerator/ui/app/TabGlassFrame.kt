@@ -21,6 +21,15 @@ internal data class TabGlassFrame(
     val contactSpread: Float,
 )
 
+/** Test the rendered capsule, not the whole navigation bar or the selected tab's cell. */
+internal fun tabCapsuleContains(frame: TabGlassFrame, point: androidx.compose.ui.geometry.Offset): Boolean {
+    if (!point.x.isFinite() || !point.y.isFinite()) return false
+    val radius = minOf(frame.halfWidth, frame.halfHeight)
+    val dx = (abs(point.x - frame.centerX) - (frame.halfWidth - radius)).coerceAtLeast(0f)
+    val dy = (abs(point.y - frame.centerY) - (frame.halfHeight - radius)).coerceAtLeast(0f)
+    return dx * dx + dy * dy <= radius * radius
+}
+
 internal fun tabGlassFrame(
     width: Float,
     height: Float,

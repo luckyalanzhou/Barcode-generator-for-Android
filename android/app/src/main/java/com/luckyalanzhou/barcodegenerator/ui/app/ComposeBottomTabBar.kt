@@ -28,7 +28,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +70,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -112,6 +114,7 @@ internal fun BarcodeComposeBottomTabBar(
     val selectedColor = if (effects.highContrast) lerp(themeColors.controls.accent, themeColors.text.primary, .55f) else themeColors.controls.accent
     val unselectedColor = if (effects.highContrast) themeColors.text.primary else themeColors.navigation.tabUnselected
     val hapticView = LocalView.current
+    val density = LocalDensity.current.density
     var lastTabHapticAt by remember { mutableLongStateOf(0L) }
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
@@ -150,33 +153,44 @@ internal fun BarcodeComposeBottomTabBar(
         modifier = modifier.fillMaxSize()
             .then(if (effects.opaqueGlass) Modifier.background(themeColors.surfaces.background) else Modifier)
             .padding(horizontal = 4.dp, vertical = 5.dp)
-            .pointerInput(motion, showSelectionIndicator) {
+            .pointerInput(motion, showSelectionIndicator, density) {
                 if (!showSelectionIndicator) return@pointerInput
                 // Observe the real contact location without consuming clicks or long presses.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    motion.press(down.position)
+                    val frame = tabGlassFrame(size.width.toFloat(), size.height.toFloat(), density,
+                        tabs.size, motion.progress, 0f, 0f, 0f)
+                    val capsuleContact = tabCapsuleContains(frame, down.position)
+                    if (capsuleContact) motion.press(down.position)
                     try {
                         do {
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                             val pointer = event.changes.firstOrNull { it.id == down.id }
-                            if (pointer != null) motion.updateTouch(pointer.position)
+                            if (capsuleContact && pointer != null) motion.updateTouch(pointer.position)
                         } while (event.changes.any { it.pressed })
                     } finally {
                         motion.endPress()
                     }
                 }
             }
-            .pointerInput(motion, showSelectionIndicator) {
+            .pointerInput(motion, showSelectionIndicator, density) {
                 // The root menu host owns the continuing long-press pointer.
                 if (!showSelectionIndicator) return@pointerInput
-                detectHorizontalDragGestures(
-                    onDragStart = { position ->
-                        motion.beginDrag(position, android.os.SystemClock.uptimeMillis())
-                        motion.pulse(.014f)
-                        lastTarget = motion.progress.roundToInt().coerceIn(tabs.indices)
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val frame = tabGlassFrame(size.width.toFloat(), size.height.toFloat(), density,
+                        tabs.size, motion.progress, 0f, 0f, 0f)
+                    // Eligibility belongs to the original DOWN, never to a later slop position.
+                    if (!tabCapsuleContains(frame, down.position)) return@awaitEachGesture
+                    var overSlop = 0f
+                    val start = awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
+                        change.consume()
+                        overSlop = over
+                    } ?: return@awaitEachGesture
+                    motion.beginDrag(start.position, start.uptimeMillis)
+                    motion.pulse(.014f)
+                    lastTarget = motion.progress.roundToInt().coerceIn(tabs.indices)
+                    fun move(change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: Float) {
                         change.consume()
                         val tabWidth = (size.width.toFloat() / tabs.size).coerceAtLeast(1f)
                         motion.drag(dragAmount / tabWidth, change.position, change.uptimeMillis)
@@ -187,16 +201,19 @@ internal fun BarcodeComposeBottomTabBar(
                             performTabSwitchHaptic()
                             currentOnTabSelected(target, true)
                         }
-                    },
-                    onDragEnd = {
+                    }
+                    move(start, overSlop)
+                    val completed = horizontalDrag(start.id) { change ->
+                        move(change, change.position.x - change.previousPosition.x)
+                    }
+                    if (completed) {
                         motion.release(lastTarget)
                         motion.pulse(.018f)
                         currentOnTabSelected(lastTarget, true)
-                    },
-                    onDragCancel = {
+                    } else {
                         motion.release(currentSelectedIndex)
-                    },
-                )
+                    }
+                }
             }
     ) {
         TabLiquidGlassScene(

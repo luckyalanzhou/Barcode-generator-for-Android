@@ -8,6 +8,34 @@ import org.junit.Test
 class MenuPanelMotionTest {
     private val panel = Rect(20f, 100f, 220f, 300f)
 
+    @Test fun tabMenusUseTheirOwnLeftOrRightLowerCorner() {
+        assertEquals(androidx.compose.ui.graphics.TransformOrigin(0f, 1f), tabMenuDragOrigin(100f, 400f))
+        assertEquals(androidx.compose.ui.graphics.TransformOrigin(1f, 1f), tabMenuDragOrigin(300f, 400f))
+    }
+
+    @Test fun tabMenuCornerRemainsFixedWhileShrinkingInAllDragDirections() {
+        for (anchorX in listOf(100f, 300f)) {
+            val pivot = tabMenuDragOrigin(anchorX, 400f)
+            val corner = Offset(panel.left + panel.width * pivot.pivotFractionX, panel.bottom)
+            for (motion in listOf(Offset(-1f, 0f), Offset(1f, 0f), Offset(0f, 1f))) {
+                val scale = menuDragScale(motion)
+                val topLeft = corner + (panel.topLeft - corner) * scale
+                val bottomRight = corner + (panel.bottomRight - corner) * scale
+                assertEquals(panel.bottom, bottomRight.y, .0001f)
+                if (anchorX < 200f) {
+                    assertEquals(panel.left, topLeft.x, .0001f)
+                    assertTrue(bottomRight.x < panel.right)
+                } else {
+                    assertEquals(panel.right, bottomRight.x, .0001f)
+                    assertTrue(topLeft.x > panel.left)
+                }
+                assertTrue(topLeft.y > panel.top)
+                assertTrue(scale < 1f)
+            }
+        }
+        assertEquals(1f, menuDragScale(Offset.Zero), 0f)
+    }
+
     @Test fun upwardSelectionKeepsMenuStationaryButSideAndDownDragsStillFollow() {
         val origin = Offset(100f, 400f)
         assertEquals(Offset.Zero, menuSourceInteractionMotion(Offset(105f, 300f), origin, 64f, true))

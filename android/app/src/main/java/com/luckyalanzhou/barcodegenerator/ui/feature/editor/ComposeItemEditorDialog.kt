@@ -56,7 +56,7 @@ internal fun MainActivity.showItemEditorCompose(
             )
             Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                 ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark,
-                    modifier = Modifier.widthIn(max = 200.dp)) { choice ->
+                    modifier = Modifier.widthIn(max = 200.dp), compact = true) { choice ->
                     selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
                 }
             }

@@ -332,7 +332,15 @@ internal fun TabLongPressActionOverlay(
                                 minOf(0f, statusBarTopPx - (placement.top - focusLiftPx)),
                                 maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
                                     (placement.top - focusLiftPx) - panelSize.height))
-                            transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
+                            if (state.tabAnchor) {
+                                // Dragging the source changes size, never the panel's position.
+                                translationX = 0f
+                                translationY = 0f
+                                transformOrigin = tabMenuDragOrigin(
+                                    anchorBoundsOnScreen.center.x - overlayOriginOnScreen.x, screenWidthPx)
+                            } else {
+                                transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
+                            }
                         }
                         .focusRequester(menuFocus)
                         .focusable()
