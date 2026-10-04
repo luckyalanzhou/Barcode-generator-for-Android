@@ -30,14 +30,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -86,6 +84,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import com.luckyalanzhou.barcodegenerator.ui.theme.ActionMenuMetrics
+import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
+import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuWidthDp
 import kotlin.math.roundToInt
 
 internal data class TabLongPressAction(
@@ -129,9 +130,10 @@ internal fun TabLongPressActionOverlay(
     val effects = LocalVisualEffectsPolicy.current
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
-    val panelCorner = 12.dp
+    val panelCorner = ActionMenuMetrics.corner
     val sourceCardShape = remember { RoundedCornerShape(16.dp) }
-    val separator = colors.borders.divider.copy(alpha = if (dark) .36f else .44f)
+    val menuColors = actionMenuColors(colors, dark, effects.highContrast)
+    val separator = menuColors.separator
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
@@ -180,7 +182,7 @@ internal fun TabLongPressActionOverlay(
                     .clearAndSetSemantics { },
             )
 
-            val panelMaxWidth = minOf(maxWidth * .62f, 340.dp, (maxWidth - 24.dp).coerceAtLeast(1.dp))
+            val panelWidth = actionMenuWidthDp(maxWidth.value).dp
             val screenWidthPx = with(density) { maxWidth.toPx() }
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val edgePaddingPx = with(density) { 12.dp.toPx() }
@@ -300,8 +302,7 @@ internal fun TabLongPressActionOverlay(
                     placement.top - focusLiftPx + overlayOriginOnScreen.y + panelSize.height)
             }
             Box(
-                    modifier = Modifier.widthIn(min = minOf(200.dp, panelMaxWidth), max = panelMaxWidth)
-                        .width(IntrinsicSize.Max)
+                    modifier = Modifier.width(panelWidth)
                         .heightIn(max = with(density) { availableHeightPx.toDp() })
                         .onSizeChanged { if (panelSize != it) panelSize = it }
                         .offset {
@@ -316,7 +317,7 @@ internal fun TabLongPressActionOverlay(
                             shape = MenuRevealContour(placement.pivotX, menuSpace.above, reveal, panelCorner.toPx(),
                                 preserveContour = state.tabAnchor)
                             clip = true
-                            shadowElevation = 18.dp.toPx() * reveal.shadow
+                            shadowElevation = 12.dp.toPx() * reveal.shadow
                             ambientShadowColor = Color.Black.copy(alpha = if (dark) .25f else .12f)
                             spotShadowColor = Color.Black.copy(alpha = if (dark) .32f else .18f)
                             val motion = displayedMotion()
@@ -349,7 +350,7 @@ internal fun TabLongPressActionOverlay(
                             val path = menuRevealPath(menuRevealBounds(size, placement.pivotX, menuSpace.above, reveal,
                                 preserveContour = state.tabAnchor), panelCorner.toPx())
                             drawPath(path,
-                                if (effects.highContrast) colors.text.primary else Color.White.copy(alpha = if (dark) .18f else .54f),
+                                menuColors.outline,
                                 style = Stroke(.8.dp.toPx()))
                         }
                         .pointerInput(Unit) {
@@ -371,12 +372,12 @@ internal fun TabLongPressActionOverlay(
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
                     if (showTitle) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = ActionMenuMetrics.titleHeight).padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 8.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(
                             text = state.title,
-                            color = if (effects.highContrast) colors.text.primary else colors.text.placeholder,
+                            color = menuColors.title,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                         )
@@ -386,10 +387,10 @@ internal fun TabLongPressActionOverlay(
                     actions.forEachIndexed { index, action ->
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                            modifier = Modifier.fillMaxWidth().heightIn(min = ActionMenuMetrics.rowHeight)
                                 .slideMenuItem(selection, index, actionsReady, onClick = action.onClick)
                                 .clickable(enabled = actionsReady, role = Role.Button) { onAction(action.onClick) }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             // Destructive menu labels and icons share the same fixed red in both themes.
@@ -404,7 +405,7 @@ internal fun TabLongPressActionOverlay(
                                 imageVector = action.icon,
                                 contentDescription = null,
                                 tint = actionColor,
-                                modifier = Modifier.padding(start = 12.dp).size(20.dp),
+                                modifier = Modifier.padding(start = ActionMenuMetrics.iconGap).size(ActionMenuMetrics.iconSize),
                             )
                         }
                     }
@@ -417,6 +418,6 @@ internal fun TabLongPressActionOverlay(
 @Composable
 private fun ActionSeparator(color: Color) {
     Box(
-        Modifier.fillMaxWidth().height(.7.dp).background(color),
+        Modifier.fillMaxWidth().height(ActionMenuMetrics.separatorHeight).background(color),
     )
 }

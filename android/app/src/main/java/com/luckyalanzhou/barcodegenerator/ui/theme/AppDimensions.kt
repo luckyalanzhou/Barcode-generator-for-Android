@@ -21,3 +21,7 @@ internal data class AppDimensions(
 )
 
 internal val LocalAppDimensions = staticCompositionLocalOf { AppDimensions() }
+
+/** Preserve the normal 72dp bar while reserving extra space for scaled label line height. */
+internal fun bottomTabHeightForLabel(labelHeightDp: Float): Float =
+    72f + ((if (labelHeightDp.isFinite()) labelHeightDp else 24f) - 24f).coerceAtLeast(0f)

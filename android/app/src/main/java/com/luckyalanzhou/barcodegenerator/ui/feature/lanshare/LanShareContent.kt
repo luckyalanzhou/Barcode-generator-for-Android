@@ -249,7 +249,7 @@ internal fun LanShareContent(
 private fun LanShareHeader(primary: Color, accent: Color, onQrClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.width(48.dp))

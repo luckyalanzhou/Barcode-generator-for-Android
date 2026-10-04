@@ -18,6 +18,16 @@ import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.SearchIcon
+import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -89,6 +99,7 @@ import kotlinx.coroutines.withContext
 internal fun FavoritesContent(
     favoritesState: BarcodeDataState,
     searchState: BarcodeDataState,
+    searchStatus: FavoriteSearchStatus,
     treeState: FavoriteTreeUiState,
     query: String,
     savedListPosition: Pair<Int, Int>,
@@ -126,6 +137,9 @@ internal fun FavoritesContent(
     val listState = rememberLazyListState()
     var listPositionRestored by remember { mutableStateOf(false) }
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
+    val searchPending = searchStatus.isPending(normalizedQuery)
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
     val allFavoriteFolderPaths = remember(favoritesState.folders, favoritesState.groups) {
         (favoritesState.folders + favoritesState.groups.map { it.folder })
@@ -222,7 +236,7 @@ internal fun FavoritesContent(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(45.dp)
+                    .heightIn(min = 48.dp)
                     .border(1.dp, themeColors.borders.input, RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart,
@@ -233,16 +247,22 @@ internal fun FavoritesContent(
                 ) {
                     Icon(
                         imageVector = SearchIcon,
-                        contentDescription = "搜索",
-                        tint = primary,
+                        contentDescription = null,
+                        tint = themeColors.text.secondary,
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(Modifier.width(10.dp))
                     BasicTextField(
                         value = query,
                         onValueChange = onQueryChange,
-                        modifier = Modifier.weight(1f).height(28.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 28.dp)
+                            .padding(vertical = 8.dp).semantics { contentDescription = "搜索收藏名称、文件夹或条码内容" },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        }),
                         textStyle = TextStyle(
                             color = primary,
                             fontSize = 18.sp,
@@ -256,7 +276,7 @@ internal fun FavoritesContent(
                         cursorBrush = SolidColor(primary),
                         decorationBox = { field ->
                             Box(
-                                modifier = Modifier.fillMaxWidth().height(28.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 28.dp),
                                 contentAlignment = Alignment.CenterStart,
                             ) {
                                 if (query.isEmpty()) {
@@ -281,10 +301,16 @@ internal fun FavoritesContent(
                             }
                         },
                     )
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) {
+                            Icon(CloseSmallIcon, contentDescription = "清除搜索文字",
+                                tint = themeColors.text.secondary, modifier = Modifier.size(20.dp))
+                        }
+                    }
                 }
             }
             TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
-                Text("清空", color = themeColors.text.destructive, fontSize = 14.sp)
+                Text("清空收藏", color = themeColors.text.destructive, fontSize = 14.sp)
             }
         }
 
@@ -305,13 +331,19 @@ internal fun FavoritesContent(
                     textAlign = TextAlign.Center,
                 )
             }
+        } else if (normalizedQuery.isNotEmpty() && (searchPending || searchStatus.failed)) {
+            item(key = "favorite-search-status") {
+                Text(if (searchPending) "正在搜索…" else "搜索失败，请修改搜索词重试",
+                    color = secondary, fontSize = 17.sp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 40.dp), textAlign = TextAlign.Center)
+            }
         } else if (rowsForDisplay == null) {
             // The tree projection is computed off the main thread; keep the page quiet
             // during the short recomposition instead of showing a flashing placeholder.
         } else if (rowsForDisplay.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(
-                    if (displayState.groups.isEmpty()) "还没有收藏" else "没有匹配的收藏",
+                    favoriteEmptyMessage(normalizedQuery),
                     color = secondary,
                     fontSize = 17.sp,
                     modifier = Modifier.fillMaxWidth().padding(top = 40.dp),

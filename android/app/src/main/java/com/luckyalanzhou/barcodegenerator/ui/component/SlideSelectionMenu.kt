@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -24,6 +25,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 import kotlin.math.max
 import kotlin.math.min
 
@@ -206,12 +208,14 @@ internal fun Modifier.slideMenuItem(
     val action by rememberUpdatedState(onClick)
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
+    val selectionColor = actionMenuColors(colors, colors.surfaces.panel.luminance() < .35f,
+        effects.highContrast).selection
     DisposableEffect(key, enabled) { onDispose { scope.entries.remove(key) } }
     return onGloballyPositioned {
         if (enabled) scope.entries[key] = SlideSelectionMenuScope.Entry(it) { action() }
         else scope.entries.remove(key)
     }.drawBehind {
-        if (scope.selected == key) drawRect(colors.text.primary.copy(alpha = if (effects.highContrast) .20f else .10f))
+        if (scope.selected == key) drawRect(selectionColor)
     }
 }
 

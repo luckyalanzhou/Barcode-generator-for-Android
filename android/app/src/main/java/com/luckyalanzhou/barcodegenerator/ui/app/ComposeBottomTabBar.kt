@@ -150,7 +150,8 @@ internal fun BarcodeComposeBottomTabBar(
         modifier = modifier.fillMaxSize()
             .then(if (effects.opaqueGlass) Modifier.background(themeColors.surfaces.background) else Modifier)
             .padding(horizontal = 4.dp, vertical = 5.dp)
-            .pointerInput(motion) {
+            .pointerInput(motion, showSelectionIndicator) {
+                if (!showSelectionIndicator) return@pointerInput
                 // Observe the real contact location without consuming clicks or long presses.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -166,7 +167,9 @@ internal fun BarcodeComposeBottomTabBar(
                     }
                 }
             }
-            .pointerInput(motion) {
+            .pointerInput(motion, showSelectionIndicator) {
+                // The root menu host owns the continuing long-press pointer.
+                if (!showSelectionIndicator) return@pointerInput
                 detectHorizontalDragGestures(
                     onDragStart = { position ->
                         motion.beginDrag(position, android.os.SystemClock.uptimeMillis())

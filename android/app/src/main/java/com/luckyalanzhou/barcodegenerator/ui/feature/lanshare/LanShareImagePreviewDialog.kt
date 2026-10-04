@@ -5,7 +5,6 @@ import android.os.Build
 import android.view.Window
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -133,12 +132,11 @@ internal fun LanShareImagePreviewDialog(
                 )
                 Surface(
                     onClick = onDismiss,
-                    modifier = Modifier.size(42.dp).semantics {
+                    modifier = Modifier.size(48.dp).semantics {
                         contentDescription = "关闭图片预览"
                     },
                     shape = CircleShape,
                     color = Color.White.copy(alpha = 0.16f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(

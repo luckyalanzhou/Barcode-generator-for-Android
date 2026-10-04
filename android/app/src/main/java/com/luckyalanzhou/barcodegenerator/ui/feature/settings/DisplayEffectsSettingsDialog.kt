@@ -1,15 +1,12 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -20,9 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -94,17 +89,7 @@ private fun DisplayEffectOptionRow(
             Text(state.explanation, color = colors.text.secondary, fontSize = 13.sp,
                 modifier = Modifier.padding(top = 4.dp))
         }
-        // Only this switch target handles touch. The visual track has no nested
-        // toggleable (even a disabled one), so it cannot swallow its parent's tap.
-        Box(
-            modifier = Modifier.width(52.dp).heightIn(min = 48.dp)
-                .toggleable(value = state.checked, enabled = state.enabled, role = Role.Switch,
-                    onValueChange = onCheckedChange)
-                .semantics { contentDescription = "$title。${state.explanation}" },
-            contentAlignment = Alignment.Center,
-        ) {
-            SettingsToggle(checked = state.checked, dark = dark, interactive = false,
-                modifier = Modifier.clearAndSetSemantics {}, onCheckedChange = {})
-        }
+        SettingsSwitchTarget(title = title, checked = state.checked, enabled = state.enabled,
+            explanation = state.explanation, onCheckedChange = onCheckedChange)
     }
 }

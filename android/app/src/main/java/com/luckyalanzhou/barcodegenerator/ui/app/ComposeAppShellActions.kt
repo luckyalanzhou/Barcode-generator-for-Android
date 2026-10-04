@@ -68,15 +68,17 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     }
 
     override fun selectTab(index: Int, fromSwipe: Boolean) {
-        if (navigationViewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
         val routes = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
         if (index !in routes.indices) return
+        val currentPage = navigationViewModel.uiState.value.page
+        val reselected = isTabReselection(currentPage, routes[index], fromSwipe)
+        if (currentPage == AppRoute.LanShare) closeLanShare()
         resultsViewModel.cancelPendingResults()
         favoritesViewModel.cancelPendingGroupLoad()
-        if (index == 1 && !fromSwipe) {
+        if (index == 1 && reselected) {
             historyViewModel.refreshHistory()
         }
-        if (index == 2 && !fromSwipe) {
+        if (index == 2 && reselected) {
             favoritesViewModel.collapseAllFolders()
             favoritesViewModel.requestScrollToTop()
         }

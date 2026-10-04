@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -56,6 +58,8 @@ class FavoritesViewModel @Inject constructor(
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
     val searchState: StateFlow<BarcodeDataState> = querySession.searchState
+    private val mutableSearchStatus = MutableStateFlow(FavoriteSearchStatus())
+    val searchStatus: StateFlow<FavoriteSearchStatus> = mutableSearchStatus.asStateFlow()
     val treeState: StateFlow<FavoriteTreeUiState> = pageState.treeState
     val query: StateFlow<String> = pageState.query
     val scrollToTopEvents: Flow<Unit> = scrollToTopRequests.receiveAsFlow()
@@ -70,9 +74,18 @@ class FavoritesViewModel @Inject constructor(
     fun searchFavoriteContent(query: String) {
         searchJob?.cancel()
         val normalizedQuery = query.trim().lowercase(Locale.ROOT)
+        mutableSearchStatus.value = FavoriteSearchStatus(normalizedQuery, busy = normalizedQuery.isNotEmpty())
         searchJob = viewModelScope.launch {
-            querySession.coordinator.search(normalizedQuery)
-            querySession.publishSearchState()
+            try {
+                querySession.coordinator.search(normalizedQuery)
+                querySession.publishSearchState()
+                mutableSearchStatus.value = FavoriteSearchStatus(normalizedQuery)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                appLogger.record("favorites", "search failed", error)
+                mutableSearchStatus.value = FavoriteSearchStatus(normalizedQuery, failed = true)
+            }
         }
     }
 

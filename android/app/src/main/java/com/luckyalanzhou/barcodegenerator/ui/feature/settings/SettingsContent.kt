@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
+import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
@@ -120,21 +121,23 @@ internal fun SettingsContent(
                                 contentColor = colors.settingsText.primary,
                                 onClick = { schemeMenu = true },
                                 onMeasured = { schemeButtonWidth = it },
+                                pickerLabel = "外观",
+                                expanded = schemeMenu,
                             )
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = schemeMenu,
-                                menuWidth = 110.dp,
+                                menuWidth = 160.dp,
                                 anchorWidth = schemeWidth,
                                 onDismiss = { schemeMenu = false },
                             ) {
                                 listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
-                                    androidx.compose.material3.DropdownMenuItem(
-                                        modifier = Modifier.height(40.dp),
-                                        text = { Text(label, color = colors.settingsText.primary) },
-                                        onClick = { schemeMenu = false; persist(settings.copy(scheme = value)) },
-                                    )
+                                    val selectedScheme = settings.scheme.takeIf { it == "light" || it == "dark" } ?: "system"
+                                    SingleChoiceMenuItem(label, value == selectedScheme) {
+                                        schemeMenu = false
+                                        persist(settings.copy(scheme = value))
+                                    }
                                 }
                             }
                         }
@@ -168,9 +171,9 @@ internal fun SettingsContent(
                     }
                     SettingsDivider(dark)
                     SettingsRow("显示条码格式", colors.settingsText.primary) {
-                        SettingsToggle(
+                        SettingsSwitchTarget(
+                            title = "显示条码格式",
                             checked = settings.showFormat,
-                            dark = dark,
                             modifier = Modifier.padding(end = 8.dp),
                             onCheckedChange = { next ->
                                 persist(settings.copy(showFormat = next))

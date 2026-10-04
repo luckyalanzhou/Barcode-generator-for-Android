@@ -33,6 +33,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -73,12 +79,17 @@ internal fun SettingsActionRow(title: String, action: String, color: Color, butt
 }
 
 @Composable
-internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, onMeasured: (Int) -> Unit) {
-    SettingsButton(text, color, contentColor, onClick, Modifier.onGloballyPositioned { onMeasured(it.size.width) })
+internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, onMeasured: (Int) -> Unit, pickerLabel: String? = null, expanded: Boolean = false) {
+    val modifier = Modifier.onGloballyPositioned { onMeasured(it.size.width) }
+        .then(if (pickerLabel != null) Modifier.semantics {
+            contentDescription = pickerLabel
+            stateDescription = "$text，${if (expanded) "已展开" else "已收起"}"
+        } else Modifier)
+    SettingsButton(text, color, contentColor, onClick, modifier, showDisclosure = pickerLabel != null)
 }
 
 @Composable
-internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false) {
+internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false) {
     val interactionSource = remember { MutableInteractionSource() }
     Button(onClick = onClick, enabled = !busy, interactionSource = interactionSource, colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor, disabledContainerColor = color, disabledContentColor = contentColor), shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp), modifier = modifier.iosPressFeedback(interactionSource).globalButtonChrome(RoundedCornerShape(14.dp), 1.dp).heightIn(min = 48.dp)) {
         if (busy) {
@@ -86,6 +97,9 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
             androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
         }
         Text(text, maxLines = 1)
+        if (showDisclosure) Icon(KeyboardArrowDownIcon, contentDescription = null,
+            tint = LocalAppColorScheme.current.settingsText.secondary,
+            modifier = Modifier.padding(start = 6.dp).size(16.dp))
     }
 }
 
@@ -105,9 +119,40 @@ internal fun SettingsDivider(dark: Boolean) {
 }
 
 @Composable
-internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, interactive: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
+internal fun SettingsSwitchTarget(
+    title: String,
+    checked: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    explanation: String? = null,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    // One event/semantics owner; the track must not intercept this target's taps.
+    Box(
+        modifier.width(52.dp).heightIn(min = 48.dp)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch,
+                onValueChange = onCheckedChange)
+            .semantics { contentDescription = switchAccessibilityLabel(title, explanation) },
+        contentAlignment = Alignment.Center,
+    ) {
+        SettingsToggle(checked, enabled, Modifier.clearAndSetSemantics {})
+    }
+}
+
+internal fun switchAccessibilityLabel(title: String, explanation: String?): String =
+    if (explanation.isNullOrBlank()) title else "$title。$explanation"
+
+internal fun settingsSwitchColor(color: Color, surface: Color, enabled: Boolean, highContrast: Boolean): Color =
+    if (enabled || highContrast) color else androidx.compose.ui.graphics.lerp(surface, color, .55f)
+
+@Composable
+private fun SettingsToggle(checked: Boolean, enabled: Boolean, modifier: Modifier = Modifier) {
     val themeColors = LocalAppColorScheme.current
-    val trackColor = animateColorAsState(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
+    val highContrast = LocalVisualEffectsPolicy.current.highContrast
+    val track = settingsSwitchColor(if (checked) themeColors.controls.toggleOn else themeColors.controls.toggleOff,
+        themeColors.surfaces.surface, enabled, highContrast)
+    val thumb = settingsSwitchColor(themeColors.controls.thumb, themeColors.surfaces.surface, enabled, highContrast)
+    val trackColor = animateColorAsState(track, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-track")
     val thumbOffset = animateDpAsState(if (checked) 20.dp else 0.dp, ComposeAnimationConfig.toggleSpring(), label = "settings-toggle-thumb")
     Box(
         modifier.width(52.dp).height(32.dp)
@@ -118,8 +163,6 @@ internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier 
                     cornerRadius = CornerRadius(16.dp.toPx()),
                 )
             }
-            .then(if (interactive) Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch,
-                onValueChange = onCheckedChange) else Modifier)
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -128,7 +171,7 @@ internal fun SettingsToggle(checked: Boolean, dark: Boolean, modifier: Modifier 
                 .graphicsLayer { translationX = thumbOffset.value.toPx() }
                 .shadow(1.dp, CircleShape)
                 .clip(CircleShape)
-                .background(themeColors.controls.thumb),
+                .background(thumb),
         )
     }
 }

@@ -5,6 +5,11 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.CircularProgressIndicator
@@ -235,7 +240,11 @@ internal fun GenerateContent(
                     Button(
                         onClick = { formatExpanded = true },
                         modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
-                            .height(40.dp),
+                            .heightIn(min = 48.dp)
+                            .semantics {
+                                contentDescription = "条码类型"
+                                stateDescription = "$formatName，${if (formatExpanded) "已展开" else "已收起"}"
+                            },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(0.5.dp, themeColors.borders.button),
                         elevation = ButtonDefaults.buttonElevation(
@@ -252,6 +261,8 @@ internal fun GenerateContent(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                     ) {
                         Text(formatName, color = textColor, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
+                        Icon(KeyboardArrowDownIcon, contentDescription = null, tint = themeColors.text.secondary,
+                            modifier = Modifier.padding(start = 6.dp).size(16.dp))
                     }
                     AnchoredDropdownMenu(
                         dark = dark,
@@ -261,13 +272,17 @@ internal fun GenerateContent(
                         containerColor = themeColors.surfaces.overlay,
                         tonalElevation = 0.dp,
                         shadowElevation = 1.dp,
-                        menuWidth = (formatAnchorWidth ?: 148.dp).coerceAtLeast(148.dp),
+                        menuWidth = (formatAnchorWidth ?: 176.dp).coerceAtLeast(176.dp),
                         anchorWidth = formatAnchorWidth,
                         alignEndWithAnchor = true,
                     ) {
                         barcodeFormats.forEachIndexed { index, (name, _) ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text(name, color = themeColors.text.primary, maxLines = 1, softWrap = false) }, onClick = { formatName = name; onFormatChanged(name); formatExpanded = false })
+                            SingleChoiceMenuItem(name, name == formatName) {
+                                formatName = name
+                                onFormatChanged(name)
+                                formatExpanded = false
+                            }
                         }
                     }
                 }

@@ -25,6 +25,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,6 +39,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -76,11 +80,9 @@ internal fun ResultsContent(
     val dimensions = LocalAppDimensions.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
-    val resultActionBlue = themeColors.controls.accent
     val items = resultState.items
     val density = LocalDensity.current.density
     val isFavorite = resultState.hasSavedFavoriteFile()
-    val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
 
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -147,34 +149,61 @@ internal fun ResultsContent(
         return
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(top = dimensions.pageTopPadding),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Column(Modifier.fillMaxSize().padding(top = dimensions.pageTopPadding)) {
+        ResultToolbar(
+            exportAction = exportAction,
+            isFavorite = isFavorite,
+            onEdit = onEdit,
+            onSaveFavorite = onSaveFavorite,
+            onShare = onShare,
+            onSave = onSave,
+        )
+        HorizontalDivider(color = themeColors.borders.divider, thickness = 0.5.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            items(items, key = { it.id }) { item ->
+                ComposeResultBarcode(item, primary, settings, dark, loadBarcodeImage)
+            }
+        }
+    }
+}
+
+// Grow labels with the system font scale, but keep each two-action group usable on a phone.
+internal fun resultToolbarActionWidth(fontScale: Float): Float =
+    64f * (if (fontScale.isFinite()) fontScale else 1f).coerceIn(1f, 1.5f)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean,
+    onEdit: () -> Unit, onSaveFavorite: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
+    val themeColors = LocalAppColorScheme.current
+    val actionWidth = resultToolbarActionWidth(LocalDensity.current.fontScale).dp
+    val resultActionBlue = themeColors.controls.accent
+    val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        item {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(Modifier.weight(1f))
-                ResultAction(EditIcon, "编辑", resultActionBlue, onClick = onEdit)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ResultAction(EditIcon, "编辑", resultActionBlue, onClick = onEdit, actionWidth = actionWidth)
                 ResultAction(
                     favoriteActionIcon,
                     "收藏",
                     if (isFavorite) themeColors.content.favoriteActive else resultActionBlue,
                     onSaveFavorite,
+                    actionWidth = actionWidth,
                 )
-                ResultAction(IosShareIcon, if (exportAction == ResultExportAction.Share) "准备中…" else "分享", resultActionBlue,
-                    onShare, enabled = exportAction == null, busy = exportAction == ResultExportAction.Share)
-                ResultAction(ArrowDownwardIcon, if (exportAction == ResultExportAction.Save) "准备中…" else "保存", resultActionBlue,
-                    onSave, enabled = exportAction == null, busy = exportAction == ResultExportAction.Save)
             }
-        }
-        items(items, key = { it.id }) { item ->
-            ComposeResultBarcode(item, primary, settings, dark, loadBarcodeImage)
-        }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ResultAction(IosShareIcon, if (exportAction == ResultExportAction.Share) "准备中…" else "分享", resultActionBlue,
+                    onShare, enabled = exportAction == null, busy = exportAction == ResultExportAction.Share, actionWidth = actionWidth)
+                ResultAction(ArrowDownwardIcon, if (exportAction == ResultExportAction.Save) "准备中…" else "保存", resultActionBlue,
+                    onSave, enabled = exportAction == null, busy = exportAction == ResultExportAction.Save, actionWidth = actionWidth)
+            }
     }
 }
 
@@ -183,18 +212,18 @@ internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
 
 @Composable
 private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit,
-    enabled: Boolean = true, busy: Boolean = false) {
+    enabled: Boolean = true, busy: Boolean = false, actionWidth: androidx.compose.ui.unit.Dp = 64.dp) {
     val interaction = remember { MutableInteractionSource() }
     val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
     Column(
-        Modifier.width(64.dp).heightIn(min = 48.dp).iosPressFeedback(interaction)
+        Modifier.width(actionWidth).heightIn(min = 48.dp).iosPressFeedback(interaction)
             .clip(RoundedCornerShape(14.dp))
             .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(25.dp).height(27.dp), color = contentTint, strokeWidth = 2.dp)
-        else Icon(icon, contentDescription = label, tint = contentTint, modifier = Modifier.width(25.dp).height(27.dp))
+        else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(25.dp).height(27.dp))
         Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
     }
 }
