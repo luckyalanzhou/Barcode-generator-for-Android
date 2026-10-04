@@ -70,6 +70,7 @@ internal fun GenerateContent(
     initialFormat: String,
     dark: Boolean,
     isPreparingResult: Boolean,
+    isDataReady: Boolean,
     onDraftChanged: (List<String>) -> Unit,
     onFormatChanged: (String) -> Unit,
     onGenerate: (List<String>, String) -> Unit,
@@ -189,7 +190,7 @@ internal fun GenerateContent(
         )
 
         val count = values.count { it.trim().isNotEmpty() }
-        val generateEnabled = count > 0 && !isPreparingResult
+        val generateEnabled = count > 0 && isDataReady && !isPreparingResult
         val generateContainer = if (generateEnabled) themeColors.controls.accent else themeColors.controls.button
         val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

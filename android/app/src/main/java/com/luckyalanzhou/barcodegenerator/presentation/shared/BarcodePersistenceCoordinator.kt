@@ -65,6 +65,28 @@ class BarcodePersistenceCoordinator @Inject constructor(
         return enqueue { barcodeRepository.saveItems(snapshot) }
     }
 
+    suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> {
+        val drafts = items.map { it.copy() }
+        var inserted = emptyList<CodeItem>()
+        // Share ordering with queued library writes. IDs are returned only after commit.
+        enqueue { inserted = barcodeRepository.insertGeneratedItems(drafts) }.await().getOrThrow()
+        return inserted
+    }
+
+    internal fun refreshFavoriteFlags(store: LibraryStateStore, onRefreshed: () -> Unit) = enqueue {
+        val ids = store.itemsSnapshot().map { it.id }
+        val persisted = ids.chunked(900).flatMap { barcodeRepository.loadItemsByIds(it) }.associateBy { it.id }
+        store.edit {
+            items.forEach { item ->
+                persisted[item.id]?.let { saved ->
+                    item.favorite = saved.favorite
+                    item.folder = saved.folder
+                }
+            }
+        }
+        onRefreshed()
+    }
+
     fun persistFavoriteFolders(folders: List<String>): Deferred<Result<Unit>> {
         val snapshot = folders.filter { it.isNotBlank() }.distinct()
         return enqueue { barcodeRepository.saveFavoriteFolders(snapshot) }

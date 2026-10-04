@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 internal class FavoritesMutationCoordinator(
     private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
+    private val onReconciled: () -> Unit = {},
 ) {
     fun renameFolder(path: String, renamedPath: String): Boolean {
         val knownPaths = store.foldersSnapshot() + store.favoriteIdentityFolderPathsSnapshot()
@@ -36,10 +37,6 @@ internal class FavoritesMutationCoordinator(
 
     fun deleteFolder(path: String) {
         store.edit {
-            val removed = groups.filter { it.folder == path || it.folder.startsWith("$path/") }
-            val remaining = groups.filterNot { it.folder == path || it.folder.startsWith("$path/") }
-            val orphaned = removed.flatMap { it.itemIds }.distinct().filter { itemId -> remaining.none { itemId in it.itemIds } }
-            items.filter { it.id in orphaned }.forEach { it.favorite = false; it.folder = "默认" }
             groups.removeAll { it.folder == path || it.folder.startsWith("$path/") }
             folders.removeAll { it == path || it.startsWith("$path/") }
         }
@@ -50,8 +47,6 @@ internal class FavoritesMutationCoordinator(
         val removed = store.edit {
             val group = groups.firstOrNull { it.id == groupId } ?: return@edit false
             groups.removeAll { it.id == groupId }
-            val orphaned = group.itemIds.filter { itemId -> groups.none { remaining -> itemId in remaining.itemIds } }
-            items.filter { it.id in orphaned }.forEach { it.favorite = false }
             if (group.folder !in folders) folders.add(group.folder)
             true
         }
@@ -74,7 +69,8 @@ internal class FavoritesMutationCoordinator(
             val updatedGroup = FavoriteGroup(groupId, folder, name, System.currentTimeMillis(), selectedItems.map { it.id }.toMutableList())
             val targetIndex = groups.indexOfFirst { it.id == groupId }
             if (targetIndex >= 0) groups[targetIndex] = updatedGroup else groups.add(0, updatedGroup)
-            items.filter { it.favorite && groups.none { group -> it.id in group.itemIds } }.forEach { it.favorite = false }
+            // Missing links in a paged store mean unknown, not un-favorited.
+            // The repository reconciles flags against all persisted links inside the write transaction.
             groupId
         }
         if (savedGroupId != null) {
@@ -111,7 +107,11 @@ internal class FavoritesMutationCoordinator(
         persistence.renameFavoriteFolder(path, renamedPath)
         return true
     }
-    fun deleteFolderAndPersist(path: String) { deleteFolder(path); persistence.deleteFavoriteFolder(path) }
+    fun deleteFolderAndPersist(path: String) {
+        deleteFolder(path)
+        persistence.deleteFavoriteFolder(path)
+        persistence.refreshFavoriteFlags(store, onReconciled)
+    }
     fun renameGroupAndPersist(groupId: Long, name: String): Boolean {
         val identity = store.favoriteIdentity(groupId) ?: return false
         if (store.hasFavoriteIdentity(identity.folder, name, setOf(groupId))) return false
@@ -138,19 +138,22 @@ internal class FavoritesMutationCoordinator(
         return true
     }
     fun deleteGroupAndPersist(groupId: Long) {
-        if (deleteGroup(groupId)) persistence.deleteFavoriteGroups(listOf(groupId))
+        if (deleteGroup(groupId)) {
+            persistence.deleteFavoriteGroups(listOf(groupId))
+            persistence.refreshFavoriteFlags(store, onReconciled)
+        }
     }
     fun clearFavoritesAndPersist() {
         store.clearFavorites()
         persistence.clearAllFavoriteGroups()
         persistAllFavorites()
     }
-    fun persistAllFavorites() = persistence.persistAllFavorites(
-        store.itemsSnapshot(),
-        store.groupsSnapshot(),
-        store.foldersSnapshot(),
-        store.loadedGroupLinkIdsSnapshot(),
-    )
+    fun persistAllFavorites() {
+        persistence.persistAllFavorites(
+            store.itemsSnapshot(), store.groupsSnapshot(), store.foldersSnapshot(), store.loadedGroupLinkIdsSnapshot(),
+        )
+        persistence.refreshFavoriteFlags(store, onReconciled)
+    }
 
     private fun createsFavoriteIdentityCollision(path: String, renamedPath: String): Boolean {
         val before = store.favoriteIdentitiesSnapshot()

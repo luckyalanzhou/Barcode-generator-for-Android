@@ -38,7 +38,7 @@ class FavoritesViewModel @Inject constructor(
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
-    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence)
+    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence) { dataSession.publishDataState() }
     private val groupContent = FavoriteGroupContentCoordinator(
         loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
         regularStore = dataSession.store,

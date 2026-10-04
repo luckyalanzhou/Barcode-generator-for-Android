@@ -75,6 +75,12 @@ data class FavoriteFolderEntity(@PrimaryKey val name: String)
 
 @Dao
 interface BarcodeDao {
+    @Query("SELECT COALESCE(MAX(id), 0) FROM code_items") suspend fun maxItemId(): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertNewItems(items: List<CodeItemEntity>)
+    @Query("SELECT COALESCE(MAX(id), 0) FROM favorite_groups") suspend fun maxGroupId(): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertNewGroups(groups: List<FavoriteGroupEntity>)
+    @Query("UPDATE code_items SET favorite = EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id), folder = CASE WHEN EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id) THEN folder ELSE '' END")
+    suspend fun reconcileFavoriteFlags()
     @Query("SELECT * FROM code_items ORDER BY createdAt DESC, id DESC") suspend fun loadItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500") suspend fun loadStartupItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE id IN (:ids)") suspend fun loadItemsByIds(ids: List<Long>): List<CodeItemEntity>
@@ -90,8 +96,8 @@ interface BarcodeDao {
         insertItemsIfMissing(items)
     }
     @Query("DELETE FROM code_items") suspend fun clearItems()
-    @Query("DELETE FROM code_items WHERE favorite = 0") suspend fun clearNonFavoriteItems()
-    @Query("DELETE FROM code_items WHERE favorite = 0 AND id NOT IN (:retainedIds)") suspend fun deleteNonFavoriteItemsExcept(retainedIds: List<Long>)
+    @Query("DELETE FROM code_items WHERE favorite = 0 AND NOT EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id)") suspend fun clearNonFavoriteItems()
+    @Query("DELETE FROM code_items WHERE favorite = 0 AND id NOT IN (:retainedIds) AND NOT EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id)") suspend fun deleteNonFavoriteItemsExcept(retainedIds: List<Long>)
     @Query("DELETE FROM code_items WHERE id NOT IN (:retainedIds)") suspend fun deleteItemsExcept(retainedIds: List<Long>)
     @Query("DELETE FROM favorite_group_items WHERE itemId NOT IN (:retainedItemIds)") suspend fun deleteGroupItemsForItemsExcept(retainedItemIds: List<Long>)
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (:ids)") suspend fun clearFavoriteFlags(ids: List<Long>)

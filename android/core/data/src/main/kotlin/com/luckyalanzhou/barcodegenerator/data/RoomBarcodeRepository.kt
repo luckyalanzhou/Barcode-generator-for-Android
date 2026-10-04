@@ -58,6 +58,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.clearGroupItemsForGroups(linkGroups.toList())
                 dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap(FavoriteGroup::toLinkEntities))
             }
+            // Loaded pages are not proof that an item has no other favorite links.
+            dao.reconcileFavoriteFlags()
             dao.clearFolders()
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
@@ -65,12 +67,17 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun saveItems(items: List<CodeItem>) {
         database.withTransaction {
+            dao.reconcileFavoriteFlags()
             val retainedHistoryIds = items.filter { !it.favorite }.map { it.id }
             if (retainedHistoryIds.isEmpty()) dao.clearNonFavoriteItems()
             else dao.deleteNonFavoriteItemsExcept(retainedHistoryIds)
             dao.upsertItems(items.map(CodeItem::toEntity))
+            dao.reconcileFavoriteFlags()
         }
     }
+
+    override suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> =
+        database.withTransaction { insertGeneratedItemsWithAllocatedIds(dao, items) }
 
     override suspend fun upsertItems(items: List<CodeItem>) {
         if (items.isNotEmpty()) dao.upsertItems(items.map(CodeItem::toEntity))
@@ -230,6 +237,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     }
 
     override suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot = database.withTransaction {
+        dao.reconcileFavoriteFlags()
         val startupGroups = dao.loadGroupsPage(101, null, null)
         StartupBarcodeSnapshot(
             items = dao.loadStartupItems().map(CodeItemEntity::toDomain),
@@ -255,17 +263,20 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>) {
         database.withTransaction {
+            // Import planning may race another writer; its IDs are drafts, not durable identities.
+            val imported = allocateImportedSnapshotIds(snapshot, dao.maxItemId(), dao.maxGroupId())
             if (replacedGroupIds.isNotEmpty()) {
                 val ids = replacedGroupIds.toList()
                 dao.clearFavoriteFlagsForGroups(ids)
                 dao.deleteGroupItems(ids)
                 dao.deleteGroups(ids)
             }
-            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
-            dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
-            val importedGroupIds = snapshot.groups.map { it.id }
+            dao.insertNewItems(imported.items.map(CodeItem::toEntity))
+            dao.insertNewGroups(imported.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            val importedGroupIds = imported.groups.map { it.id }
             dao.clearGroupItemsForGroups(importedGroupIds)
-            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.saveGroupItems(imported.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.reconcileFavoriteFlags()
             // Import adds folders but must not erase pre-existing empty folders.
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }

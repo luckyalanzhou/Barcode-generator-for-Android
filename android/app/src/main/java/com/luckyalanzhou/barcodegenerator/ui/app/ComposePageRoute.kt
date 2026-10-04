@@ -55,6 +55,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     initialFormat = initialFormat,
                     dark = dark,
                     isPreparingResult = isPreparingResult,
+                    isDataReady = barcodeData.isReady,
                     onDraftChanged = dependencies.generateViewModel::updateDraft,
                     onFormatChanged = dependencies.generateViewModel::updateFormat,
                     onGenerate = { values, format ->

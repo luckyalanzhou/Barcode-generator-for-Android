@@ -189,9 +189,14 @@ class ResultsViewModel @Inject constructor(
         onNotice: (String) -> Unit,
         onNavigateToResults: () -> Unit,
     ) {
+        if (!dataSession.dataState.value.isReady) {
+            onNotice("数据正在加载，请稍后生成")
+            return
+        }
         if (items.isEmpty()) return
         prepareResultImages(items, style, dark, density, onNotice) {
-            val nextResult = generation.commit(items, results.current())
+            val inserted = persistence.insertGeneratedItems(items)
+            val nextResult = generation.commit(inserted, results.current())
             rememberResult(nextResult)
             onNavigateToResults()
         }
@@ -203,7 +208,7 @@ class ResultsViewModel @Inject constructor(
         dark: Boolean,
         density: Float,
         onNotice: (String) -> Unit,
-        onReady: () -> Unit,
+        onReady: suspend () -> Unit,
     ) {
         if (items.isEmpty() || _isPreparingResult.value) return
         resultPreparationJob?.cancel()
@@ -218,8 +223,8 @@ class ResultsViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                appLogger.record("results", "preparing result barcode images failed", error)
-                onNotice("条码图片生成失败，结果尚未打开；请重试")
+                appLogger.record("results", "preparing or saving result failed", error)
+                onNotice("条码结果准备或保存失败，结果尚未打开；请重试")
             } finally {
                 _isPreparingResult.value = false
             }

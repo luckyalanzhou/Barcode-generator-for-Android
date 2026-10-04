@@ -25,6 +25,7 @@ class GenerateBarcodesUseCase {
             val validation = BarcodeValidator.validate(value, format)
             if (!validation.valid) return Output(errorIndex = originalIndex, errorMessage = validation.message)
         }
+        // Draft IDs are local rendering identifiers only. Repository assigns final IDs on insert.
         var nextId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L
         return Output(values.map { (_, value) -> CodeItem(nextId++, value, format, now) })
     }
