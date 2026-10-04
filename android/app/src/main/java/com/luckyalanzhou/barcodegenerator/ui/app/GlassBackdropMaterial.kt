@@ -12,7 +12,7 @@ internal fun menuGlassMaterial(background: Color, heightDp: Float): GlassBackdro
     val dark = background.luminance() < .35f
     val thickness = ((heightDp - 80f) / 160f).coerceIn(0f, 1f)
     return GlassBackdropMaterial(
-        opacity = (if (dark) .82f else .78f) + .035f * thickness,
+        opacity = (if (dark) .64f else .56f) + .05f * thickness,
         blurDp = 7f + thickness * 3f,
         refractionDp = .5f + thickness * .35f,
     )

@@ -122,6 +122,7 @@ private class BackdropRenderer(private val shader: RuntimeShader) {
         shader.setFloatUniform("shape", corner * density, blur * density, refraction * density, opacity)
         shader.setFloatUniform("contact", capsule?.touchX ?: size.width / 2f, capsule?.touchY ?: 0f,
             capsule?.motion ?: 0f, capsule?.contactSpread ?: 1f)
+        shader.setFloatUniform("capsuleMode", if (capsule == null) 0f else 1f)
         shader.setColorUniform("surfaceColor", color.toArgb())
         val lens = RenderEffect.createRuntimeShaderEffect(shader, "content")
         val effect = if (blur > 0f) RenderEffect.createChainEffect(lens,

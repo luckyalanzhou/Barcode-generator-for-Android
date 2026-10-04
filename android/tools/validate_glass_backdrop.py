@@ -21,7 +21,7 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False):
         builder = skia.RuntimeShaderBuilder(effect)
         input_page = page
         if page_color is not None:
@@ -32,6 +32,7 @@ def main():
         builder.setUniform("bounds", skia.V4(w / 2, h / 2, 135, 65))
         builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
         builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
+        builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
         builder.setUniform("surfaceColor", skia.V4(*((.08, .09, .12, 1) if dark else (.97, .98, 1, 1))))
         output = skia.Surface(w, h)
         output.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
@@ -53,6 +54,9 @@ def main():
         assert np.count_nonzero(difference > 3) > 30, "Contact does not light the material rim"
         assert difference[65:115, 90:230].max() <= 1, "Contact creates a central hot spot"
         assert np.max(lit[:20, :, 3]) == 0, "Contact produces external glow"
+        capsule_rest = render(.45, 0, 0, dark, capsule=True)
+        capsule_contact = render(.45, 0, 0, dark, contact=1, capsule=True)
+        assert np.array_equal(capsule_rest, capsule_contact), "Tab background duplicates foreground rim light"
         print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
 
 

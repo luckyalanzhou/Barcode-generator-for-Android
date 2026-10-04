@@ -9,7 +9,7 @@ class GlassBackdropMaterialTest {
         for (color in listOf(Color.Black, Color.White, Color(.12f, .13f, .15f))) {
             for (height in listOf(-100f, 0f, 80f, 150f, 240f, 2000f)) {
                 val material = menuGlassMaterial(color, height)
-                assertTrue(material.opacity in .78f.. .86f)
+                assertTrue(material.opacity in .56f.. .70f)
                 assertTrue(material.blurDp in 7f..10f)
                 assertTrue(material.refractionDp in .5f.. .86f)
             }
