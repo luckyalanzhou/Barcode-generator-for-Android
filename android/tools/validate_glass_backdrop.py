@@ -59,6 +59,38 @@ def main():
         assert np.array_equal(capsule_rest, capsule_contact), "Tab background duplicates foreground rim light"
         print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
 
+    # Exercise the actual foreground lens independently: it must add no material or duplicate layer.
+    foreground_source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/TabForegroundLens.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    foreground_effect = skia.RuntimeEffect.MakeForShader(foreground_source)
+    glyphs = skia.Surface(w, h)
+    glyphs.getCanvas().clear(0)
+    for x in range(0, w, 6):
+        glyphs.getCanvas().drawLine(x, 55, x, 125, skia.Paint(Color=0xFF2684FF, StrokeWidth=2))
+    image = glyphs.makeImageSnapshot()
+
+    def foreground(displacement, center_x):
+        builder = skia.RuntimeShaderBuilder(foreground_effect)
+        builder.setChild("content", image.makeShader(skia.SamplingOptions(skia.FilterMode.kLinear)))
+        builder.setUniform("resolution", skia.V2(w, h))
+        builder.setUniform("capsule", skia.V4(center_x, h / 2, 42, 28))
+        builder.setUniform("lens", skia.V2(displacement, 1))
+        surface = skia.Surface(w, h)
+        surface.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
+        return surface.makeImageSnapshot().toarray()
+
+    original = image.toarray()
+    for center_x in (80, 140, 200, 260):
+        rest = foreground(0, center_x)
+        active = foreground(1.2, center_x)
+        assert np.array_equal(rest, original), "Stationary foreground is not an identity transform"
+        outside = np.ones((h, w), dtype=bool)
+        outside[62:118, int(center_x - 42):int(center_x + 42)] = False
+        assert np.array_equal(active[outside], original[outside]), "Foreground lens affects other tabs"
+        difference = np.max(np.abs(active.astype(int) - original.astype(int)), axis=2)
+        assert np.count_nonzero(difference > 3) > 20, "Moving lens does not displace covered foreground pixels"
+        assert abs(active[:, :, 3].astype(float).sum() / original[:, :, 3].astype(float).sum() - 1) < .02, "Lens adds material or duplicates glyph coverage"
+    print("PASS: foreground stationary identity, moving local refraction, outside-tab isolation and single-layer coverage")
+
 
 if __name__ == "__main__":
     main()

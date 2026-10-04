@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 import android.animation.ValueAnimator
+import android.os.Build
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -14,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
@@ -34,6 +36,10 @@ internal fun TabLiquidGlassScene(
     val policy = LocalVisualEffectsPolicy.current
     val renderer = rememberGlassBackdropRenderer()
     val backdropAvailable = glassBackdropAvailable(policy, renderer)
+    val foregroundFactory = remember { lazy {
+        if (Build.VERSION.SDK_INT >= 33) TabForegroundLensRenderer.createOrNull() else null
+    } }
+    val foregroundRenderer = if (backdropAvailable && !policy.reduceMotion) foregroundFactory.value else null
     val material = remember(background, sceneSize.height, density) {
         tabGlassMaterial(background, sceneSize.height / density)
     }
@@ -61,7 +67,7 @@ internal fun TabLiquidGlassScene(
             velocityTabsPerSecond = motion.velocity,
         )
     }
-    // One background lens only. Foreground glyphs are never passed through a RenderEffect.
+    // Background owns the material; this separate foreground layer only displaces moving pixels.
     Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }) {
         if (visible && !policy.opaqueGlass) {
             GlassBackdropSurface(
@@ -76,6 +82,13 @@ internal fun TabLiquidGlassScene(
                 if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity.coerceAtLeast(.82f)),
                 accent, background, policy.highContrast)
         }
-        content()
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            val frame = frameProvider()
+            val displacement = if (visible && !policy.reduceMotion && !policy.opaqueGlass &&
+                ValueAnimator.areAnimatorsEnabled()) tabForegroundDisplacement(frame, motion.velocity) else 0f
+            renderEffect = if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && displacement > .001f) {
+                foregroundRenderer.effect(frame, displacement)
+            } else null
+        }, content = content)
     }
 }

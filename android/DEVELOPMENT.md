@@ -44,6 +44,8 @@
 
 ### Tab 栏与长按菜单视觉回归
 
+Tab 前景增加独立的 `TabForegroundLens.kt` 运动透镜：仅当胶囊实际移动、Android 13+ GPU 路径可用且无障碍策略允许时，对胶囊内部的前景像素作最大 1.2dp 的局部位移。速度降低时连续归零，停止/仅按住不移动时撤销 RenderEffect。前景透镜不混色、不模糊、不绘制第二份图标，边界位移归零；背景材质仍独立处理，不叠加第二层材质。下文的“清晰前景/原始几何形态”指静止及菜单前景，移动中的 Tab 前景允许上述轻微透镜位移。
+
 Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单独记录到 Compose `GraphicsLayer`，Tab 和菜单自身不进入背景源；材质按窗口坐标重放对应区域，不截图、不逐帧转 Bitmap 或读回 GPU。Android 13+ 且硬件加速可用时，选中胶囊通过 `RuntimeShader` / `RenderEffect` 对局部背景像素做透镜折射；点击、按压和滑动时折射及边缘光随接触位置变化，静止后折射归零，图标与文字始终保持原始几何形态。Android 8–12、软件渲染或 shader 初始化失败时使用兼容的胶囊光影，不提供像素折射。普通内容卡片保持实色，不接入玻璃材质。历史、收藏、设置三页在切页动画容器外预留实际 Tab 栏高度加 8dp 间距并裁切，显示与滚动均截止在 Tab 区域上方；列表仅保留 8dp 的末尾留白，不重复预留导航高度。生成页的内容视口保持原有行为。
 
 背景材质与 Tab 前景使用独立图层，避免对页面和图标重复折射或重复着色。背景使用 Android GPU 高斯模糊与 AGSL 局部透镜组合；shader 内的少量邻域采样按背景亮度与细节增加有限的对比保护，不做全局主题翻转。菜单大小决定基准散射与折射强度；菜单文字、操作图标和浮起 Tab 始终独立清晰绘制，不参与模糊或折射。胶囊接触光仅出现在边缘。普通内容卡片、条码和文件源不受材质处理影响。只有导航控件可见、且未启用不透明降级时才记录背景，不在相机/结果/传输等无主导航页面额外采样。
@@ -116,7 +118,7 @@ Tab 栏不绘制整体外框，也不绘制整条实色背景。页面内容单�
 & 'C:\Users\zhimi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' android/tools/validate_glass_backdrop.py --runtime-package-dir D:\Barcode_build\glass-validation\python-packages
 ```
 
-背景脚本编译实际 `GlassBackdropShader.kt`，验证真实背景像素位移、圆角外透明隔离、局部对比保护及不透明结果；它不运行 Android 的 RenderEffect 高斯模糊链、Compose 布局、TalkBack 或设备 GPU 驱动。`GlassRenderPolicyTest` 覆盖 API、硬件加速、背景可用、shader 可用与高对比度组合；Tab 使用同一个 renderer 做能力判断与绘制，不重复编译前景 shader，高对比度不初始化背景 shader。材质参数在绘制层读取，RenderEffect 缓存使用类型化键，禁止 GPU 读回或逐帧 Bitmap。
+背景脚本编译实际 `GlassBackdropShader.kt`，验证真实背景像素位移、圆角外透明隔离、局部对比保护及不透明结果；同时编译 `TabForegroundLens.kt` 检查静止完全一致、移动局部位移、外部像素隔离和单层覆盖率。它不运行 Android 的 RenderEffect 高斯模糊链、Compose 布局、TalkBack 或设备 GPU 驱动。`GlassRenderPolicyTest` 覆盖 API、硬件加速、背景可用、shader 可用与高对比度组合；Tab 使用同一个背景 renderer 做能力判断与绘制，运动前景透镜单独缓存，高对比度不初始化这两种 shader。材质参数在绘制层读取，RenderEffect 缓存使用类型化键，禁止 GPU 读回或逐帧 Bitmap。
 
 真机验收矩阵：浅色/深色 × 历史/收藏/设置 × 点击/慢拖/快拖/连续反向拖动；Tab 与文件夹/文件菜单分别检查展开方向、靠边定位、关闭及松手命中。增加密集文字/图片背景、大字体、横屏、TalkBack、系统关闭动画及高对比度。确认静止无重影、菜单前景清晰、边缘无外溢、窗口变化不留旧菜单；普通卡片和源图片不受影响。帧率按设备实际刷新率的帧时间预算评估（如 60Hz 约 16.7ms，120Hz 约 8.3ms），比较修改前后的掉帧与帧耗时，不能以本地数学动画测试代替设备性能验收。
 
