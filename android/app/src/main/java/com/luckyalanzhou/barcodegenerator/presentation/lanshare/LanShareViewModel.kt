@@ -71,6 +71,11 @@ data class LanShareUiState(
     val pendingUploadName: String? = null,
 )
 
+internal fun LanShareUiState.withoutPendingTransfers() = copy(
+    uploadingFiles = emptyList(), pendingDownloadId = null,
+    pendingUploadUri = null, pendingUploadTempFile = null, pendingUploadName = null,
+)
+
 sealed interface LanShareEvent {
     data class Error(val message: String) : LanShareEvent
     data class Notice(val message: String, val clearInput: Boolean = false) : LanShareEvent
@@ -213,6 +218,12 @@ class LanShareViewModel @Inject constructor(
         refreshGuard.invalidate()
         refreshJob?.cancel()
         refreshJob = null
+        activeUploadTasks.entries.toList().forEach { (id, task) ->
+            task.job.cancel()
+            lanShareGateway.cancelUpload(id)
+        }
+        _uiState.value.pendingUploadTempFile?.delete()
+        _uiState.update { it.withoutPendingTransfers() }
     }
 
     private fun applyRealtimeState(snapshot: LanShareRealtimeState) {
@@ -308,7 +319,7 @@ class LanShareViewModel @Inject constructor(
         job.invokeOnCompletion {
             activeUploadTasks.remove(uploadId, task)
             temporaryFile?.delete()
-            refreshGuard.update(session, ticket) { state ->
+            _uiState.update { state ->
                 state.copy(uploadingFiles = state.uploadingFiles.filterNot { it.id == uploadId })
             }
         }
@@ -437,6 +448,11 @@ class LanShareViewModel @Inject constructor(
 
     private companion object {
         const val DOWNLOAD_DESTINATION_COPY_BUFFER_SIZE = 128 * 1024
+    }
+
+    override fun onCleared() {
+        closeSession()
+        super.onCleared()
     }
 
 }

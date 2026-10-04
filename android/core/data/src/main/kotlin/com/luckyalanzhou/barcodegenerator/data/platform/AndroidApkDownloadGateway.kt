@@ -12,6 +12,8 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 
 /** Android file/network adapter for secure APK download and checksum validation. */
@@ -20,14 +22,20 @@ class AndroidApkDownloadGateway(
     private val logger: AppLogger,
     private val userAgent: String,
 ) : ApkDownloadGateway {
+    private val activeConnections = ConcurrentHashMap.newKeySet<HttpURLConnection>()
+
+    override fun cancel() {
+        activeConnections.toList().forEach { it.disconnect() }
+    }
     override suspend fun download(
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
         onProgress: (progress: Int, indeterminate: Boolean, status: String) -> Unit,
     ): File = withContext(Dispatchers.IO) {
-        val temp = File(context.cacheDir, "barcode-generator-update.apk.part")
-        val official = File(context.cacheDir, "barcode-generator-update.apk")
+        val requestId = UUID.randomUUID().toString()
+        val temp = File(context.cacheDir, "barcode-generator-update-$requestId.apk.part")
+        val official = File(context.cacheDir, "barcode-generator-update-$requestId.apk")
         var connection: HttpURLConnection? = null
         try {
             val limit = UpdateSecurity.MAX_APK_DOWNLOAD_BYTES
@@ -35,6 +43,8 @@ class AndroidApkDownloadGateway(
             require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
             require(apkUrl.toUri().scheme.equals("https", ignoreCase = true)) { "更新包必须使用 HTTPS 下载" }
             connection = URL(apkUrl).openConnection() as HttpURLConnection
+            activeConnections.add(connection)
+            coroutineContext.ensureActive()
             connection.apply {
                 connectTimeout = 15000
                 readTimeout = 30000
@@ -71,20 +81,22 @@ class AndroidApkDownloadGateway(
             val actual = temp.inputStream().use { input ->
                 val buffer = ByteArray(16 * 1024)
                 var count: Int
-                while (input.read(buffer).also { count = it } != -1) digest.update(buffer, 0, count)
+                while (input.read(buffer).also { count = it } != -1) {
+                    coroutineContext.ensureActive()
+                    digest.update(buffer, 0, count)
+                }
                 digest.digest().joinToString("") { "%02x".format(it) }
             }
             require(actual.equals(expectedSha256, true)) { "SHA-256 校验失败" }
+            coroutineContext.ensureActive()
             official.delete()
             require(temp.renameTo(official)) { "无法保存更新文件" }
-            context.cacheDir.listFiles()
-                ?.filter { it.name.startsWith("barcode-generator-update") && it != official }
-                ?.forEach { it.delete() }
             logger.record("update", "download validated size=${official.length()}", null)
             return@withContext official
         } finally {
             connection?.disconnect()
-            if (!official.isFile) temp.delete()
+            connection?.let(activeConnections::remove)
+            temp.delete()
         }
     }
 }

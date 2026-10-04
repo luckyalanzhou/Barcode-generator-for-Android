@@ -231,6 +231,12 @@ class FavoritesViewModel @Inject constructor(
         }
     }
 
+    internal fun cancelPendingGroupLoad() {
+        groupLoadRequest++
+        groupLoadJob?.cancel()
+        groupLoadJob = null
+    }
+
     internal fun isFavoriteGroupCurrent(groupId: Long, savedAt: Long): Boolean =
         groupContent.isCurrent(groupId, savedAt)
 

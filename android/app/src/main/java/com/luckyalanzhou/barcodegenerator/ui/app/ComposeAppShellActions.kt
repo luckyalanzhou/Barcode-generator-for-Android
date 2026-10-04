@@ -55,12 +55,20 @@ internal interface ComposeAppShellActions {
 
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
 internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = object : ComposeAppShellActions {
-    override fun navigateTo(route: AppRoute) = navigationViewModel.navigateTo(route)
+    override fun navigateTo(route: AppRoute) {
+        if (route != AppRoute.Results) {
+            resultsViewModel.cancelPendingResults()
+            favoritesViewModel.cancelPendingGroupLoad()
+        }
+        navigationViewModel.navigateTo(route)
+    }
 
     override fun selectTab(index: Int, fromSwipe: Boolean) {
         if (navigationViewModel.uiState.value.page == AppRoute.LanShare) closeLanShare()
         val routes = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
         if (index !in routes.indices) return
+        resultsViewModel.cancelPendingResults()
+        favoritesViewModel.cancelPendingGroupLoad()
         if (index == 1 && !fromSwipe) {
             historyViewModel.refreshHistory()
         }

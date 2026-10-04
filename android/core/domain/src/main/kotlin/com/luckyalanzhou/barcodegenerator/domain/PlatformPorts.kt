@@ -14,6 +14,8 @@ interface OcrTextGateway {
 }
 
 interface ApkDownloadGateway {
+    /** Interrupts active blocking reads as well as cancelling their coroutine owner. */
+    fun cancel() {}
     suspend fun download(
         apkUrl: String,
         expectedSize: Long?,

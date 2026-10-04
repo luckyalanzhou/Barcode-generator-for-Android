@@ -112,11 +112,18 @@ class UpdateCoordinator(
         setDownloadRunning(true)
         downloadJob = scope.launch {
             try {
-                val file = downloadUpdate(apkUrl, expectedSize, expectedSha256)
+                val file = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
+                    if (downloadGeneration.get() == generation) setDownloadProgress(progress, indeterminate, status)
+                }
+                if (downloadGeneration.get() != generation) {
+                    file.delete()
+                    return@launch
+                }
                 _events.emit(UpdateEvent.DownloadReady(file.absolutePath))
             } catch (_: CancellationException) {
                 // 用户取消下载时不显示失败提示。
             } catch (error: Exception) {
+                if (downloadGeneration.get() != generation) return@launch
                 logger.record("update", "download failed", error)
                 _events.emit(
                     UpdateEvent.DownloadFailed(
@@ -138,6 +145,7 @@ class UpdateCoordinator(
     fun cancelDownload() {
         downloadGeneration.incrementAndGet()
         downloadJob?.cancel()
+        updateDownloadGateway.cancel()
         downloadJob = null
         setDownloadRunning(false)
     }

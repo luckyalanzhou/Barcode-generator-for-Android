@@ -54,6 +54,7 @@ class ResultsViewModel @Inject constructor(
     private var favoriteRenderJob: Job? = null
     private var favoriteRenderRequest = 0L
     private var resultPreparationJob: Job? = null
+    private var resultPreparationRequest = 0L
     private val _isPreparingResult = MutableStateFlow(false)
     val isPreparingResult: StateFlow<Boolean> = _isPreparingResult.asStateFlow()
 
@@ -62,6 +63,7 @@ class ResultsViewModel @Inject constructor(
     }
 
     fun prepareMainGenerateTab() {
+        cancelPendingResults()
         restorationJob?.cancel()
         results.prepareGenerateTab()
         results.updateGeneratedResult(results.current().copy(isRestoring = false))
@@ -107,6 +109,14 @@ class ResultsViewModel @Inject constructor(
     internal fun cancelFavoriteGroupRendering() {
         favoriteRenderRequest++
         favoriteRenderJob?.cancel()
+    }
+
+    internal fun cancelPendingResults() {
+        resultPreparationRequest++
+        resultPreparationJob?.cancel()
+        resultPreparationJob = null
+        _isPreparingResult.value = false
+        cancelFavoriteGroupRendering()
     }
 
     internal fun openFavoriteGroup(
@@ -212,21 +222,22 @@ class ResultsViewModel @Inject constructor(
     ) {
         if (items.isEmpty() || _isPreparingResult.value) return
         resultPreparationJob?.cancel()
+        val request = ++resultPreparationRequest
         _isPreparingResult.value = true
         resultPreparationJob = viewModelScope.launch {
             try {
                 if (!prepareBarcodeImages(items, style, dark, density)) {
-                    onNotice("条码图片生成失败，结果尚未打开；请重试")
+                    if (request == resultPreparationRequest) onNotice("条码图片生成失败，结果尚未打开；请重试")
                     return@launch
                 }
-                onReady()
+                if (request == resultPreparationRequest) onReady()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 appLogger.record("results", "preparing or saving result failed", error)
-                onNotice("条码结果准备或保存失败，结果尚未打开；请重试")
+                if (request == resultPreparationRequest) onNotice("条码结果准备或保存失败，结果尚未打开；请重试")
             } finally {
-                _isPreparingResult.value = false
+                if (request == resultPreparationRequest) _isPreparingResult.value = false
             }
         }
     }
