@@ -10,7 +10,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.key
 import kotlinx.coroutines.flow.collectLatest
-import kotlin.math.abs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -161,6 +160,7 @@ internal fun TabLongPressActionOverlay(
 
             val panelMaxWidth = minOf(maxWidth * .62f, 340.dp, (maxWidth - 24.dp).coerceAtLeast(1.dp))
             val screenWidthPx = with(density) { maxWidth.toPx() }
+            val screenHeightPx = with(density) { maxHeight.toPx() }
             val edgePaddingPx = with(density) { 12.dp.toPx() }
             val gapPx = with(density) { 8.dp.toPx() }
             val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
@@ -191,8 +191,13 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             alpha = progress.value
-                            translationX = follow.value.x * 5.dp.toPx()
-                            translationY = follow.value.y * 6.dp.toPx()
+                            translationX = (follow.value.x * 28.dp.toPx()).coerceIn(
+                                minOf(0f, edgePaddingPx - placement.left),
+                                maxOf(0f, screenWidthPx - edgePaddingPx - placement.left - panelSize.width))
+                            translationY = (follow.value.y * 32.dp.toPx()).coerceIn(
+                                minOf(0f, statusBarTopPx - (placement.top - focusLiftPx)),
+                                maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
+                                    (placement.top - focusLiftPx) - panelSize.height))
                         }.clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -228,7 +233,7 @@ internal fun TabLongPressActionOverlay(
                 }
             }
             // Leave room for the bounded follow/swell even on tall, large-font menus.
-            val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 24.dp.toPx() }
+            val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 40.dp.toPx() }
             val availableHeightPx = (menuSpace.height - motionMarginPx).coerceAtLeast(with(density) { 48.dp.toPx() })
             LaunchedEffect(placement, panelSize, overlayOriginOnScreen, focusLiftPx) {
                 // Use resting geometry, not the animated panel's bounds, to avoid feedback loops.
@@ -252,11 +257,17 @@ internal fun TabLongPressActionOverlay(
                             alpha = progress.value
                             val scale = if (effects.reduceMotion) 1f else .97f + .03f * progress.value
                             val motion = follow.value
-                            val swell = 1f + .025f * maxOf(abs(motion.x), abs(motion.y))
-                            scaleX = scale * swell
-                            scaleY = scale * swell
-                            translationX = motion.x * 5.dp.toPx()
-                            translationY = motion.y * 6.dp.toPx()
+                            val dragScale = menuDragScale(motion)
+                            scaleX = scale * dragScale
+                            scaleY = scale * dragScale
+                            // Stable, unscaled bounds make edge limiting independent of animation.
+                            translationX = (motion.x * 28.dp.toPx()).coerceIn(
+                                minOf(0f, edgePaddingPx - placement.left),
+                                maxOf(0f, screenWidthPx - edgePaddingPx - placement.left - panelSize.width))
+                            translationY = (motion.y * 32.dp.toPx()).coerceIn(
+                                minOf(0f, statusBarTopPx - (placement.top - focusLiftPx)),
+                                maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
+                                    (placement.top - focusLiftPx) - panelSize.height))
                             transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
                         }
                         .focusRequester(menuFocus)

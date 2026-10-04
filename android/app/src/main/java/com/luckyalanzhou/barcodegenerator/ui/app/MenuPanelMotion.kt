@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import kotlin.math.abs
 
 /** Normalized, bounded motion: the panel moves as one surface, not individual glyphs. */
 internal fun menuPanelMotion(point: Offset?, panel: Rect): Offset {
@@ -16,6 +17,10 @@ internal fun menuPanelMotion(point: Offset?, panel: Rect): Offset {
 internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): Offset {
     if (point == null || rangePx <= 0f) return Offset.Zero
     val delta = point - origin
-    return Offset((delta.x / rangePx).coerceIn(-1f, 1f),
-        (delta.y / rangePx).coerceIn(-1f, 1f))
+    // Rubber resistance keeps responding to larger drags instead of hitting a hard stop.
+    return Offset(delta.x / (rangePx + abs(delta.x)),
+        delta.y / (rangePx + abs(delta.y)))
 }
+
+internal fun menuDragScale(motion: Offset): Float =
+    1f - .20f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)

@@ -11,11 +11,21 @@ class MenuPanelMotionTest {
     @Test fun sourceDragStartsAtRestAndFollowsAllFourDirections() {
         val origin = Offset(100f, 400f)
         assertEquals(Offset.Zero, menuAnchorMotion(origin, origin, 64f))
-        assertEquals(Offset(.5f, -.5f), menuAnchorMotion(origin + Offset(32f, -32f), origin, 64f))
-        assertEquals(Offset(-.5f, .5f), menuAnchorMotion(origin + Offset(-32f, 32f), origin, 64f))
-        assertEquals(Offset(1f, -1f), menuAnchorMotion(origin + Offset(1000f, -1000f), origin, 64f))
+        assertEquals(Offset(1f / 3f, -1f / 3f), menuAnchorMotion(origin + Offset(32f, -32f), origin, 64f))
+        assertEquals(Offset(-1f / 3f, 1f / 3f), menuAnchorMotion(origin + Offset(-32f, 32f), origin, 64f))
+        assertEquals(Offset(1000f / 1064f, -1000f / 1064f), menuAnchorMotion(origin + Offset(1000f, -1000f), origin, 64f))
         assertEquals(Offset.Zero, menuAnchorMotion(null, origin, 64f))
         assertEquals(Offset.Zero, menuAnchorMotion(origin, origin, 0f))
+    }
+
+    @Test fun largerSourceDragsKeepRespondingAndShrinkInsteadOfSwelling() {
+        val short = menuAnchorMotion(Offset(64f, 0f), Offset.Zero, 64f)
+        val long = menuAnchorMotion(Offset(192f, 0f), Offset.Zero, 64f)
+        assertTrue(long.x > short.x)
+        assertTrue(long.x < 1f)
+        assertEquals(1f, menuDragScale(Offset.Zero), .0001f)
+        assertTrue(menuDragScale(long) < menuDragScale(short))
+        assertEquals(.8f, menuDragScale(Offset(1f, 1f)), .0001f)
     }
 
     @Test fun noTouchAndPanelCenterAreAtRest() {

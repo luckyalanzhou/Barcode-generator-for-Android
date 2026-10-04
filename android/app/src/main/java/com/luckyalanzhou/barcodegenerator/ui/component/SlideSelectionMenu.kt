@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import kotlin.math.max
@@ -61,6 +62,7 @@ internal class ContextMenuGestureSession {
     var moved = false
     var origin = Offset.Zero
     var sourceBounds = Rect.Zero
+    var sourceDragMarginPx = 0f
     var lastHapticAt = 0L
     var feedbackPoint by mutableStateOf<Offset?>(null)
         private set
@@ -87,7 +89,7 @@ internal class ContextMenuGestureSession {
         val chosen = if (ready) gesture.release(point, bounds) else null
         val result = when {
             chosen != null -> ContextMenuRelease.Select(chosen)
-            continuation && sourceBounds.contains(point) -> ContextMenuRelease.KeepOpen
+            continuation && sourceBounds.inflate(sourceDragMarginPx).contains(point) -> ContextMenuRelease.KeepOpen
             continuation && !moved -> ContextMenuRelease.KeepOpen
             !ready -> ContextMenuRelease.KeepOpen
             else -> ContextMenuRelease.Dismiss
@@ -143,8 +145,14 @@ internal fun Modifier.contextMenuGestures(
             session.pointerDown = true
             session.lastPointer = start
             session.origin = start
+            session.sourceDragMarginPx = 48.dp.toPx()
             if (session.menuOpen && session.ready && !down.isConsumed) {
-                if (session.gesture.begin(start, session.selection.bounds())) {
+                if (session.sourceBounds.inflate(session.sourceDragMarginPx).contains(start) &&
+                    session.selection.bounds().values.none { it.contains(start) }) {
+                    session.continuation = true
+                    session.gesture.arm()
+                    down.consume()
+                } else if (session.gesture.begin(start, session.selection.bounds())) {
                     down.consume()
                     feedback()
                     session.move(start, viewConfiguration.touchSlop)

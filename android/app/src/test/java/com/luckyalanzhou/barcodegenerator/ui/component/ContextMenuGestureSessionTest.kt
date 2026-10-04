@@ -16,6 +16,19 @@ class ContextMenuGestureSessionTest {
         assertNull(session.feedbackPoint)
     }
 
+    @Test fun extendedSourceAreaKeepsMenuButDistantReleaseStillDismisses() {
+        val session = longPress()
+        session.sourceBounds = Rect(60f, 220f, 140f, 280f)
+        session.sourceDragMarginPx = 48f
+        session.move(Offset(170f, 290f), 8f, bounds)
+        assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(170f, 290f), bounds))
+        val outside = longPress()
+        outside.sourceBounds = session.sourceBounds
+        outside.sourceDragMarginPx = 48f
+        outside.move(Offset(300f, 350f), 8f, bounds)
+        assertEquals(ContextMenuRelease.Dismiss, outside.release(Offset(300f, 350f), bounds))
+    }
+
     private fun longPress(): ContextMenuGestureSession = ContextMenuGestureSession().apply {
         pointerDown = true
         lastPointer = Offset(100f, 250f)
