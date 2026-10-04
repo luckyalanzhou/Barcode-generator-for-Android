@@ -68,13 +68,23 @@ def main():
         glyphs.getCanvas().drawLine(x, 55, x, 125, skia.Paint(Color=0xFF2684FF, StrokeWidth=2))
     image = glyphs.makeImageSnapshot()
 
-    def foreground(displacement, center_x):
+    def foreground(displacement, center_x, background=None, opacity=.3):
         builder = skia.RuntimeShaderBuilder(foreground_effect)
-        builder.setChild("content", image.makeShader(skia.SamplingOptions(skia.FilterMode.kLinear)))
+        input_image = image
+        if background is not None:
+            atlas = skia.Surface(w * 2, h)
+            atlas.getCanvas().clear(0)
+            atlas.getCanvas().drawRect(skia.Rect.MakeWH(w, h), skia.Paint(Color=background))
+            atlas.getCanvas().drawImage(image, w, 0)
+            input_image = atlas.makeImageSnapshot()
+        builder.setChild("content", input_image.makeShader(skia.SamplingOptions(skia.FilterMode.kLinear)))
         builder.setUniform("resolution", skia.V2(w, h))
         builder.setUniform("capsule", skia.V4(center_x, h / 2, 42, 28))
         builder.setUniform("lens", skia.V2(displacement, 1))
-        surface = skia.Surface(w, h)
+        builder.setUniform("atlasMode", 1.0 if background is not None else 0.0)
+        builder.setUniform("surfaceOpacity", opacity)
+        builder.setUniform("surfaceColor", skia.V4(.97, .98, 1, 1))
+        surface = skia.Surface(w * 2 if background is not None else w, h)
         surface.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
         return surface.makeImageSnapshot().toarray()
 
@@ -90,6 +100,15 @@ def main():
         assert np.count_nonzero(difference > 3) > 20, "Moving lens does not displace covered foreground pixels"
         assert abs(active[:, :, 3].astype(float).sum() / original[:, :, 3].astype(float).sum() - 1) < .02, "Lens adds material or duplicates glyph coverage"
     print("PASS: foreground stationary identity, moving local refraction, outside-tab isolation and single-layer coverage")
+
+    bright = foreground(1.2, 140, 0xFFFFFFFF)
+    dark = foreground(1.2, 140, 0xFF000000)
+    assert np.max(bright[:, w:, 3]) == 0, "Atlas input half leaks into visible output"
+    assert np.array_equal(bright[:, :w, 3], dark[:, :w, 3]), "Adaptive contrast changes glyph geometry or coverage"
+    assert np.count_nonzero(np.max(np.abs(bright[:, :w].astype(int) - dark[:, :w].astype(int)), axis=2) > 2) > 10, "Foreground does not respond to background contrast"
+    stationary_atlas = foreground(0, 140, 0xFFFFFFFF)
+    assert np.array_equal(stationary_atlas[:, :w], original), "Adaptive atlas changes stationary foreground"
+    print("PASS: shared GPU input contrast response, unchanged alpha, invisible input half and stationary identity")
 
 
 if __name__ == "__main__":

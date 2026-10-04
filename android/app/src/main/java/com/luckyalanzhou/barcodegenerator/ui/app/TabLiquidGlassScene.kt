@@ -15,7 +15,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
@@ -40,6 +46,10 @@ internal fun TabLiquidGlassScene(
         if (Build.VERSION.SDK_INT >= 33) TabForegroundLensRenderer.createOrNull() else null
     } }
     val foregroundRenderer = if (backdropAvailable && !policy.reduceMotion) foregroundFactory.value else null
+    val foregroundLayer = rememberGraphicsLayer()
+    val atlasLayer = rememberGraphicsLayer()
+    val backdropSource = LocalGlassBackdrop.current
+    var foregroundOrigin by remember { mutableStateOf(Offset.Zero) }
     val material = remember(background, sceneSize.height, density) {
         tabGlassMaterial(background, sceneSize.height / density)
     }
@@ -82,13 +92,29 @@ internal fun TabLiquidGlassScene(
                 if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity.coerceAtLeast(.82f)),
                 accent, background, policy.highContrast)
         }
-        Box(Modifier.fillMaxSize().graphicsLayer {
+        Box(Modifier.fillMaxSize().onGloballyPositioned {
+            foregroundOrigin = it.localToWindow(Offset.Zero)
+        }.drawWithContent {
             val frame = frameProvider()
             val displacement = if (visible && !policy.reduceMotion && !policy.opaqueGlass &&
                 ValueAnimator.areAnimatorsEnabled()) tabForegroundDisplacement(frame, motion.velocity) else 0f
-            renderEffect = if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && displacement > .001f) {
-                foregroundRenderer.effect(frame, displacement)
-            } else null
+            if (Build.VERSION.SDK_INT >= 33 && foregroundRenderer != null && backdropSource?.ready == true &&
+                displacement > .001f && size.width > 0f && size.height > 0f) {
+                foregroundLayer.record { this@drawWithContent.drawContent() }
+                atlasLayer.record(size = IntSize(size.width.toInt() * 2, size.height.toInt())) {
+                    clipRect(0f, 0f, frame.width, frame.height) {
+                        drawRect(background)
+                        val offset = backdropSource.origin - foregroundOrigin
+                        translate(offset.x, offset.y) { drawLayer(backdropSource.layer) }
+                    }
+                    translate(frame.width, 0f) { drawLayer(foregroundLayer) }
+                }
+                atlasLayer.renderEffect = foregroundRenderer.effect(frame, displacement, background, material.surfaceOpacity)
+                drawLayer(atlasLayer)
+            } else {
+                atlasLayer.renderEffect = null
+                drawContent()
+            }
         }, content = content)
     }
 }
