@@ -10,9 +10,13 @@ import kotlin.math.abs
 
 /** Movement-only displacement; contrast correction is separate and preserves foreground alpha. */
 internal fun tabForegroundDisplacement(frame: TabGlassFrame, velocity: Float): Float {
-    if (!velocity.isFinite() || !frame.refractionPx.isFinite()) return 0f
-    val movement = (abs(velocity) / .8f).coerceIn(0f, 1f)
-    return minOf(frame.refractionPx.coerceAtLeast(0f) * .55f, 1.2f * frame.density) * movement
+    if (!velocity.isFinite() || !frame.refractionPx.isFinite() ||
+        !frame.density.isFinite() || frame.density <= 0f) return 0f
+    val speed = abs(velocity)
+    // Slow drags retain a lens; a short continuous zero-speed ramp prevents a rest jump.
+    val movement = (.55f + .45f * (speed / .8f).coerceIn(0f, 1f)) *
+        (speed / .06f).coerceIn(0f, 1f)
+    return minOf(frame.refractionPx.coerceAtLeast(0f) * .85f, 1.8f * frame.density) * movement
 }
 
 internal const val TAB_FOREGROUND_LENS_SHADER = """
@@ -41,7 +45,7 @@ half4 main(float2 p) {
     float2 radial = float2(local.x - spine, local.y);
     float2 normal = radial / max(length(radial), 0.001);
     float depth = -sd;
-    float edge = 1.0 - smoothstep(0.0, max(radius * 0.55, 1.0), depth);
+    float edge = 1.0 - smoothstep(0.0, max(radius * 0.80, 1.0), depth);
     // Zero at the boundary avoids a seam; single sampling avoids doubled glyphs.
     float boundary = smoothstep(0.0, max(lens.y * 2.0, 1.0), depth);
     float2 displacement = normal * lens.x * edge * boundary;

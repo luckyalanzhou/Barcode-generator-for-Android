@@ -127,7 +127,7 @@ def main():
     original = image.toarray()
     for center_x in (80, 140, 200, 260):
         rest = foreground(0, center_x)
-        active = foreground(1.2, center_x)
+        active = foreground(1.8, center_x)
         assert np.array_equal(rest, original), "Stationary foreground is not an identity transform"
         outside = np.ones((h, w), dtype=bool)
         outside[62:118, int(center_x - 42):int(center_x + 42)] = False
@@ -137,8 +137,8 @@ def main():
         assert abs(active[:, :, 3].astype(float).sum() / original[:, :, 3].astype(float).sum() - 1) < .02, "Lens adds material or duplicates glyph coverage"
     print("PASS: foreground stationary identity, moving local refraction, outside-tab isolation and single-layer coverage")
 
-    bright = foreground(1.2, 140, 0xFFFFFFFF)
-    dark = foreground(1.2, 140, 0xFF000000)
+    bright = foreground(1.8, 140, 0xFFFFFFFF)
+    dark = foreground(1.8, 140, 0xFF000000)
     assert np.max(bright[:, w:, 3]) == 0, "Atlas input half leaks into visible output"
     assert np.array_equal(bright[:, :w, 3], dark[:, :w, 3]), "Adaptive contrast changes glyph geometry or coverage"
     assert np.count_nonzero(np.max(np.abs(bright[:, :w].astype(int) - dark[:, :w].astype(int)), axis=2) > 2) > 10, "Foreground does not respond to background contrast"
@@ -146,10 +146,12 @@ def main():
     assert np.array_equal(stationary_atlas[:, :w], original), "Adaptive atlas changes stationary foreground"
     print("PASS: shared GPU input contrast response, unchanged alpha, invisible input half and stationary identity")
 
-    positions = list(range(45, 276, 5))
+    slow = foreground(.6, 140)
+    assert np.count_nonzero(np.max(np.abs(slow.astype(int) - original.astype(int)), axis=2) > 3) > 20, "Slow drag lens is imperceptible in the pixel fixture"
+    positions = list(range(45, 276, 23))
     for center_x in positions + positions[::-1]:
         for background in (0xFF000000, 0xFFFFFFFF):
-            full = foreground(1.2, center_x, background)[:, :w]
+            full = foreground(1.8, center_x, background)[:, :w]
             outside = np.ones((h, w), dtype=bool)
             outside[62:118, center_x-42:center_x+42] = False
             assert np.array_equal(full[outside], original[outside]), "Moving full-width atlas erases other tabs"
