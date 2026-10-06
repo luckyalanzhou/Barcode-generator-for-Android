@@ -10,11 +10,8 @@ import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon
 import com.luckyalanzhou.barcodegenerator.icons.CloudDownloadIcon
 import com.luckyalanzhou.barcodegenerator.icons.CloudUploadIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
-import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
-import com.luckyalanzhou.barcodegenerator.icons.HistoryFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
-import com.luckyalanzhou.barcodegenerator.icons.SettingsFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 import com.luckyalanzhou.barcodegenerator.icons.UpgradeIcon
 
@@ -26,6 +23,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
@@ -83,7 +82,6 @@ private data class ComposeTabSpec(
     val label: String,
     val description: String,
     val icon: ImageVector,
-    val selectedIcon: ImageVector = icon,
 )
 
 @Composable
@@ -103,10 +101,9 @@ internal fun BarcodeComposeBottomTabBar(
     val tabs = remember {
         listOf(
             ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
-            // 历史、收藏和设置选中时使用各自的填充图标。
-            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon, HistoryFilledIcon),
-            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon, FavoriteFilledIcon),
-            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon, SettingsFilledIcon)
+            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon),
+            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon),
+            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon)
         )
     }
     val themeColors = LocalAppColorScheme.current
@@ -229,10 +226,13 @@ internal fun BarcodeComposeBottomTabBar(
             ) {
                 tabs.forEachIndexed { index, tab ->
                     val selected = selectedIndex == index
+                    val interactionSource = remember(index) { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val highlighted = selected || isPressed
                     var tabPlaced by remember { mutableStateOf(false) }
                     DisposableEffect(Unit) { onDispose { tabPlaced = false } }
                     val itemColor by animateColorAsState(
-                        targetValue = if (selected) selectedColor else unselectedColor,
+                        targetValue = if (highlighted) selectedColor else unselectedColor,
                         animationSpec = tween(if (effects.reduceMotion) 0 else ComposeAnimationConfig.tabItemColorDurationMillis),
                         label = "tab-item-color-$index",
                     )
@@ -274,9 +274,9 @@ internal fun BarcodeComposeBottomTabBar(
                                 onLongPressActionMenuRequested(
                                     TabLongPressMenuState(
                                         anchorBoundsOnScreen = tabBoundsOnScreen[index],
-                                        focusIcon = if (selected) tab.selectedIcon else tab.icon,
+                                        focusIcon = tab.icon,
                                         focusLabel = tab.label,
-                                        focusTint = if (selected) selectedColor else unselectedColor,
+                                        focusTint = if (highlighted) selectedColor else unselectedColor,
                                         dark = dark,
                                         actions = actions,
                                         restoreFocus = { if (tabPlaced) tabFocus[index].requestFocus() },
@@ -285,6 +285,8 @@ internal fun BarcodeComposeBottomTabBar(
                     }
                     val tabClickModifier = if (index in 1..3) {
                         Modifier.combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = null,
                             role = Role.Tab,
                             onClick = { handleTabClick(index) },
                             onLongClickLabel = "打开${tab.label}操作菜单",
@@ -293,6 +295,8 @@ internal fun BarcodeComposeBottomTabBar(
                         )
                     } else {
                         Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
                             role = Role.Tab,
                             onClick = { handleTabClick(index) },
                         )
@@ -327,7 +331,7 @@ internal fun BarcodeComposeBottomTabBar(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Icon(
-                                imageVector = if (selected) tab.selectedIcon else tab.icon,
+                                imageVector = tab.icon,
                                 contentDescription = null,
                                 tint = itemColor,
                                 modifier = Modifier.size(26.dp).graphicsLayer {
