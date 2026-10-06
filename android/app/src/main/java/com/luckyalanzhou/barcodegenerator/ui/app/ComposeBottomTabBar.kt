@@ -15,16 +15,14 @@ import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 import com.luckyalanzhou.barcodegenerator.icons.UpgradeIcon
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
@@ -68,12 +66,14 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -116,6 +116,7 @@ internal fun BarcodeComposeBottomTabBar(
     var lastTarget by remember { mutableIntStateOf(selectedIndex) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
+    var tabBarSizePx by remember { mutableStateOf(IntSize.Zero) }
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
     val tapScope = rememberCoroutineScope()
     val motion = remember(tabs.size) { TabGlassMotionState(tapScope, selectedIndex, tabs.size) }
@@ -150,6 +151,7 @@ internal fun BarcodeComposeBottomTabBar(
         modifier = modifier.fillMaxSize()
             .then(if (effects.opaqueGlass) Modifier.background(themeColors.surfaces.background) else Modifier)
             .padding(horizontal = 4.dp, vertical = 5.dp)
+            .onSizeChanged { tabBarSizePx = it }
             .pointerInput(motion, showSelectionIndicator, density) {
                 if (!showSelectionIndicator) return@pointerInput
                 // Observe the real contact location without consuming clicks or long presses.
@@ -220,6 +222,23 @@ internal fun BarcodeComposeBottomTabBar(
             background = themeColors.surfaces.background,
             visible = showSelectionIndicator,
         ) {
+            val glassMotionActive = motion.dragging || motion.settling || motion.pressed
+            val contactFrame = if (tabBarSizePx.width > 0 && tabBarSizePx.height > 0) {
+                tabGlassFrame(
+                    width = tabBarSizePx.width.toFloat(),
+                    height = tabBarSizePx.height.toFloat(),
+                    density = density,
+                    tabCount = tabs.size,
+                    progress = motion.progress,
+                    motion = if (glassMotionActive) 1f else 0f,
+                    impact = 0f,
+                    direction = motion.direction,
+                    touchX = motion.touchX.takeIf { it.isFinite() },
+                    touchY = motion.touchY.takeIf { it.isFinite() },
+                )
+            } else {
+                null
+            }
             Row(
                 modifier = Modifier.fillMaxSize().selectableGroup(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -227,15 +246,15 @@ internal fun BarcodeComposeBottomTabBar(
                 tabs.forEachIndexed { index, tab ->
                     val selected = selectedIndex == index
                     val interactionSource = remember(index) { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-                    val highlighted = selected || isPressed
+                    val iconHalfWidthPx = 13f * density
+                    val highlighted = if (glassMotionActive && contactFrame != null) {
+                        tabGlassFrameTouchesIcon(contactFrame, index, tabs.size, iconHalfWidthPx)
+                    } else {
+                        selected
+                    }
                     var tabPlaced by remember { mutableStateOf(false) }
                     DisposableEffect(Unit) { onDispose { tabPlaced = false } }
-                    val itemColor by animateColorAsState(
-                        targetValue = if (highlighted) selectedColor else unselectedColor,
-                        animationSpec = tween(if (effects.reduceMotion) 0 else ComposeAnimationConfig.tabItemColorDurationMillis),
-                        label = "tab-item-color-$index",
-                    )
+                    val itemColor = if (highlighted) selectedColor else unselectedColor
                     val tapScale = animateFloatAsState(
                         targetValue = if (!effects.reduceMotion && tapPulseTab == index) .92f else 1f,
                         animationSpec = if (effects.reduceMotion) tween(0) else ComposeAnimationConfig.pressSpring(),

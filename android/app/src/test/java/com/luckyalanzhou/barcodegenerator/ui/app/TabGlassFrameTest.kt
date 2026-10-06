@@ -62,4 +62,13 @@ class TabGlassFrameTest {
         assertEquals(2.4f, slow.refractionPx, .0001f)
         assertEquals(.8f, slow.motion, .0001f)
     }
+
+    @Test fun iconTintFollowsCapsuleEdgeContactRatherThanFingerOrTabCenter() {
+        val beforeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.38f, 0f, 0f, 1f)
+        val edgeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.4f, 0f, 0f, 1f)
+
+        assertTrue(!tabGlassFrameTouchesIcon(beforeContact, tabIndex = 2, tabCount = 4, iconHalfWidthPx = 13f))
+        assertTrue(tabGlassFrameTouchesIcon(edgeContact, tabIndex = 2, tabCount = 4, iconHalfWidthPx = 13f))
+        assertTrue(!tabGlassFrameTouchesIcon(edgeContact, tabIndex = 3, tabCount = 4, iconHalfWidthPx = 13f))
+    }
 }
