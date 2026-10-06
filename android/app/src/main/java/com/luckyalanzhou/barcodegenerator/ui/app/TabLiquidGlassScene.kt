@@ -35,7 +35,7 @@ internal fun TabLiquidGlassScene(
     accent: Color,
     background: Color,
     visible: Boolean,
-    content: @Composable BoxScope.() -> Unit,
+    content: @Composable BoxScope.(() -> TabGlassFrame) -> Unit,
 ) {
     var sceneSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
@@ -131,6 +131,6 @@ internal fun TabLiquidGlassScene(
                 atlasLayer.renderEffect = null
                 drawContent()
             }
-        }, content = content)
+        }, content = { content(frameProvider) })
     }
 }

@@ -31,24 +31,20 @@ internal fun tabCapsuleContains(frame: TabGlassFrame, point: androidx.compose.ui
     return dx * dx + dy * dy <= radius * radius
 }
 
-/** True once the moving capsule's horizontal edge physically reaches a tab's icon bounds. */
-internal fun tabGlassFrameTouchesIcon(
+/** Capsule bounds translated into one tab cell's local drawing coordinates. */
+internal fun tabGlassCapsuleBoundsInTab(
     frame: TabGlassFrame,
     tabIndex: Int,
     tabCount: Int,
-    iconHalfWidthPx: Float,
-): Boolean {
-    if (tabCount <= 0 || tabIndex !in 0 until tabCount || iconHalfWidthPx < 0f) return false
+): androidx.compose.ui.geometry.Rect? {
+    if (tabCount <= 0 || tabIndex !in 0 until tabCount) return null
     val cellWidth = frame.width / tabCount
-    val iconCenterX = cellWidth * (tabIndex + .5f)
-    val iconLeft = iconCenterX - iconHalfWidthPx
-    val iconRight = iconCenterX + iconHalfWidthPx
-    val capsuleLeft = frame.centerX - frame.halfWidth
-    val capsuleRight = frame.centerX + frame.halfWidth
-    val overlapsHorizontally = capsuleRight >= iconLeft && capsuleLeft <= iconRight
-    val overlapsVertically = frame.centerY + frame.halfHeight >= 0f &&
-        frame.centerY - frame.halfHeight <= frame.height
-    return overlapsHorizontally && overlapsVertically
+    return androidx.compose.ui.geometry.Rect(
+        left = frame.centerX - frame.halfWidth - tabIndex * cellWidth,
+        top = frame.centerY - frame.halfHeight,
+        right = frame.centerX + frame.halfWidth - tabIndex * cellWidth,
+        bottom = frame.centerY + frame.halfHeight,
+    )
 }
 
 internal fun tabGlassFrame(

@@ -63,12 +63,15 @@ class TabGlassFrameTest {
         assertEquals(.8f, slow.motion, .0001f)
     }
 
-    @Test fun iconTintFollowsCapsuleEdgeContactRatherThanFingerOrTabCenter() {
+    @Test fun capsuleEdgeRevealsOnlyTheCoveredPartOfNeighboringGlyphs() {
         val beforeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.38f, 0f, 0f, 1f)
         val edgeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.4f, 0f, 0f, 1f)
+        val beforeBounds = tabGlassCapsuleBoundsInTab(beforeContact, tabIndex = 2, tabCount = 4)!!
+        val contactBounds = tabGlassCapsuleBoundsInTab(edgeContact, tabIndex = 2, tabCount = 4)!!
 
-        assertTrue(!tabGlassFrameTouchesIcon(beforeContact, tabIndex = 2, tabCount = 4, iconHalfWidthPx = 13f))
-        assertTrue(tabGlassFrameTouchesIcon(edgeContact, tabIndex = 2, tabCount = 4, iconHalfWidthPx = 13f))
-        assertTrue(!tabGlassFrameTouchesIcon(edgeContact, tabIndex = 3, tabCount = 4, iconHalfWidthPx = 13f))
+        // The neighboring icon begins 32 px from this cell's left edge.
+        assertTrue(beforeBounds.right < 32f)
+        assertTrue(contactBounds.right >= 32f)
+        assertTrue(contactBounds.right < 58f)
     }
 }
