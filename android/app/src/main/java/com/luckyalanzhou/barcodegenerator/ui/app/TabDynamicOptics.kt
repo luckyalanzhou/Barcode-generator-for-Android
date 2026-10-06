@@ -5,12 +5,12 @@ internal data class TabDynamicOptics(val dispersionPx: Float, val edgeColorStren
 
 internal fun tabDynamicOptics(frame: TabGlassFrame): TabDynamicOptics {
     val strength = if (frame.travelStrength.isFinite()) frame.travelStrength.coerceIn(0f, 1f) else 0f
-    return TabDynamicOptics(.45f * strength, .04f * strength)
+    return TabDynamicOptics(.75f * strength, .055f * strength)
 }
 
 /** Small touch-driven strain, shared by surface, backdrop mask and foreground lens. */
 internal fun tabContactStrain(touchX: Float?, centerX: Float, cellWidth: Float, motion: Float): Float {
     if (touchX == null || !touchX.isFinite() || !cellWidth.isFinite() || cellWidth <= 0f) return 0f
     return (kotlin.math.abs(touchX - centerX) / (cellWidth * .5f)).coerceIn(0f, 1f) *
-        motion.coerceIn(0f, 1f) * .012f
+        motion.coerceIn(0f, 1f) * .02f
 }

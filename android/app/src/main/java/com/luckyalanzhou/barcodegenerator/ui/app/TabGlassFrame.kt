@@ -60,7 +60,7 @@ internal fun tabGlassFrame(
     val halfWidth = ((cellWidth * .5f - 3f * safeDensity).coerceAtLeast(1f) *
         (1f + impact.coerceIn(0f, .035f) + handoff * .05f + strain)).coerceAtMost(safeWidth * .5f)
     val halfHeight = (safeHeight * .5f - 2f * safeDensity).coerceAtLeast(.5f) *
-        (1f - handoff * .03f - strain * .5f)
+        (1f - handoff * .03f - strain * .65f)
     val centerX = (cellWidth * (safeProgress + .5f)).coerceIn(halfWidth, safeWidth - halfWidth)
     val centerY = safeHeight * .5f
     return TabGlassFrame(
@@ -71,7 +71,7 @@ internal fun tabGlassFrame(
         halfWidth = halfWidth,
         halfHeight = halfHeight.coerceAtMost(safeHeight * .5f),
         motion = opticalStrength,
-        refractionPx = refractionDp.coerceIn(0f, 3.6f) * safeDensity * opticalStrength,
+        refractionPx = refractionDp.coerceIn(0f, 4.4f) * safeDensity * opticalStrength,
         density = safeDensity,
         touchX = touchX ?: centerX + halfWidth * .6f * direction.coerceIn(-1f, 1f),
         touchY = touchY ?: centerY - halfHeight * .75f,

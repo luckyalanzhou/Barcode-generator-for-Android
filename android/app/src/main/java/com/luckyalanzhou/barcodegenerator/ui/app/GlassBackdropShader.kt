@@ -23,7 +23,18 @@ half4 main(float2 p) {
     float2 normal = edge / max(length(edge), 0.001);
     float depth = max(-sd, 0.0);
     float lens = 1.0 - smoothstep(0.0, max(radius * 0.5, 1.0), depth);
-    float2 samplePoint = clamp(p - normal * shape.z * lens, float2(0.5), resolution - 0.5);
+    // A soft, touch-centered wave bends the live backdrop inside the capsule as well
+    // as at its rim. It follows the actual contact and never draws outside the mask.
+    float2 touchLocal = contact.xy - bounds.xy;
+    float2 fromTouch = local - touchLocal;
+    float touchDistance = length(fromTouch);
+    float touchRadius = radius * mix(0.08, 0.28, clamp(contact.w, 0.0, 1.0));
+    float waveWidth = max(radius * 0.24, 1.5);
+    float wave = exp(-pow((touchDistance - touchRadius) / waveWidth, 2.0)) * contact.z;
+    float2 touchDirection = fromTouch / max(touchDistance, 0.001);
+    float2 opticalDisplacement = normal * shape.z * lens +
+        touchDirection * shape.z * 0.65 * wave;
+    float2 samplePoint = clamp(p - opticalDisplacement, float2(0.5), resolution - 0.5);
     half3 center = content.eval(samplePoint).rgb;
     half3 scene = center * 0.4;
     // Spatially smoothed environment, including low-blur tabs. No CPU readback or theme switching.
@@ -53,7 +64,7 @@ half4 main(float2 p) {
         half3 redSide = content.eval(clamp(samplePoint + split, float2(0.5), resolution - 0.5)).rgb;
         half3 blueSide = content.eval(clamp(samplePoint - split, float2(0.5), resolution - 0.5)).rgb;
         half3 spectrum = half3(redSide.r, center.g, blueSide.b);
-        color += (spectrum - center) * half(capsuleEdge * (1.0 - opacity) * 0.45);
+        color += (spectrum - center) * half(capsuleEdge * (1.0 - opacity) * 0.65);
         // Bounded local environmental color, not Add/Color Dodge or an outside neon glow.
         float darkSurface = 1.0 - smoothstep(0.05, 0.35, targetLuminance);
         color += clamp(scene - half3(luminance), half3(-0.35), half3(0.35)) *

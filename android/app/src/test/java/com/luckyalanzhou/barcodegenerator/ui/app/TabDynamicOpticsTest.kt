@@ -16,8 +16,8 @@ class TabDynamicOpticsTest {
 
     @Test fun dispersionUsesPhysicalPixelsAndRemainsBounded() {
         val fast = tabDynamicOptics(frame(4f))
-        assertEquals(.45f, fast.dispersionPx, 0f)
-        assertEquals(.04f, fast.edgeColorStrength, 0f)
+        assertEquals(.75f, fast.dispersionPx, 0f)
+        assertEquals(.055f, fast.edgeColorStrength, 0f)
         assertEquals(fast, tabDynamicOptics(frame(-4f)))
         assertEquals(fast, tabDynamicOptics(frame(100f, density = 3f)))
         assertTrue(tabDynamicOptics(frame(.00001f)).dispersionPx < .001f)
@@ -27,7 +27,7 @@ class TabDynamicOpticsTest {
         assertEquals(0f, tabContactStrain(null, 100f, 90f, 1f), 0f)
         assertEquals(0f, tabContactStrain(145f, 100f, 90f, 0f), 0f)
         assertEquals(0f, tabContactStrain(Float.NaN, 100f, 90f, 1f), 0f)
-        assertEquals(.012f, tabContactStrain(10000f, 100f, 90f, 1f), 0f)
+        assertEquals(.02f, tabContactStrain(10000f, 100f, 90f, 1f), 0f)
         assertEquals(tabContactStrain(120f, 100f, 90f, 1f),
             tabContactStrain(80f, 100f, 90f, 1f), 0f)
     }
