@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.editor
+package com.luckyalanzhou.barcodegenerator.ui.app.editor
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeValidator
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row

@@ -17,7 +17,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.showComposeConfirmDialog as showComposeConfirmDialogImpl
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.app.favorites.*
-import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
+import com.luckyalanzhou.barcodegenerator.ui.app.editor.showItemEditorCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.*
