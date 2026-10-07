@@ -63,6 +63,16 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
+    fun `long press menu contracts cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val menuContracts = Layer("MenuContracts", "com.luckyalanzhou.barcodegenerator.ui.component.menu..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            menuContracts.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
     fun `data cannot depend on presentation or UI`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")

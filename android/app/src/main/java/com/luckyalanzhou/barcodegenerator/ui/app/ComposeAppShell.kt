@@ -14,6 +14,8 @@ import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition

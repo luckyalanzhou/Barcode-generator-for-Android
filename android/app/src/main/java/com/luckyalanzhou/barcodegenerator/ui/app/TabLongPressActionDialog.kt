@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
 import com.luckyalanzhou.barcodegenerator.ui.component.SlideSelectionMenu
 import com.luckyalanzhou.barcodegenerator.ui.component.slideMenuItem
 import com.luckyalanzhou.barcodegenerator.ui.component.ContextMenuGestureSession
@@ -72,7 +74,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
@@ -88,25 +89,6 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.ActionMenuMetrics
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuWidthDp
 import kotlin.math.roundToInt
-
-internal data class TabLongPressAction(
-    val label: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit,
-)
-
-internal data class TabLongPressMenuState(
-    val anchorBoundsOnScreen: Rect,
-    val focusIcon: ImageVector,
-    val focusLabel: String,
-    val focusTint: Color,
-    val dark: Boolean,
-    val actions: List<TabLongPressAction>,
-    val restoreFocus: () -> Unit = {},
-    val title: String = "操作",
-    val tabAnchor: Boolean = true,
-    val menuAnchorBoundsOnScreen: Rect = anchorBoundsOnScreen,
-)
 
 @Composable
 internal fun TabLongPressActionOverlay(

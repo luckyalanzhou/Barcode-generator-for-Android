@@ -2,9 +2,9 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
-import com.luckyalanzhou.barcodegenerator.ui.app.LocalLongPressMenuHost
-import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressAction
-import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressMenuState
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
 import com.luckyalanzhou.barcodegenerator.ui.component.boundsOnScreen
 import com.luckyalanzhou.barcodegenerator.ui.component.performLightMenuOpenHaptic
 
