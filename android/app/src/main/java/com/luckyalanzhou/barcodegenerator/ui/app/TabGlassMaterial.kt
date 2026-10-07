@@ -23,14 +23,14 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     val darkBackground = luminance < .35f
     val darkness = (1f - luminance / .35f).coerceIn(0f, 1f)
     return TabGlassMaterial(
-        bodyTintStrength = if (darkBackground) .055f + darkness * .010f + thickness * .005f else .08f + thickness * .01f,
-        accentTint = if (darkBackground) .006f + thickness * .003f else .008f + thickness * .004f,
-        rimLight = if (darkBackground) .20f + thickness * .025f else .32f + thickness * .035f,
-        innerShadow = if (darkBackground) .085f + thickness * .015f else .035f + thickness * .01f,
-        edgeWidthDp = .9f + thickness * .45f,
+        bodyTintStrength = if (darkBackground) .075f + darkness * .008f + thickness * .006f else .11f + thickness * .012f,
+        accentTint = if (darkBackground) .006f + thickness * .003f else .009f + thickness * .004f,
+        rimLight = if (darkBackground) .30f + thickness * .04f else .45f + thickness * .035f,
+        innerShadow = if (darkBackground) .12f + thickness * .02f else .055f + thickness * .015f,
+        edgeWidthDp = 1.0f + thickness * .45f,
         refractionDp = 3.3f + thickness * 1.0f,
-        surfaceOpacity = if (darkBackground) .50f + thickness * .04f else .46f + thickness * .04f,
-        outlineOpacity = if (darkBackground) .045f + thickness * .01f else .035f + thickness * .01f,
+        surfaceOpacity = if (darkBackground) .53f + thickness * .02f else .47f + thickness * .025f,
+        outlineOpacity = if (darkBackground) .07f + thickness * .015f else .06f + thickness * .015f,
     )
 }
 
@@ -38,12 +38,12 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
 internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
     val dark = background.luminance() < .35f
     return tabGlassMaterial(background, 48f).copy(
-        bodyTintStrength = if (dark) .07f else .09f,
+        bodyTintStrength = if (dark) .09f else .125f,
         accentTint = .006f,
-        surfaceOpacity = if (dark) .46f else .42f,
-        rimLight = if (dark) .30f else .72f,
-        innerShadow = if (dark) .16f else .08f,
-        outlineOpacity = if (dark) .075f else .055f,
+        surfaceOpacity = if (dark) .55f else .48f,
+        rimLight = if (dark) .40f else .58f,
+        innerShadow = if (dark) .15f else .075f,
+        outlineOpacity = if (dark) .09f else .075f,
     )
 }
 

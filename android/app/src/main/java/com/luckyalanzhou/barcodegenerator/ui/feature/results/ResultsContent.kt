@@ -237,26 +237,54 @@ private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean
     val actionWidth = resultToolbarActionWidth(LocalDensity.current.fontScale).dp
     val resultActionBlue = themeColors.controls.accent
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
+    // Share and Save share only a one-at-a-time export guard; all four actions
+    // keep separate callbacks, stable composition identities, and press state.
+    val exportBusy = exportAction != null
     FlowRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ResultAction(EditIcon, "编辑", resultActionBlue, onClick = onEdit, actionWidth = actionWidth)
-                ResultAction(
-                    favoriteActionIcon,
-                    "收藏",
-                    if (isFavorite) themeColors.content.favoriteActive else resultActionBlue,
-                    onSaveFavorite,
-                    actionWidth = actionWidth,
-                )
+                key(ResultActionId.Edit) {
+                    ResultAction(ResultActionId.Edit, EditIcon, "编辑", resultActionBlue, onEdit, actionWidth = actionWidth)
+                }
+                key(ResultActionId.Favorite) {
+                    ResultAction(
+                        ResultActionId.Favorite,
+                        favoriteActionIcon,
+                        "收藏",
+                        if (isFavorite) themeColors.content.favoriteActive else resultActionBlue,
+                        onSaveFavorite,
+                        actionWidth = actionWidth,
+                    )
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ResultAction(IosShareIcon, if (exportAction == ResultExportAction.Share) "准备中…" else "分享", resultActionBlue,
-                    onShare, enabled = exportAction == null, busy = exportAction == ResultExportAction.Share, actionWidth = actionWidth)
-                ResultAction(DownloadIcon, if (exportAction == ResultExportAction.Save) "准备中…" else "保存", resultActionBlue,
-                    onSave, enabled = exportAction == null, busy = exportAction == ResultExportAction.Save, actionWidth = actionWidth)
+                key(ResultActionId.Share) {
+                    ResultAction(
+                        ResultActionId.Share,
+                        IosShareIcon,
+                        if (exportAction == ResultExportAction.Share) "准备中…" else "分享",
+                        resultActionBlue,
+                        onShare,
+                        enabled = !exportBusy,
+                        busy = exportAction == ResultExportAction.Share,
+                        actionWidth = actionWidth,
+                    )
+                }
+                key(ResultActionId.Save) {
+                    ResultAction(
+                        ResultActionId.Save,
+                        DownloadIcon,
+                        if (exportAction == ResultExportAction.Save) "准备中…" else "保存",
+                        resultActionBlue,
+                        onSave,
+                        enabled = !exportBusy,
+                        busy = exportAction == ResultExportAction.Save,
+                        actionWidth = actionWidth,
+                    )
+                }
             }
     }
 }
@@ -264,10 +292,12 @@ private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean
 internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
     selectedFavoriteGroup != null && returnPage == NavigationRoute.Favorites
 
+private enum class ResultActionId { Edit, Favorite, Share, Save }
+
 @Composable
-private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit,
+private fun ResultAction(id: ResultActionId, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit,
     enabled: Boolean = true, busy: Boolean = false, actionWidth: androidx.compose.ui.unit.Dp = 64.dp) {
-    val interaction = remember { MutableInteractionSource() }
+    val interaction = remember(id) { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     var pressPosition by remember(interaction) { mutableStateOf<Offset?>(null) }
     LaunchedEffect(interaction) {
@@ -288,7 +318,7 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
         targetValue = if (pressed && !effects.reduceMotion && !effects.opaqueGlass) 1f else 0f,
         animationSpec = if (effects.reduceMotion) androidx.compose.animation.core.tween(0)
             else ComposeAnimationConfig.pressSpring(),
-        label = "result-action-glass-interaction",
+        label = "result-action-${id.name.lowercase()}-glass-interaction",
     )
     val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
     Column(

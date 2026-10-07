@@ -13,8 +13,8 @@ class TabGlassMaterialTest {
             val fill = tabGlassFill(background, Color(0xFF007AFF), material)
             val difference = maxOf(kotlin.math.abs(fill.red - background.red),
                 kotlin.math.abs(fill.green - background.green), kotlin.math.abs(fill.blue - background.blue)) * material.surfaceOpacity
-            assertTrue("Clear center must separate subtly, not become a matte gray disk", difference in .012f.. .045f)
-            assertTrue(material.rimLight >= .30f && material.innerShadow >= .08f)
+            assertTrue("Clear center must separate subtly, not become a matte gray disk", difference in .012f.. .065f)
+            assertTrue(material.rimLight >= .30f && material.innerShadow >= .07f)
             assertTrue(material.accentTint < .01f)
             assertTrue(material.rimLight <= .75f)
             assertTrue(tabGlassEdgeWidthPx(material, 3f) <= 1.5f)
@@ -25,8 +25,8 @@ class TabGlassMaterialTest {
     fun bodyContrastIsBoundedAndAccentStaysSubtle() {
         val dark = tabGlassMaterial(Color(0xFF17191D), 56f)
         val light = tabGlassMaterial(Color(0xFFF5F7FC), 56f)
-        assertTrue(dark.bodyTintStrength in .055f.. .075f)
-        assertTrue(light.bodyTintStrength in .08f.. .095f)
+        assertTrue(dark.bodyTintStrength in .075f.. .09f)
+        assertTrue(light.bodyTintStrength in .10f.. .13f)
         assertTrue(dark.accentTint < .01f && light.accentTint < .015f)
     }
 
@@ -41,7 +41,7 @@ class TabGlassMaterialTest {
             assertTrue(large.edgeWidthDp > small.edgeWidthDp)
             assertTrue(large.refractionDp <= 4.3f)
             assertTrue(large.edgeWidthDp <= 1.5f)
-            assertTrue(small.surfaceOpacity >= .46f && large.surfaceOpacity <= .55f)
+            assertTrue(small.surfaceOpacity >= .46f && large.surfaceOpacity <= .58f)
         }
     }
 
@@ -56,7 +56,7 @@ class TabGlassMaterialTest {
                 background.blue + (fill.blue - background.blue) * alpha)
             val difference = maxOf(kotlin.math.abs(composite.red - background.red),
                 kotlin.math.abs(composite.green - background.green), kotlin.math.abs(composite.blue - background.blue))
-            assertTrue("Capsule center must remain subtle while the bevel defines its boundary", difference in .012f.. .045f)
+            assertTrue("Capsule center must remain subtle while the bevel defines its boundary", difference in .012f.. .065f)
             if (background.luminance() < .35f) assertTrue(composite.luminance() > background.luminance())
             else assertTrue(composite.luminance() < background.luminance())
             assertTrue(material.edgeWidthDp * .55f < .8f)
@@ -105,8 +105,8 @@ class TabGlassMaterialTest {
         val darkOutline = tabGlassOutlineColor(Color.Black, dark)
         assertEquals(0f, lightOutline.red, 0f)
         assertEquals(1f, darkOutline.red, 0f)
-        assertTrue(lightOutline.alpha in .03f.. .05f)
-        assertTrue(darkOutline.alpha in .04f.. .06f)
-        assertTrue(dark.rimLight in .15f.. .25f)
+        assertTrue(lightOutline.alpha in .055f.. .08f)
+        assertTrue(darkOutline.alpha in .065f.. .09f)
+        assertTrue(dark.rimLight in .28f.. .36f)
     }
 }

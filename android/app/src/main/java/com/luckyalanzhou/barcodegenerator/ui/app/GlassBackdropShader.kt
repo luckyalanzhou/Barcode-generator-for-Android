@@ -60,13 +60,19 @@ half4 main(float2 p) {
     opacity = max(opacity, mix(shape.w, interiorOpacity, interior));
     half3 materialTint = capsuleMode > 0.5 ? glassAdaptiveTint(surfaceColor.rgb, scene, opacity) : surfaceColor.rgb;
     half3 color = mix(scene, materialTint, half(opacity));
+    // A fine adaptive edge keeps the glass legible on both a white canvas and
+    // a black one without painting a broad halo around the control.
+    float edgeLine = capsuleMode * (1.0 - smoothstep(0.15, 1.25, depth));
+    float lightSurface = smoothstep(0.15, 0.75, targetLuminance);
+    half3 edgeTint = mix(half3(0.52, 0.56, 0.64), half3(0.45, 0.48, 0.54), half(lightSurface));
+    float edgeAlpha = edgeLine * mix(0.15, 0.06, lightSurface);
+    color = mix(color, edgeTint, half(edgeAlpha));
     // Text/detail crossing a small control strengthens only its inner edge separation.
     float separation = capsuleMode * (1.0 - smoothstep(1.0, 5.0, depth)) * detail * 0.045;
     color *= half(1.0 - separation);
     // Small-control optical bevel: geometric, environment-aware and inside the mask.
     // GPU controls own this once; compatible Canvas strokes are not stacked on it.
     if (capsuleMode > 0.5 && shape.w < 0.999) {
-        float lightSurface = smoothstep(0.15, 0.75, targetLuminance);
         float2 touchLight = contact.xy - bounds.xy;
         float2 lightDirection = normalize(float2(-0.35, -1.0) +
             touchLight / max(length(touchLight), 1.0) * contact.z * 0.45);
@@ -74,12 +80,12 @@ half4 main(float2 p) {
         float opposite = max(-dot(normal, lightDirection), 0.0);
         float crest = exp(-depth / 0.85);
         float bevel = exp(-pow((depth - density * 1.25) / max(density * 1.0, 1.0), 2.0));
-        float reflection = crest * pow(facing, 3.0) * mix(0.28, 0.65, lightSurface) +
-            bevel * facing * mix(0.055, 0.12, lightSurface);
-        float innerShade = bevel * opposite * mix(0.035, 0.075, lightSurface);
-        innerShade += crest * (1.0 - facing * facing) * mix(0.008, 0.032, lightSurface);
+        float reflection = crest * pow(facing, 3.0) * mix(0.34, 0.70, lightSurface) +
+            bevel * facing * mix(0.075, 0.15, lightSurface);
+        float innerShade = bevel * opposite * mix(0.055, 0.10, lightSurface);
+        innerShade += crest * (1.0 - facing * facing) * mix(0.015, 0.045, lightSurface);
         // Soft counterreflection defines lower glass thickness, not an external neon halo.
-        reflection += crest * opposite * mix(0.07, 0.045, lightSurface);
+        reflection += crest * opposite * mix(0.09, 0.06, lightSurface);
         half3 environmentalLight = clamp(scene - half3(luminance), half3(-0.12), half3(0.12));
         color = mix(color, half3(1.0), half(clamp(reflection, 0.0, 0.72)));
         color *= half(1.0 - innerShade);
