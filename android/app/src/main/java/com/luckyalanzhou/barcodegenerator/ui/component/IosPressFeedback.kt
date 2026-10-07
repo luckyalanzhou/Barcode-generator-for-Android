@@ -1,6 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.component
 
-import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState

@@ -53,6 +53,16 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
+    fun `shared UI animation specs cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val uiAnimation = Layer("UIAnimation", "com.luckyalanzhou.barcodegenerator.ui.animation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            uiAnimation.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
     fun `data cannot depend on presentation or UI`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")

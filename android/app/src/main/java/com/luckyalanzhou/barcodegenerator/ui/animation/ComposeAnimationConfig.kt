@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.animation
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec

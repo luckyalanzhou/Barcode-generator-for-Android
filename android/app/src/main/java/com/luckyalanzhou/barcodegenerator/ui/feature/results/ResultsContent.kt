@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.results
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState

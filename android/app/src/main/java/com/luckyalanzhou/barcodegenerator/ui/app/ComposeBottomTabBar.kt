@@ -4,6 +4,7 @@ import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
 import com.luckyalanzhou.barcodegenerator.ui.component.performLightMenuOpenHaptic
+import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.BarcodeIcon

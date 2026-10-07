@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
 
-import com.luckyalanzhou.barcodegenerator.ui.app.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.app.LocalLongPressMenuHost
 import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressAction
 import com.luckyalanzhou.barcodegenerator.ui.app.TabLongPressMenuState
