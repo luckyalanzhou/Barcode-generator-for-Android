@@ -86,7 +86,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
             return@showComposeDialog
         }
         var selectedRoot by remember {
-            mutableStateOf(group.folder.substringBefore('/').takeIf { it in roots } ?: roots.first())
+            mutableStateOf(group.folder.substringBefore('/').takeIf { it in roots } ?: roots.firstOrNull().orEmpty())
         }
         var selectedChild by remember {
             mutableStateOf(group.folder.substringAfter('/', "").takeIf {

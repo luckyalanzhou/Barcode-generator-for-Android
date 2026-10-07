@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
@@ -50,7 +51,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
     resultState: ResultUiState,
     dataState: BarcodeDataState,
     onSave: (List<Long>, Long?, Long?, String, String) -> Boolean,
-        onCreateFolder: (String) -> Unit,
+    onCreateFolder: (String) -> Unit,
 ) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
@@ -59,17 +60,33 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
             return@showComposeDialog
         }
         val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == AppRoute.Favorites }
-        val folders = (dataState.folders + dataState.groups.map { it.folder })
-            .filter { it.isNotBlank() }.distinct().toMutableList()
+        var folders by remember {
+            mutableStateOf(
+                (dataState.folders + dataState.groups.map { it.folder })
+                    .filter { it.isNotBlank() }
+                    .distinct(),
+            )
+        }
         val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
         var selectedRoot by remember { mutableStateOf(editingGroup?.folder?.substringBefore('/').takeIf { it in roots }.orEmpty()) }
         var selectedChild by remember { mutableStateOf(editingGroup?.folder.orEmpty().substringAfter('/', "").takeIf { it.isNotBlank() }.orEmpty()) }
         val childOptions = folders.filter { it.startsWith("$selectedRoot/") }.map { it.removePrefix("$selectedRoot/") }.filter { !it.contains('/') }.distinct().sorted()
         val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
-        fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String) {
-            val saved = onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
+        var saving by remember { mutableStateOf(false) }
+        fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String): Boolean {
+            if (saving) return false
+            saving = true
+            val saved = runCatching {
+                onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
+            }.getOrElse {
+                DebugLog.record("favorites", "保存收藏点击操作失败", it)
+                saving = false
+                false
+            }
             toast(if (saved) "已保存到 $folder" else "该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
+            if (!saved) saving = false
+            return saved
         }
         ComposeGlassDialogCard(dark) {
             Text(
@@ -151,7 +168,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                 OutlinedButton(
                     onClick = {
                         showFolderEditorCompose(dataState) { folder ->
-                            if (folder !in folders) folders.add(folder)
+                            if (folder !in folders) folders = (folders + folder).distinct()
                             onCreateFolder(folder)
                             selectedRoot = folder
                             selectedChild = ""
@@ -171,7 +188,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                         if (selectedRoot.isBlank()) toast("请先选择一级文件夹")
                         else showSubfolderEditorCompose(dataState, selectedRoot, onCreated = { child ->
                             val path = "$selectedRoot/$child"
-                            if (path !in folders) folders.add(path)
+                            if (path !in folders) folders = (folders + path).distinct()
                             selectedChild = child
                         }, onCreateFolder = onCreateFolder)
                     },
@@ -213,8 +230,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                                 it.id != editingGroup?.id && it.folder == selectedFolder && it.name == cleanName
                             }
                             if (conflict == null) {
-                                dismiss()
-                                persistFavorite(editingGroup, selectedFolder, cleanName)
+                                if (persistFavorite(editingGroup, selectedFolder, cleanName)) dismiss()
                             } else {
                                 dismiss()
                                 showComposeConfirmDialog(
