@@ -1,57 +1,27 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.results
-
-import com.luckyalanzhou.barcodegenerator.ui.app.*
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
-
-import com.luckyalanzhou.barcodegenerator.ui.theme.*
+package com.luckyalanzhou.barcodegenerator.ui.feature.results.preview
 
 import android.graphics.Bitmap
-import com.luckyalanzhou.barcodegenerator.MainActivity
-import com.luckyalanzhou.barcodegenerator.barcodeFormats
-import com.luckyalanzhou.barcodegenerator.domain.CodeItem
-
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.Composable
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 
-/** 条码预览弹窗完全使用 Compose，保存/分享仍复用原有媒体存储业务。 */
-internal fun MainActivity.previewCompose(item: CodeItem) {
-    val format = barcodeFormats.firstOrNull { it.first == item.format }?.second ?: run {
-        toast("不支持的条码格式")
-        return
-    }
-    val bitmap = resultsViewModel.createBarcodeImage(item.text, format, settingsViewModel.style, isDark(), resources.displayMetrics.density) ?: run {
-        toast("内容不符合该格式")
-        return
-    }
-    showComposeDialog(compact = false) { dismiss ->
-        PreviewDialogContent(
-            format = item.format,
-            text = item.text,
-            bitmap = bitmap,
-            dark = isDark(),
-            onSave = { saveBitmap(bitmap, item.text); dismiss() },
-            onShare = { shareBitmap(bitmap, item.text); dismiss() },
-            onDismiss = dismiss,
-        )
-    }
-}
-
-/** Stateless result preview content; the Activity bridge supplies media actions. */
+/** Stateless preview content; the application host supplies the image and media actions. */
 @Composable
 internal fun PreviewDialogContent(
     format: String,
