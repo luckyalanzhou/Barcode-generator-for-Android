@@ -21,6 +21,7 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompos
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.shareDebugLog
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */
 internal interface ComposeAppShellActions {
@@ -59,26 +60,35 @@ internal interface ComposeAppShellActions {
 
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
 internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = object : ComposeAppShellActions {
-    override val resultExportAction get() = this@composeAppShellActions.resultExportAction
-    override fun navigateTo(route: AppRoute) {
-        if (route != AppRoute.Results) {
-            resultsViewModel.cancelPendingResults()
-            favoritesViewModel.cancelPendingGroupLoad()
+    private inline fun traceAction(name: String, details: String = "", block: () -> Unit) {
+        DebugLog.actionStarted(name, details)
+        try {
+            block()
+            DebugLog.actionSucceeded(name, details)
+        } catch (error: Throwable) {
+            DebugLog.actionFailed(name, error, details)
+            throw error
         }
-        navigationViewModel.navigateTo(route)
     }
 
-    override fun selectTab(index: Int, fromSwipe: Boolean) {
+    override val resultExportAction get() = this@composeAppShellActions.resultExportAction
+    override fun navigateTo(route: AppRoute) = traceAction("navigate", "to=${route.pageName}") {
+        if (route != AppRoute.Results) {
+                resultsViewModel.cancelPendingResults()
+                favoritesViewModel.cancelPendingGroupLoad()
+            }
+            navigationViewModel.navigateTo(route)
+        }
+
+    override fun selectTab(index: Int, fromSwipe: Boolean) = traceAction("tab_select", "index=$index swipe=$fromSwipe") {
         val routes = listOf(AppRoute.Generate, AppRoute.History, AppRoute.Favorites, AppRoute.Settings)
-        if (index !in routes.indices) return
+        if (index !in routes.indices) return@traceAction
         val currentPage = navigationViewModel.uiState.value.page
         val reselected = isTabReselection(currentPage, routes[index], fromSwipe)
         if (currentPage == AppRoute.LanShare) closeLanShare()
         resultsViewModel.cancelPendingResults()
         favoritesViewModel.cancelPendingGroupLoad()
-        if (index == 1 && reselected) {
-            historyViewModel.refreshHistory()
-        }
+        if (index == 1 && reselected) historyViewModel.refreshHistory()
         if (index == 2 && reselected) {
             favoritesViewModel.collapseAllFolders()
             favoritesViewModel.requestScrollToTop()
@@ -109,33 +119,41 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         }
     }
 
-    override fun captureText() = this@composeAppShellActions.captureText()
+    override fun captureText() = traceAction("capture_text") { this@composeAppShellActions.captureText() }
     override fun notice(message: String) = this@composeAppShellActions.toast(message)
-    override fun clearHistory() = this@composeAppShellActions.confirmClearCompose(false)
+    override fun clearHistory() = traceAction("history_clear_dialog") { this@composeAppShellActions.confirmClearCompose(false) }
 
     override fun editHistory(batch: List<CodeItem>) {
-        window.decorView.post {
-            if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
-            else showHistoryBatchPickerCompose(batch)
+        traceAction("history_edit", "count=${batch.size}") {
+            window.decorView.post {
+                if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
+                else showHistoryBatchPickerCompose(batch)
+            }
         }
     }
 
     override fun editFavorite(group: FavoriteGroup) {
-        resultsViewModel.cancelFavoriteGroupRendering()
-        favoritesViewModel.loadFavoriteGroupContent(
-            group = group,
-            onLoaded = { content ->
-                resultsViewModel.prepareFavoriteGroupForEditing(content) { batch ->
-                    window.decorView.post {
-                        if (!isFinishing && !isDestroyed) {
-                            if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
-                            else showHistoryBatchPickerCompose(batch)
+        traceAction("favorite_edit", "groupId=${group.id}") {
+            resultsViewModel.cancelFavoriteGroupRendering()
+            favoritesViewModel.loadFavoriteGroupContent(
+                group = group,
+                onLoaded = { content ->
+                    DebugLog.actionSucceeded("favorite_edit", "groupId=${group.id} loaded=${content.items.size}")
+                    resultsViewModel.prepareFavoriteGroupForEditing(content) { batch ->
+                        window.decorView.post {
+                            if (!isFinishing && !isDestroyed) {
+                                if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
+                                else showHistoryBatchPickerCompose(batch)
+                            }
                         }
                     }
-                }
-            },
-            onNotice = this@composeAppShellActions::toast,
-        )
+                },
+                onNotice = { message ->
+                    DebugLog.record("action", "favorite_edit notice groupId=${group.id} message=${message.take(80)}")
+                    this@composeAppShellActions.toast(message)
+                },
+            )
+        }
     }
 
     override fun showSubfolderEditor(parent: String) = this@composeAppShellActions.showSubfolderEditorCompose(
@@ -158,29 +176,27 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     )
     override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
         this@composeAppShellActions.showComposeConfirmDialogImpl(title, message, positive, onConfirm)
-    override fun saveFavorite() = this@composeAppShellActions.saveResultAsFavoriteCompose(
-        resultState = resultsViewModel.resultUiState.value,
-        dataState = favoritesViewModel.dataState.value,
-        onSave = { itemIds, editingGroupId, targetGroupId, folder, name ->
-            favoritesViewModel.saveResultAsFavorite(
-                itemIds,
-                editingGroupId,
-                targetGroupId,
-                folder,
-                name,
-            )
-        },
-        onCreateFolder = favoritesViewModel::createFavoriteFolder,
-        onSaved = {
-            resultsViewModel.clearSelectedFavoriteGroup()
-            navigationViewModel.navigateTo(AppRoute.Favorites)
-        },
-    )
-    override fun shareResult() = this@composeAppShellActions.shareResultPage()
-    override fun saveResult() = this@composeAppShellActions.saveResultPage()
+    override fun saveFavorite() {
+        DebugLog.actionStarted("favorite_save_dialog", "resultCount=${resultsViewModel.resultUiState.value.items.size}")
+        this@composeAppShellActions.saveResultAsFavoriteCompose(
+            resultState = resultsViewModel.resultUiState.value,
+            dataState = favoritesViewModel.dataState.value,
+            onSave = { itemIds, editingGroupId, targetGroupId, folder, name ->
+                favoritesViewModel.saveResultAsFavorite(itemIds, editingGroupId, targetGroupId, folder, name)
+            },
+            onCreateFolder = favoritesViewModel::createFavoriteFolder,
+            onSaved = {
+                DebugLog.actionSucceeded("favorite_save_dialog", "saved=true")
+                resultsViewModel.clearSelectedFavoriteGroup()
+                navigationViewModel.navigateTo(AppRoute.Favorites)
+            },
+        )
+    }
+    override fun shareResult() = traceAction("result_share") { this@composeAppShellActions.shareResultPage() }
+    override fun saveResult() = traceAction("result_save") { this@composeAppShellActions.saveResultPage() }
     override fun updateResultImageWidth(width: Int) { resultImageContentWidthPx = width }
     override fun applyAppearance() = this@composeAppShellActions.applyAppearance()
-    override fun enterLanShare() = this@composeAppShellActions.enterLanShare()
+    override fun enterLanShare() = traceAction("lan_share_enter") { this@composeAppShellActions.enterLanShare() }
     override fun restoreFavorites() = this@composeAppShellActions.restoreFavoritesImport()
     override fun exportFavorites() = this@composeAppShellActions.createFavoritesExportCompose()
     override fun checkForUpdates() = this@composeAppShellActions.checkForUpdates(silent = false)

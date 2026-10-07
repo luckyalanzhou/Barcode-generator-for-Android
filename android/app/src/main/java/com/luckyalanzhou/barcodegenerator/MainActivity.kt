@@ -159,6 +159,7 @@ class MainActivity : AppCompatActivity() {
             override fun handleOnBackPressed() = handleAppBackPressed()
         })
         DebugLog.initialize(applicationContext)
+        DebugLog.installUncaughtExceptionHandler()
         DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)

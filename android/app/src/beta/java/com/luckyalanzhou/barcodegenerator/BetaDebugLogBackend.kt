@@ -16,6 +16,7 @@ private object BetaDebugLogBackend {
     private const val FILE_SUFFIX = ".log"
     private const val RETENTION_DAYS = 7L
     private const val MAX_BYTES = 2L * 1024L * 1024L
+    private const val MAX_EXPORT_BYTES = 8L * 1024L * 1024L
     private val lock = Any()
     private val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     @Volatile private var directory: File? = null
@@ -57,10 +58,27 @@ private object BetaDebugLogBackend {
         }
         synchronized(lock) {
             cleanup(targetDirectory)
-            val source = dailyFile(targetDirectory)
-            if (!source.exists()) source.writeText("暂无应用调试日志\n", Charsets.UTF_8)
+            // 最新日志优先，避免导出大小达到上限时丢掉最近一次崩溃上下文。
+            val sources = dailyFiles(targetDirectory).asReversed()
             val export = File(context.cacheDir, "barcode-generator-debug-${exportTimestamp()}.log")
-            source.copyTo(export, overwrite = true)
+            export.outputStream().bufferedWriter(Charsets.UTF_8).use { writer ->
+                if (sources.isEmpty()) {
+                    writer.append("暂无应用调试日志\n")
+                } else {
+                    var remaining = MAX_EXPORT_BYTES
+                    sources.forEach { source ->
+                        if (remaining <= 0L) return@forEach
+                        val content = source.readText(Charsets.UTF_8)
+                        val bytes = content.toByteArray(Charsets.UTF_8)
+                        writer.append("===== ").append(source.name).append(" =====\n")
+                        remaining -= source.name.length + 10L
+                        val length = bytes.size.coerceAtMost(remaining.toInt().coerceAtLeast(0))
+                        if (length > 0) writer.write(String(bytes, 0, length, Charsets.UTF_8))
+                        writer.append('\n')
+                        remaining -= length.toLong()
+                    }
+                }
+            }
             return export
         }
     }

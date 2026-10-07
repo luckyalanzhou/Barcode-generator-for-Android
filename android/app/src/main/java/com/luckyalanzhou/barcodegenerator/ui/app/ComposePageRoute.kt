@@ -20,6 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.launch
@@ -179,11 +180,13 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     settings = settings,
                     dark = dark,
                     onEdit = {
+                        DebugLog.actionStarted("result_edit", "count=${resultState.items.size}")
                         dependencies.resultsViewModel.editCurrentResult {
                             // Finish the toolbar click before replacing the root page.
                             // The result toolbar is inside the composition being removed;
                             // posting avoids a re-entrant composition transition.
                             Handler(Looper.getMainLooper()).post {
+                                DebugLog.actionSucceeded("result_edit", "to=Generate")
                                 dependencies.actions.navigateTo(AppRoute.Generate)
                             }
                         }
