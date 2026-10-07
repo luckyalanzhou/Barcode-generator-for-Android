@@ -1,13 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
-import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
-import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.groupedContentSurface
 
-import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
@@ -215,16 +212,5 @@ internal fun HistoryBatchPickerDialogContent(
                 )
             }
         }
-    }
-}
-
-internal fun MainActivity.showHistoryBatchPickerCompose(batch: List<CodeItem>) {
-    showComposeDialog(compact = false) { dismiss ->
-        HistoryBatchPickerDialogContent(
-            batch = batch,
-            dark = isDark(),
-            onDismiss = dismiss,
-            onEdit = { item -> window.decorView.post { showItemEditorCompose(item, barcodeItemViewModel::updateBarcodeItem) } },
-        )
     }
 }

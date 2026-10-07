@@ -121,13 +121,19 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
 
     override fun captureText() = traceAction("capture_text") { this@composeAppShellActions.captureText() }
     override fun notice(message: String) = this@composeAppShellActions.toast(message)
-    override fun clearHistory() = traceAction("history_clear_dialog") { this@composeAppShellActions.confirmClearCompose(false) }
+    override fun clearHistory() = traceAction("history_clear_dialog") {
+        this@composeAppShellActions.showClearHistoryConfirmCompose {
+            historyViewModel.clearHistoryAndPersist()
+        }
+    }
 
     override fun editHistory(batch: List<CodeItem>) {
         traceAction("history_edit", "count=${batch.size}") {
             window.decorView.post {
                 if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
-                else showHistoryBatchPickerCompose(batch)
+                else showHistoryBatchPickerCompose(batch) { item ->
+                    showItemEditorCompose(item, barcodeItemViewModel::updateBarcodeItem)
+                }
             }
         }
     }
@@ -143,7 +149,9 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
                         window.decorView.post {
                             if (!isFinishing && !isDestroyed) {
                                 if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
-                                else showHistoryBatchPickerCompose(batch)
+                                else showHistoryBatchPickerCompose(batch) { item ->
+                                    showItemEditorCompose(item, barcodeItemViewModel::updateBarcodeItem)
+                                }
                             }
                         }
                     }

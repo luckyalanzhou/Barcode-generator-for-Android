@@ -94,7 +94,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
                 HistoryScreen(
-                    dataState = historyState,
+                    items = historyState.items,
                     refreshGeneration = refreshGeneration,
                     dark = dark,
                     onOpen = { batch ->

@@ -1,15 +1,13 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 
 /** History route/state adapter. All view rendering remains in [HistoryComposePage]. */
 @Composable
 internal fun HistoryScreen(
-    dataState: BarcodeDataState,
+    items: List<CodeItem>,
     refreshGeneration: Long,
     dark: Boolean,
     onOpen: (List<CodeItem>) -> Unit,
@@ -17,8 +15,8 @@ internal fun HistoryScreen(
     onDelete: (List<CodeItem>) -> Unit,
 ) {
     val refreshTime = remember(refreshGeneration) { System.currentTimeMillis() }
-    val entries = remember(dataState.items, refreshGeneration) {
-        dataState.items
+    val entries = remember(items, refreshGeneration) {
+        items
             .asSequence()
             .filter { it.inHistory }
             .map { it.copy() }
