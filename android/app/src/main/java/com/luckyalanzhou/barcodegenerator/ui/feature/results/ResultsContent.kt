@@ -13,7 +13,7 @@ import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
-import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
+import com.luckyalanzhou.barcodegenerator.icons.DownloadIcon
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -250,7 +250,7 @@ private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ResultAction(IosShareIcon, if (exportAction == ResultExportAction.Share) "准备中…" else "分享", resultActionBlue,
                     onShare, enabled = exportAction == null, busy = exportAction == ResultExportAction.Share, actionWidth = actionWidth)
-                ResultAction(ArrowDownwardIcon, if (exportAction == ResultExportAction.Save) "准备中…" else "保存", resultActionBlue,
+                ResultAction(DownloadIcon, if (exportAction == ResultExportAction.Save) "准备中…" else "保存", resultActionBlue,
                     onSave, enabled = exportAction == null, busy = exportAction == ResultExportAction.Save, actionWidth = actionWidth)
             }
     }
