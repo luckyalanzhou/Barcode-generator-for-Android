@@ -14,9 +14,12 @@ import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteFilledIcon
 import com.luckyalanzhou.barcodegenerator.icons.IosShareIcon
 import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
-import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.semantics.Role
 
@@ -60,8 +63,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,6 +81,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collect
 
 @Composable
 internal fun ResultsContent(
@@ -255,30 +263,118 @@ internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
 private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit,
     enabled: Boolean = true, busy: Boolean = false, actionWidth: androidx.compose.ui.unit.Dp = 64.dp) {
     val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    var pressPosition by remember(interaction) { mutableStateOf<Offset?>(null) }
+    LaunchedEffect(interaction) {
+        interaction.interactions.collect { event ->
+            if (event is PressInteraction.Press) pressPosition = event.pressPosition
+        }
+    }
     val colors = LocalAppColorScheme.current
+    val effects = LocalVisualEffectsPolicy.current
+    val density = LocalDensity.current.density
+    val opticalActivity by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (pressed && !effects.reduceMotion && !effects.opaqueGlass) 1f else 0f,
+        animationSpec = if (effects.reduceMotion) androidx.compose.animation.core.tween(0)
+            else ComposeAnimationConfig.pressSpring(),
+        label = "result-action-glass-interaction",
+    )
     val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
     Column(
-        Modifier.width(actionWidth).heightIn(min = 68.dp).iosPressFeedback(interaction)
+        Modifier.width(actionWidth).heightIn(min = 68.dp)
             .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            Modifier.width(48.dp).height(48.dp).clip(CircleShape),
+            Modifier.width(48.dp).height(48.dp)
+                .graphicsLayer {
+                    val lift = opticalActivity
+                    scaleX = 1f + .035f * lift
+                    scaleY = 1f + .035f * lift
+                    translationY = -1.5f * density * lift
+                    shadowElevation = 2.5f * density * lift
+                    shape = CircleShape
+                }
+                .clip(CircleShape),
             contentAlignment = Alignment.Center,
         ) {
+            val circlePx = 48f * density
+            val actionWidthPx = actionWidth.value * density
+            val touchPoint = pressPosition?.let {
+                Offset(
+                    x = (it.x - (actionWidthPx - circlePx) * .5f).coerceIn(0f, circlePx),
+                    y = it.y.coerceIn(0f, circlePx),
+                )
+            }
+            val actionFrame = {
+                resultActionGlassFrame(
+                    width = circlePx,
+                    height = circlePx,
+                    density = density,
+                    activity = opticalActivity,
+                    touch = touchPoint,
+                )
+            }
             GlassBackdropSurface(
                 modifier = Modifier.matchParentSize(),
                 color = colors.surfaces.background,
                 opacity = if (colors.surfaces.background.luminance() < .35f) .38f else .24f,
                 cornerDp = 24f,
                 blurDp = 1.5f,
-                refractionDp = { 1.8f },
+                refractionDp = { 1.2f + 1.1f * opticalActivity },
+                capsule = actionFrame,
                 drawFallback = true,
             )
+            androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+                val activity = opticalActivity
+                if (activity > .01f) {
+                    val center = touchPoint ?: Offset(size.width * .5f, size.height * .5f)
+                    val radius = size.minDimension * .68f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color.White.copy(alpha = .13f * activity), Color.Transparent),
+                            center = center,
+                            radius = radius,
+                        ),
+                        radius = radius,
+                        center = center,
+                    )
+                }
+            }
             if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(22.dp).height(22.dp), color = contentTint, strokeWidth = 2.dp)
             else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(24.dp).height(24.dp))
         }
         Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
             maxLines = 1, modifier = Modifier.padding(top = 4.dp))
     }
+}
+
+internal fun resultActionGlassFrame(
+    width: Float,
+    height: Float,
+    density: Float,
+    activity: Float,
+    touch: Offset?,
+): TabGlassFrame {
+    val safeWidth = width.takeIf(Float::isFinite)?.coerceAtLeast(1f) ?: 1f
+    val safeHeight = height.takeIf(Float::isFinite)?.coerceAtLeast(1f) ?: 1f
+    val safeDensity = density.takeIf(Float::isFinite)?.coerceAtLeast(.1f) ?: .1f
+    val centerX = safeWidth * .5f
+    val centerY = safeHeight * .5f
+    val strength = activity.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f
+    return TabGlassFrame(
+        width = safeWidth,
+        height = safeHeight,
+        centerX = centerX,
+        centerY = centerY,
+        halfWidth = centerX,
+        halfHeight = centerY,
+        motion = strength,
+        refractionPx = (1.2f + 1.1f * strength) * safeDensity,
+        density = safeDensity,
+        touchX = touch?.x?.takeIf(Float::isFinite)?.coerceIn(0f, safeWidth) ?: centerX,
+        touchY = touch?.y?.takeIf(Float::isFinite)?.coerceIn(0f, safeHeight) ?: centerY,
+        contactSpread = .72f,
+        travelStrength = strength,
+    )
 }
