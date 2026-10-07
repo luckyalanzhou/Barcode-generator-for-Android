@@ -62,15 +62,17 @@ internal fun MainActivity.preview(item: CodeItem) {
 }
 
 internal fun MainActivity.shareText(text: String) {
-    startActivity(
-        Intent.createChooser(
-            Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, text)
-            },
-            "分享条码内容",
-        ),
-    )
+    runCatching {
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                },
+                "分享条码内容",
+            ),
+        )
+    }.onFailure { toast("分享失败，请重试") }
 }
 
 internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String) {

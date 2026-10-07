@@ -64,12 +64,14 @@ internal fun MainActivity.installApkCompose(file: File) {
                             dark,
                             {
                                 dismiss()
-                                startActivity(
-                                    android.content.Intent(
-                                        android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                        "package:$packageName".toUri(),
-                                    ),
-                                )
+                                runCatching {
+                                    startActivity(
+                                        android.content.Intent(
+                                            android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                            "package:$packageName".toUri(),
+                                        ),
+                                    )
+                                }.onFailure { toast("无法打开安装设置") }
                             },
                             modifier = Modifier.padding(start = 20.dp),
                             primary = true,
