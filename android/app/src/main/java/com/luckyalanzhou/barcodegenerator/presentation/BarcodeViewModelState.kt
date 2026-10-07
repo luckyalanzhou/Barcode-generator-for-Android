@@ -33,7 +33,10 @@ data class ResultUiState(
     val selectedFavoriteGroup: FavoriteGroup? = null,
     val isRestoring: Boolean = false,
     val restoreFailed: Boolean = false,
-)
+) {
+    val hasSavedFavoriteFile: Boolean
+        get() = selectedFavoriteGroup != null && returnPage == AppRoute.Favorites
+}
 
 data class FavoriteTreeUiState(
     val collapsedFolders: Set<String> = emptySet(),

@@ -1,14 +1,11 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.results
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
-import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
-import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
@@ -86,8 +83,8 @@ import kotlinx.coroutines.flow.collect
 @Composable
 internal fun ResultsContent(
     exportAction: ResultExportAction?,
-    resultState: ResultUiState,
-    settings: SettingsUiState,
+    state: ResultsContentState,
+    style: StyleSettings,
     dark: Boolean,
     onEdit: () -> Unit,
     onSaveFavorite: () -> Unit,
@@ -101,21 +98,21 @@ internal fun ResultsContent(
     val dimensions = LocalAppDimensions.current
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
-    val items = resultState.items
+    val items = state.items
     val density = LocalDensity.current.density
     val fontScale = LocalDensity.current.fontScale
     val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val rowWidth = with(LocalDensity.current) { (maxWidth - 24.dp).roundToPx().coerceAtLeast(1) }
     SideEffect { onImageWidthChanged(rowWidth) }
-    val isFavorite = resultState.hasSavedFavoriteFile()
+    val isFavorite = state.hasSavedFavoriteFile
 
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("生成结果", color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
             Text(
                 when {
-                    resultState.isRestoring -> "正在恢复上次结果…"
-                    resultState.restoreFailed -> "上次结果已不可用，请返回重新打开"
+                    state.isRestoring -> "正在恢复上次结果…"
+                    state.restoreFailed -> "上次结果已不可用，请返回重新打开"
                     else -> "暂无生成结果"
                 },
                 color = secondary,
@@ -128,11 +125,11 @@ internal fun ResultsContent(
 
     // Do not reveal a partially populated result list. This also covers restored results
     // whose image cache may have been cleared while the app was stopped.
-    val preparedRows by key(items, settings.style, dark, density, rowWidth, fontScale) {
+    val preparedRows by key(items, style, dark, density, rowWidth, fontScale) {
       produceState<List<Bitmap>?>(
         initialValue = null,
         items,
-        settings.style,
+        style,
         dark,
         density,
         rowWidth,
@@ -145,7 +142,7 @@ internal fun ResultsContent(
                         batch.map { item ->
                             async {
                                 val raw = checkNotNull(loadBarcodeImage(item, dark, density))
-                                composeResultRowImage(raw, item, settings.style, dark, rowWidth, density, fontScale)
+                                composeResultRowImage(raw, item, style, dark, rowWidth, density, fontScale)
                             }
                         }.awaitAll()
                     }
@@ -197,12 +194,12 @@ internal fun ResultsContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize().recordGlassBackdrop(backdrop),
             contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(settings.style.margin.coerceIn(0, 10).dp),
+            verticalArrangement = Arrangement.spacedBy(style.margin.coerceIn(0, 10).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
                 val bitmap = prepared.getOrNull(index)
-                if (bitmap != null) Image(bitmap.asImageBitmap(), resultImageLabel(item, settings.style.showFormat),
+                if (bitmap != null) Image(bitmap.asImageBitmap(), resultImageLabel(item, style.showFormat),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
                         .aspectRatio(bitmap.width.toFloat() / bitmap.height))
@@ -289,9 +286,6 @@ private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean
             }
     }
 }
-
-internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
-    selectedFavoriteGroup != null && returnPage == NavigationRoute.Favorites
 
 private enum class ResultActionId { Edit, Favorite, Share, Save }
 

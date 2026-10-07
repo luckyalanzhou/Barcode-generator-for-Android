@@ -4,7 +4,6 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute
-import com.luckyalanzhou.barcodegenerator.ui.feature.results.hasSavedFavoriteFile
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -19,7 +18,7 @@ class FavoriteFileStatusTest {
             selectedFavoriteGroup = FavoriteGroup(7, "一级", "文件", 1, mutableListOf(1)),
         )
 
-        assertTrue(state.hasSavedFavoriteFile())
+        assertTrue(state.hasSavedFavoriteFile)
     }
 
     @Test
@@ -29,7 +28,7 @@ class FavoriteFileStatusTest {
             returnPage = NavigationRoute.Generate,
         )
 
-        assertFalse(state.hasSavedFavoriteFile())
+        assertFalse(state.hasSavedFavoriteFile)
     }
 
     @Test
@@ -45,6 +44,6 @@ class FavoriteFileStatusTest {
         coordinator.showHistoryResult(listOf(CodeItem(2, "history", "QR_CODE")))
 
         assertNull(coordinator.current().selectedFavoriteGroup)
-        assertFalse(coordinator.current().hasSavedFavoriteFile())
+        assertFalse(coordinator.current().hasSavedFavoriteFile)
     }
 }

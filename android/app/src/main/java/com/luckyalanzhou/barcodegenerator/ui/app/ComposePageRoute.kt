@@ -180,8 +180,13 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val resultState by dependencies.resultsViewModel.resultUiState.collectAsStateWithLifecycle()
                 ResultsContent(
                     exportAction = dependencies.actions.resultExportAction,
-                    resultState = resultState,
-                    settings = settings,
+                    state = ResultsContentState(
+                        items = resultState.items,
+                        isRestoring = resultState.isRestoring,
+                        restoreFailed = resultState.restoreFailed,
+                        hasSavedFavoriteFile = resultState.hasSavedFavoriteFile,
+                    ),
+                    style = settings.style,
                     dark = dark,
                     onEdit = {
                         DebugLog.actionStarted("result_edit", "count=${resultState.items.size}")

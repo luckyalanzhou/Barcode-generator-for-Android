@@ -94,12 +94,13 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
-    fun `results feature cannot depend on app composition`() {
+    fun `results feature cannot depend on presentation or app composition`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val resultsFeature = Layer("ResultsFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.results..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
             val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
-            resultsFeature.doesNotDependOn(appComposition)
-            appComposition.include()
+            resultsFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
         }
     }
 
