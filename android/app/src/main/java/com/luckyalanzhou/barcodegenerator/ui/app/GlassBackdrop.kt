@@ -104,12 +104,16 @@ internal fun GlassBackdropSurface(
             translate(offset.x, offset.y) { drawLayer(source.layer) }
         } else if (drawFallback) {
             drawRoundRect(
-                color.copy(alpha = if (policy.opaqueGlass || Build.VERSION.SDK_INT < 31) 1f else opacity.coerceAtLeast(.92f)),
+                color.copy(alpha = glassFallbackOpacity(opacity, capsule != null, policy.opaqueGlass)),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerDp * density),
             )
         }
     }
 }
+
+/** Menus protect text; small controls retain their intended coverage even without a shader. */
+internal fun glassFallbackOpacity(opacity: Float, smallControl: Boolean, opaque: Boolean): Float =
+    if (opaque) 1f else if (smallControl) opacity.coerceIn(0f, 1f) else opacity.coerceIn(.92f, 1f)
 
 @RequiresApi(33)
 internal class BackdropRenderer(private val shader: RuntimeShader) {

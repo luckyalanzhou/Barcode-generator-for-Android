@@ -89,7 +89,7 @@ internal fun TabLiquidGlassScene(
         }
         if (visible) {
             TabGlassSurface(frameProvider, resolvedMaterial.copy(surfaceOpacity =
-                if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity.coerceAtLeast(.82f)),
+                if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity),
                 accent, background, policy.highContrast)
         }
         Box(Modifier.fillMaxSize().onGloballyPositioned {

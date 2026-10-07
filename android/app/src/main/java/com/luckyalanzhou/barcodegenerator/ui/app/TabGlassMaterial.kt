@@ -23,7 +23,7 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     val darkBackground = luminance < .35f
     val darkness = (1f - luminance / .35f).coerceIn(0f, 1f)
     return TabGlassMaterial(
-        bodyTintStrength = if (darkBackground) .085f + darkness * .015f + thickness * .005f else .14f + thickness * .02f,
+        bodyTintStrength = if (darkBackground) .055f + darkness * .010f + thickness * .005f else .08f + thickness * .01f,
         accentTint = if (darkBackground) .006f + thickness * .003f else .008f + thickness * .004f,
         rimLight = if (darkBackground) .20f + thickness * .025f else .32f + thickness * .035f,
         innerShadow = if (darkBackground) .085f + thickness * .015f else .035f + thickness * .01f,
@@ -34,15 +34,15 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     )
 }
 
-/** Small isolated actions need more body separation than the wider selected Tab. */
+/** Keep the center clear; the optical bevel, not a dense gray disk, defines small actions. */
 internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
     val dark = background.luminance() < .35f
     return tabGlassMaterial(background, 48f).copy(
-        bodyTintStrength = if (dark) .12f else .22f,
+        bodyTintStrength = if (dark) .07f else .09f,
         accentTint = .006f,
-        surfaceOpacity = if (dark) .60f else .72f,
+        surfaceOpacity = if (dark) .54f else .50f,
         rimLight = if (dark) .30f else .72f,
-        innerShadow = if (dark) .24f else .10f,
+        innerShadow = if (dark) .16f else .08f,
         outlineOpacity = if (dark) .075f else .055f,
     )
 }

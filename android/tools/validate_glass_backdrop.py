@@ -110,15 +110,20 @@ def main():
         print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
 
     # Representative neutral fills; the exact material formula is covered by Kotlin tests.
-    # Even with zero refraction/contact, a pure-color page must not erase the selected body.
-    for dark, page_color, fill in ((False, 0xFFF2F3F8, (.86, .87, .90, 1)),
-                                  (True, 0xFF17191D, (.20, .21, .22, 1))):
-        static = render(.60, 0, 0, dark, page_color, capsule=True, surface_color=fill)
+    # The center separates subtly; a broad matte disk must not substitute for the bevel.
+    for dark, page_color, body, accent, opacity in (
+            (False, 0xFFF2F3F8, .08222, .00889, .55333),
+            (True, 0xFF17191D, .06583, .00667, .59333)):
+        base = np.array([(page_color >> shift & 255) / 255 for shift in (16, 8, 0)])
+        neutral = np.ones(3) if dark else np.array([144, 152, 162]) / 255
+        fill = base + (neutral - base) * body
+        fill += (np.array([0, 122, 255]) / 255 - fill) * accent
+        static = render(opacity, 0, 0, dark, page_color, capsule=True, surface_color=(*fill, 1))
         reference = skia.Surface(w, h)
         reference.getCanvas().clear(page_color)
         backdrop = reference.makeImageSnapshot().toarray()
         delta = np.abs(static[65:115, 90:230, :3].astype(int) - backdrop[65:115, 90:230, :3].astype(int))
-        assert delta.mean() >= 8, "Stationary selected body disappears on a uniform page"
+        assert 2 <= delta.mean() <= 14, "Control center disappears or becomes a dense matte fill"
         assert np.max(static[:20, :, 3]) == 0, "Stationary material creates an external frame or glow"
     print("PASS: stationary light/dark neutral capsule body remains visible without contact or refraction")
 

@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 
-/** One contour for the resting optical edge; Tab and circular actions use the same material. */
+/** A narrow inward bevel and its crest; the center and foreground remain clear. */
 internal fun DrawScope.drawGlassControlBevel(
     topLeft: Offset,
     bounds: Size,
@@ -28,6 +28,25 @@ internal fun DrawScope.drawGlassControlBevel(
         drawRoundRect(accent, inset, innerSize, corner, style = Stroke(stroke.coerceAtLeast(density)))
         return
     }
+    // Confine the reflection to an inward band, not a full-face gray gradient or outer halo.
+    // A shared outer boundary keeps the crest and bevel from looking like separate frames.
+    val band = (1.8f * density).coerceAtMost(bounds.minDimension * .12f).coerceAtLeast(stroke)
+    val bandInset = topLeft + Offset(band * .5f, band * .5f)
+    drawRoundRect(
+        Brush.verticalGradient(
+            0f to Color.White.copy(alpha = material.rimLight * .24f),
+            .18f to Color.White.copy(alpha = material.rimLight * .06f),
+            .45f to Color.Transparent,
+            .72f to Color.Black.copy(alpha = material.innerShadow * .16f),
+            .90f to Color.Black.copy(alpha = material.innerShadow * .65f),
+            1f to Color.White.copy(alpha = material.rimLight * .13f),
+            startY = topLeft.y, endY = topLeft.y + bounds.height,
+        ),
+        bandInset,
+        Size((bounds.width - band).coerceAtLeast(.1f), (bounds.height - band).coerceAtLeast(.1f)),
+        CornerRadius((cornerRadius - band * .5f).coerceAtLeast(.1f)),
+        style = Stroke(band),
+    )
     drawRoundRect(
         Brush.verticalGradient(
             0f to Color.White.copy(alpha = material.rimLight),

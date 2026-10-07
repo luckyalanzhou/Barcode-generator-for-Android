@@ -62,7 +62,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -273,7 +272,6 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current.density
-    val darkSurface = colors.surfaces.background.luminance() < .35f
     val glassMaterial = resultActionGlassMaterial(colors.surfaces.background).let {
         if (effects.opaqueGlass) it.copy(bodyTintStrength = 0f, accentTint = 0f, surfaceOpacity = 1f) else it
     }
@@ -334,24 +332,10 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
                 val activity = opticalActivity
                 // Capsule shaders omit their own rim. Keep a visible optical bevel
                 // at rest as well as on the GPU fallback, independent of touch activity.
-                val edgeWidth = (density * .45f).coerceIn(1f, 1.5f)
-                val radius = size.minDimension * .5f - edgeWidth
                 drawGlassControlBevel(
                     Offset.Zero, size, size.minDimension * .5f, glassMaterial,
                     colors.surfaces.background, contentTint, density, effects.highContrast,
                 )
-                if (!effects.opaqueGlass) {
-                    drawCircle(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = if (darkSurface) .06f else .12f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = if (darkSurface) .045f else .025f),
-                            ),
-                        ),
-                        radius = radius - edgeWidth,
-                    )
-                }
                 if (activity > .01f) {
                     val center = touchPoint ?: Offset(size.width * .5f, size.height * .5f)
                     val radius = size.minDimension * .68f
