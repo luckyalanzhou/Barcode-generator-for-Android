@@ -67,7 +67,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -257,28 +257,28 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     val interaction = remember { MutableInteractionSource() }
     val colors = LocalAppColorScheme.current
     val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
-    Box(
-        Modifier.width(actionWidth).heightIn(min = 56.dp).iosPressFeedback(interaction)
-            .clip(RoundedCornerShape(14.dp))
+    Column(
+        Modifier.width(actionWidth).heightIn(min = 68.dp).iosPressFeedback(interaction)
             .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GlassBackdropSurface(
-            modifier = Modifier.matchParentSize(),
-            color = colors.surfaces.background,
-            opacity = if (colors.surfaces.background.luminance() < .35f) .38f else .24f,
-            cornerDp = 14f,
-            blurDp = 1.5f,
-            refractionDp = { 1.8f },
-            drawFallback = true,
-        )
-        Column(
-            Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Box(
+            Modifier.width(48.dp).height(48.dp).clip(CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(25.dp).height(27.dp), color = contentTint, strokeWidth = 2.dp)
-            else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(25.dp).height(27.dp))
-            Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
+            GlassBackdropSurface(
+                modifier = Modifier.matchParentSize(),
+                color = colors.surfaces.background,
+                opacity = if (colors.surfaces.background.luminance() < .35f) .38f else .24f,
+                cornerDp = 24f,
+                blurDp = 1.5f,
+                refractionDp = { 1.8f },
+                drawFallback = true,
+            )
+            if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(22.dp).height(22.dp), color = contentTint, strokeWidth = 2.dp)
+            else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(24.dp).height(24.dp))
         }
+        Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+            maxLines = 1, modifier = Modifier.padding(top = 4.dp))
     }
 }
