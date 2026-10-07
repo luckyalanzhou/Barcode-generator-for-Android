@@ -52,7 +52,7 @@ internal fun TabLiquidGlassScene(
     val material = remember(background, sceneSize.height, density) {
         tabGlassMaterial(background, sceneSize.height / density)
     }
-    val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, bodyTintStrength = 0f, accentTint = 0f) else material
+    val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, accentTint = 0f) else material
     val materialColor = tabGlassFill(background, accent, resolvedMaterial)
     val active = !policy.reduceMotion && visible && (motion.dragging || motion.settling || motion.pressed)
     val activity = animateFloatAsState(

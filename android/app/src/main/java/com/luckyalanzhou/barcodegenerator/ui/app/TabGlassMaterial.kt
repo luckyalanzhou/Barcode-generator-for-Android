@@ -7,7 +7,6 @@ import androidx.compose.ui.graphics.luminance
 /** Known tab background drives contrast; no GPU-to-CPU color sampling or theme flipping. */
 @Immutable
 internal data class TabGlassMaterial(
-    val bodyTintStrength: Float,
     val accentTint: Float,
     val rimLight: Float,
     val innerShadow: Float,
@@ -23,7 +22,6 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     val darkBackground = luminance < .35f
     val darkness = (1f - luminance / .35f).coerceIn(0f, 1f)
     return TabGlassMaterial(
-        bodyTintStrength = if (darkBackground) .075f + darkness * .008f + thickness * .006f else .11f + thickness * .012f,
         accentTint = if (darkBackground) .006f + thickness * .003f else .009f + thickness * .004f,
         rimLight = if (darkBackground) .34f + thickness * .04f else .50f + thickness * .035f,
         innerShadow = if (darkBackground) .12f + thickness * .02f else .055f + thickness * .015f,
@@ -38,7 +36,6 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
 internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
     val dark = background.luminance() < .35f
     return tabGlassMaterial(background, 48f).copy(
-        bodyTintStrength = if (dark) .09f else .125f,
         accentTint = .006f,
         surfaceOpacity = if (dark) .55f else .48f,
         rimLight = if (dark) .40f else .58f,
@@ -47,19 +44,14 @@ internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
     )
 }
 
-/** Same baseline on GPU and fallback: a visible neutral body, not a blue glow or white highlight. */
+/** Keep the surface color faithful to its backdrop; only a very slight theme tint is allowed. */
 internal fun tabGlassFill(background: Color, accent: Color, material: TabGlassMaterial): Color {
-    val neutral = (if (background.luminance() < .35f) Color.White else Color(0xFF9098A2)).convert(background.colorSpace)
     val tint = accent.convert(background.colorSpace)
-    val body = material.bodyTintStrength.coerceIn(0f, 1f)
     val emphasis = material.accentTint.coerceIn(0f, 1f)
-    fun channel(base: Float, neutralChannel: Float, tintChannel: Float): Float {
-        val value = base + (neutralChannel - base) * body
-        return value + (tintChannel - value) * emphasis
-    }
-    return Color(channel(background.red, neutral.red, tint.red),
-        channel(background.green, neutral.green, tint.green),
-        channel(background.blue, neutral.blue, tint.blue), 1f, background.colorSpace)
+    fun channel(base: Float, tintChannel: Float): Float = base + (tintChannel - base) * emphasis
+    return Color(channel(background.red, tint.red),
+        channel(background.green, tint.green),
+        channel(background.blue, tint.blue), 1f, background.colorSpace)
 }
 
 /** Optical bevel uses physical pixels; 1dp would become a thick ring on dense displays. */

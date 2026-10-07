@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,7 +12,8 @@ class TabGlassMaterialTest {
             val fill = tabGlassFill(background, Color(0xFF007AFF), material)
             val difference = maxOf(kotlin.math.abs(fill.red - background.red),
                 kotlin.math.abs(fill.green - background.green), kotlin.math.abs(fill.blue - background.blue)) * material.surfaceOpacity
-            assertTrue("Clear center must separate subtly, not become a matte gray disk", difference in .012f.. .065f)
+            assertTrue("The surface must not add a gray body tint: background=$background fill=$fill difference=$difference",
+                difference <= .005f)
             assertTrue(material.rimLight >= .30f && material.innerShadow >= .07f)
             assertTrue(material.accentTint < .01f)
             assertTrue(material.rimLight <= .75f)
@@ -30,12 +30,14 @@ class TabGlassMaterialTest {
     }
 
     @Test
-    fun bodyContrastIsBoundedAndAccentStaysSubtle() {
+    fun fixedNeutralBodyTintIsRemovedAndAccentStaysSubtle() {
         val dark = tabGlassMaterial(Color(0xFF17191D), 56f)
         val light = tabGlassMaterial(Color(0xFFF5F7FC), 56f)
-        assertTrue(dark.bodyTintStrength in .075f.. .09f)
-        assertTrue(light.bodyTintStrength in .10f.. .13f)
         assertTrue(dark.accentTint < .01f && light.accentTint < .015f)
+        for (background in listOf(Color(0xFF17191D), Color(0xFFF5F7FC))) {
+            val material = tabGlassMaterial(background, 56f).copy(accentTint = 0f)
+            assertEquals(background, tabGlassFill(background, Color(0xFF007AFF), material))
+        }
     }
 
     @Test
@@ -53,27 +55,20 @@ class TabGlassMaterialTest {
         }
     }
 
-    @Test fun stationaryBodySeparatesFromBothThemesWithoutThickeningRim() {
+    @Test fun stationaryFillKeepsBackdropColorWithoutAddingNeutralGray() {
         val accent = Color(0xFF007AFF)
         for (background in listOf(Color.Black, Color(0xFF17191D), Color.White, Color(0xFFF2F3F8))) {
             val material = tabGlassMaterial(background, 56f)
-            val fill = tabGlassFill(background, accent, material)
-            val alpha = material.surfaceOpacity
-            val composite = Color(background.red + (fill.red - background.red) * alpha,
-                background.green + (fill.green - background.green) * alpha,
-                background.blue + (fill.blue - background.blue) * alpha)
-            val difference = maxOf(kotlin.math.abs(composite.red - background.red),
-                kotlin.math.abs(composite.green - background.green), kotlin.math.abs(composite.blue - background.blue))
-            assertTrue("Capsule center must remain subtle while the bevel defines its boundary", difference in .012f.. .065f)
-            if (background.luminance() < .35f) assertTrue(composite.luminance() > background.luminance())
-            else assertTrue(composite.luminance() < background.luminance())
+            val untinted = tabGlassFill(background, accent, material.copy(accentTint = 0f))
+            assertEquals(background, untinted)
+            assertTrue(material.accentTint <= .015f)
             assertTrue(material.edgeWidthDp * .55f < .8f)
         }
     }
 
     @Test fun highContrastMaterialCanRetainOriginalSurfaceColor() {
         val background = Color(0xFF17191D)
-        val material = tabGlassMaterial(background, 56f).copy(bodyTintStrength = 0f, accentTint = 0f)
+        val material = tabGlassMaterial(background, 56f).copy(accentTint = 0f)
         assertEquals(background, tabGlassFill(background, Color.Blue, material))
     }
 

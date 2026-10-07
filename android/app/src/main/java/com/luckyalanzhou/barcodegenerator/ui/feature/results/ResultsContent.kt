@@ -311,7 +311,7 @@ private fun ResultAction(id: ResultActionId, icon: androidx.compose.ui.graphics.
     val glassRenderer = rememberGlassBackdropRenderer()
     val backdropAvailable = glassBackdropAvailable(effects, glassRenderer)
     val glassMaterial = resultActionGlassMaterial(colors.surfaces.background).let {
-        if (effects.opaqueGlass) it.copy(bodyTintStrength = 0f, accentTint = 0f, surfaceOpacity = 1f) else it
+        if (effects.opaqueGlass) it.copy(accentTint = 0f, surfaceOpacity = 1f) else it
     }
     val glassColor = tabGlassFill(colors.surfaces.background, tint, glassMaterial)
     val opticalActivity by androidx.compose.animation.core.animateFloatAsState(
