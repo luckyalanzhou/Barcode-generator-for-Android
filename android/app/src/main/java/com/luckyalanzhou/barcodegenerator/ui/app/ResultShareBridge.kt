@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.results
+package com.luckyalanzhou.barcodegenerator.ui.app
 
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
@@ -8,6 +8,11 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.composeResultRowImage
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.completeExportBatch
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultImageSpacing
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultPageBackground
 
 import android.graphics.Bitmap
 import android.graphics.Canvas

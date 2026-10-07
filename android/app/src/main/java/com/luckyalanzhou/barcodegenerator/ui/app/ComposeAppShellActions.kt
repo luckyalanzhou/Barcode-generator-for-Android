@@ -10,12 +10,11 @@ import com.luckyalanzhou.barcodegenerator.presentation.UpdateUiState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.captureText
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.showComposeConfirmDialog as showComposeConfirmDialogImpl
-import com.luckyalanzhou.barcodegenerator.ui.feature.results.shareResultPage
-import com.luckyalanzhou.barcodegenerator.ui.feature.results.saveResultPage
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*

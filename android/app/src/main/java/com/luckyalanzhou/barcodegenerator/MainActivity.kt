@@ -4,7 +4,7 @@ import android.Manifest
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
-import com.luckyalanzhou.barcodegenerator.ui.app.ResultExportAction
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
