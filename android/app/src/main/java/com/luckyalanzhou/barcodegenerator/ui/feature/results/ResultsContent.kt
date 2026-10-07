@@ -186,7 +186,7 @@ internal fun ResultsContent(
     // sharing one GraphicsLayer lets both route draw passes record the same
     // RenderNode during that overlap.
     val backdrop = rememberGlassBackdrop()
-    val toolbarInitialHeightPx = with(LocalDensity.current) { 72.dp.roundToPx() }
+    val toolbarInitialHeightPx = with(LocalDensity.current) { 64.dp.roundToPx() }
     var toolbarSize by remember(toolbarInitialHeightPx) {
         androidx.compose.runtime.mutableStateOf(IntSize(0, toolbarInitialHeightPx))
     }
@@ -242,7 +242,7 @@ private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean
     val exportBusy = exportAction != null
     FlowRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(0.dp, Alignment.End),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -322,7 +322,7 @@ private fun ResultAction(id: ResultActionId, icon: androidx.compose.ui.graphics.
     )
     val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
     Column(
-        Modifier.width(actionWidth).heightIn(min = 68.dp)
+        Modifier.width(actionWidth).height(48.dp)
             .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -390,10 +390,8 @@ private fun ResultAction(id: ResultActionId, icon: androidx.compose.ui.graphics.
                 }
             }
             if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(22.dp).height(22.dp), color = contentTint, strokeWidth = 2.dp)
-            else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(24.dp).height(24.dp))
+            else Icon(icon, contentDescription = label, tint = contentTint, modifier = Modifier.width(24.dp).height(24.dp))
         }
-        Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
-            maxLines = 1, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

@@ -158,15 +158,16 @@ internal fun BarcodeComposeBottomTabBar(
                 // Observe the real contact location without consuming clicks or long presses.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    val frame = tabGlassFrame(size.width.toFloat(), size.height.toFloat(), density,
-                        tabs.size, motion.progress, 0f, 0f, 0f)
-                    val capsuleContact = tabCapsuleContains(frame, down.position)
-                    if (capsuleContact) motion.press(down.position)
+                    val selectedTab = motion.progress.roundToInt().coerceIn(tabs.indices)
+                    val selectedCellContact = tabSelectedCellContains(
+                        size.width.toFloat(), size.height.toFloat(), tabs.size, selectedTab, down.position,
+                    )
+                    if (selectedCellContact) motion.press(down.position)
                     try {
                         do {
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                             val pointer = event.changes.firstOrNull { it.id == down.id }
-                            if (capsuleContact && pointer != null) motion.updateTouch(pointer.position)
+                            if (selectedCellContact && pointer != null) motion.updateTouch(pointer.position)
                         } while (event.changes.any { it.pressed })
                     } finally {
                         motion.endPress()
@@ -178,10 +179,12 @@ internal fun BarcodeComposeBottomTabBar(
                 if (!showSelectionIndicator) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    val frame = tabGlassFrame(size.width.toFloat(), size.height.toFloat(), density,
-                        tabs.size, motion.progress, 0f, 0f, 0f)
                     // Eligibility belongs to the original DOWN, never to a later slop position.
-                    if (!tabCapsuleContains(frame, down.position)) return@awaitEachGesture
+                    val selectedTab = motion.progress.roundToInt().coerceIn(tabs.indices)
+                    if (!tabSelectedCellContains(
+                            size.width.toFloat(), size.height.toFloat(), tabs.size, selectedTab, down.position,
+                        )
+                    ) return@awaitEachGesture
                     var overSlop = 0f
                     val start = awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
                         change.consume()

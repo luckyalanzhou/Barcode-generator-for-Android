@@ -21,6 +21,14 @@ class TabGlassMaterialTest {
         }
     }
 
+    @Test fun circularActionsKeepAReadableStaticRimAcrossThemes() {
+        val light = resultActionGlassMaterial(Color(0xFFF2F2F7))
+        val dark = resultActionGlassMaterial(Color.Black)
+        assertEquals(.09f, tabGlassOutlineColor(Color(0xFFF2F2F7), light).alpha, .001f)
+        assertEquals(.10f, tabGlassOutlineColor(Color.Black, dark).alpha, .003f)
+        assertTrue(light.rimLight >= .58f && dark.rimLight >= .40f)
+    }
+
     @Test
     fun bodyContrastIsBoundedAndAccentStaysSubtle() {
         val dark = tabGlassMaterial(Color(0xFF17191D), 56f)
@@ -105,8 +113,8 @@ class TabGlassMaterialTest {
         val darkOutline = tabGlassOutlineColor(Color.Black, dark)
         assertEquals(0f, lightOutline.red, 0f)
         assertEquals(1f, darkOutline.red, 0f)
-        assertTrue(lightOutline.alpha in .055f.. .08f)
-        assertTrue(darkOutline.alpha in .065f.. .09f)
-        assertTrue(dark.rimLight in .28f.. .36f)
+        assertTrue(lightOutline.alpha in .07f.. .09f)
+        assertTrue(darkOutline.alpha in .08f.. .10f)
+        assertTrue(dark.rimLight in .32f.. .37f)
     }
 }

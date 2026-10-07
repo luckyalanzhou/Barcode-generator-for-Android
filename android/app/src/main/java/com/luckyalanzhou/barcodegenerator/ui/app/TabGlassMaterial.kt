@@ -25,12 +25,12 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     return TabGlassMaterial(
         bodyTintStrength = if (darkBackground) .075f + darkness * .008f + thickness * .006f else .11f + thickness * .012f,
         accentTint = if (darkBackground) .006f + thickness * .003f else .009f + thickness * .004f,
-        rimLight = if (darkBackground) .30f + thickness * .04f else .45f + thickness * .035f,
+        rimLight = if (darkBackground) .34f + thickness * .04f else .50f + thickness * .035f,
         innerShadow = if (darkBackground) .12f + thickness * .02f else .055f + thickness * .015f,
         edgeWidthDp = 1.0f + thickness * .45f,
         refractionDp = 3.3f + thickness * 1.0f,
         surfaceOpacity = if (darkBackground) .53f + thickness * .02f else .47f + thickness * .025f,
-        outlineOpacity = if (darkBackground) .07f + thickness * .015f else .06f + thickness * .015f,
+        outlineOpacity = if (darkBackground) .085f + thickness * .015f else .075f + thickness * .015f,
     )
 }
 
@@ -43,7 +43,7 @@ internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
         surfaceOpacity = if (dark) .55f else .48f,
         rimLight = if (dark) .40f else .58f,
         innerShadow = if (dark) .15f else .075f,
-        outlineOpacity = if (dark) .09f else .075f,
+        outlineOpacity = if (dark) .10f else .09f,
     )
 }
 

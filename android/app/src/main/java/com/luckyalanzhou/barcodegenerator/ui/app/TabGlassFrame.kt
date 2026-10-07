@@ -1,8 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.runtime.Immutable
-import kotlin.math.sin
 import kotlin.math.abs
+import kotlin.math.sin
 
 /** Physical pixels in the tab scene's local coordinates; shared by shader and compatible drawing. */
 @Immutable
@@ -35,13 +35,23 @@ internal fun tabBackdropRefractionDp(frame: TabGlassFrame): Float {
         .coerceIn(GlassControlDefaults.TabRestRefractionDp, GlassControlDefaults.MaxBackdropRefractionDp)
 }
 
-/** Test the rendered capsule, not the whole navigation bar or the selected tab's cell. */
-internal fun tabCapsuleContains(frame: TabGlassFrame, point: androidx.compose.ui.geometry.Offset): Boolean {
-    if (!point.x.isFinite() || !point.y.isFinite()) return false
-    val radius = minOf(frame.halfWidth, frame.halfHeight)
-    val dx = (abs(point.x - frame.centerX) - (frame.halfWidth - radius)).coerceAtLeast(0f)
-    val dy = (abs(point.y - frame.centerY) - (frame.halfHeight - radius)).coerceAtLeast(0f)
-    return dx * dx + dy * dy <= radius * radius
+/** A drag may start anywhere inside the active tab's full cell, not only on its glass capsule. */
+internal fun tabSelectedCellContains(
+    width: Float,
+    height: Float,
+    tabCount: Int,
+    selectedTabIndex: Int,
+    point: androidx.compose.ui.geometry.Offset,
+): Boolean {
+    if (tabCount <= 0 || selectedTabIndex !in 0 until tabCount ||
+        !width.isFinite() || width <= 0f || !height.isFinite() || height <= 0f ||
+        !point.x.isFinite() || !point.y.isFinite() ||
+        point.x < 0f || point.x >= width || point.y < 0f || point.y > height
+    ) return false
+    val cellWidth = width / tabCount
+    val left = cellWidth * selectedTabIndex
+    val right = if (selectedTabIndex == tabCount - 1) width else cellWidth * (selectedTabIndex + 1)
+    return point.x >= left && point.x < right
 }
 
 /** Capsule bounds translated into one tab cell's local drawing coordinates. */

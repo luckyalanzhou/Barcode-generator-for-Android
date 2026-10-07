@@ -65,7 +65,7 @@ half4 main(float2 p) {
     float edgeLine = capsuleMode * (1.0 - smoothstep(0.15, 1.25, depth));
     float lightSurface = smoothstep(0.15, 0.75, targetLuminance);
     half3 edgeTint = mix(half3(0.52, 0.56, 0.64), half3(0.45, 0.48, 0.54), half(lightSurface));
-    float edgeAlpha = edgeLine * mix(0.15, 0.06, lightSurface);
+    float edgeAlpha = edgeLine * mix(0.17, 0.075, lightSurface);
     color = mix(color, edgeTint, half(edgeAlpha));
     // Text/detail crossing a small control strengthens only its inner edge separation.
     float separation = capsuleMode * (1.0 - smoothstep(1.0, 5.0, depth)) * detail * 0.045;
