@@ -6,55 +6,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareEvent
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
+import android.graphics.Bitmap
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 
-/** Screen layer: owns the LAN Share ViewModel and translates effects into UI callbacks. */
+/** Stateless feature screen: renders state and reports user actions through callbacks. */
 @Composable
 internal fun LanShareScreen(
-    viewModel: LanShareViewModel,
+    lanState: LanShareUiState,
     dark: Boolean,
+    clearInputGeneration: Int,
     onOpenCamera: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
     onSaveFile: (LanShareFile) -> Unit,
-    onNotice: (String) -> Unit,
     onCopyAddress: (String) -> Unit,
+    onSetQrVisible: (Boolean) -> Unit,
+    onCancelUpload: (String) -> Unit,
+    onLoadImagePreview: suspend (LanShareFile) -> Bitmap?,
+    onLoadFullImagePreview: suspend (LanShareFile) -> Bitmap?,
+    onSend: (String) -> Unit,
 ) {
-    val lanState by viewModel.uiState.collectAsStateWithLifecycle()
     var message by remember { mutableStateOf("") }
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is LanShareEvent.Error -> onNotice(event.message)
-                is LanShareEvent.Notice -> {
-                    if (event.clearInput) message = ""
-                    onNotice(event.message)
-                }
-            }
-        }
+    LaunchedEffect(clearInputGeneration) {
+        if (clearInputGeneration > 0) message = ""
     }
     LanShareContent(
         lanState = lanState,
         message = message,
         dark = dark,
         onMessageChange = { message = it },
-        onSetQrVisible = viewModel::setQrVisible,
-        onCancelUpload = viewModel::cancelUpload,
-        onLoadImagePreview = viewModel::loadImagePreview,
-        onLoadFullImagePreview = viewModel::loadFullImagePreview,
-        onSend = { text ->
-            val state = viewModel.uiState.value
-            if (state.pendingUploadUri != null) {
-                viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
-                    state.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
-                }
-            } else text.takeIf { it.isNotBlank() }?.let { value ->
-                state.session?.let { session -> viewModel.sendText(session, value) }
-            }
-        },
+        onSetQrVisible = onSetQrVisible,
+        onCancelUpload = onCancelUpload,
+        onLoadImagePreview = onLoadImagePreview,
+        onLoadFullImagePreview = onLoadFullImagePreview,
+        onSend = onSend,
         onOpenCamera = onOpenCamera,
         onOpenGallery = onOpenGallery,
         onOpenFiles = onOpenFiles,

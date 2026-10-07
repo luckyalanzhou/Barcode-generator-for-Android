@@ -16,10 +16,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareEvent
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import android.os.Handler
 import android.os.Looper
@@ -238,15 +242,43 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             AppRoute.LanShare -> {
+                val viewModel = dependencies.lanShareViewModel
+                val lanState by viewModel.uiState.collectAsStateWithLifecycle()
+                var clearInputGeneration by remember { mutableIntStateOf(0) }
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            is LanShareEvent.Error -> dependencies.actions.notice(event.message)
+                            is LanShareEvent.Notice -> {
+                                if (event.clearInput) clearInputGeneration += 1
+                                dependencies.actions.notice(event.message)
+                            }
+                        }
+                    }
+                }
                 LanShareScreen(
-                    viewModel = dependencies.lanShareViewModel,
+                    lanState = lanState,
                     dark = dark,
+                    clearInputGeneration = clearInputGeneration,
                     onOpenCamera = dependencies.actions::openLanShareCamera,
                     onOpenGallery = dependencies.actions::openLanShareGallery,
                     onOpenFiles = dependencies.actions::openLanShareFiles,
                     onSaveFile = dependencies.actions::saveLanShareFile,
-                    onNotice = dependencies.actions::notice,
                     onCopyAddress = dependencies.actions::copyLanShareAddress,
+                    onSetQrVisible = viewModel::setQrVisible,
+                    onCancelUpload = viewModel::cancelUpload,
+                    onLoadImagePreview = viewModel::loadImagePreview,
+                    onLoadFullImagePreview = viewModel::loadFullImagePreview,
+                    onSend = { text ->
+                        val state = viewModel.uiState.value
+                        if (state.pendingUploadUri != null) {
+                            viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
+                                state.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
+                            }
+                        } else text.takeIf { it.isNotBlank() }?.let { value ->
+                            state.session?.let { session -> viewModel.sendText(session, value) }
+                        }
+                    },
                 )
             }
         }
