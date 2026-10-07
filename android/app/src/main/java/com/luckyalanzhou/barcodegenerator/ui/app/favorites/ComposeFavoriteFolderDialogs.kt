@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
+package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.isSafeFavoriteFolderRename
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.isValidFavoriteFolderName
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.isValidFavoriteFolderPath
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
 internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Unit) {
