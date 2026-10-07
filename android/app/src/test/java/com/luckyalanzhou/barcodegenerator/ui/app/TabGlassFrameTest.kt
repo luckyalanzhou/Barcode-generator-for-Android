@@ -52,7 +52,7 @@ class TabGlassFrameTest {
         val three = tabGlassFrame(1080f, 180f, 3f, 4, 1f, 1f, 0f, 1f, refractionDp = 2f)
         assertEquals(one.refractionPx * 3f, three.refractionPx, .001f)
         val limited = tabGlassFrame(360f, 60f, 1f, 4, 1f, 99f, 99f, 1f, refractionDp = 99f)
-        assertEquals(4.4f, limited.refractionPx, 0f)
+        assertEquals(3.0f, limited.refractionPx, 0f)
         assertEquals(1f, limited.motion, 0f)
     }
 

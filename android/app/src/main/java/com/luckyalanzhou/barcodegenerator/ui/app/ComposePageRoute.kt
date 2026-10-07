@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.canonicalBarcodeFormatName
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
@@ -37,7 +38,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val isPreparingResult by dependencies.resultsViewModel.isPreparingResult.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
-                val initialFormat = editorState.pendingFormat ?: editorState.formatName
+                val initialFormat = canonicalBarcodeFormatName(editorState.pendingFormat ?: editorState.formatName)
                 LaunchedEffect(routePage, initialFormat) {
                     dependencies.generateViewModel.clearPendingFormat()
                     dependencies.generateViewModel.updateFormat(initialFormat)

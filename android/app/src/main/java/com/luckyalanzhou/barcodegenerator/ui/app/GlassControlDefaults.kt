@@ -7,8 +7,10 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 internal object GlassControlDefaults {
     const val TabBlurDp = .5f
     const val TabRestRefractionDp = .8f
-    const val MaxBackdropRefractionDp = 4.4f
-    const val MaxForegroundRefractionDp = 2.8f
+    // Resting glass remains quiet; motion gets a bounded optical lift instead of
+    // turning the whole selected tab into a moving magnifier.
+    const val MaxBackdropRefractionDp = 3.0f
+    const val MaxForegroundRefractionDp = 1.6f
     const val RoundActionBlurDp = .65f
     const val RoundActionRestRefractionDp = 1.2f
     const val RoundActionPressRefractionDp = 1.1f

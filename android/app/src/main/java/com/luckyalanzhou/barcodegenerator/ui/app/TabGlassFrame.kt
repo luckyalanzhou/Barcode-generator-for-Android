@@ -27,8 +27,12 @@ internal fun tabBackdropRefractionDp(frame: TabGlassFrame): Float {
     if (!frame.density.isFinite() || frame.density <= 0f || !frame.refractionPx.isFinite()) return 0f
     val moving = (frame.refractionPx / frame.density).coerceIn(0f, GlassControlDefaults.MaxBackdropRefractionDp)
     val activity = frame.motion.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f
-    return (GlassControlDefaults.TabRestRefractionDp * (1f - activity) + moving)
-        .coerceIn(0f, GlassControlDefaults.MaxBackdropRefractionDp)
+    // Keep a small resting lens and use only a fraction of the motion budget.
+    // Apple-like glass reads as a crisp material edge first; the lensing should
+    // support movement rather than overwhelm the content underneath it.
+    val dynamic = moving * (.45f + .25f * activity)
+    return (GlassControlDefaults.TabRestRefractionDp + dynamic)
+        .coerceIn(GlassControlDefaults.TabRestRefractionDp, GlassControlDefaults.MaxBackdropRefractionDp)
 }
 
 /** Test the rendered capsule, not the whole navigation bar or the selected tab's cell. */

@@ -92,7 +92,7 @@ internal fun GenerateContent(
         }
     }
     var focusedIndex by remember { mutableIntStateOf(-1) }
-    var formatName by remember { mutableStateOf(initialFormat) }
+    var formatName by remember(initialFormat) { mutableStateOf(initialFormat) }
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
@@ -109,10 +109,11 @@ internal fun GenerateContent(
     fun syncDraft() { onDraftChanged(values.toList()) }
 
     LaunchedEffect(editorState.inputDraft) {
-        if (editorState.inputDraft.isNotEmpty() && values.toList() != editorState.inputDraft) {
+        val incoming = editorState.inputDraft.ifEmpty { listOf("") }
+        if (values.toList() != incoming) {
             values.clear()
-            values.addAll(editorState.inputDraft)
-            focusedIndex = -1
+            values.addAll(incoming)
+            focusedIndex = focusedIndex.coerceIn(-1, values.lastIndex)
         }
     }
 
@@ -154,46 +155,57 @@ internal fun GenerateContent(
             values = values,
             dark = dark,
             focusedIndex = focusedIndex,
-            onValueChange = { index, value -> values[index] = value; syncDraft() },
+            onValueChange = { index, value ->
+                if (index in values.indices) {
+                    values[index] = value
+                    syncDraft()
+                }
+            },
             onFocus = { focusedIndex = it },
             onMoveUp = {
                 index ->
-                val other = values[index - 1]
-                values[index - 1] = values[index]
-                values[index] = other
-                focusedIndex = when (focusedIndex) {
-                    index -> index - 1
-                    index - 1 -> index
-                    else -> focusedIndex
+                if (index in 1 until values.size) {
+                    val other = values[index - 1]
+                    values[index - 1] = values[index]
+                    values[index] = other
+                    focusedIndex = when (focusedIndex) {
+                        index -> index - 1
+                        index - 1 -> index
+                        else -> focusedIndex
+                    }
+                    syncDraft()
                 }
-                syncDraft()
             },
             onMoveDown = {
                 index ->
-                val other = values[index + 1]
-                values[index + 1] = values[index]
-                values[index] = other
-                focusedIndex = when (focusedIndex) {
-                    index -> index + 1
-                    index + 1 -> index
-                    else -> focusedIndex
+                if (index in 0 until values.lastIndex) {
+                    val other = values[index + 1]
+                    values[index + 1] = values[index]
+                    values[index] = other
+                    focusedIndex = when (focusedIndex) {
+                        index -> index + 1
+                        index + 1 -> index
+                        else -> focusedIndex
+                    }
+                    syncDraft()
                 }
-                syncDraft()
             },
             onDelete = {
                 index ->
-                if (values.size == 1) {
-                    values[0] = ""
-                    focusedIndex = 0
-                } else {
-                    values.removeAt(index)
-                    focusedIndex = when {
-                        focusedIndex == index -> (index - 1).coerceAtLeast(0).coerceAtMost(values.lastIndex)
-                        focusedIndex > index -> focusedIndex - 1
-                        else -> focusedIndex
+                if (index in values.indices) {
+                    if (values.size == 1) {
+                        values[0] = ""
+                        focusedIndex = 0
+                    } else {
+                        values.removeAt(index)
+                        focusedIndex = when {
+                            focusedIndex == index -> (index - 1).coerceAtLeast(0).coerceAtMost(values.lastIndex)
+                            focusedIndex > index -> focusedIndex - 1
+                            else -> focusedIndex
+                        }
                     }
+                    syncDraft()
                 }
-                syncDraft()
             },
             onDeleteLongClick = { clearDialog = true },
         )

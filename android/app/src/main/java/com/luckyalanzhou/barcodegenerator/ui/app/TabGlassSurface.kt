@@ -45,8 +45,8 @@ internal fun TabGlassSurface(
             val light = Offset(frame.centerX + frame.halfWidth * dx / length, frame.centerY + frame.halfHeight * dy / length)
             drawRoundRect(
                 Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = (material.rimLight * frame.motion * 1.45f).coerceAtMost(1f)), Color.Transparent),
-                    center = light, radius = frame.halfHeight * (.6f + frame.contactSpread * .5f),
+                    listOf(Color.White.copy(alpha = (material.rimLight * frame.motion * .60f).coerceAtMost(1f)), Color.Transparent),
+                    center = light, radius = frame.halfHeight * (.72f + frame.contactSpread * .28f),
                 ),
                 innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke),
             )

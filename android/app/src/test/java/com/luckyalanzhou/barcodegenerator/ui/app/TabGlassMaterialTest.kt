@@ -76,7 +76,7 @@ class TabGlassMaterialTest {
         assertEquals(0f, tabForegroundDisplacement(rest, 0f), 0f)
         for (step in 0..100) {
             val frame = tabGlassFrame(1200f, 168f, 3f, 4, 1.5f, step / 100f, 0f, 1f, refractionDp = 4.4f)
-            assertTrue(tabBackdropRefractionDp(frame) in .8f..4.4f)
+            assertTrue(tabBackdropRefractionDp(frame) in .8f..3.0f)
         }
         assertEquals(0f, tabBackdropRefractionDp(rest.copy(density = Float.NaN)), 0f)
     }

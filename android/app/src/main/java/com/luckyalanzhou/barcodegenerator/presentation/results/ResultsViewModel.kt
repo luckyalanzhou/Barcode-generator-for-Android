@@ -186,8 +186,15 @@ class ResultsViewModel @Inject constructor(
 
     fun editCurrentResult(onNavigateToGenerate: () -> Unit) {
         val items = results.current().items
-        generateEditor.updateDraft(items.map { it.text })
-        generateEditor.setPendingFormat(items.firstOrNull()?.format)
+        if (items.isEmpty()) {
+            appLogger.record("results", "edit ignored because result list is empty", null)
+            return
+        }
+        // Publish one complete editor snapshot before changing the route. Two separate
+        // StateFlow writes allowed GenerateContent to observe a half-updated snapshot
+        // while its editable list was being replaced, which could lead to a stale index
+        // callback and an IndexOutOfBoundsException on the first tap.
+        generateEditor.beginEditing(items.map { it.text }, items.firstOrNull()?.format)
         onNavigateToGenerate()
     }
 

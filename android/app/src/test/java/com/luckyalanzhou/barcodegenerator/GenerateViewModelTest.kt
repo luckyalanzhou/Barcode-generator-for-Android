@@ -9,6 +9,24 @@ import org.junit.Test
 
 class GenerateViewModelTest {
     @Test
+    fun resultEditingPublishesDraftAndFormatAsOneEditorSnapshot() {
+        val editor = GenerateEditorStateHolder()
+
+        editor.beginEditing(listOf("first", "second"), "QR Code")
+
+        assertEquals(listOf("first", "second"), editor.state.value.inputDraft)
+        assertEquals("QR Code", editor.state.value.pendingFormat)
+        assertEquals("QR Code", editor.state.value.formatName)
+    }
+
+    @Test
+    fun legacyFormatNamesAreSafeForTheGenerateEditor() {
+        assertEquals("Code 128-B", canonicalBarcodeFormatName("CODE_128"))
+        assertEquals("QR Code", canonicalBarcodeFormatName("qr_code"))
+        assertEquals("Code 128-B", canonicalBarcodeFormatName(null))
+    }
+
+    @Test
     fun generationUsesCurrentDraftAndFormatAndKeepsEditorStateInSync() {
         val editor = GenerateEditorStateHolder()
         val viewModel = GenerateViewModel(editor, GenerateBarcodesUseCase())
