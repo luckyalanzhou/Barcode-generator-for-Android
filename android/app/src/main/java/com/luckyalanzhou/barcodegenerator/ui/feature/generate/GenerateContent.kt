@@ -1,6 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
@@ -14,7 +13,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.CircularProgressIndicator
 
-import com.luckyalanzhou.barcodegenerator.presentation.GenerateEditorState
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
@@ -75,7 +73,7 @@ import androidx.compose.ui.window.Dialog
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun GenerateContent(
-    editorState: GenerateEditorState,
+    inputDraft: List<String>,
     initialFormat: String,
     dark: Boolean,
     isPreparingResult: Boolean,
@@ -88,7 +86,7 @@ internal fun GenerateContent(
 ) {
     val values = remember {
         mutableStateListOf<String>().apply {
-            addAll(editorState.inputDraft.ifEmpty { listOf("") })
+            addAll(inputDraft.ifEmpty { listOf("") })
         }
     }
     var focusedIndex by remember { mutableIntStateOf(-1) }
@@ -108,8 +106,8 @@ internal fun GenerateContent(
 
     fun syncDraft() { onDraftChanged(values.toList()) }
 
-    LaunchedEffect(editorState.inputDraft) {
-        val incoming = editorState.inputDraft.ifEmpty { listOf("") }
+    LaunchedEffect(inputDraft) {
+        val incoming = inputDraft.ifEmpty { listOf("") }
         if (values.toList() != incoming) {
             values.clear()
             values.addAll(incoming)

@@ -59,7 +59,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     }
                 }
                 GenerateContent(
-                    editorState = editorState,
+                    inputDraft = editorState.inputDraft,
                     initialFormat = initialFormat,
                     dark = dark,
                     isPreparingResult = isPreparingResult,
