@@ -160,7 +160,10 @@ class MainActivity : AppCompatActivity() {
         })
         DebugLog.initialize(applicationContext)
         DebugLog.installUncaughtExceptionHandler()
-        DebugLog.record("lifecycle", "onCreate version=${BuildConfig.VERSION_NAME} package=$packageName")
+        DebugLog.record(
+            "lifecycle",
+            "onCreate version=${BuildConfig.VERSION_NAME} versionCode=${BuildConfig.VERSION_CODE} pid=${android.os.Process.myPid()} package=$packageName",
+        )
         // 统一由 buildShell 的内边距处理系统栏，避免 Android 15 主题重建时重复 inset 导致页面压缩下移。
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -268,6 +271,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        DebugLog.record(
+            "lifecycle",
+            "onDestroy finishing=$isFinishing changingConfigurations=$isChangingConfigurations pid=${android.os.Process.myPid()}",
+        )
         cancelUpdateDownload()
         restoreBarcodeDisplaySettings()
         if (!isChangingConfigurations) {

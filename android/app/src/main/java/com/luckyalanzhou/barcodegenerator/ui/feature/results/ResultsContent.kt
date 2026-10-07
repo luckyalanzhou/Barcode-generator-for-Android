@@ -181,7 +181,11 @@ internal fun ResultsContent(
         return@BoxWithConstraints
     }
 
-    val backdrop = LocalGlassBackdrop.current ?: rememberGlassBackdrop()
+    // Results stays composed briefly while AnimatedContent draws the incoming
+    // page. It must own a separate recording layer from the shell backdrop;
+    // sharing one GraphicsLayer lets both route draw passes record the same
+    // RenderNode during that overlap.
+    val backdrop = rememberGlassBackdrop()
     val toolbarInitialHeightPx = with(LocalDensity.current) { 72.dp.roundToPx() }
     var toolbarSize by remember(toolbarInitialHeightPx) {
         androidx.compose.runtime.mutableStateOf(IntSize(0, toolbarInitialHeightPx))
