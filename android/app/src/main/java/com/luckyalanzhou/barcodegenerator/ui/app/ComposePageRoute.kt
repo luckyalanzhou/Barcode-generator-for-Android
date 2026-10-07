@@ -9,6 +9,8 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.results.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.settings.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.generate.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content.*
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
 
@@ -123,12 +125,32 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val favoriteQuery by dependencies.favoritesViewModel.query.collectAsStateWithLifecycle()
                 val favoriteTree by dependencies.favoritesViewModel.treeState.collectAsStateWithLifecycle()
                 FavoritesContent(
-                    favoritesState = favoriteData,
-                    searchState = favoriteSearch,
-                    searchStatus = favoriteSearchStatus,
-                    treeState = favoriteTree,
-                    query = favoriteQuery,
-                    savedListPosition = dependencies.favoritesViewModel.position(),
+                    state = FavoritesContentState(
+                        favorites = FavoritesListContentState(
+                            items = favoriteData.items,
+                            groups = favoriteData.groups,
+                            folders = favoriteData.folders,
+                            isReady = favoriteData.isReady,
+                        ),
+                        searchResults = FavoritesListContentState(
+                            items = favoriteSearch.items,
+                            groups = favoriteSearch.groups,
+                            folders = favoriteSearch.folders,
+                            isReady = favoriteSearch.isReady,
+                        ),
+                        search = FavoritesSearchContentState(
+                            query = favoriteSearchStatus.query,
+                            busy = favoriteSearchStatus.busy,
+                            failed = favoriteSearchStatus.failed,
+                        ),
+                        tree = FavoritesTreeState(
+                            collapsedFolders = favoriteTree.collapsedFolders,
+                            knownFolders = favoriteTree.knownFolders,
+                            searchAutoExpandSuppressed = favoriteTree.searchAutoExpandSuppressed,
+                        ),
+                        query = favoriteQuery,
+                        savedListPosition = dependencies.favoritesViewModel.position(),
+                    ),
                     scrollToTopEvents = dependencies.favoritesViewModel.scrollToTopEvents,
                     dark = dark,
                     style = settings.style,

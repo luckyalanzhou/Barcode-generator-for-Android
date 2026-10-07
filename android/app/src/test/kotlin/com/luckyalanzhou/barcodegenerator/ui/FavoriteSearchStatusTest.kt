@@ -1,20 +1,20 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoriteSearchStatus
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.favoriteEmptyMessage
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content.FavoritesSearchContentState
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content.favoriteEmptyMessage
 import org.junit.Assert.*
 import org.junit.Test
 
 class FavoriteSearchStatusTest {
     @Test fun oldQueryCannotBePresentedAsCompletedSearch() {
-        assertTrue(FavoriteSearchStatus("old").isPending("new"))
+        assertTrue(FavoritesSearchContentState("old").isPending("new"))
     }
     @Test fun debounceAndDatabaseWorkRemainPending() {
-        assertTrue(FavoriteSearchStatus("new", busy = true).isPending("new"))
+        assertTrue(FavoritesSearchContentState("new", busy = true).isPending("new"))
     }
     @Test fun completedQueryAndClearedQueryAreNotPending() {
-        assertFalse(FavoriteSearchStatus("new").isPending("new"))
-        assertFalse(FavoriteSearchStatus("old", busy = true).isPending(""))
+        assertFalse(FavoritesSearchContentState("new").isPending("new"))
+        assertFalse(FavoritesSearchContentState("old", busy = true).isPending(""))
     }
     @Test fun emptyLibraryAndNoMatchesHaveDifferentMessages() {
         assertEquals("还没有收藏", favoriteEmptyMessage(""))

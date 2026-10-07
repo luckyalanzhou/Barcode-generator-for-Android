@@ -1,17 +1,15 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
-import com.luckyalanzhou.barcodegenerator.presentation.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
-import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.FavoriteFolderRow
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.FavoriteGroupRow
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteRowInitiallyVisible
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeData
-import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.composeFavoriteRows
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.effectiveCollapsedFavoriteFolders
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.favoriteSearchExpandedPaths
@@ -101,12 +99,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun FavoritesContent(
-    favoritesState: BarcodeDataState,
-    searchState: BarcodeDataState,
-    searchStatus: FavoriteSearchStatus,
-    treeState: FavoriteTreeUiState,
-    query: String,
-    savedListPosition: Pair<Int, Int>,
+    state: FavoritesContentState,
     scrollToTopEvents: Flow<Unit>,
     dark: Boolean,
     style: StyleSettings,
@@ -129,6 +122,12 @@ internal fun FavoritesContent(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
 ) {
+    val favoritesState = state.favorites
+    val searchState = state.searchResults
+    val searchStatus = state.search
+    val treeState = state.tree
+    val query = state.query
+    val savedListPosition = state.savedListPosition
     val density = LocalDensity.current.density
     val animation = ComposeAnimationConfig
     val reduceMotion = LocalVisualEffectsPolicy.current.reduceMotion
@@ -150,17 +149,6 @@ internal fun FavoritesContent(
             items = displayState.items,
             groups = displayState.groups,
             folders = displayState.folders,
-        )
-    }
-    val favoritesTreeState = remember(
-        treeState.collapsedFolders,
-        treeState.knownFolders,
-        treeState.searchAutoExpandSuppressed,
-    ) {
-        FavoritesTreeState(
-            collapsedFolders = treeState.collapsedFolders,
-            knownFolders = treeState.knownFolders,
-            searchAutoExpandSuppressed = treeState.searchAutoExpandSuppressed,
         )
     }
     val allFavoriteFolderPaths = remember(favoritesState.folders, favoritesState.groups) {
@@ -196,7 +184,7 @@ internal fun FavoritesContent(
     }
 
     val visibleCollapsedFolders = effectiveCollapsedFavoriteFolders(
-        treeState = favoritesTreeState,
+        treeState = treeState,
         allFolderPaths = allFavoriteFolderPaths,
         query = normalizedQuery,
         expandedSearchPaths = expandedSearchPaths,
