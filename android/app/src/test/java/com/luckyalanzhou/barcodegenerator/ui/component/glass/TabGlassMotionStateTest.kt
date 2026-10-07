@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.ui.geometry.Offset

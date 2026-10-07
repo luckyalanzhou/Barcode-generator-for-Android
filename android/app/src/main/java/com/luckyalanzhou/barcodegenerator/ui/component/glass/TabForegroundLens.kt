@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader

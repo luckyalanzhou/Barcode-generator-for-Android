@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 import androidx.compose.ui.geometry.Offset
 import org.junit.Assert.*

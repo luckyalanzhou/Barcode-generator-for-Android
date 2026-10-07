@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** One immutable effect at a time, no unbounded cache of animated coordinates. */
 internal class SingleEffectCache<K, V : Any> {

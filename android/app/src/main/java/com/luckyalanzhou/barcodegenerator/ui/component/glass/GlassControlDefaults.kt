@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** Shared optical presets. New glass controls reuse the material/shaders and a role preset,
  * rather than introducing a per-page shader, tint curve or unbounded refraction strength.

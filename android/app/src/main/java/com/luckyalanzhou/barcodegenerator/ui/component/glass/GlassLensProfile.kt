@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** Shared rounded-lens profile. Zero at its boundary and center, peaked inside the bevel.
  * Background and moving foreground use the same shape, not independently tuned curves.

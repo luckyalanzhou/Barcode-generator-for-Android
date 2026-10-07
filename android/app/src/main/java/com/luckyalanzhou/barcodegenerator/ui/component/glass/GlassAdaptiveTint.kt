@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** Shared by backdrop and foreground contrast estimation; no readback or theme mutation. */
 internal const val GLASS_ADAPTIVE_TINT_SHADER = """

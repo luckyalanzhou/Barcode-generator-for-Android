@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** GPU optics are optional; accessibility or any missing prerequisite selects a static surface. */
 internal fun glassGpuAvailable(apiLevel: Int, hardwareAccelerated: Boolean, sourceReady: Boolean,

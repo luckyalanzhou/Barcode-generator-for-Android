@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
 /** A single output layer. Only drawing reads position/contact; child semantics remain unchanged. */

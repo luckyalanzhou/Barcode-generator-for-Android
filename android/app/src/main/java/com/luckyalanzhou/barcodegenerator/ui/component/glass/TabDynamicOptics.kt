@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** Physical-pixel dispersion only; never recolor or replay the foreground glyphs. */
 internal data class TabDynamicOptics(val dispersionPx: Float, val edgeColorStrength: Float)

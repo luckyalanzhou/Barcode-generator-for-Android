@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -84,6 +84,26 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
+    fun `shared glass components cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val glassComponents = Layer("GlassComponents", "com.luckyalanzhou.barcodegenerator.ui.component.glass..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            glassComponents.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
+    fun `results feature cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val resultsFeature = Layer("ResultsFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.results..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            resultsFeature.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
     fun `data cannot depend on presentation or UI`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")

@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.app
+package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 /** Input is a GPU replay of the raw page in local coordinates, with no foreground controls. */
 internal const val GLASS_BACKDROP_SHADER = GLASS_ADAPTIVE_TINT_SHADER + GLASS_LENS_PROFILE_SHADER + """
