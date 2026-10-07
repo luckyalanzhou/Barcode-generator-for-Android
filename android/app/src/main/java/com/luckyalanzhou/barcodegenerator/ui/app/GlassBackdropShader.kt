@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 /** Input is a GPU replay of the raw page in local coordinates, with no foreground controls. */
-internal const val GLASS_BACKDROP_SHADER = GLASS_ADAPTIVE_TINT_SHADER + """
+internal const val GLASS_BACKDROP_SHADER = GLASS_ADAPTIVE_TINT_SHADER + GLASS_LENS_PROFILE_SHADER + """
 uniform shader content;
 uniform float2 resolution;
 uniform float4 bounds;
@@ -9,6 +9,7 @@ uniform float4 shape;
 uniform float4 contact;
 uniform float capsuleMode;
 uniform float2 capsuleOptics;
+uniform float pixelDensity;
 layout(color) uniform half4 surfaceColor;
 
 half4 main(float2 p) {
@@ -22,7 +23,9 @@ half4 main(float2 p) {
     float2 edge = local - clamp(local, -halfSize + radius, halfSize - radius);
     float2 normal = edge / max(length(edge), 0.001);
     float depth = max(-sd, 0.0);
-    float lens = 1.0 - smoothstep(0.0, max(radius * 0.5, 1.0), depth);
+    float density = max(pixelDensity, 0.1);
+    float lens = capsuleMode > 0.5 ? glassLensProfile(depth, radius, density) :
+        1.0 - smoothstep(0.0, max(radius * 0.5, 1.0), depth);
     // A soft, touch-centered wave bends the live backdrop inside the capsule as well
     // as at its rim. It follows the actual contact and never draws outside the mask.
     float2 touchLocal = contact.xy - bounds.xy;
@@ -31,6 +34,7 @@ half4 main(float2 p) {
     float touchRadius = radius * mix(0.08, 0.28, clamp(contact.w, 0.0, 1.0));
     float waveWidth = max(radius * 0.24, 1.5);
     float wave = exp(-pow((touchDistance - touchRadius) / waveWidth, 2.0)) * contact.z;
+    wave *= capsuleMode > 0.5 ? smoothstep(0.0, density * 2.0, depth) : 1.0;
     float2 touchDirection = fromTouch / max(touchDistance, 0.001);
     float2 opticalDisplacement = normal * shape.z * lens +
         touchDirection * shape.z * 0.65 * wave;
@@ -59,6 +63,28 @@ half4 main(float2 p) {
     // Text/detail crossing a small control strengthens only its inner edge separation.
     float separation = capsuleMode * (1.0 - smoothstep(1.0, 5.0, depth)) * detail * 0.045;
     color *= half(1.0 - separation);
+    // Small-control optical bevel: geometric, environment-aware and inside the mask.
+    // GPU controls own this once; compatible Canvas strokes are not stacked on it.
+    if (capsuleMode > 0.5 && shape.w < 0.999) {
+        float lightSurface = smoothstep(0.15, 0.75, targetLuminance);
+        float2 touchLight = contact.xy - bounds.xy;
+        float2 lightDirection = normalize(float2(-0.35, -1.0) +
+            touchLight / max(length(touchLight), 1.0) * contact.z * 0.45);
+        float facing = max(dot(normal, lightDirection), 0.0);
+        float opposite = max(-dot(normal, lightDirection), 0.0);
+        float crest = exp(-depth / 0.85);
+        float bevel = exp(-pow((depth - density * 1.25) / max(density * 1.0, 1.0), 2.0));
+        float reflection = crest * pow(facing, 3.0) * mix(0.28, 0.65, lightSurface) +
+            bevel * facing * mix(0.055, 0.12, lightSurface);
+        float innerShade = bevel * opposite * mix(0.035, 0.075, lightSurface);
+        innerShade += crest * (1.0 - facing * facing) * mix(0.008, 0.032, lightSurface);
+        // Soft counterreflection defines lower glass thickness, not an external neon halo.
+        reflection += crest * opposite * mix(0.07, 0.045, lightSurface);
+        half3 environmentalLight = clamp(scene - half3(luminance), half3(-0.12), half3(0.12));
+        color = mix(color, half3(1.0), half(clamp(reflection, 0.0, 0.72)));
+        color *= half(1.0 - innerShade);
+        color += environmentalLight * half(bevel * facing * 0.08);
+    }
     // Capsule-only, movement-only edge optics. Never sample/recolor the foreground atlas.
     // Two extra taps are confined to the inner edge band; no frame history or CPU readback.
     float capsuleEdge = capsuleMode * (1.0 - smoothstep(0.0, 2.0, depth)) *

@@ -22,6 +22,7 @@ internal fun TabGlassSurface(
     accent: Color,
     background: Color,
     highContrast: Boolean = false,
+    drawBevel: Boolean = true,
 ) {
     Box(Modifier.fillMaxSize().drawBehind {
         val frame = frameProvider()
@@ -34,8 +35,10 @@ internal fun TabGlassSurface(
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)
         val innerBounds = Size((bounds.width - stroke).coerceAtLeast(.1f), (bounds.height - stroke).coerceAtLeast(.1f))
         val innerCorner = CornerRadius((corner.x - stroke * .5f).coerceAtLeast(.1f))
-        drawGlassControlBevel(topLeft, bounds, corner.x, material, background, accent, frame.density, highContrast)
-        if (frame.motion > .001f) {
+        if (drawBevel || highContrast) {
+            drawGlassControlBevel(topLeft, bounds, corner.x, material, background, accent, frame.density, highContrast)
+        }
+        if (drawBevel && frame.motion > .001f) {
             val dx = frame.touchX - frame.centerX
             val dy = frame.touchY - frame.centerY
             val length = sqrt(dx * dx + dy * dy).coerceAtLeast(.001f)

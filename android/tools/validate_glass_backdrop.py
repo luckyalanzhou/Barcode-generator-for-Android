@@ -7,6 +7,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime-package-dir", type=Path)
+    parser.add_argument("--preview-dir", type=Path, help="Synthetic native-Skia optical fixtures, not device screenshots")
     args = parser.parse_args()
     if args.runtime_package_dir:
         sys.path.insert(0, str(args.runtime_package_dir))
@@ -26,8 +27,22 @@ def main():
     import skia
     shader_dir = Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app"
     adaptive_tint = (shader_dir / "GlassAdaptiveTint.kt").read_text(encoding="utf-8").split('"""', 2)[1]
-    source = adaptive_tint + (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    lens_profile = (shader_dir / "GlassLensProfile.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    source = adaptive_tint + lens_profile + (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     effect = skia.RuntimeEffect.MakeForShader(source)
+    profile_effect = skia.RuntimeEffect.MakeForShader(lens_profile + """
+        half4 main(float2 p) {
+            return half4(half3(glassLensProfile(p.x - 0.5, 100.0 / 0.85, 1.0)), 1.0);
+        }
+    """)
+    profile_surface = skia.Surface(101, 1)
+    profile_surface.getCanvas().drawPaint(skia.Paint(Shader=skia.RuntimeShaderBuilder(profile_effect).makeShader()))
+    profile_values = profile_surface.makeImageSnapshot().toarray()[0, :, 0].astype(int)
+    assert profile_values[0] == 0 and profile_values[-1] == 0, "Lens must meet its edge and center without seams"
+    assert profile_values[50] >= 254, "Rounded lens has no inward peak"
+    assert np.max(np.abs(profile_values - profile_values[::-1])) <= 1, "Lens profile is asymmetric"
+    assert np.max(np.abs(np.diff(profile_values))) <= 8, "Lens profile has a hard derivative jump"
+    print("PASS: shared rounded lens profile, smooth edge/center and bounded inward peak")
     tint_effect = skia.RuntimeEffect.MakeForShader(adaptive_tint + """
         uniform float brightness;
         uniform float opacity;
@@ -74,6 +89,8 @@ def main():
         builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
         builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
         builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
+        builder.setUniform("pixelDensity", 1.0)
+        builder.setUniform("capsuleOptics", skia.V2(0, 0))
         builder.setUniform("surfaceColor", skia.V4(*(surface_color if surface_color is not None else ((.08, .09, .12, 1) if dark else (.97, .98, 1, 1)))))
         output = skia.Surface(w, h)
         output.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
@@ -97,7 +114,10 @@ def main():
         assert np.max(lit[:20, :, 3]) == 0, "Contact produces external glow"
         capsule_rest = render(.45, 0, 0, dark, capsule=True)
         capsule_contact = render(.45, 0, 0, dark, contact=1, capsule=True)
-        assert np.array_equal(capsule_rest, capsule_contact), "Tab background duplicates foreground rim light"
+        capsule_difference = np.max(np.abs(capsule_rest.astype(int) - capsule_contact.astype(int)), axis=2)
+        assert np.count_nonzero(capsule_difference > 2) > 10, "Control bevel does not follow contact"
+        assert capsule_difference[65:115, 90:230].max() <= 1, "Control reflection creates a central hot spot"
+        assert np.max(capsule_contact[:20, :, 3]) == 0, "Control bevel leaks outside the capsule"
         menu_bright = render(.56, 0, 0, dark, 0xFFFFFFFF)
         menu_dark = render(.56, 0, 0, dark, 0xFF000000)
         interior_response = np.abs(menu_bright[65:115, 90:230, :3].astype(int) - menu_dark[65:115, 90:230, :3].astype(int)).max()
@@ -112,8 +132,8 @@ def main():
     # Representative neutral fills; the exact material formula is covered by Kotlin tests.
     # The center separates subtly; a broad matte disk must not substitute for the bevel.
     for dark, page_color, body, accent, opacity in (
-            (False, 0xFFF2F3F8, .08222, .00889, .55333),
-            (True, 0xFF17191D, .06583, .00667, .59333)):
+            (False, 0xFFF2F3F8, .08222, .00889, .46889),
+            (True, 0xFF17191D, .06583, .00667, .50889)):
         base = np.array([(page_color >> shift & 255) / 255 for shift in (16, 8, 0)])
         neutral = np.ones(3) if dark else np.array([144, 152, 162]) / 255
         fill = base + (neutral - base) * body
@@ -128,7 +148,7 @@ def main():
     print("PASS: stationary light/dark neutral capsule body remains visible without contact or refraction")
 
     # Exercise the actual foreground lens independently: it must add no material or duplicate layer.
-    foreground_source = adaptive_tint + (shader_dir / "TabForegroundLens.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    foreground_source = adaptive_tint + lens_profile + (shader_dir / "TabForegroundLens.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     foreground_effect = skia.RuntimeEffect.MakeForShader(foreground_source)
     glyphs = skia.Surface(w, h)
     glyphs.getCanvas().clear(0)
@@ -191,6 +211,57 @@ def main():
             assert np.array_equal(full[outside], original[outside]), "Moving full-width atlas erases other tabs"
             assert abs(full[:, :, 3].astype(float).sum() / original[:, :, 3].sum() - 1) < .02, "Foreground coverage lost during movement"
     print("PASS: full-width forward/reverse lens sweep preserves outside glyphs and total coverage on dark/light backgrounds")
+
+    if args.preview_dir:
+        args.preview_dir.mkdir(parents=True, exist_ok=True)
+        # Render the actual shader on controlled backgrounds, not a mock Android screenshot.
+        # These isolate the optical material; Compose clipping/driver behavior needs a device.
+        sheet = skia.Surface(960, 640)
+        for dark in (False, True):
+            width, height = 480, 640
+            background = 0xFF17191D if dark else 0xFFF2F3F8
+            panel = skia.Surface(width, height)
+            scene = skia.Surface(width, height)
+            scene.getCanvas().clear(background)
+            for y in (245, 435):
+                for x in range(24, 458, 12):
+                    color = (0xFF386182 if dark else 0xFFD0DDEB) if x % 24 == 0 else background
+                    scene.getCanvas().drawRect(skia.Rect.MakeXYWH(x, y - 40, 4, 80), skia.Paint(Color=color))
+            panel.getCanvas().drawImage(scene.makeImageSnapshot(), 0, 0)
+            text = skia.Paint(Color=0xFFF2F3F8 if dark else 0xFF17191D, AntiAlias=True)
+            typeface = skia.Typeface.MakeFromName("Segoe UI", skia.FontStyle.Normal())
+            font = skia.Font(typeface, 18)
+            panel.getCanvas().drawString("DARK / native shader fixture" if dark else "LIGHT / native shader fixture", 24, 30, font, text)
+            for row, (y, movement, label) in enumerate(((105, 0, "Rest / flat background"),
+                                                       (245, 0, "Rest / detailed background"),
+                                                       (435, 1, "Moving / detailed background"))):
+                panel.getCanvas().drawString(label, 24, y - 55, font, text)
+                for cx, halfwidth, halfheight, circular in ((105, 36, 36, True), (315, 88, 36, False)):
+                    body = .07 if dark and circular else .09 if circular else .06583 if dark else .08222
+                    opacity = .46 if dark and circular else .42 if circular else .50889 if dark else .46889
+                    accent = .006 if circular else .00667 if dark else .00889
+                    base = np.array([(background >> shift & 255) / 255 for shift in (16, 8, 0)])
+                    neutral = np.ones(3) if dark else np.array([144, 152, 162]) / 255
+                    tint = base + (neutral - base) * body
+                    tint += (np.array([0, 122, 255]) / 255 - tint) * accent
+                    builder = skia.RuntimeShaderBuilder(effect)
+                    builder.setChild("content", scene.makeImageSnapshot().makeShader(skia.SamplingOptions(skia.FilterMode.kLinear)))
+                    builder.setUniform("resolution", skia.V2(width, height))
+                    builder.setUniform("bounds", skia.V4(cx, y, halfwidth, halfheight))
+                    builder.setUniform("shape", skia.V4(halfheight, .75, (1.8 if circular else 1.2) * (1 - movement) + 4.5 * movement, opacity))
+                    builder.setUniform("contact", skia.V4(cx + halfwidth * .6, y - halfheight * .6, movement, 1))
+                    builder.setUniform("capsuleMode", 1.0)
+                    builder.setUniform("capsuleOptics", skia.V2(.4 * movement, .10 * movement))
+                    builder.setUniform("pixelDensity", 1.5)
+                    builder.setUniform("surfaceColor", skia.V4(*tint, 1))
+                    panel.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
+                    panel.getCanvas().drawString("+" if circular else "Selected", cx - (6 if circular else 35), y + 6,
+                                                 font, skia.Paint(Color=0xFF007AFF, AntiAlias=True))
+            panel.getCanvas().drawString("Synthetic fixture - NOT device acceptance", 24, 600, skia.Font(typeface, 16), text)
+            sheet.getCanvas().drawImage(panel.makeImageSnapshot(), 480 if dark else 0, 0)
+        output = args.preview_dir / "glass-controls-optical-fixture.png"
+        sheet.makeImageSnapshot().save(str(output), skia.kPNG)
+        print(f"PREVIEW: {output}")
 
 
 if __name__ == "__main__":

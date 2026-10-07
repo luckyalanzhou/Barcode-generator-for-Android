@@ -83,14 +83,14 @@ internal fun TabLiquidGlassScene(
             GlassBackdropSurface(
                 modifier = Modifier.fillMaxSize(), color = materialColor,
                 opacity = material.surfaceOpacity, cornerDp = sceneSize.height / density / 2f,
-                blurDp = 1.5f, refractionDp = { frameProvider().refractionPx / density }, capsule = frameProvider, drawFallback = false,
+                blurDp = GlassControlDefaults.TabBlurDp, refractionDp = { tabBackdropRefractionDp(frameProvider()) }, capsule = frameProvider, drawFallback = false,
                 renderer = renderer,
             )
         }
         if (visible) {
             TabGlassSurface(frameProvider, resolvedMaterial.copy(surfaceOpacity =
                 if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity),
-                accent, background, policy.highContrast)
+                accent, background, policy.highContrast, drawBevel = !backdropAvailable)
         }
         Box(Modifier.fillMaxSize().onGloballyPositioned {
             foregroundOrigin = it.localToWindow(Offset.Zero)

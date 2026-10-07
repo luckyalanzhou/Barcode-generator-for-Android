@@ -41,7 +41,7 @@ class TabGlassMaterialTest {
             assertTrue(large.edgeWidthDp > small.edgeWidthDp)
             assertTrue(large.refractionDp <= 4.3f)
             assertTrue(large.edgeWidthDp <= 1.5f)
-            assertTrue(small.surfaceOpacity >= .54f && large.surfaceOpacity <= .65f)
+            assertTrue(small.surfaceOpacity >= .46f && large.surfaceOpacity <= .55f)
         }
     }
 
@@ -67,6 +67,18 @@ class TabGlassMaterialTest {
         val background = Color(0xFF17191D)
         val material = tabGlassMaterial(background, 56f).copy(bodyTintStrength = 0f, accentTint = 0f)
         assertEquals(background, tabGlassFill(background, Color.Blue, material))
+    }
+
+    @Test fun restingBackdropHasSmallLensButRestingForegroundRemainsUntouched() {
+        val rest = tabGlassFrame(1200f, 168f, 3f, 4, 0f, 0f, 0f, 0f)
+        assertEquals(.8f, tabBackdropRefractionDp(rest), .001f)
+        assertEquals(0f, rest.refractionPx, 0f)
+        assertEquals(0f, tabForegroundDisplacement(rest, 0f), 0f)
+        for (step in 0..100) {
+            val frame = tabGlassFrame(1200f, 168f, 3f, 4, 1.5f, step / 100f, 0f, 1f, refractionDp = 4.4f)
+            assertTrue(tabBackdropRefractionDp(frame) in .8f..4.4f)
+        }
+        assertEquals(0f, tabBackdropRefractionDp(rest.copy(density = Float.NaN)), 0f)
     }
 
     @Test fun fallbackKeepsControlTransparencyWithoutReducingMenuReadability() {

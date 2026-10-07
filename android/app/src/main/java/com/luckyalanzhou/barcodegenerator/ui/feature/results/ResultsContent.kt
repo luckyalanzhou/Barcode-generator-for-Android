@@ -272,6 +272,8 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current.density
+    val glassRenderer = rememberGlassBackdropRenderer()
+    val backdropAvailable = glassBackdropAvailable(effects, glassRenderer)
     val glassMaterial = resultActionGlassMaterial(colors.surfaces.background).let {
         if (effects.opaqueGlass) it.copy(bodyTintStrength = 0f, accentTint = 0f, surfaceOpacity = 1f) else it
     }
@@ -323,20 +325,21 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
                 color = glassColor,
                 opacity = glassMaterial.surfaceOpacity,
                 cornerDp = 24f,
-                blurDp = 1.5f,
-                refractionDp = { 1.2f + 1.1f * opticalActivity },
+                blurDp = GlassControlDefaults.RoundActionBlurDp,
+                refractionDp = { actionFrame().refractionPx / density },
                 capsule = actionFrame,
                 drawFallback = true,
+                renderer = glassRenderer,
             )
             androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
                 val activity = opticalActivity
-                // Capsule shaders omit their own rim. Keep a visible optical bevel
-                // at rest as well as on the GPU fallback, independent of touch activity.
-                drawGlassControlBevel(
-                    Offset.Zero, size, size.minDimension * .5f, glassMaterial,
-                    colors.surfaces.background, contentTint, density, effects.highContrast,
-                )
-                if (activity > .01f) {
+                if (!backdropAvailable || effects.highContrast) {
+                    drawGlassControlBevel(
+                        Offset.Zero, size, size.minDimension * .5f, glassMaterial,
+                        colors.surfaces.background, contentTint, density, effects.highContrast,
+                    )
+                }
+                if (!backdropAvailable && activity > .01f) {
                     val center = touchPoint ?: Offset(size.width * .5f, size.height * .5f)
                     val radius = size.minDimension * .68f
                     drawCircle(
@@ -379,7 +382,8 @@ internal fun resultActionGlassFrame(
         halfWidth = centerX,
         halfHeight = centerY,
         motion = strength,
-        refractionPx = (1.2f + 1.1f * strength) * safeDensity,
+        refractionPx = (GlassControlDefaults.RoundActionRestRefractionDp +
+            GlassControlDefaults.RoundActionPressRefractionDp * strength) * safeDensity,
         density = safeDensity,
         touchX = touch?.x?.takeIf(Float::isFinite)?.coerceIn(0f, safeWidth) ?: centerX,
         touchY = touch?.y?.takeIf(Float::isFinite)?.coerceIn(0f, safeHeight) ?: centerY,

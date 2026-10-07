@@ -16,10 +16,10 @@ internal fun tabForegroundDisplacement(frame: TabGlassFrame, velocity: Float): F
     // Slow drags retain a lens; a short continuous zero-speed ramp prevents a rest jump.
     val movement = (.55f + .45f * (speed / .8f).coerceIn(0f, 1f)) *
         (speed / .06f).coerceIn(0f, 1f)
-    return minOf(frame.refractionPx.coerceAtLeast(0f), 2.8f * frame.density) * movement
+    return minOf(frame.refractionPx.coerceAtLeast(0f), GlassControlDefaults.MaxForegroundRefractionDp * frame.density) * movement
 }
 
-internal const val TAB_FOREGROUND_LENS_SHADER = GLASS_ADAPTIVE_TINT_SHADER + """
+internal const val TAB_FOREGROUND_LENS_SHADER = GLASS_ADAPTIVE_TINT_SHADER + GLASS_LENS_PROFILE_SHADER + """
 uniform shader content;
 uniform float2 resolution;
 uniform float4 capsule;
@@ -45,10 +45,9 @@ half4 main(float2 p) {
     float2 radial = float2(local.x - spine, local.y);
     float2 normal = radial / max(length(radial), 0.001);
     float depth = -sd;
-    float edge = 1.0 - smoothstep(0.0, max(radius, 1.0), depth);
     // Zero at the boundary avoids a seam; single sampling avoids doubled glyphs.
     float boundary = smoothstep(0.0, max(lens.y * 2.0, 1.0), depth);
-    float2 displacement = normal * lens.x * edge * boundary;
+    float2 displacement = normal * lens.x * glassLensProfile(depth, radius, lens.y);
     float2 point = clamp(p - displacement, float2(0.5), resolution - 0.5);
     half4 foreground = glyph(point);
     if (atlasMode < 0.5 || foreground.a <= 0.001) return foreground;

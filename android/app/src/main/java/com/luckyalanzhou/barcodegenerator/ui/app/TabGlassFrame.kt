@@ -22,6 +22,15 @@ internal data class TabGlassFrame(
     val travelStrength: Float = 0f,
 )
 
+/** Static glass still bends the page slightly, never the resting glyphs above it. */
+internal fun tabBackdropRefractionDp(frame: TabGlassFrame): Float {
+    if (!frame.density.isFinite() || frame.density <= 0f || !frame.refractionPx.isFinite()) return 0f
+    val moving = (frame.refractionPx / frame.density).coerceIn(0f, GlassControlDefaults.MaxBackdropRefractionDp)
+    val activity = frame.motion.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f
+    return (GlassControlDefaults.TabRestRefractionDp * (1f - activity) + moving)
+        .coerceIn(0f, GlassControlDefaults.MaxBackdropRefractionDp)
+}
+
 /** Test the rendered capsule, not the whole navigation bar or the selected tab's cell. */
 internal fun tabCapsuleContains(frame: TabGlassFrame, point: androidx.compose.ui.geometry.Offset): Boolean {
     if (!point.x.isFinite() || !point.y.isFinite()) return false
@@ -87,7 +96,7 @@ internal fun tabGlassFrame(
         halfWidth = halfWidth,
         halfHeight = halfHeight.coerceAtMost(safeHeight * .5f),
         motion = opticalStrength,
-        refractionPx = refractionDp.coerceIn(0f, 4.4f) * safeDensity * opticalStrength,
+        refractionPx = refractionDp.coerceIn(0f, GlassControlDefaults.MaxBackdropRefractionDp) * safeDensity * opticalStrength,
         density = safeDensity,
         touchX = touchX ?: centerX + halfWidth * .6f * direction.coerceIn(-1f, 1f),
         touchY = touchY ?: centerY - halfHeight * .75f,
