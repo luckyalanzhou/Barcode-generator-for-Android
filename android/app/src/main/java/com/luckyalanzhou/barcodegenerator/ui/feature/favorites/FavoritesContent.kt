@@ -9,6 +9,12 @@ import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeData
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.composeFavoriteRows
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.effectiveCollapsedFavoriteFolders
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.favoriteSearchExpandedPaths
 
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
@@ -139,6 +145,24 @@ internal fun FavoritesContent(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val displayState = if (normalizedQuery.isEmpty()) favoritesState else searchState
+    val displayTreeData = remember(displayState.items, displayState.groups, displayState.folders) {
+        FavoritesTreeData(
+            items = displayState.items,
+            groups = displayState.groups,
+            folders = displayState.folders,
+        )
+    }
+    val favoritesTreeState = remember(
+        treeState.collapsedFolders,
+        treeState.knownFolders,
+        treeState.searchAutoExpandSuppressed,
+    ) {
+        FavoritesTreeState(
+            collapsedFolders = treeState.collapsedFolders,
+            knownFolders = treeState.knownFolders,
+            searchAutoExpandSuppressed = treeState.searchAutoExpandSuppressed,
+        )
+    }
     val allFavoriteFolderPaths = remember(favoritesState.folders, favoritesState.groups) {
         (favoritesState.folders + favoritesState.groups.map { it.folder })
             .filter { it.isNotBlank() }.toSet()
@@ -147,9 +171,9 @@ internal fun FavoritesContent(
         (displayState.folders + displayState.groups.map { it.folder })
             .filter { it.isNotBlank() }.distinct().toSet()
     }
-    val expandedSearchPaths by produceState<Set<String>>(emptySet(), displayState, normalizedQuery) {
+    val expandedSearchPaths by produceState<Set<String>>(emptySet(), displayTreeData, normalizedQuery) {
         value = withContext(Dispatchers.Default) {
-            favoriteSearchExpandedPaths(displayState, normalizedQuery)
+            favoriteSearchExpandedPaths(displayTreeData, normalizedQuery)
         }
     }
 
@@ -172,14 +196,14 @@ internal fun FavoritesContent(
     }
 
     val visibleCollapsedFolders = effectiveCollapsedFavoriteFolders(
-        treeState = treeState,
+        treeState = favoritesTreeState,
         allFolderPaths = allFavoriteFolderPaths,
         query = normalizedQuery,
         expandedSearchPaths = expandedSearchPaths,
     )
-    val rows by produceState<List<ComposeFavoriteRow>?>(null, displayState, normalizedQuery, visibleCollapsedFolders) {
+    val rows by produceState<List<ComposeFavoriteRow>?>(null, displayTreeData, normalizedQuery, visibleCollapsedFolders) {
         value = withContext(Dispatchers.Default) {
-            composeFavoriteRows(displayState, normalizedQuery, visibleCollapsedFolders)
+            composeFavoriteRows(displayTreeData, normalizedQuery, visibleCollapsedFolders)
         }
     }
     val rowKey: (ComposeFavoriteRow) -> String = { row ->

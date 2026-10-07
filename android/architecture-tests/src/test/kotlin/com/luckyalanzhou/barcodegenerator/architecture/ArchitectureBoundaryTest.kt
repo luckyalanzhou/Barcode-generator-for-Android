@@ -127,6 +127,17 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
+    fun `favorites tree projection cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val favoritesTree = Layer("FavoritesTree", "com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            favoritesTree.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
     fun `data cannot depend on presentation or UI`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")

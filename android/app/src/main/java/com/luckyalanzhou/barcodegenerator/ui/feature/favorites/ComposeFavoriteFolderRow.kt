@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost

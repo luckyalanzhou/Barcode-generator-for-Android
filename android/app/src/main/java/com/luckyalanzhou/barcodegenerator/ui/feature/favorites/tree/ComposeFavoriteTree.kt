@@ -1,11 +1,24 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
+package com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
-import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import java.util.Locale
 
-/** Favorites tree projection kept separate from row rendering and dialogs. */
+/** Feature-owned input for projecting the favorites hierarchy into lazy-list rows. */
+internal data class FavoritesTreeData(
+    val items: List<CodeItem>,
+    val groups: List<FavoriteGroup>,
+    val folders: List<String>,
+)
+
+/** Tree interaction state needed by the projection, independent of presentation state. */
+internal data class FavoritesTreeState(
+    val collapsedFolders: Set<String> = emptySet(),
+    val knownFolders: Set<String> = emptySet(),
+    val searchAutoExpandSuppressed: Boolean = false,
+)
+
+/** Display row consumed by the favorites feature's Compose rendering. */
 internal data class ComposeFavoriteRow(
     val path: String,
     val label: String,
@@ -16,13 +29,9 @@ internal data class ComposeFavoriteRow(
     val group: FavoriteGroup? = null,
 )
 
-/** Existing lazy rows must not replay expansion when recomposed after scrolling. */
-internal fun favoriteRowInitiallyVisible(key: String, enteringKeys: Set<String>): Boolean =
-    key !in enteringKeys
-
 /** Treat folders not yet synchronized into the view-model tree as collapsed during projection. */
 internal fun effectiveCollapsedFavoriteFolders(
-    treeState: FavoriteTreeUiState,
+    treeState: FavoritesTreeState,
     allFolderPaths: Set<String>,
     query: String,
     expandedSearchPaths: Set<String>,
@@ -36,7 +45,7 @@ internal fun effectiveCollapsedFavoriteFolders(
 }
 
 internal fun composeFavoriteRows(
-    state: BarcodeDataState,
+    state: FavoritesTreeData,
     query: String,
     collapsedFolders: Set<String>,
 ): List<ComposeFavoriteRow> {
@@ -74,7 +83,7 @@ internal fun composeFavoriteRows(
     return result
 }
 
-internal fun favoriteSearchExpandedPaths(state: BarcodeDataState, query: String): Set<String> {
+internal fun favoriteSearchExpandedPaths(state: FavoritesTreeData, query: String): Set<String> {
     if (query.isEmpty()) return emptySet()
     val itemsById = state.items.associateBy { it.id }
     fun matches(group: FavoriteGroup): Boolean =

@@ -1,11 +1,11 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
-import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
-import com.luckyalanzhou.barcodegenerator.presentation.FavoriteTreeUiState
-import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.effectiveCollapsedFavoriteFolders
-import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.composeFavoriteRows
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeData
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.effectiveCollapsedFavoriteFolders
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.composeFavoriteRows
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -15,7 +15,7 @@ class ComposeFavoriteTreeTest {
         val folderPaths = setOf("A", "A/Child", "B")
 
         val collapsed = effectiveCollapsedFavoriteFolders(
-            treeState = FavoriteTreeUiState(),
+            treeState = FavoritesTreeState(),
             allFolderPaths = folderPaths,
             query = "",
             expandedSearchPaths = emptySet(),
@@ -29,7 +29,7 @@ class ComposeFavoriteTreeTest {
         val folderPaths = setOf("A", "A/Child", "B")
 
         val collapsed = effectiveCollapsedFavoriteFolders(
-            treeState = FavoriteTreeUiState(),
+            treeState = FavoritesTreeState(),
             allFolderPaths = folderPaths,
             query = "match",
             expandedSearchPaths = setOf("A", "A/Child"),
@@ -40,11 +40,10 @@ class ComposeFavoriteTreeTest {
 
     @Test
     fun indexedProjectionKeepsNestedFolderAndSearchResults() {
-        val state = BarcodeDataState(
+        val state = FavoritesTreeData(
             items = listOf(CodeItem(1, "alpha", "CODE_128", 1L, true, "a/b", false)),
             groups = listOf(FavoriteGroup(1, "a/b", "Alpha", 1L, mutableListOf(1))),
             folders = listOf("a", "a/b"),
-            isReady = true,
         )
 
         val rows = composeFavoriteRows(state, "alpha", emptySet())
@@ -55,11 +54,10 @@ class ComposeFavoriteTreeTest {
 
     @Test
     fun collapsedFolderHidesItsIndexedChildren() {
-        val state = BarcodeDataState(
+        val state = FavoritesTreeData(
             items = listOf(CodeItem(1, "alpha", "CODE_128", 1L, true, "a/b", false)),
             groups = listOf(FavoriteGroup(1, "a/b", "Alpha", 1L, mutableListOf(1))),
             folders = listOf("a", "a/b"),
-            isReady = true,
         )
 
         val rows = composeFavoriteRows(state, "", setOf("a"))
