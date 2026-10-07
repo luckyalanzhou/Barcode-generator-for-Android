@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.navigation
 
 import com.luckyalanzhou.barcodegenerator.presentation.AppUiState
-import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -9,7 +8,7 @@ import kotlinx.coroutines.flow.update
 internal class NavigationStateCoordinator(
     private val state: MutableStateFlow<AppUiState>,
 ) {
-    fun navigateTo(route: AppRoute, fromTabSwipe: Boolean = false) {
+    fun navigateTo(route: NavigationRoute, fromTabSwipe: Boolean = false) {
         state.update {
             it.copy(
                 page = route,
@@ -22,7 +21,7 @@ internal class NavigationStateCoordinator(
         }
     }
 
-    fun updateSettingsReturnPage(route: AppRoute) {
+    fun updateSettingsReturnPage(route: NavigationRoute) {
         state.update { it.copy(settingsReturnPage = route) }
     }
 
