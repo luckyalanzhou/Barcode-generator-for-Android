@@ -200,12 +200,15 @@ internal fun SettingsContent(
                             ) {
                                 ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
+                                    val checked = settings.ocrMask and bit != 0
                                     androidx.compose.material3.DropdownMenuItem(
-                                        modifier = Modifier.height(40.dp),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (checked) colors.controls.selectedContainer else Color.Transparent)
+                                            .height(40.dp),
                                         contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
                                         text = { Text(label, color = colors.settingsText.primary, maxLines = 1, softWrap = false) },
                                         trailingIcon = {
-                                            val checked = settings.ocrMask and bit != 0
                                             Icon(
                                                 imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
                                                 contentDescription = if (checked) "已选中" else "未选中",

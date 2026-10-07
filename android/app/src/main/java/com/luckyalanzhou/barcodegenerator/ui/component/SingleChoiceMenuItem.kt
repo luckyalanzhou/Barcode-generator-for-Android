@@ -3,11 +3,14 @@ package com.luckyalanzhou.barcodegenerator.ui.component
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -20,7 +23,11 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 internal fun SingleChoiceMenuItem(label: String, isSelected: Boolean, onClick: () -> Unit) {
     val colors = LocalAppColorScheme.current
     DropdownMenuItem(
-        modifier = Modifier.heightIn(min = 40.dp).semantics { selected = isSelected },
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) colors.controls.selectedContainer else androidx.compose.ui.graphics.Color.Transparent)
+            .heightIn(min = 40.dp)
+            .semantics { selected = isSelected },
         text = { Text(label, color = colors.text.primary, maxLines = 1, softWrap = false) },
         trailingIcon = {
             Box(Modifier.size(20.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {

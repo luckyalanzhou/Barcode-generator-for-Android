@@ -103,7 +103,7 @@ internal fun BoxScope.LanShareInputBar(
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(48.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = themeColors.content.sentContent,
-                disabledContainerColor = themeColors.controls.button, disabledContentColor = themeColors.text.disabled)) {
+                disabledContainerColor = themeColors.controls.disabledContainer, disabledContentColor = themeColors.text.disabled)) {
                 Text("发送", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }

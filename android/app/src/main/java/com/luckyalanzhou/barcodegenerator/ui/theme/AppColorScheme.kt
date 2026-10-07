@@ -35,6 +35,8 @@ internal data class AppSurfaceColors(
 internal data class AppControlColors(
     val accent: Color,
     val button: Color,
+    val selectedContainer: Color,
+    val disabledContainer: Color,
     val progressTrack: Color,
     val thumb: Color,
     val toggleOn: Color,

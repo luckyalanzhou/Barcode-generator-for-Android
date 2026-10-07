@@ -12,9 +12,11 @@ internal object AppColorTokens {
         val favoriteActive = Color(0xffd97706)
         val folder = Color(0xff5b8def)
         val childFolder = Color(0xff6883A5)
-        // Neutral system-gray surface for secondary actions; primary actions
-        // use the system accent below so the hierarchy remains clear.
-        val button = Color(0xfff2f2f7)
+        // Cool, near-white surface separates secondary controls from both the
+        // page canvas and white cards without competing with primary blue.
+        val button = Color(0xfff3f6fb)
+        val selectedContainer = Color(0xffe8f2ff)
+        val disabledContainer = Color(0xffe7e9ef)
         val border = Color(0xffd9e1ec)
         val buttonBorder = Color(0xffd1d1d6).copy(alpha = .72f)
         val destructive = Color(0xffc2413b)
@@ -43,7 +45,10 @@ internal object AppColorTokens {
         val input = Color(0xff202c3a)
         val accent = Color(0xff0a84ff)
         val favoriteActive = Color(0xffffbb33)
-        val button = Color(0xff2c2c2e)
+        // Lifted neutral surface with a restrained cool bias for dark mode.
+        val button = Color(0xff262b33)
+        val selectedContainer = Color(0xff17334d)
+        val disabledContainer = Color(0xff252529)
         val border = Color.White.copy(alpha = 0.10f)
         val buttonBorder = Color(0xff3a3a3c).copy(alpha = .82f)
         val destructive = Color(0xffffb0b0)
