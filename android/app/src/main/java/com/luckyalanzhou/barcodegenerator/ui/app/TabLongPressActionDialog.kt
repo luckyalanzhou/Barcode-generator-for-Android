@@ -360,9 +360,18 @@ internal fun TabLongPressActionOverlay(
                             val reveal = menuGlassReveal(progress.value, state.tabAnchor, effects.reduceMotion)
                             val path = menuRevealPath(menuRevealBounds(size, placement.pivotX, menuSpace.above, reveal,
                                 preserveContour = state.tabAnchor), panelCorner.toPx())
-                            drawPath(path,
-                                menuColors.outline,
-                                style = Stroke(.8.dp.toPx()))
+                            val edgeWidth = (.45.dp.toPx()).coerceIn(1f, 1.5f)
+                            drawPath(path, menuColors.outline, style = Stroke(edgeWidth))
+                            if (!effects.highContrast && !state.tabAnchor) {
+                                drawPath(
+                                    path,
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        listOf(Color.White.copy(alpha = if (dark) .16f else .38f),
+                                            Color.Transparent, Color.Black.copy(alpha = if (dark) .15f else .06f)),
+                                    ),
+                                    style = Stroke(edgeWidth),
+                                )
+                            }
                         }
                         .pointerInput(Unit) {
                             // Header/empty panel taps must not fall through to the backdrop.

@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 /** Input is a GPU replay of the raw page in local coordinates, with no foreground controls. */
-internal const val GLASS_BACKDROP_SHADER = """
+internal const val GLASS_BACKDROP_SHADER = GLASS_ADAPTIVE_TINT_SHADER + """
 uniform shader content;
 uniform float2 resolution;
 uniform float4 bounds;
@@ -54,7 +54,11 @@ half4 main(float2 p) {
     float interior = smoothstep(1.5, 12.0, depth) * (1.0 - capsuleMode);
     float interiorOpacity = mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance));
     opacity = max(opacity, mix(shape.w, interiorOpacity, interior));
-    half3 color = mix(scene, surfaceColor.rgb, half(opacity));
+    half3 materialTint = capsuleMode > 0.5 ? glassAdaptiveTint(surfaceColor.rgb, scene, opacity) : surfaceColor.rgb;
+    half3 color = mix(scene, materialTint, half(opacity));
+    // Text/detail crossing a small control strengthens only its inner edge separation.
+    float separation = capsuleMode * (1.0 - smoothstep(1.0, 5.0, depth)) * detail * 0.045;
+    color *= half(1.0 - separation);
     // Capsule-only, movement-only edge optics. Never sample/recolor the foreground atlas.
     // Two extra taps are confined to the inner edge band; no frame history or CPU readback.
     float capsuleEdge = capsuleMode * (1.0 - smoothstep(0.0, 2.0, depth)) *

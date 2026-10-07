@@ -34,6 +34,19 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMater
     )
 }
 
+/** Small isolated actions need more body separation than the wider selected Tab. */
+internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
+    val dark = background.luminance() < .35f
+    return tabGlassMaterial(background, 48f).copy(
+        bodyTintStrength = if (dark) .12f else .22f,
+        accentTint = .006f,
+        surfaceOpacity = if (dark) .60f else .72f,
+        rimLight = if (dark) .30f else .72f,
+        innerShadow = if (dark) .24f else .10f,
+        outlineOpacity = if (dark) .075f else .055f,
+    )
+}
+
 /** Same baseline on GPU and fallback: a visible neutral body, not a blue glow or white highlight. */
 internal fun tabGlassFill(background: Color, accent: Color, material: TabGlassMaterial): Color {
     val neutral = (if (background.luminance() < .35f) Color.White else Color(0xFF9098A2)).convert(background.colorSpace)

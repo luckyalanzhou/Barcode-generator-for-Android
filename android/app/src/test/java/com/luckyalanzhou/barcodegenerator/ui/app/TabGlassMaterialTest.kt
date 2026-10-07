@@ -7,6 +7,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TabGlassMaterialTest {
+    @Test fun circularActionsRemainVisibleAtRestAcrossBothThemes() {
+        for (background in listOf(Color.Black, Color(0xFF17191D), Color.White, Color(0xFFF2F3F8))) {
+            val material = resultActionGlassMaterial(background)
+            val fill = tabGlassFill(background, Color(0xFF007AFF), material)
+            val difference = maxOf(kotlin.math.abs(fill.red - background.red),
+                kotlin.math.abs(fill.green - background.green), kotlin.math.abs(fill.blue - background.blue)) * material.surfaceOpacity
+            assertTrue("Round actions need a visible stationary body", difference >= .04f)
+            assertTrue(material.accentTint < .01f)
+            assertTrue(material.rimLight <= .75f)
+            assertTrue(tabGlassEdgeWidthPx(material, 3f) <= 1.5f)
+        }
+    }
+
     @Test
     fun bodyContrastIsBoundedAndAccentStaysSubtle() {
         val dark = tabGlassMaterial(Color(0xFF17191D), 56f)

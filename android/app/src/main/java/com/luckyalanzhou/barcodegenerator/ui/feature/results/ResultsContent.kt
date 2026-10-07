@@ -273,6 +273,11 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current.density
+    val darkSurface = colors.surfaces.background.luminance() < .35f
+    val glassMaterial = resultActionGlassMaterial(colors.surfaces.background).let {
+        if (effects.opaqueGlass) it.copy(bodyTintStrength = 0f, accentTint = 0f, surfaceOpacity = 1f) else it
+    }
+    val glassColor = tabGlassFill(colors.surfaces.background, tint, glassMaterial)
     val opticalActivity by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (pressed && !effects.reduceMotion && !effects.opaqueGlass) 1f else 0f,
         animationSpec = if (effects.reduceMotion) androidx.compose.animation.core.tween(0)
@@ -292,7 +297,7 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
                     scaleX = 1f + .035f * lift
                     scaleY = 1f + .035f * lift
                     translationY = -1.5f * density * lift
-                    shadowElevation = 2.5f * density * lift
+                    shadowElevation = (1f + 2f * lift) * density
                     shape = CircleShape
                 }
                 .clip(CircleShape),
@@ -317,8 +322,8 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
             }
             GlassBackdropSurface(
                 modifier = Modifier.matchParentSize(),
-                color = colors.surfaces.background,
-                opacity = if (colors.surfaces.background.luminance() < .35f) .38f else .24f,
+                color = glassColor,
+                opacity = glassMaterial.surfaceOpacity,
                 cornerDp = 24f,
                 blurDp = 1.5f,
                 refractionDp = { 1.2f + 1.1f * opticalActivity },
@@ -327,6 +332,26 @@ private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
             )
             androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
                 val activity = opticalActivity
+                // Capsule shaders omit their own rim. Keep a visible optical bevel
+                // at rest as well as on the GPU fallback, independent of touch activity.
+                val edgeWidth = (density * .45f).coerceIn(1f, 1.5f)
+                val radius = size.minDimension * .5f - edgeWidth
+                drawGlassControlBevel(
+                    Offset.Zero, size, size.minDimension * .5f, glassMaterial,
+                    colors.surfaces.background, contentTint, density, effects.highContrast,
+                )
+                if (!effects.opaqueGlass) {
+                    drawCircle(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = if (darkSurface) .06f else .12f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = if (darkSurface) .045f else .025f),
+                            ),
+                        ),
+                        radius = radius - edgeWidth,
+                    )
+                }
                 if (activity > .01f) {
                     val center = touchPoint ?: Offset(size.width * .5f, size.height * .5f)
                     val radius = size.minDimension * .68f

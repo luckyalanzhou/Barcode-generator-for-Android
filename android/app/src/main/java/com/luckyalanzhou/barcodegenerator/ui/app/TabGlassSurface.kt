@@ -34,22 +34,7 @@ internal fun TabGlassSurface(
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)
         val innerBounds = Size((bounds.width - stroke).coerceAtLeast(.1f), (bounds.height - stroke).coerceAtLeast(.1f))
         val innerCorner = CornerRadius((corner.x - stroke * .5f).coerceAtLeast(.1f))
-        // Both passes share one contour: no offset second frame and no outside halo.
-        drawRoundRect(tabGlassOutlineColor(background, material), innerTopLeft, innerBounds,
-            innerCorner, style = Stroke(stroke))
-        drawRoundRect(
-            Brush.verticalGradient(
-                0f to Color.White.copy(alpha = material.rimLight),
-                .30f to Color.White.copy(alpha = material.rimLight * .12f),
-                .55f to Color.Transparent,
-                1f to Color.Black.copy(alpha = material.innerShadow),
-                startY = topLeft.y, endY = topLeft.y + bounds.height,
-            ),
-            innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke),
-        )
-        if (highContrast) {
-            drawRoundRect(accent, innerTopLeft, innerBounds, innerCorner, style = Stroke(stroke.coerceAtLeast(frame.density)))
-        }
+        drawGlassControlBevel(topLeft, bounds, corner.x, material, background, accent, frame.density, highContrast)
         if (frame.motion > .001f) {
             val dx = frame.touchX - frame.centerX
             val dy = frame.touchY - frame.centerY

@@ -24,8 +24,37 @@ def main():
     print("PASS: full-width Compose input, single foreground replay and single output (source contract, not device validation)")
     import numpy as np
     import skia
-    source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    shader_dir = Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app"
+    adaptive_tint = (shader_dir / "GlassAdaptiveTint.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    source = adaptive_tint + (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     effect = skia.RuntimeEffect.MakeForShader(source)
+    tint_effect = skia.RuntimeEffect.MakeForShader(adaptive_tint + """
+        uniform float brightness;
+        uniform float opacity;
+        uniform float base;
+        half4 main(float2 p) {
+            return half4(glassAdaptiveTint(half3(base), half3(brightness), opacity), 1.0);
+        }
+    """)
+    for base in (.12, .90):
+        previous = None
+        for brightness in np.linspace(0.0, 1.0, 41):
+            builder = skia.RuntimeShaderBuilder(tint_effect)
+            builder.setUniform("brightness", float(brightness))
+            builder.setUniform("opacity", .60)
+            builder.setUniform("base", base)
+            fixture = skia.Surface(1, 1)
+            fixture.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
+            rgb = fixture.makeImageSnapshot().toarray()[0, 0, :3].astype(int)
+            assert np.max(np.abs(rgb / 255.0 - base)) < .11, "Adaptive tint loses the theme identity"
+            if previous is not None:
+                assert np.max(np.abs(rgb - previous)) <= 3, "Adaptive tint has a hard brightness jump"
+            previous = rgb
+        builder.setUniform("opacity", 1.0)
+        fixture.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
+        opaque_rgb = fixture.makeImageSnapshot().toarray()[0, 0, :3] / 255.0
+        assert np.max(np.abs(opaque_rgb - base)) < .005, "Solid contrast surface still adapts"
+    print("PASS: bounded spatial tint, continuous brightness response and opaque accessibility identity")
     w, h = 320, 180
     page = skia.Surface(w, h)
     page.getCanvas().clear(0xFF75869A)
@@ -94,7 +123,7 @@ def main():
     print("PASS: stationary light/dark neutral capsule body remains visible without contact or refraction")
 
     # Exercise the actual foreground lens independently: it must add no material or duplicate layer.
-    foreground_source = (Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/TabForegroundLens.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    foreground_source = adaptive_tint + (shader_dir / "TabForegroundLens.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     foreground_effect = skia.RuntimeEffect.MakeForShader(foreground_source)
     glyphs = skia.Surface(w, h)
     glyphs.getCanvas().clear(0)

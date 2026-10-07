@@ -19,7 +19,7 @@ internal fun tabForegroundDisplacement(frame: TabGlassFrame, velocity: Float): F
     return minOf(frame.refractionPx.coerceAtLeast(0f), 2.8f * frame.density) * movement
 }
 
-internal const val TAB_FOREGROUND_LENS_SHADER = """
+internal const val TAB_FOREGROUND_LENS_SHADER = GLASS_ADAPTIVE_TINT_SHADER + """
 uniform shader content;
 uniform float2 resolution;
 uniform float4 capsule;
@@ -64,7 +64,9 @@ half4 main(float2 p) {
     float target = dot(float3(surfaceColor.rgb), float3(0.2126, 0.7152, 0.0722));
     float detail = smoothstep(0.015, 0.35, length(float3(center - scene)));
     float protection = smoothstep(0.12, 0.75, abs(luminance - target)) * 0.24 + detail * 0.10;
-    half3 glass = mix(scene, surfaceColor.rgb, half(clamp(surfaceOpacity + protection, 0.0, 1.0)));
+    float opacity = clamp(surfaceOpacity + protection, 0.0, 1.0);
+    half3 materialTint = glassAdaptiveTint(surfaceColor.rgb, scene, opacity);
+    half3 glass = mix(scene, materialTint, half(opacity));
     half3 color = foreground.rgb / foreground.a;
     float glassLuminance = dot(float3(glass), float3(0.2126, 0.7152, 0.0722));
     float glyphLuminance = dot(float3(color), float3(0.2126, 0.7152, 0.0722));
