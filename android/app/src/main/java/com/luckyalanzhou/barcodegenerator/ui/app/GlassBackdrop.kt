@@ -29,12 +29,22 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Records only the page, never a glass output. Replaying the display list requires no bitmap readback. */
 @Stable
 internal class GlassBackdropSource(val layer: GraphicsLayer) {
     var origin by mutableStateOf(Offset.Zero)
     var ready by mutableStateOf(false)
+
+    /**
+     * A page transition can temporarily keep the outgoing Results page alive
+     * below the incoming page. Both pages may then try to record this shared
+     * layer in the same Android draw pass. RenderNode does not allow nested
+     * beginRecording calls, so the inner recorder must fall back to drawing
+     * directly into the recorder that is already active.
+     */
+    internal val recording = AtomicBoolean(false)
 }
 
 internal val LocalGlassBackdrop = staticCompositionLocalOf<GlassBackdropSource?> { null }
@@ -63,8 +73,19 @@ internal fun Modifier.recordGlassBackdrop(source: GlassBackdropSource): Modifier
         source.origin = it.localToWindow(Offset.Zero)
         source.ready = true
     }.drawWithContent {
-        source.layer.record { this@drawWithContent.drawContent() }
-        drawLayer(source.layer)
+        if (!source.recording.compareAndSet(false, true)) {
+            // This is the nested page during an AnimatedContent transition.
+            // Draw into the active outer recording instead of re-entering
+            // RenderNode.beginRecording(), which crashes on Android.
+            this@drawWithContent.drawContent()
+            return@drawWithContent
+        }
+        try {
+            source.layer.record { this@drawWithContent.drawContent() }
+            drawLayer(source.layer)
+        } finally {
+            source.recording.set(false)
+        }
     }
 
 /** Background-only surface: callers draw crisp foreground after it. Shape and motion are read at draw time. */
