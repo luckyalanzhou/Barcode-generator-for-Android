@@ -19,7 +19,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,10 +32,17 @@ internal fun MainActivity.showItemEditorCompose(
     item: CodeItem,
     onUpdate: (Long, String, String) -> Unit,
 ) {
+    val itemId = item.id
+    val initialText = item.text
+    val initialFormat = item.format
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        var value by remember { mutableStateOf(item.text) }
-        var selectedIndex by remember { mutableIntStateOf(barcodeFormats.indexOfFirst { it.first == item.format }.coerceAtLeast(0)) }
+        val availableFormats = barcodeFormats
+        val fallbackFormat = availableFormats.firstOrNull()?.first.orEmpty()
+        var value by remember { mutableStateOf(initialText) }
+        var selectedFormat by remember {
+            mutableStateOf(availableFormats.firstOrNull { it.first == initialFormat }?.first ?: fallbackFormat)
+        }
         ComposeGlassDialogCard(dark) {
             Text("编辑条目", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             OutlinedTextField(
@@ -56,20 +62,20 @@ internal fun MainActivity.showItemEditorCompose(
                 ),
             )
             Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
-                ComposeChoiceField(barcodeFormats[selectedIndex].first, barcodeFormats.map { it.first }, dark,
+                ComposeChoiceField(selectedFormat, availableFormats.map { it.first }, dark,
                     modifier = Modifier.widthIn(max = 200.dp), compact = true) { choice ->
-                    selectedIndex = barcodeFormats.indexOfFirst { it.first == choice }.coerceAtLeast(0)
+                    selectedFormat = choice
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("保存", dark, {
                     val text = value
-                    val format = barcodeFormats[selectedIndex].first
+                    val format = selectedFormat
                     val validation = BarcodeValidator.validate(text, format)
                     if (text.isBlank()) toast("请输入条码内容")
                     else if (!validation.valid) toast(validation.message)
                     else {
-                        onUpdate(item.id, text, format)
+                        onUpdate(itemId, text, format)
                         dismiss()
                     }
                 })

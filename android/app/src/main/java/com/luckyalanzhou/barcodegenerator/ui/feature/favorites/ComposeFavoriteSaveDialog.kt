@@ -52,6 +52,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
     dataState: BarcodeDataState,
     onSave: (List<Long>, Long?, Long?, String, String) -> Boolean,
     onCreateFolder: (String) -> Unit,
+    onSaved: () -> Unit,
 ) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
@@ -84,9 +85,22 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                 saving = false
                 false
             }
-            toast(if (saved) "已保存到 $folder" else "该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
-            if (!saved) saving = false
+            if (!saved) {
+                toast("该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
+                saving = false
+            }
             return saved
+        }
+        fun finishSave(folder: String) {
+            // 先关闭原生 Dialog，再在下一帧切换根路由，避免在 Compose 点击回调
+            // 仍在执行时同时替换宿主组合树。
+            dismiss()
+            window.decorView.post {
+                if (!isFinishing && !isDestroyed) {
+                    toast("已保存到 $folder")
+                    onSaved()
+                }
+            }
         }
         ComposeGlassDialogCard(dark) {
             Text(
@@ -230,7 +244,9 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                                 it.id != editingGroup?.id && it.folder == selectedFolder && it.name == cleanName
                             }
                             if (conflict == null) {
-                                if (persistFavorite(editingGroup, selectedFolder, cleanName)) dismiss()
+                                if (persistFavorite(editingGroup, selectedFolder, cleanName)) {
+                                    finishSave(selectedFolder)
+                                }
                             } else {
                                 dismiss()
                                 showComposeConfirmDialog(
@@ -238,7 +254,14 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                                     "“" + selectedFolder + "/" + cleanName + "”已存在，是否覆盖？",
                                     "覆盖",
                                 ) {
-                                    persistFavorite(conflict, selectedFolder, cleanName)
+                                    if (persistFavorite(conflict, selectedFolder, cleanName)) {
+                                        window.decorView.post {
+                                            if (!isFinishing && !isDestroyed) {
+                                                toast("已保存到 $selectedFolder")
+                                                onSaved()
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

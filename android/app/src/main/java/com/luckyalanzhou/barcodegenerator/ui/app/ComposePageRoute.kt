@@ -20,6 +20,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.launch
 
 /** 页面渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
@@ -178,7 +180,12 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dark = dark,
                     onEdit = {
                         dependencies.resultsViewModel.editCurrentResult {
-                            dependencies.actions.navigateTo(AppRoute.Generate)
+                            // Finish the toolbar click before replacing the root page.
+                            // The result toolbar is inside the composition being removed;
+                            // posting avoids a re-entrant composition transition.
+                            Handler(Looper.getMainLooper()).post {
+                                dependencies.actions.navigateTo(AppRoute.Generate)
+                            }
                         }
                     },
                     onSaveFavorite = dependencies.actions::saveFavorite,

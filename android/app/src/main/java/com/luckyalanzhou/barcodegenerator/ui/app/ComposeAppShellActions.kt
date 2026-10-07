@@ -114,8 +114,10 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun clearHistory() = this@composeAppShellActions.confirmClearCompose(false)
 
     override fun editHistory(batch: List<CodeItem>) {
-        if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
-        else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
+        window.decorView.post {
+            if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
+            else showHistoryBatchPickerCompose(batch)
+        }
     }
 
     override fun editFavorite(group: FavoriteGroup) {
@@ -124,8 +126,12 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
             group = group,
             onLoaded = { content ->
                 resultsViewModel.prepareFavoriteGroupForEditing(content) { batch ->
-                    if (batch.size == 1) this@composeAppShellActions.showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
-                    else this@composeAppShellActions.showHistoryBatchPickerCompose(batch)
+                    window.decorView.post {
+                        if (!isFinishing && !isDestroyed) {
+                            if (batch.size == 1) showItemEditorCompose(batch.first(), barcodeItemViewModel::updateBarcodeItem)
+                            else showHistoryBatchPickerCompose(batch)
+                        }
+                    }
                 }
             },
             onNotice = this@composeAppShellActions::toast,
@@ -156,20 +162,19 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         resultState = resultsViewModel.resultUiState.value,
         dataState = favoritesViewModel.dataState.value,
         onSave = { itemIds, editingGroupId, targetGroupId, folder, name ->
-            val saved = favoritesViewModel.saveResultAsFavorite(
+            favoritesViewModel.saveResultAsFavorite(
                 itemIds,
                 editingGroupId,
                 targetGroupId,
                 folder,
                 name,
             )
-            if (saved) {
-                resultsViewModel.clearSelectedFavoriteGroup()
-                navigationViewModel.navigateTo(AppRoute.Favorites)
-            }
-            saved
         },
         onCreateFolder = favoritesViewModel::createFavoriteFolder,
+        onSaved = {
+            resultsViewModel.clearSelectedFavoriteGroup()
+            navigationViewModel.navigateTo(AppRoute.Favorites)
+        },
     )
     override fun shareResult() = this@composeAppShellActions.shareResultPage()
     override fun saveResult() = this@composeAppShellActions.saveResultPage()
