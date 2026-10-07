@@ -219,8 +219,9 @@ internal fun FavoritesContent(
     val rowsForDisplay = displayedRows ?: rows
 
     LaunchedEffect(favoritesState.isReady, rows) {
-        if (favoritesState.isReady && rows != null && !listPositionRestored) {
-            val lastAvailableIndex = rows!!.lastIndex.coerceAtLeast(0)
+        val targetRows = rows ?: return@LaunchedEffect
+        if (favoritesState.isReady && !listPositionRestored) {
+            val lastAvailableIndex = targetRows.lastIndex.coerceAtLeast(0)
             val targetIndex = savedListPosition.first.coerceIn(0, lastAvailableIndex)
             listState.scrollToItem(targetIndex, savedListPosition.second)
             listPositionRestored = true
@@ -231,7 +232,8 @@ internal fun FavoritesContent(
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
             .distinctUntilChanged()
             .collect { lastVisible ->
-                if (rows != null && lastVisible >= rows!!.size - 5) onLoadMoreGroups(normalizedQuery)
+                val currentRows = rows ?: return@collect
+                if (lastVisible >= currentRows.size - 5) onLoadMoreGroups(normalizedQuery)
             }
     }
 

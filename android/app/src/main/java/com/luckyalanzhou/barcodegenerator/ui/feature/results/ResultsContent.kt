@@ -158,7 +158,8 @@ internal fun ResultsContent(
     }
     }
 
-    if (preparedRows?.size != items.size) {
+    val prepared = preparedRows
+    if (prepared == null || prepared.size != items.size) {
         Column(
             Modifier.fillMaxWidth().statusBarsPadding().padding(top = dimensions.pageTopPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -195,10 +196,11 @@ internal fun ResultsContent(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                Image(preparedRows!![index].asImageBitmap(), resultImageLabel(item, settings.style.showFormat),
+                val bitmap = prepared.getOrNull(index)
+                if (bitmap != null) Image(bitmap.asImageBitmap(), resultImageLabel(item, settings.style.showFormat),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-                        .aspectRatio(preparedRows!![index].width.toFloat() / preparedRows!![index].height))
+                        .aspectRatio(bitmap.width.toFloat() / bitmap.height))
             }
         }
         Box(
