@@ -200,7 +200,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
+                        .then(if (currentRoute == AppRoute.Results) Modifier else Modifier.statusBarsPadding())
                         .navigationBarsPadding()
                         .padding(
                             top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,

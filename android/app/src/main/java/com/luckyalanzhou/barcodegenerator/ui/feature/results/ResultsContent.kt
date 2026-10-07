@@ -36,13 +36,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.SideEffect
@@ -50,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -86,12 +96,13 @@ internal fun ResultsContent(
     val items = resultState.items
     val density = LocalDensity.current.density
     val fontScale = LocalDensity.current.fontScale
+    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val rowWidth = with(LocalDensity.current) { (maxWidth - 24.dp).roundToPx().coerceAtLeast(1) }
     SideEffect { onImageWidthChanged(rowWidth) }
     val isFavorite = resultState.hasSavedFavoriteFile()
 
     if (items.isEmpty()) {
-        Column(Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("生成结果", color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
             Text(
                 when {
@@ -142,7 +153,7 @@ internal fun ResultsContent(
 
     if (preparedRows?.size != items.size) {
         Column(
-            Modifier.fillMaxWidth().padding(top = dimensions.pageTopPadding),
+            Modifier.fillMaxWidth().statusBarsPadding().padding(top = dimensions.pageTopPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -162,18 +173,17 @@ internal fun ResultsContent(
         return@BoxWithConstraints
     }
 
-    Column(Modifier.fillMaxSize().padding(top = dimensions.pageTopPadding)) {
-        ResultToolbar(
-            exportAction = exportAction,
-            isFavorite = isFavorite,
-            onEdit = onEdit,
-            onSaveFavorite = onSaveFavorite,
-            onShare = onShare,
-            onSave = onSave,
-        )
+    val backdrop = LocalGlassBackdrop.current ?: rememberGlassBackdrop()
+    val toolbarInitialHeightPx = with(LocalDensity.current) { 72.dp.roundToPx() }
+    var toolbarSize by remember(toolbarInitialHeightPx) {
+        androidx.compose.runtime.mutableStateOf(IntSize(0, toolbarInitialHeightPx))
+    }
+    val toolbarHeight = with(LocalDensity.current) { toolbarSize.height.toDp() }
+    CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+    Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxSize().recordGlassBackdrop(backdrop),
+            contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(settings.style.margin.coerceIn(0, 10).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -184,8 +194,22 @@ internal fun ResultsContent(
                         .aspectRatio(preparedRows!![index].width.toFloat() / preparedRows!![index].height))
             }
         }
+        Box(
+            Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(top = statusBarInset)
+                .onSizeChanged { toolbarSize = it },
+        ) {
+            ResultToolbar(
+                exportAction = exportAction,
+                isFavorite = isFavorite,
+                onEdit = onEdit,
+                onSaveFavorite = onSaveFavorite,
+                onShare = onShare,
+                onSave = onSave,
+            )
+        }
     }
     }
+}
 }
 
 // Grow labels with the system font scale, but keep each two-action group usable on a phone.
@@ -231,16 +255,30 @@ internal fun ResultUiState.hasSavedFavoriteFile(): Boolean =
 private fun ResultAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit,
     enabled: Boolean = true, busy: Boolean = false, actionWidth: androidx.compose.ui.unit.Dp = 64.dp) {
     val interaction = remember { MutableInteractionSource() }
+    val colors = LocalAppColorScheme.current
     val contentTint = if (enabled || busy) tint else LocalAppColorScheme.current.text.disabled
-    Column(
-        Modifier.width(actionWidth).heightIn(min = 48.dp).iosPressFeedback(interaction)
+    Box(
+        Modifier.width(actionWidth).heightIn(min = 56.dp).iosPressFeedback(interaction)
             .clip(RoundedCornerShape(14.dp))
-            .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .clickable(enabled = enabled, interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(25.dp).height(27.dp), color = contentTint, strokeWidth = 2.dp)
-        else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(25.dp).height(27.dp))
-        Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
+        GlassBackdropSurface(
+            modifier = Modifier.matchParentSize(),
+            color = colors.surfaces.background,
+            opacity = if (colors.surfaces.background.luminance() < .35f) .38f else .24f,
+            cornerDp = 14f,
+            blurDp = 1.5f,
+            refractionDp = { 1.8f },
+            drawFallback = true,
+        )
+        Column(
+            Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.width(25.dp).height(27.dp), color = contentTint, strokeWidth = 2.dp)
+            else Icon(icon, contentDescription = null, tint = contentTint, modifier = Modifier.width(25.dp).height(27.dp))
+            Text(label, color = contentTint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp))
+        }
     }
 }
