@@ -260,6 +260,28 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
             AppRoute.LanShare -> {
                 val viewModel = dependencies.lanShareViewModel
                 val lanState by viewModel.uiState.collectAsStateWithLifecycle()
+                val lanContentState = remember(lanState) {
+                    LanShareContentState(
+                        session = lanState.session,
+                        isHost = lanState.isHost,
+                        qrVisible = lanState.qrVisible,
+                        browserConnected = lanState.browserConnected,
+                        files = lanState.files,
+                        uploadingFiles = lanState.uploadingFiles.map { upload ->
+                            LanShareUploadingContent(
+                                id = upload.id,
+                                name = upload.name,
+                                size = upload.size,
+                                uploadedBytes = upload.uploadedBytes,
+                                startedAt = upload.startedAt,
+                            )
+                        },
+                        messages = lanState.messages,
+                        ownFileIds = lanState.ownFileIds,
+                        previewFileIds = lanState.previewFileIds,
+                        pendingUploadName = lanState.pendingUploadName,
+                    )
+                }
                 var clearInputGeneration by remember { mutableIntStateOf(0) }
                 LaunchedEffect(viewModel) {
                     viewModel.events.collect { event ->
@@ -273,7 +295,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     }
                 }
                 LanShareScreen(
-                    lanState = lanState,
+                    lanState = lanContentState,
                     dark = dark,
                     clearInputGeneration = clearInputGeneration,
                     onOpenCamera = dependencies.actions::openLanShareCamera,

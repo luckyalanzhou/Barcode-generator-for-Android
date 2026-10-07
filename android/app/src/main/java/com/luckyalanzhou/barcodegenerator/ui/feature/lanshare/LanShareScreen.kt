@@ -8,12 +8,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import android.graphics.Bitmap
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 
 /** Stateless feature screen: renders state and reports user actions through callbacks. */
 @Composable
 internal fun LanShareScreen(
-    lanState: LanShareUiState,
+    lanState: LanShareContentState,
     dark: Boolean,
     clearInputGeneration: Int,
     onOpenCamera: () -> Unit,

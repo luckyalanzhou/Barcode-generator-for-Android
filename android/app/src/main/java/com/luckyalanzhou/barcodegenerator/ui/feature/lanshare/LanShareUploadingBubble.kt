@@ -28,11 +28,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.heightIn
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUploadingFile
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 
 @Composable
-internal fun LanShareUploadingBubble(upload: LanShareUploadingFile, onCancel: () -> Unit) {
+internal fun LanShareUploadingBubble(upload: LanShareUploadingContent, onCancel: () -> Unit) {
     val colors = LocalAppColorScheme.current
     val shape = RoundedCornerShape(18.dp)
     val progress = (upload.progressPercent / 100f).coerceIn(0f, 1f)

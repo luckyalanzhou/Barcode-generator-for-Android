@@ -52,10 +52,7 @@ data class LanShareUploadingFile(
     val size: Long,
     val uploadedBytes: Long,
     val startedAt: Long,
-) {
-    val progressPercent: Int
-        get() = if (size <= 0L) 0 else ((uploadedBytes.coerceIn(0L, size) * 100L) / size).toInt()
-}
+)
 
 data class LanShareUiState(
     val session: LanShareSession? = null,

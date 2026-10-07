@@ -4,8 +4,6 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUploadingFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 
@@ -86,7 +84,7 @@ private sealed interface LanShareTimelineEntry {
         override val timestamp: Long get() = message.createdAt
     }
 
-    data class UploadEntry(val upload: LanShareUploadingFile) : LanShareTimelineEntry {
+    data class UploadEntry(val upload: LanShareUploadingContent) : LanShareTimelineEntry {
         override val key: String get() = "upload:${upload.id}"
         override val timestamp: Long get() = upload.startedAt
     }
@@ -94,7 +92,7 @@ private sealed interface LanShareTimelineEntry {
 
 @Composable
 internal fun LanShareContent(
-    lanState: LanShareUiState,
+    lanState: LanShareContentState,
     message: String,
     dark: Boolean,
     onMessageChange: (String) -> Unit,
@@ -174,7 +172,7 @@ internal fun LanShareContent(
                     is LanShareTimelineEntry.FileEntry -> {
                         val file = entry.file
                         LanShareMessageBubble(
-                            state = lanState,
+                            ownFileIds = lanState.ownFileIds,
                             file = file,
                             previewReady = file.id in lanState.previewFileIds,
                             loadPreview = onLoadImagePreview,

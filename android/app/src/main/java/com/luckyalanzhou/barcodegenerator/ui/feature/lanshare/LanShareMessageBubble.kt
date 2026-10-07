@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
-import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareUiState
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -43,7 +42,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun LanShareMessageBubble(
-    state: LanShareUiState,
+    ownFileIds: Set<String>,
     file: LanShareFile,
     previewReady: Boolean,
     loadPreview: suspend (LanShareFile) -> Bitmap?,
@@ -56,7 +55,7 @@ internal fun LanShareMessageBubble(
 ) {
     val themeColors = LocalAppColorScheme.current
     val downloadInteraction = remember(file.id) { MutableInteractionSource() }
-    val mine = file.id in state.ownFileIds
+    val mine = file.id in ownFileIds
     val previewState = produceState<Bitmap?>(null, file.id, file.modifiedAt, previewReady) {
         if (isLanShareImage(file.name, file.mimeType)) value = loadPreview(file)
     }
