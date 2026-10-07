@@ -215,24 +215,13 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val scope = rememberCoroutineScope()
                 SettingsContent(
                     checkingForUpdates = update.checking,
-                    settings = settings,
+                    settings = SettingsContentState(style = settings.style, ocrMask = settings.ocrMask),
                     dark = dark,
-                    onPersist = { next ->
+                    onStyleChange = { next ->
                         val viewModel = dependencies.settingsViewModel
                         val currentStyle = viewModel.style
-                        val schemeChanged = currentStyle.colorScheme != next.scheme
-                        viewModel.updateStyle(
-                            currentStyle.copy(
-                                textSize = next.textSize,
-                                barHeight = next.barHeight.toInt(),
-                                barWidth = next.barWidth,
-                                margin = next.margin.toInt(),
-                                showFormat = next.showFormat,
-                                colorScheme = next.scheme,
-                                reduceMotion = next.style.reduceMotion,
-                                enhanceContrast = next.style.enhanceContrast,
-                            ),
-                        )
+                        val schemeChanged = currentStyle.colorScheme != next.colorScheme
+                        viewModel.updateStyle(next)
                         val saveJob = viewModel.save()
                         if (schemeChanged) scope.launch {
                             saveJob.join()

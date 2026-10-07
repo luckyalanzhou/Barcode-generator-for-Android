@@ -4,8 +4,8 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
-import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsUiState
 import com.luckyalanzhou.barcodegenerator.BuildConfig
+import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
@@ -69,9 +69,9 @@ import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 @Composable
 internal fun SettingsContent(
     checkingForUpdates: Boolean,
-    settings: SettingsUiState,
+    settings: SettingsContentState,
     dark: Boolean,
-    onPersist: (SettingsUiState) -> Unit,
+    onStyleChange: (StyleSettings) -> Unit,
     onOcrMaskChange: (Int) -> Unit,
     onEnterLanShare: () -> Unit,
     onShareDebugLog: () -> Unit,
@@ -98,7 +98,7 @@ internal fun SettingsContent(
         }
     }
 
-    fun persist(next: SettingsUiState = settings) = onPersist(next)
+    fun persist(next: StyleSettings = settings.style) = onStyleChange(next)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -112,7 +112,7 @@ internal fun SettingsContent(
                     SettingsRow("外观", colors.settingsText.primary) {
                         Box {
                             SettingsDropdownButton(
-                                text = when (settings.scheme) {
+                                text = when (settings.style.colorScheme) {
                                     "dark" -> "深色"
                                     "light" -> "浅色"
                                     else -> "跟随系统"
@@ -133,10 +133,10 @@ internal fun SettingsContent(
                             ) {
                                 listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
-                                    val selectedScheme = settings.scheme.takeIf { it == "light" || it == "dark" } ?: "system"
+                                    val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
                                     SingleChoiceMenuItem(label, value == selectedScheme) {
                                         schemeMenu = false
-                                        persist(settings.copy(scheme = value))
+                                        persist(settings.style.copy(colorScheme = value))
                                     }
                                 }
                             }
@@ -154,29 +154,29 @@ internal fun SettingsContent(
 
         item("settings-barcode") {
             SettingsCard(colors.surfaces.card, dark) {
-                    SettingsSliderRow("文字大小", settings.textSize, 10f..24f, "${settings.textSize.toInt()} sp", colors.settingsText.primary) {
-                        persist(settings.copy(textSize = it))
+                    SettingsSliderRow("文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary) {
+                        persist(settings.style.copy(textSize = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码高度", settings.barHeight, 30f..80f, "${settings.barHeight.toInt()} dp", colors.settingsText.primary) {
-                        persist(settings.copy(barHeight = it))
+                    SettingsSliderRow("条码高度", settings.style.barHeight.toFloat(), 30f..80f, "${settings.style.barHeight} dp", colors.settingsText.primary) {
+                        persist(settings.style.copy(barHeight = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码宽度", settings.barWidth, 120f..300f, "${settings.barWidth.toInt()} dp", colors.settingsText.primary) {
-                        persist(settings.copy(barWidth = it))
+                    SettingsSliderRow("条码宽度", settings.style.barWidth, 120f..300f, "${settings.style.barWidth.toInt()} dp", colors.settingsText.primary) {
+                        persist(settings.style.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码间距", settings.margin, 0f..10f, "${settings.margin.toInt()} dp", colors.settingsText.primary) {
-                        persist(settings.copy(margin = it))
+                    SettingsSliderRow("条码间距", settings.style.margin.toFloat(), 0f..10f, "${settings.style.margin} dp", colors.settingsText.primary) {
+                        persist(settings.style.copy(margin = it.toInt()))
                     }
                     SettingsDivider(dark)
                     SettingsRow("显示条码格式", colors.settingsText.primary) {
                         SettingsSwitchTarget(
                             title = "显示条码格式",
-                            checked = settings.showFormat,
+                            checked = settings.style.showFormat,
                             modifier = Modifier.padding(end = 8.dp),
                             onCheckedChange = { next ->
-                                persist(settings.copy(showFormat = next))
+                                persist(settings.style.copy(showFormat = next))
                             },
                         )
                     }
@@ -240,11 +240,11 @@ internal fun SettingsContent(
                     }
                     SettingsDivider(dark)
                     SettingsActionRow("恢复默认设置", "恢复", colors.settingsText.primary, colors.controls.button) {
-                        val defaults = settings.copy(
+                        val defaults = settings.style.copy(
                             textSize = 14f,
-                            barHeight = 55f,
+                            barHeight = 55,
                             barWidth = 220f,
-                            margin = 4f,
+                            margin = 4,
                             showFormat = false,
                         )
                         persist(defaults)
@@ -281,7 +281,7 @@ internal fun SettingsContent(
         DisplayEffectsSettingsDialog(
             style = settings.style,
             dark = dark,
-            onStyleChange = { persist(settings.copy(style = it)) },
+            onStyleChange = ::persist,
             onDismiss = { displayEffectsOpen = false },
         )
     }
