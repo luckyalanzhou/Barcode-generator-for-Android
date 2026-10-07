@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
+package com.luckyalanzhou.barcodegenerator.ui.app.lanshare
 
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.showIos26NoticeDialogCompose
@@ -16,7 +16,6 @@ import android.provider.OpenableColumns
 import android.graphics.drawable.GradientDrawable
 import androidx.core.content.FileProvider
 import java.io.File
-import java.util.Locale
 
 /**
  * 局域网分享的业务和系统桥接。
@@ -157,10 +156,6 @@ internal fun MainActivity.joinLanShareSession(value: String) {
     lanShareViewModel.joinSessionFromAddress(value)
 }
 
-internal fun MainActivity.showLanShareQrDialog() {
-    showLanShareQrDialogCompose()
-}
-
 internal fun MainActivity.closeLanShare() {
     lanShareViewModel.closeSession()
     File(cacheDir, "lan-share-preview").listFiles().orEmpty().forEach { it.delete() }
@@ -182,9 +177,3 @@ internal fun MainActivity.saveLanShareFile(file: LanShareFile) {
     )
 }
 
-internal fun formatLanShareSize(bytes: Long): String =
-    if (bytes >= 1024L * 1024L) {
-        String.format(Locale.getDefault(), "%.1f MB", bytes / 1024.0 / 1024.0)
-    } else {
-        "${bytes / 1024} KB"
-    }

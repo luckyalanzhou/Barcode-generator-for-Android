@@ -20,6 +20,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.showItemEditorCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
+import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.*
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.shareDebugLog
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 

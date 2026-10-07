@@ -9,7 +9,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
-import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.closeLanShare
+import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.closeLanShare
 import com.luckyalanzhou.barcodegenerator.ui.app.composeAppShellActions
 import com.luckyalanzhou.barcodegenerator.ui.app.showIos26NoticeDialog
 import com.luckyalanzhou.barcodegenerator.ui.app.toast
