@@ -51,18 +51,22 @@ internal fun MainActivity.openCamera(requestCode: Int) {
 
 internal fun MainActivity.launchCamera(requestCode: Int) {
         val activity = this
-        val photoFile = File.createTempFile("barcode_camera_", ".jpg", cacheDir)
-        val photoUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photoFile)
-        cameraOcrViewModel.setCameraOutput(photoUri, photoFile)
-        val intent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
-            putExtra(android.provider.MediaStore.EXTRA_OUTPUT, photoUri)
-            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+        var photoFile: File? = null
         try {
-            launchExternalActivity(intent, requestCode)
+            photoFile = File.createTempFile("barcode_camera_", ".jpg", cacheDir)
+            val photoUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photoFile)
+            cameraOcrViewModel.setCameraOutput(photoUri, photoFile)
+            val intent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                putExtra(android.provider.MediaStore.EXTRA_OUTPUT, photoUri)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            if (!launchExternalActivity(intent, requestCode)) {
+                cameraOcrViewModel.clearCameraOutput()
+                photoFile?.delete()
+            }
         } catch (_: Exception) {
             cameraOcrViewModel.clearCameraOutput()
-            photoFile.delete()
+            photoFile?.delete()
             toast("当前设备没有可用的相机")
         }
     }

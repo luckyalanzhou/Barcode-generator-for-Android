@@ -298,9 +298,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    internal fun launchExternalActivity(intent: Intent, requestCode: Int) {
+    internal fun launchExternalActivity(intent: Intent, requestCode: Int): Boolean {
         cameraOcrViewModel.beginExternalActivityRequest(requestCode)
-        externalActivityLauncher.launch(intent)
+        return runCatching {
+            externalActivityLauncher.launch(intent)
+            true
+        }.getOrElse {
+            cameraOcrViewModel.consumeExternalActivityRequest()
+            toast("无法打开系统选择器")
+            false
+        }
     }
 
     private fun handleExternalActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

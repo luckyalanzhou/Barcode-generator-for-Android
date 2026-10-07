@@ -52,22 +52,26 @@ internal fun MainActivity.openLanShareCamera() {
         requestAppPermissions(arrayOf(Manifest.permission.CAMERA), MainActivity.REQUEST_CAMERA_PERMISSION)
         return
     }
-    val photoFile = File.createTempFile("lan_share_photo_", ".jpg", cacheDir)
-    val photoUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photoFile)
-    cameraOcrViewModel.setCameraOutput(photoUri, photoFile)
-    // 部分系统相机会忽略 EXTRA_OUTPUT 并直接写入系统图库；记录启动时刻，
-    // 回退查找时只允许本次拍摄产生的媒体，避免误取上一张旧照片。
-    cameraOcrViewModel.markCameraCaptureStarted()
-    val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-        putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        clipData = android.content.ClipData.newRawUri("output", photoUri)
-    }
+    var photoFile: File? = null
     try {
-        launchExternalActivity(intent, MainActivity.REQUEST_LAN_SHARE_CAPTURE)
+        photoFile = File.createTempFile("lan_share_photo_", ".jpg", cacheDir)
+        val photoUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photoFile)
+        cameraOcrViewModel.setCameraOutput(photoUri, photoFile)
+        // 部分系统相机会忽略 EXTRA_OUTPUT 并直接写入系统图库；记录启动时刻，
+        // 回退查找时只允许本次拍摄产生的媒体，避免误取上一张旧照片。
+        cameraOcrViewModel.markCameraCaptureStarted()
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            clipData = android.content.ClipData.newRawUri("output", photoUri)
+        }
+        if (!launchExternalActivity(intent, MainActivity.REQUEST_LAN_SHARE_CAPTURE)) {
+            cameraOcrViewModel.clearCameraOutput()
+            photoFile?.delete()
+        }
     } catch (_: Exception) {
         cameraOcrViewModel.clearCameraOutput()
-        photoFile.delete()
+        photoFile?.delete()
         toast("当前设备没有可用的系统相机")
     }
 }
