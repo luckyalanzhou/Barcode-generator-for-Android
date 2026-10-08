@@ -11,7 +11,7 @@ import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.data.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.data.SettingsStore
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
-import com.luckyalanzhou.barcodegenerator.presentation.shared.LocalBarcodeImageCache
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareBitmapPreviewDecoder
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkValidationGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidUpdateCatalogGateway
@@ -77,7 +77,12 @@ object AppModule {
     @Provides
     @Singleton
     internal fun provideBarcodeImageCache(@ApplicationContext context: Context): BarcodeImageCache =
-        LocalBarcodeImageCache(LocalBarcodeFileStore(context))
+        LocalBarcodeImageCacheAdapter(LocalBarcodeFileStore(context))
+
+    @Provides
+    @Singleton
+    internal fun provideLanShareBitmapPreviewDecoder(): LanShareBitmapPreviewDecoder =
+        LanShareBitmapPreviewDecoderAdapter()
 
     @Provides
     @Singleton

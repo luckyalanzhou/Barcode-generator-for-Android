@@ -42,6 +42,16 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
+    fun `presentation cannot depend on data implementations`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            presentation.doesNotDependOn(data)
+            listOf(presentation, data).include()
+        }
+    }
+
+    @Test
     fun `history feature UI cannot depend on presentation or app composition`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val historyFeature = Layer("HistoryFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.history..")

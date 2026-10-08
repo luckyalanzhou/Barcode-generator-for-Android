@@ -13,8 +13,6 @@ import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_MAX_SESSION_MESSAGES
 import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
-import com.luckyalanzhou.barcodegenerator.data.preview.LanShareImagePreviewDecoder
-import com.luckyalanzhou.barcodegenerator.data.preview.LanShareTiffPreviewDecoder
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -84,6 +82,7 @@ sealed interface LanShareEvent {
 @HiltViewModel
 class LanShareViewModel @Inject constructor(
     private val lanShareGateway: LanShareGateway,
+    private val previewDecoder: LanShareBitmapPreviewDecoder,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LanShareUiState())
@@ -244,7 +243,7 @@ class LanShareViewModel @Inject constructor(
     suspend fun loadImagePreview(file: LanShareFile): Bitmap? = loadImagePreview(file, 768)
 
     suspend fun loadFullImagePreview(file: LanShareFile): Bitmap? =
-        loadImagePreview(file, LanShareImagePreviewDecoder.MAX_DECODE_EDGE)
+        loadImagePreview(file, previewDecoder.maxDecodeEdge)
 
     private suspend fun loadImagePreview(file: LanShareFile, maxEdge: Int): Bitmap? {
         if (!isLanShareImage(file.name, file.mimeType)) return null
@@ -257,11 +256,11 @@ class LanShareViewModel @Inject constructor(
             val localFile = lanShareGateway.localFile(file.id)
             val source = (localFile ?: previewFilesById[file.id])?.takeIf(java.io.File::isFile)
                 ?: return@withContext null
-            val bitmap = if (localFile != null && isLanShareTiff(file.name, file.mimeType)) {
-                LanShareTiffPreviewDecoder.decode(source, maxEdge)
-            } else {
-                LanShareImagePreviewDecoder.decode(source, maxEdge)
-            }
+            val bitmap = previewDecoder.decode(
+                file = source,
+                maxEdge = maxEdge,
+                isTiff = localFile != null && isLanShareTiff(file.name, file.mimeType),
+            )
             if (refreshGuard.isCurrent(session, ticket)) {
                 bitmap?.let { decodedPreviews.put(key, it) }
                 bitmap
