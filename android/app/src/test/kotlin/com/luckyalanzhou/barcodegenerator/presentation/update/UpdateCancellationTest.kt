@@ -1,13 +1,46 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
 import com.luckyalanzhou.barcodegenerator.domain.*
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 class UpdateCancellationTest {
+    @Test
+    fun completedDownloadEventIsQueuedUntilTheUiCollectsIt() = runBlocking {
+        val gateway = object : ApkDownloadGateway {
+            override fun cancel() = Unit
+            override suspend fun download(
+                apkUrl: String,
+                expectedSize: Long?,
+                expectedSha256: String?,
+                onProgress: (Int, Boolean, String) -> Unit,
+            ) = File("ready.apk")
+        }
+        val coordinator = UpdateCoordinator(
+            gateway,
+            object : UpdateCatalogGateway { override suspend fun check() = UpdateLookupResult.UpToDate },
+            object : ApkValidationGateway { override fun validate(file: File) = Unit },
+            AppLogger { _, _, _ -> },
+        )
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        try {
+            coordinator.startDownload(scope, "https://example.test/update.apk", null, null)
+
+            assertFalse(coordinator.uiState.value.downloadRunning)
+            assertEquals(
+                UpdateEvent.DownloadReady(File("ready.apk").absolutePath),
+                withTimeout(1000) { coordinator.events.first() },
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
     @Test
     fun cancelledRequestCannotPublishProgressOverNewDownload() = runBlocking {
         val firstStarted = CompletableDeferred<Unit>()

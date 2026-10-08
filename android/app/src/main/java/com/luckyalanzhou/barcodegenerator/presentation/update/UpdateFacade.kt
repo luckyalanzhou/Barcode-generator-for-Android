@@ -7,7 +7,7 @@ import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /** 更新功能的组合边界；UI 通过 UpdateViewModel 访问它。 */
@@ -26,7 +26,7 @@ internal class UpdateFacade(
 
     val uiState: StateFlow<UpdateUiState> = coordinator.uiState
     val downloadUiState: StateFlow<UpdateDownloadUiState> = coordinator.downloadUiState
-    val events: SharedFlow<UpdateEvent> = coordinator.events
+    val events: Flow<UpdateEvent> = coordinator.events
 
     fun setStartupCheckStarted(value: Boolean) = coordinator.setStartupCheckStarted(value)
     suspend fun checkForUpdates(): UpdateCheckResult = coordinator.checkForUpdates()

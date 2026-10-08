@@ -11,11 +11,11 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,8 +34,8 @@ class UpdateCoordinator(
     private val _downloadUiState = MutableStateFlow(UpdateDownloadUiState())
     val downloadUiState: StateFlow<UpdateDownloadUiState> = _downloadUiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<UpdateEvent>(extraBufferCapacity = 4)
-    val events: SharedFlow<UpdateEvent> = _events.asSharedFlow()
+    private val _events = Channel<UpdateEvent>(Channel.BUFFERED)
+    val events: Flow<UpdateEvent> = _events.receiveAsFlow()
 
     private val downloadGeneration = AtomicLong(0L)
     private var downloadJob: Job? = null
@@ -132,13 +132,13 @@ class UpdateCoordinator(
                     file.delete()
                     return@launch
                 }
-                _events.emit(UpdateEvent.DownloadReady(file.absolutePath))
+                _events.send(UpdateEvent.DownloadReady(file.absolutePath))
             } catch (_: CancellationException) {
                 // 用户取消下载时不显示失败提示。
             } catch (error: Exception) {
                 if (downloadGeneration.get() != generation) return@launch
                 logger.record("update", "download failed", error)
-                _events.emit(
+                _events.send(
                     UpdateEvent.DownloadFailed(
                         apkUrl = apkUrl,
                         expectedSize = expectedSize,

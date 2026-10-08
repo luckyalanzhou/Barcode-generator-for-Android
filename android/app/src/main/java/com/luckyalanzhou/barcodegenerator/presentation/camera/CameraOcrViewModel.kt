@@ -12,10 +12,10 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.CameraOcrFacade
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -27,8 +27,8 @@ class CameraOcrViewModel @Inject constructor(
     private val cameraOcr = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway, savedState)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcr.cameraState
 
-    private val _events = MutableSharedFlow<CameraOcrEvent>(extraBufferCapacity = 4)
-    val events: SharedFlow<CameraOcrEvent> = _events.asSharedFlow()
+    private val _events = Channel<CameraOcrEvent>(Channel.BUFFERED)
+    val events: Flow<CameraOcrEvent> = _events.receiveAsFlow()
 
     fun prepareCameraRequest(requestCode: Int) = cameraOcr.prepareCameraRequest(requestCode)
     fun setCameraOutput(uri: Uri?, file: File?) = cameraOcr.setCameraOutput(uri, file)
@@ -45,10 +45,10 @@ class CameraOcrViewModel @Inject constructor(
             try {
                 val lines = cameraOcr.recognizeText(bitmap, confusionMask)
                 if (lines.isEmpty()) {
-                    _events.emit(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
+                    _events.send(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
                 } else {
-                    _events.emit(CameraOcrEvent.RecognizedText(lines))
-                    _events.emit(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
+                    _events.send(CameraOcrEvent.RecognizedText(lines))
+                    _events.send(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
                 }
             } finally {
                 if (!bitmap.isRecycled) bitmap.recycle()

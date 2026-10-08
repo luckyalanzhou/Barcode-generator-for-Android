@@ -13,7 +13,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.UpdateUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /** 更新页状态与操作的所有者，独立于条码、历史和收藏状态。 */
@@ -33,7 +33,7 @@ class UpdateViewModel @Inject constructor(
 
     val uiState: StateFlow<UpdateUiState> = updateFacade.uiState
     val downloadUiState: StateFlow<UpdateDownloadUiState> = updateFacade.downloadUiState
-    val events: SharedFlow<UpdateEvent> = updateFacade.events
+    val events: Flow<UpdateEvent> = updateFacade.events
 
     fun setStartupCheckStarted(value: Boolean) = updateFacade.setStartupCheckStarted(value)
     suspend fun checkForUpdates(): UpdateCheckResult = updateFacade.checkForUpdates()

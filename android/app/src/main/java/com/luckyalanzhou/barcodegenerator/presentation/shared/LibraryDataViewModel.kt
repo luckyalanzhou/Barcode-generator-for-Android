@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 /** Owns application-wide startup loading and recovery from failed library writes. */
@@ -20,14 +20,14 @@ class LibraryDataViewModel @Inject constructor(
 ) : ViewModel() {
     private var startupFallbackNoticeConsumed = false
 
-    private val _persistenceFailures = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
-    val persistenceFailures: SharedFlow<Unit> = _persistenceFailures.asSharedFlow()
+    private val _persistenceFailures = Channel<Unit>(Channel.BUFFERED)
+    val persistenceFailures: Flow<Unit> = _persistenceFailures.receiveAsFlow()
 
     init {
         viewModelScope.launch {
             persistence.writeFailures.collect { error ->
                 logger.record("persistence", "write failed", error)
-                _persistenceFailures.emit(Unit)
+                _persistenceFailures.send(Unit)
                 // Restore the durable shared snapshot after any feature's optimistic write fails.
                 runCatching { coordinator.loadPersistedData() }
                     .onFailure { reloadError ->
