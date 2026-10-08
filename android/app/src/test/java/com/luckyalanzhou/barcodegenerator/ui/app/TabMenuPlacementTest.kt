@@ -1,0 +1,103 @@
+package com.luckyalanzhou.barcodegenerator.ui.app
+
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
+import org.junit.Assert.*
+import org.junit.Test
+
+class TabMenuPlacementTest {
+    @Test fun rowMenuAlignsToSourceLeftRatherThanTitleCenter() {
+        val row = Rect(20f, 200f, 380f, 250f)
+        val placement = rowMenuPlacement(row, Offset.Zero, IntSize(200, 160),
+            400f, 24f, 12f, 8f, 10f, false)
+        assertEquals(20f, placement.left, 0f)
+        assertEquals(0f, placement.pivotX, 0f)
+        assertEquals(row.bottom + 8f, placement.top - 10f, 0f)
+    }
+
+    @Test fun lowerSourceLiftsEnoughToKeepMenuBelowAndOnScreen() {
+        val row = Rect(20f, 650f, 380f, 700f)
+        val lifted = liftedRowMenuAnchor(row, Offset.Zero, 800f, 24f, 24f, 8f, 200f)
+        assertTrue(lifted.top < row.top)
+        assertEquals(row.width, lifted.width, 0f)
+        assertTrue(lifted.bottom + 8f + 200f <= 768f)
+        assertTrue(lifted.top >= 32f)
+    }
+
+    @Test fun upperSourceStaysInPlaceAndOversizedMenuUsesFallback() {
+        val row = Rect(20f, 70f, 380f, 120f)
+        assertEquals(row, liftedRowMenuAnchor(row, Offset.Zero, 800f, 24f, 24f, 8f, 200f))
+        assertEquals(row, liftedRowMenuAnchor(row, Offset.Zero, 160f, 24f, 24f, 8f, 200f))
+    }
+
+    @Test fun titleMenuPrefersBelowEvenWhenBothSidesFitAndAboveIsLarger() {
+        val title = Rect(70f, 450f, 270f, 475f)
+        val space = contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f, 8f, 10f, 200f, false)
+        assertFalse(space.above)
+        assertTrue(space.height >= 200f)
+        val placement = tabMenuPlacement(title, Offset.Zero, IntSize(180, 200),
+            400f, 24f, 12f, 8f, 10f, space.above)
+        assertEquals(title.bottom + 8f, placement.top - 10f, 0f)
+    }
+
+    @Test fun titleMenuFallsBackAboveOnlyWhenBelowCannotFit() {
+        val title = Rect(70f, 560f, 270f, 585f)
+        assertFalse(contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f,
+            8f, 10f, 160f, false).above)
+        assertTrue(contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f,
+            8f, 10f, 200f, false).above)
+        assertTrue(contextMenuSpace(title, Offset.Zero, 800f, 24f, 24f,
+            8f, 10f, 160f, true).above)
+    }
+
+    @Test fun topRowOpensBelowAndBottomTabStaysAbove() {
+        val row = Rect(20f, 70f, 380f, 120f)
+        val space = contextMenuSpace(row, Offset.Zero, 800f, 24f, 24f, 8f, 10f, 200f, false)
+        assertFalse(space.above)
+        val placement = tabMenuPlacement(row, Offset.Zero, IntSize(180, 200), 400f, 24f, 12f, 8f, 10f, space.above)
+        assertEquals(128f, placement.top - 10f, 0f)
+        assertTrue(placement.top - 10f + 200f < 776f)
+        assertTrue(contextMenuSpace(Rect(20f, 700f, 80f, 760f), Offset.Zero,
+            800f, 24f, 24f, 8f, 10f, 200f, true).above)
+    }
+
+    @Test fun lowerRowCanUseSpaceAboveWithoutOverlappingStatusBar() {
+        val row = Rect(20f, 620f, 380f, 670f)
+        val space = contextMenuSpace(row, Offset.Zero, 800f, 24f, 24f, 8f, 10f, 200f, false)
+        assertTrue(space.above)
+        assertTrue(space.height >= 200f)
+    }
+
+    @Test fun usableSpaceAccountsForWindowOriginAndNavigationInset() {
+        val row = Rect(20f, 90f, 380f, 140f)
+        val space = contextMenuSpace(row, Offset(0f, 20f), 800f, 24f, 48f, 8f, 10f, 200f, false)
+        assertFalse(space.above)
+        assertEquals(606f, space.height, 0f)
+    }
+
+    @Test fun tinyWindowsNeverReportNegativeCapacity() {
+        val space = contextMenuSpace(Rect(0f, 20f, 60f, 70f), Offset.Zero,
+            80f, 24f, 48f, 8f, 10f, 200f, false)
+        assertTrue(space.height >= 0f)
+    }
+    @Test fun leftAndRightTabsStayOnScreenAndMenuTracksTheirCenters() {
+        for (x in listOf(20f, 120f, 220f, 320f)) {
+            val result = tabMenuPlacement(Rect(x, 700f, x + 60f, 760f), Offset.Zero,
+                IntSize(180, 140), 400f, 24f, 12f, 8f, 10f)
+            assertTrue(result.left >= 12f)
+            assertTrue(result.left + 180f <= 388f)
+            assertEquals(552f, result.top, 0f)
+            assertTrue(result.pivotX in 0f..1f)
+            assertEquals(x + 30f, result.anchorCenterX, 0f)
+        }
+    }
+
+    @Test fun windowOriginAndLiftAreIncludedInSafePlacement() {
+        val result = tabMenuPlacement(Rect(100f, 300f, 160f, 360f), Offset(10f, 20f),
+            IntSize(180, 300), 220f, 24f, 12f, 8f, 10f)
+        assertEquals(42f, result.top, 0f)
+        assertTrue(result.top - 10f >= 32f)
+        assertEquals(120f, result.anchorCenterX, 0f)
+    }
+}

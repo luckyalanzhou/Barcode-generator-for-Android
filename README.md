@@ -1,52 +1,62 @@
-# 条码生成器
+<div align="center">
 
-一款面向 Android 的本地条码生成工具，提供稳定的正式版使用体验。
+# 条码生成器 · Android
 
-> 当前正式 Release：`v1.0.0`<br>
-> 当前分支：`main`<br>
-> 正式包名：`com.luckyalanzhou.barcodegenerator`<br>
-> 最低 Android 版本：API 26
+<p>在 Android 上生成、识别和管理条码，也可与同一局域网内的浏览器互传文件。</p>
 
-## 正式版状态
+<p>
+  <a href="https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-v1.0.0"><strong>下载正式版 APK</strong></a>
+  &nbsp;·&nbsp;
+  <a href="android/ARCHITECTURE.md">架构</a>
+  &nbsp;·&nbsp;
+  <a href="android/DEVELOPMENT.md">开发与验证</a>
+  &nbsp;·&nbsp;
+  <a href="android/core/lan-share/PROTOCOL.md">通信协议</a>
+  &nbsp;·&nbsp;
+  <a href="CONTRIBUTING.md">贡献指南</a>
+</p>
 
-- 正式版以稳定性和兼容性为优先，面向日常使用。
-- 正式版使用正式包名和正式更新通道。
+<p>
+  <a href="https://github.com/luckyalanzhou/Barcode-generator-for-Android/actions/workflows/build-android-official.yml?query=branch%3Amain"><img alt="正式版构建工作流" src="https://img.shields.io/github/actions/workflow/status/luckyalanzhou/Barcode-generator-for-Android/build-android-official.yml?branch=main&label=Official%20build&logo=github"></a>
+  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white">
+</p>
+
+</div>
+
+## 项目简介
+
+项目使用 Kotlin、Jetpack Compose 和多模块结构，支持条码生成与识别、历史和收藏管理，以及手机与浏览器间的局域网文件传输。
 
 ## 功能
 
 - 生成 Code 128-B、QR Code、Code 39、EAN-13、EAN-8、UPC-A、ITF-14 和 Codabar。
-- 支持多行内容批量生成条码。
-- 支持相机/图片识别文字和条码内容。
-- 查看历史记录，重新生成、复制、分享和删除条码。
-- 收藏条码并使用文件夹整理、重命名、移动和删除收藏内容。
-- 支持收藏数据备份与恢复。
-- 支持通过局域网在手机和浏览器之间分享条码和文件。
+- 支持多行内容批量生成，以及通过相机或图片识别文字和条码。
+- 管理历史记录和收藏文件夹，支持收藏备份与恢复。
+- 通过局域网在手机和浏览器之间传输文字与文件。
 - 支持浅色/深色主题、结果页亮屏和应用内更新检查。
 
-## 下载正式版
+## 文档入口
 
-最新正式 Release：
+- **README**：项目入口和模块概览。
+- **[ARCHITECTURE](android/ARCHITECTURE.md)**：说明模块边界、依赖方向和架构约束。
+- **[DEVELOPMENT](android/DEVELOPMENT.md)**：说明本地环境、验证命令和构建流程。
+- **[PROTOCOL](android/core/lan-share/PROTOCOL.md)**：说明 App 与浏览器的局域网通信。
+- **[CONTRIBUTING](CONTRIBUTING.md)**：说明如何安全地修改和提交代码。
 
-<https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-v1.0.0>
+## 模块概览
 
-APK 文件名：`BarcodeGenerator1.0.0.apk`
+- `:app`：界面、应用流程和 Android 系统接入。
+- `:core:domain`：业务规则、数据定义和接口。
+- `:core:data`：本机数据保存与平台能力实现。
+- `:core:lan-share`：局域网服务、浏览器页面和文件传输。
+- `:architecture-tests`：检查模块依赖约束。
 
-应用包名：
+## 正式版
 
-```text
-com.luckyalanzhou.barcodegenerator
-```
+- 当前正式 Release：[`v1.0.0`](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-v1.0.0)
+- APK：`BarcodeGenerator1.0.0.apk`
+- 包名：`com.luckyalanzhou.barcodegenerator`
+- 最低系统：Android 8.0（API 26）
 
-## 项目结构
-
-```text
-android/
-└─ app/             # 正式版 Android 应用、界面和业务逻辑
-```
-
-正式版发布遵循稳定性优先原则：
-
-1. 发布经过验证的稳定版本。
-2. 保持正式包名、数据和更新通道稳定。
-
-问题反馈请附上应用版本、Android 版本、设备型号和复现步骤。
+正式版从 `main` 分支手动运行[正式版工作流](.github/workflows/build-android-official.yml)，并填写版本号和 `versionCode`。本地验证要求与工作流步骤见[开发与验证](android/DEVELOPMENT.md)。

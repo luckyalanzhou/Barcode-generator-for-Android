@@ -1,0 +1,231 @@
+package com.luckyalanzhou.barcodegenerator.architecture
+
+import com.lemonappdev.konsist.api.Konsist
+import com.lemonappdev.konsist.api.architecture.Layer
+import com.lemonappdev.konsist.api.architecture.KoArchitectureCreator.assertArchitecture
+import org.junit.Test
+
+class ArchitectureBoundaryTest {
+    @Test
+    fun `production package dependencies follow the architecture layers`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val domain = Layer("Domain", "com.luckyalanzhou.barcodegenerator.domain..")
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            val dependencyInjection = Layer("DependencyInjection", "com.luckyalanzhou.barcodegenerator.di..")
+            val icons = Layer("Icons", "com.luckyalanzhou.barcodegenerator.icons..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            val barcodeInfrastructure = Layer("BarcodeInfrastructure", "com.luckyalanzhou.barcodegenerator.infrastructure.barcode..")
+
+            domain.dependsOnNothing()
+            barcodeInfrastructure.dependsOn(domain, presentation)
+            listOf(data, dependencyInjection, icons, presentation, ui, barcodeInfrastructure).include()
+        }
+    }
+
+    @Test
+    fun `UI cannot import data implementations`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            ui.doesNotDependOn(data)
+            data.include()
+        }
+    }
+
+    @Test
+    fun `presentation cannot depend on UI`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            presentation.doesNotDependOn(ui)
+            ui.include()
+        }
+    }
+
+    @Test
+    fun `presentation cannot depend on data implementations`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            presentation.doesNotDependOn(data)
+            listOf(presentation, data).include()
+        }
+    }
+
+    @Test
+    fun `presentation and UI do not import ZXing directly`() {
+        val forbiddenImports = listOf(
+            Konsist.scopeFromPackage("com.luckyalanzhou.barcodegenerator.presentation.."),
+            Konsist.scopeFromPackage("com.luckyalanzhou.barcodegenerator.ui.."),
+        ).flatMap { scope ->
+            scope.files.filter { file -> file.hasImport { it.name.startsWith("com.google.zxing.") } }
+        }
+
+        org.junit.Assert.assertTrue(
+            "ZXing imports must stay in app infrastructure adapters: ${forbiddenImports.map { it.path }}",
+            forbiddenImports.isEmpty(),
+        )
+    }
+
+    @Test
+    fun `feature and shared UI packages do not import the Activity host`() {
+        val nonCompositionUiScopes = listOf(
+            "com.luckyalanzhou.barcodegenerator.ui.dialogs..",
+            "com.luckyalanzhou.barcodegenerator.ui.support..",
+            "com.luckyalanzhou.barcodegenerator.ui.component..",
+            "com.luckyalanzhou.barcodegenerator.ui.animation..",
+            "com.luckyalanzhou.barcodegenerator.ui.feature..",
+        )
+        val violations = nonCompositionUiScopes.flatMap { packagePattern ->
+            Konsist.scopeFromPackage(packagePattern).files.filter { file ->
+                file.hasImport { it.name == "com.luckyalanzhou.barcodegenerator.MainActivity" }
+            }
+        }
+
+        org.junit.Assert.assertTrue(
+            "Only ui.app composition bridges may depend on MainActivity: ${violations.map { it.path }}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
+    fun `history feature UI cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val historyFeature = Layer("HistoryFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.history..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            historyFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `shared UI animation specs cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val uiAnimation = Layer("UIAnimation", "com.luckyalanzhou.barcodegenerator.ui.animation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            uiAnimation.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
+    fun `long press menu contracts cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val menuContracts = Layer("MenuContracts", "com.luckyalanzhou.barcodegenerator.ui.component.menu..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            menuContracts.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
+    fun `result preview UI cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val resultPreview = Layer("ResultPreview", "com.luckyalanzhou.barcodegenerator.ui.feature.results.preview..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            resultPreview.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `shared glass components cannot depend on app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val glassComponents = Layer("GlassComponents", "com.luckyalanzhou.barcodegenerator.ui.component.glass..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            glassComponents.doesNotDependOn(appComposition)
+            appComposition.include()
+        }
+    }
+
+    @Test
+    fun `results feature cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val resultsFeature = Layer("ResultsFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.results..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            resultsFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `settings feature cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val settingsFeature = Layer("SettingsFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.settings..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            settingsFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `generate feature cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val generateFeature = Layer("GenerateFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.generate..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            generateFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `favorites feature UI cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val favoritesFeature = Layer("FavoritesFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.favorites..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            favoritesFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `LAN share feature UI cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val lanShareFeature = Layer("LanShareFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.lanshare..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            lanShareFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `editor feature UI cannot depend on presentation or app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val editorFeature = Layer("EditorFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.editor..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            editorFeature.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `all feature UI stays independent from presentation and app composition`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val featureUi = Layer("FeatureUI", "com.luckyalanzhou.barcodegenerator.ui.feature..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val appComposition = Layer("AppComposition", "com.luckyalanzhou.barcodegenerator.ui.app..")
+            featureUi.doesNotDependOn(presentation, appComposition)
+            listOf(presentation, appComposition).include()
+        }
+    }
+
+    @Test
+    fun `data cannot depend on presentation or UI`() {
+        Konsist.scopeFromProduction().assertArchitecture {
+            val data = Layer("Data", "com.luckyalanzhou.barcodegenerator.data..")
+            val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
+            val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            data.doesNotDependOn(presentation, ui)
+            listOf(presentation, ui).include()
+        }
+    }
+}

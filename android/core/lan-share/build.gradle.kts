@@ -1,0 +1,29 @@
+plugins {
+    id("com.android.library")
+}
+
+android {
+    namespace = "com.luckyalanzhou.barcodegenerator.lanshare"
+    compileSdk = 37
+
+    defaultConfig {
+        minSdk = 26
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation(project(":core:domain"))
+    implementation(libs.nanohttpd)
+    implementation(libs.nanohttpd.websocket)
+    implementation(libs.tiff.renderer)
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.junit)
+
+}

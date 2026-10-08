@@ -1,48 +1,34 @@
 import java.io.File
+import java.util.Properties
+
+val suppliedVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull()
+val suppliedVersionName = providers.gradleProperty("versionName").orNull
+val enableAppUnitTests = providers.gradleProperty("enableAppUnitTests")
+    .map(String::toBoolean)
+    .getOrElse(false)
+val betaVersionProperties = Properties().apply {
+    val versionFile = rootProject.file("beta-version.properties")
+    if (versionFile.isFile) versionFile.inputStream().use(::load)
+}
+val localBetaVersionCode = betaVersionProperties.getProperty("versionCode")?.toIntOrNull()?.takeIf { it > 0 }
+val localBetaVersionName = betaVersionProperties.getProperty("versionName")
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
     namespace = "com.luckyalanzhou.barcodegenerator"
-    compileSdk = 35
-    // 本地构建可通过 LOCAL_AUTO_VERSION=true 启用独立版本计数器。
-    // 计数文件在 D 盘，GitHub Actions 不设置该变量，因此不会影响远程版本号。
-    val localAutoVersionEnabled = System.getenv("LOCAL_AUTO_VERSION") == "true"
-    val localVersionFilePath = System.getenv("LOCAL_VERSION_FILE")
-    val localBuildTask = gradle.startParameter.taskNames.any { task ->
-        task.contains("assemble", ignoreCase = true) || task.contains("bundle", ignoreCase = true)
-    }
-    val localVersionCode = if (localAutoVersionEnabled && localBuildTask && !providers.gradleProperty("versionCode").isPresent) {
-        val versionFile = localVersionFilePath?.let { path -> File(path) }
-        if (versionFile != null) {
-            val fallback = System.getenv("LOCAL_VERSION_BASE")?.toIntOrNull() ?: 33
-            val current = versionFile.takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: fallback
-            val next = current + 1
-            versionFile.parentFile?.mkdirs()
-            versionFile.writeText(next.toString())
-            next
-        } else {
-            null
-        }
-    } else {
-        null
-    }
-    val buildVersionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: localVersionCode ?: 6
-    val buildVersionName = providers.gradleProperty("versionName").orNull ?: localVersionCode?.let { "1.0.${it}-local" } ?: "1.0.5"
-
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.luckyalanzhou.barcodegenerator"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 11
-        versionName = "1.0.10"
-        if (providers.gradleProperty("versionCode").isPresent || localVersionCode != null) versionCode = buildVersionCode
-        if (providers.gradleProperty("versionName").isPresent || localVersionCode != null) versionName = buildVersionName
-    }
+        targetSdk = 37
+        versionCode = suppliedVersionCode ?: 11
+        versionName = suppliedVersionName ?: "1.0.10"    }
 
     flavorDimensions += "channel"
     productFlavors {
@@ -51,15 +37,20 @@ android {
             applicationId = "com.luckyalanzhou.barcodegenerator"
             manifestPlaceholders["appLabel"] = "@string/app_name_release"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-v\"")
-            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGenerator\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorOfficial\"")
+            buildConfigField("String", "BACKUP_FILE_NAME", "\"barcode-generator-backup-official.zip\"")
             buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "false")
         }
         create("beta") {
             dimension = "channel"
+            // 本地 beta 构建也以 beta-version.properties 为版本基线；CI 传入参数时保持由 CI 控制。
+            if (suppliedVersionCode == null) versionCode = localBetaVersionCode
+            if (suppliedVersionName == null) versionName = localBetaVersionName
             applicationId = "com.luckyalanzhou.barcodegenerator.test"
             manifestPlaceholders["appLabel"] = "@string/app_name_beta"
             buildConfigField("String", "UPDATE_TAG_PREFIX", "\"android-test-v\"")
-            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorTest\"")
+            buildConfigField("String", "APK_FILE_PREFIX", "\"BarcodeGeneratorBeta\"")
+            buildConfigField("String", "BACKUP_FILE_NAME", "\"barcode-generator-backup-beta.zip\"")
             buildConfigField("Boolean", "DEBUG_LOG_EXPORT", "true")
         }
     }
@@ -87,27 +78,41 @@ android {
     }
     buildFeatures {
         buildConfig = true
+        compose = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+}
+
+androidComponents {
+    beforeVariants { variantBuilder ->
+        if (variantBuilder.buildType == "debug" && !enableAppUnitTests) {
+            // 默认不生成 officialDebug/betaDebug；显式开启应用单测时才创建测试所需的 debug 变体。
+            variantBuilder.enable = false
+        }
+    }
 }
 
 dependencies {
-    testImplementation("junit:junit:4.13.2")
-    implementation("com.google.zxing:core:3.5.3")
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
-    implementation("com.google.mlkit:text-recognition:16.0.1")
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.dynamicanimation:dynamicanimation:1.1.0")
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    implementation("androidx.activity:activity-ktx:1.9.3")
-    implementation("org.nanohttpd:nanohttpd:2.3.1")
-    implementation("org.nanohttpd:nanohttpd-websocket:2.3.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation(project(":core:domain"))
+    implementation(project(":core:data"))
+    implementation(project(":core:lan-share"))
+    val composeBom = platform(libs.compose.bom)
+    implementation(composeBom)
+    implementation(libs.activity.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.compose.ui)
+    implementation(libs.compose.animation.core)
+    implementation(libs.compose.material3)
+    testImplementation(libs.junit)
+    implementation(libs.zxing.core)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.activity.ktx)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 }

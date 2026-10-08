@@ -13,18 +13,19 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-official-${{ github.ref }}
-  cancel-in-progress: true
+  # Don't interrupt a signed release between APK creation and publication.
+  cancel-in-progress: false
 
 jobs:
   build:
     if: github.ref_name == 'main'
     name: Assemble signed release APK
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: android
@@ -33,18 +34,12 @@ jobs:
       GRADLE_OPTS: >-
         -Dorg.gradle.jvmargs=-Xmx6g -XX:+UseParallelGC
         -Dfile.encoding=UTF-8
-        -Dorg.gradle.caching=true
-        -Dorg.gradle.parallel=true
-        -Dkotlin.incremental=true
-        -Dorg.gradle.configuration-cache=true
-        -Dorg.gradle.vfs.watch=false
-        -Dksp.incremental=true
-        -Dkotlin.compiler.plugins.strongSkipping=true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -53,7 +48,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          cache-cleanup: never
+          # Keep the Gradle User Home snapshot limited to dependencies and the
+          # Wrapper; setup-gradle v6 manages task-output and transform caches separately.
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/jars-9
+            wrapper/dists
+          cache-cleanup: on-success
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
@@ -88,32 +89,33 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
+        # Tests and Release lint are verified locally; the remote workflow only packages the APK.
+        run: ./gradlew assembleOfficialRelease --no-configuration-cache -x :app:lintVitalOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
       - name: Prepare release APK
         env:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
         run: |
           set -euo pipefail
           source_apk="app/build/outputs/apk/official/release/app-official-release.apk"
-          target_apk="app/build/outputs/apk/official/release/BarcodeGenerator${VERSION_NAME}.apk"
+          target_apk="app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${VERSION_NAME}.apk"
           test -f "$source_apk" || { echo "::error::Official APK not found"; exit 1; }
           mv "$source_apk" "$target_apk"
           ls -lh "$target_apk"
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: BarcodeGenerator${{ steps.app-version.outputs.version }}-release-build${{ github.run_number }}
-          path: android/app/build/outputs/apk/official/release/BarcodeGenerator${{ steps.app-version.outputs.version }}.apk
+          name: BarcodeGeneratorOfficial${{ steps.app-version.outputs.version }}-release-build${{ github.run_number }}
+          path: android/app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${{ steps.app-version.outputs.version }}.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
       - name: Publish release GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: android-v${{ steps.app-version.outputs.version }}
           name: Barcode Generator Release v${{ steps.app-version.outputs.version }}
           generate_release_notes: true
-          files: android/app/build/outputs/apk/official/release/BarcodeGenerator${{ steps.app-version.outputs.version }}.apk
+          files: android/app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${{ steps.app-version.outputs.version }}.apk
           fail_on_unmatched_files: true
           token: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
       - name: Remove temporary keystore

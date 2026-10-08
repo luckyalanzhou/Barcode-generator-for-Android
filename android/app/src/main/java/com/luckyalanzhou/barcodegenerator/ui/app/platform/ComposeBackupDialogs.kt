@@ -1,0 +1,115 @@
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
+
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+
+import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
+import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
+
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/** 收藏导出方式选择，继续调用原有系统分享和 SAF 文件保存入口。 */
+internal fun MainActivity.createFavoritesExportCompose() {
+    showComposeDialog(compact = true) { dismiss ->
+        val dark = isDark()
+        ComposeGlassDialogCard(dark) {
+            Text("导出收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text("备份为 ZIP 文件，可用于恢复收藏。", color = LocalAppColorScheme.current.text.secondary,
+                fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+            ComposeDialogChoice("分享备份", dark) {
+                dismiss()
+                shareFavoritesExportForCompose()
+            }
+            ComposeDialogChoice("保存备份", dark) {
+                dismiss()
+                createFavoritesDocumentExportForCompose()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComposeDialogChoice(text: String, dark: Boolean, onClick: () -> Unit) {
+    DialogAction(
+        text = text,
+        dark = dark,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+    )
+}
+
+internal fun MainActivity.confirmImportFavoritesCompose(uri: android.net.Uri, backup: InterchangeBackup) {
+    lifecycleScope.launch(Dispatchers.IO) {
+        val conflicts = favoritesViewModel.inspectFavoriteImport(backup)
+        withContext(Dispatchers.Main) {
+            if (conflicts.hasConflicts) {
+                showFavoriteImportConflictDialog(backup, conflicts)
+            } else {
+                showComposeConfirmDialog(
+                    title = "导入跨平台收藏？",
+                    message = "将导入 ${backup.favorites.size} 个收藏，并保留一级文件夹、二级文件夹和收藏文件名。",
+                    positive = "导入",
+                ) { importFavoritesForCompose(backup, overwriteConflicts = false) }
+            }
+        }
+    }
+}
+
+private fun MainActivity.showFavoriteImportConflictDialog(
+    backup: InterchangeBackup,
+    conflicts: FavoritesImportConflictSummary,
+) {
+    showComposeDialog(compact = false) { dismiss ->
+        val dark = isDark()
+        val colors = LocalAppColorScheme.current
+        ComposeGlassDialogCard(dark) {
+            Text("发现同名内容", color = colors.text.primary, fontSize = 18.sp)
+            Text(
+                buildString {
+                    append("发现 ${conflicts.fileKeys.size} 个同路径同名收藏文件。请选择如何处理这些文件；同名文件夹下的其他文件仍会直接导入。")
+                    if (conflicts.duplicateBackupKeys.isNotEmpty()) {
+                        append("备份文件自身包含 ${conflicts.duplicateBackupKeys.size} 组重名记录；跳过冲突会跳过这些记录，覆盖导入会保留每组最后一条。")
+                    }
+                },
+                color = colors.text.secondary,
+                fontSize = 15.sp,
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                DialogAction("取消", dark, dismiss)
+                DialogAction(
+                    "跳过冲突",
+                    dark,
+                    { importFavoritesForCompose(backup, overwriteConflicts = false); dismiss() },
+                    Modifier.padding(start = 20.dp),
+                )
+                DialogAction(
+                    "覆盖导入",
+                    dark,
+                    { importFavoritesForCompose(backup, overwriteConflicts = true); dismiss() },
+                    Modifier.padding(start = 20.dp),
+                )
+            }
+        }
+    }
+}
