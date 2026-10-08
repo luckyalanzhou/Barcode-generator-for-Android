@@ -1,26 +1,25 @@
 # 开发与验证
 
-本文只说明如何准备环境、运行本地检查、验证设备功能和启动 GitHub Actions。代码修改流程见[贡献指南](../CONTRIBUTING.md)；架构原因见[架构原则](ARCHITECTURE.md)，通信约定见 [LAN Share 协议](core/lan-share/PROTOCOL.md)。
+[项目入口](../README.md) · [贡献指南](../CONTRIBUTING.md) · [架构原则](ARCHITECTURE.md) · 当前：开发与验证 · [通信协议](core/lan-share/PROTOCOL.md)
+
+> 本文说明如何准备环境、运行本地检查、验证设备功能和启动 GitHub Actions。
 
 ## 环境
 
 项目使用 JDK 17、Android SDK Platform 37 和仓库自带的 Gradle Wrapper。版本以仓库配置为准；以下路径仅适用于当前 Windows 电脑。
 
-| 用途 | 本机固定位置 |
-| --- | --- |
-| 仓库 / Android 项目 | `D:\GitHub\Barcode-generator-for-Android` / `D:\GitHub\Barcode-generator-for-Android\android` |
-| JDK 17 | `D:\Java17` |
-| Gradle、Wrapper 和依赖缓存 | `D:\Barcode_build\gradle-home`（Gradle 9.5.0） |
-| Android SDK | `D:\Barcode_build\android-sdk`（Platform 37、`platform-tools\adb.exe`） |
-| Android 用户目录和本机调试签名 | `D:\Barcode_build\android-user-home` |
-| 临时文件 | `D:\Barcode_build\android-temp` |
-| Kotlin daemon 标记 | `D:\Barcode_build\kotlin-daemon` |
-| 固定启动器 | `D:\Barcode_build\run-barcode-android-gradle.ps1` |
-| 模块输出 | `android\<module>\build` |
+- **仓库**：`D:\GitHub\Barcode-generator-for-Android`；Android 项目在其 `android` 子目录。
+- **JDK 17**：`D:\Java17`。
+- **Gradle 9.5.0、Wrapper 和依赖缓存**：`D:\Barcode_build\gradle-home`。
+- **Android SDK Platform 37**：`D:\Barcode_build\android-sdk`；ADB 位于 `platform-tools\adb.exe`。
+- **Android 用户目录和本机调试签名**：`D:\Barcode_build\android-user-home`。
+- **临时文件 / Kotlin daemon 标记**：`D:\Barcode_build\android-temp` / `D:\Barcode_build\kotlin-daemon`。
+- **固定启动器**：`D:\Barcode_build\run-barcode-android-gradle.ps1`。
+- **模块输出**：`android\<module>\build`。
 
 本机 Gradle 并行度在 `D:\Barcode_build\gradle-home\gradle.properties` 设置，当前为 `org.gradle.workers.max=4`。不要把本机路径或机器专属参数写进仓库。
 
-所有本机验证都通过固定启动器运行。它会检查工具目录是否存在、可写，并把 Gradle、SDK、JDK、临时文件和 Kotlin daemon 指向上表路径；缺少工具时会停止，不改用 `C:\.gradle`、`C:\.android`、AppData 中的其他配置，也不下载缺失的 Wrapper。
+所有本机验证都通过固定启动器运行。它会检查工具目录是否存在、可写，并把 Gradle、SDK、JDK、临时文件和 Kotlin daemon 指向上述目录；缺少工具时会停止，不改用 `C:\.gradle`、`C:\.android`、AppData 中的其他配置，也不下载缺失的 Wrapper。
 
 本机和 GitHub Actions 使用独立的 Gradle 缓存、SDK、临时目录和构建输出。本机启动器不参与远程构建；不要把 `D:\Barcode_build` 或 `D:\Java17` 写入 `gradle.properties` 或 workflow。
 
@@ -29,13 +28,33 @@
 在 PowerShell 从仓库根目录运行完整 Beta 检查：
 
 ```powershell
-& 'D:\Barcode_build\run-barcode-android-gradle.ps1' :architecture-tests:test verifyArchitectureModuleDependencies :core:domain:test :core:data:testDebugUnitTest :core:lan-share:testDebugUnitTest :app:testBetaDebugUnitTest :app:lintBetaRelease -PenableAppUnitTests=true --no-configuration-cache
+$buildDir = 'D:\Barcode_build'
+$gradleLauncher = Join-Path $buildDir 'run-barcode-android-gradle.ps1'
+$gradleTasks = @(
+    ':architecture-tests:test'
+    'verifyArchitectureModuleDependencies'
+    ':core:domain:test'
+    ':core:data:testDebugUnitTest'
+    ':core:lan-share:testDebugUnitTest'
+    ':app:testBetaDebugUnitTest'
+    ':app:lintBetaRelease'
+    '-PenableAppUnitTests=true'
+    '--no-configuration-cache'
+)
+& $gradleLauncher @gradleTasks
 ```
 
 它会运行架构、各模块和 Beta App 测试，并检查 Beta Release 的 lint；不会生成或发布 APK。只检查某项改动时，可以将对应的 Gradle task 交给同一个启动器，例如：
 
 ```powershell
-& 'D:\Barcode_build\run-barcode-android-gradle.ps1' :app:compileBetaDebugKotlin -PenableAppUnitTests=true --no-configuration-cache
+$buildDir = 'D:\Barcode_build'
+$gradleLauncher = Join-Path $buildDir 'run-barcode-android-gradle.ps1'
+$gradleTasks = @(
+    ':app:compileBetaDebugKotlin'
+    '-PenableAppUnitTests=true'
+    '--no-configuration-cache'
+)
+& $gradleLauncher @gradleTasks
 ```
 
 `BUILD SUCCESSFUL` 表示命令中的任务通过；编译通过不代表 UI、设备兼容性或真机传输已经验收。
@@ -53,7 +72,15 @@
 若验证玻璃 shader，可选运行原生 Skia 检查脚本。它检查像素算法，不代替 Android 真机验收；缺少固定环境时不要换用其他 Python 或安装位置：
 
 ```powershell
-& 'C:\Users\zhimi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' android/tools/validate_glass_backdrop.py --runtime-package-dir D:\Barcode_build\glass-validation\python-packages
+$runtimeRoot = 'C:\Users\zhimi\.cache\codex-runtimes'
+$pythonDir = Join-Path $runtimeRoot 'codex-primary-runtime\dependencies\python'
+$pythonExe = Join-Path $pythonDir 'python.exe'
+$validationArgs = @(
+    'android/tools/validate_glass_backdrop.py'
+    '--runtime-package-dir'
+    'D:\Barcode_build\glass-validation\python-packages'
+)
+& $pythonExe @validationArgs
 ```
 
 该环境使用 `skia-python==138.0`，安装在 `D:\Barcode_build\glass-validation\python-packages`。
@@ -72,11 +99,9 @@
 
 先完成本地验证，再按需要手动启动远程工作流。Beta 与正式版使用不同应用 ID。
 
-| 工作流 | 触发方式 | 用途 |
-| --- | --- | --- |
-| [Build Android Beta APK](../.github/workflows/build-android-testing.yml) | 手动运行，分支为 `beta` | 签名、打包并发布 Beta APK；不运行测试或 lint。 |
-| [Build Android Release APK](../.github/workflows/build-android-official.yml) | 用户确认发布后手动运行，分支为 `main`，填写版本信息 | 发布正式版 APK；不运行测试或 lint。 |
-| [Architecture checks](../.github/workflows/architecture-checks.yml) | 面向 `beta` 或 `main` 的 PR | 默认跳过；仓库变量 `ENABLE_ARCHITECTURE_PR_CHECKS=true` 后才运行。不会自动成为合并必需项。 |
+- **Beta APK**：[工作流文件](../.github/workflows/build-android-testing.yml)。从 `beta` 分支手动运行，签名、打包并发布 APK；不运行测试或 lint。
+- **正式版 APK**：[工作流文件](../.github/workflows/build-android-official.yml)。用户确认发布后，从 `main` 手动运行并填写版本信息；不运行测试或 lint。
+- **PR 架构检查**：[工作流文件](../.github/workflows/architecture-checks.yml)。面向 `beta` 或 `main` 的 PR，默认跳过；仓库变量 `ENABLE_ARCHITECTURE_PR_CHECKS=true` 后才运行，也不会自动成为合并必需项。
 
 本地测试通过、远程构建成功和真机验收是三件不同的事。Actions 的具体权限、签名和版本来源以 workflow 文件为准；凭据不要写入文档或提交到仓库。
 

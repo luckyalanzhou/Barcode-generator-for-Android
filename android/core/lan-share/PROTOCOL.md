@@ -1,6 +1,8 @@
 # LAN Share 通信协议
 
-本文定义 App、浏览器和服务端如何建立连接、交换消息与传输文件，供实现和测试遵循。接口或消息格式变化时，同步更新本文和相关测试。模块为何独立见[架构原则](../../ARCHITECTURE.md)；如何运行验证见[开发与验证](../../DEVELOPMENT.md)。
+[项目入口](../../../README.md) · [贡献指南](../../../CONTRIBUTING.md) · [架构原则](../../ARCHITECTURE.md) · [开发与验证](../../DEVELOPMENT.md) · 当前：通信协议
+
+> 本文定义 App、浏览器和服务端如何建立连接、交换消息与传输文件。接口变化时，同步更新本文和相关测试。
 
 ## 连接方式
 
@@ -17,13 +19,11 @@
 
 ## HTTP 接口
 
-| 方法与路径 | 用途 | 行为 |
-| --- | --- | --- |
-| `GET /` | 打开浏览器页面 | 返回内嵌的 HTML、CSS 和 JavaScript。 |
-| `GET /api/files` | 获取文件列表 | 返回包含 `id`、`name`、`size`、`modifiedAt`、`sender`、`mimeType` 的 JSON 数组。 |
-| `PUT /upload?name=...&client=...&transfer=...` | 上传文件 | 按原始字节保存，不压缩图片或转换内容；成功时返回服务端文件 ID。`transfer` 可选。 |
-| `GET /dl/{id}` | 下载文件 | 返回会话内原文件字节；预览不改写原件。 |
-| `GET /api/preview/{id}` | 获取预览图 | 按需生成浏览器可显示的图片；不支持时返回 `406`，仍可下载原文件。 |
+- **`GET /`**：打开浏览器页面，返回内嵌的 HTML、CSS 和 JavaScript。
+- **`GET /api/files`**：获取文件列表，JSON 项包含 `id`、`name`、`size`、`modifiedAt`、`sender` 和 `mimeType`。
+- **`PUT /upload?name=...&client=...&transfer=...`**：上传文件。`transfer` 可选；服务端按原始字节保存，不压缩图片或转换内容，成功时返回文件 ID。
+- **`GET /dl/{id}`**：下载会话中的原文件字节。预览不会改写原件。
+- **`GET /api/preview/{id}`**：按需生成浏览器可显示的图片。不支持时返回 `406`，原文件仍可下载。
 
 上传时用 `Content-Type` 声明文件类型。固定长度请求使用 `Content-Length` 或 `X-File-Size`；浏览器采用 chunked body 时必须提供 `X-File-Size`。服务端流式写入临时文件，确认实际大小与声明一致后才发布，不会把整个文件载入内存。文件名会清理并限制长度；单文件上限 `10 GiB`，单房间累计上限 `100 GiB`。
 
@@ -38,19 +38,33 @@
 ```json
 {
   "type": "snapshot",
-  "files": [{"id": "...", "name": "...", "size": 123, "modifiedAt": 0, "sender": "...", "mimeType": "..."}],
-  "messages": [{"id": "...", "text": "...", "sender": "...", "createdAt": 0}]
+  "files": [
+    {
+      "id": "...",
+      "name": "...",
+      "size": 123,
+      "modifiedAt": 0,
+      "sender": "...",
+      "mimeType": "..."
+    }
+  ],
+  "messages": [
+    {
+      "id": "...",
+      "text": "...",
+      "sender": "...",
+      "createdAt": 0
+    }
+  ]
 }
 ```
 
 服务端事件：
 
-| `type` | 字段 | 含义 |
-| --- | --- | --- |
-| `snapshot` | `files`, `messages` | 当前文件与文字消息。 |
-| `message` | `message` | 新文字消息。 |
-| `files` | `file`, 可选 `transferId` | 新上传文件；`transferId` 对应浏览器的上传进度。 |
-| `error` | `message` | 可显示的错误信息。 |
+- **`snapshot`**：`files` 和 `messages`，表示当前文件与文字消息。
+- **`message`**：`message`，表示新文字消息。
+- **`files`**：`file` 和可选的 `transferId`；后者对应浏览器上传进度。
+- **`error`**：`message`，表示可显示的错误信息。
 
 浏览器发送文字：
 
@@ -62,4 +76,4 @@
 
 ## 验证范围
 
-自动测试覆盖原始字节上传、文件下载完整性、无凭据访问、WebSocket 握手与会话状态，以及浏览器页面关键脚本。真实 Wi-Fi、Android 生命周期和浏览器文件选择器仍需设备验证，步骤见[开发验证指南](../../DEVELOPMENT.md)。
+自动测试覆盖原始字节上传、文件下载完整性、无凭据访问、WebSocket 握手与会话状态，以及浏览器页面关键脚本。真实 Wi-Fi、Android 生命周期和浏览器文件选择器仍需设备验证，步骤见[开发与验证](../../DEVELOPMENT.md)。
