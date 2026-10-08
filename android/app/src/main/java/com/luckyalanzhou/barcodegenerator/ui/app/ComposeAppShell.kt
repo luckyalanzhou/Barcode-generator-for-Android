@@ -302,7 +302,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 TabLongPressActionOverlay(
                     state = menuState,
                     progress = tabMenuProgress,
-                    sourceScale = menuMotion.sourceScale,
+                    sourceProgress = menuMotion.source,
+                    panelProgress = menuMotion.panel,
+                    opacity = menuMotion.opacity,
                     actionExit = menuMotion.actionExit,
                     actionClosing = tabMenu.actionClosing,
                     interactive = tabMenu.open,

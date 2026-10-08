@@ -31,12 +31,13 @@ internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =
 /** A single reveal coordinate for geometry, light and thickness; no independent fades. */
 internal data class MenuGlassReveal(val scale: Float, val alpha: Float, val thickness: Float, val shadow: Float)
 
-internal fun menuGlassReveal(progress: Float, tabAnchor: Boolean, reduceMotion: Boolean): MenuGlassReveal {
+internal fun menuGlassReveal(progress: Float, reduceMotion: Boolean): MenuGlassReveal {
     val p = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
     if (reduceMotion) return MenuGlassReveal(1f, p, 1f, 1f)
-    val initialScale = if (tabAnchor) .94f else .86f
-    return MenuGlassReveal(initialScale + (1f - initialScale) * p,
-        (p / .2f).coerceIn(0f, 1f), p * p * (3f - 2f * p), .35f + .65f * p)
+    // 两类菜单都整体展开；仅允许很小的弹簧超调，不通过裁切隐藏菜单行。
+    val elastic = if (progress.isFinite()) progress.coerceIn(0f, 1.08f) else 0f
+    return MenuGlassReveal(.90f + .10f * elastic,
+        p, p * p * (3f - 2f * p), .35f + .65f * p)
 }
 
 /** Normalized, bounded motion: the panel moves as one surface, not individual glyphs. */

@@ -17,11 +17,15 @@ import kotlinx.coroutines.launch
 /** 菜单只共享视觉进度，业务操作仍由宿主在退场完成后执行。 */
 internal class ContextMenuMotion {
     internal val revealAnimation = Animatable(0f)
+    internal val panelAnimation = Animatable(0f)
+    internal val opacityAnimation = Animatable(0f)
     internal val actionExitAnimation = Animatable(0f)
-    internal val sourceScaleAnimation = Animatable(.97f)
+    internal val sourceAnimation = Animatable(0f)
     val reveal: State<Float> = revealAnimation.asState()
     val actionExit: State<Float> = actionExitAnimation.asState()
-    val sourceScale: State<Float> = sourceScaleAnimation.asState()
+    val panel: State<Float> = panelAnimation.asState()
+    val opacity: State<Float> = opacityAnimation.asState()
+    val source: State<Float> = sourceAnimation.asState()
 }
 
 /**
@@ -41,12 +45,20 @@ internal fun rememberContextMenuMotion(
             motion.actionExitAnimation.snapTo(0f)
             coroutineScope {
                 launch {
-                    motion.sourceScaleAnimation.snapTo(if (reduceMotion) 1f else .97f)
-                    motion.sourceScaleAnimation.animateTo(1f, if (reduceMotion) tween(90)
-                        else spring(dampingRatio = .78f, stiffness = 550f))
+                    motion.sourceAnimation.animateTo(1f, if (reduceMotion) tween(90)
+                        else spring(dampingRatio = .72f, stiffness = 460f))
                 }
+                launch {
+                    motion.panelAnimation.animateTo(1f, if (reduceMotion) tween(90)
+                        else spring(dampingRatio = .74f, stiffness = 420f))
+                }
+                launch {
+                    if (!reduceMotion) delay(25)
+                    motion.opacityAnimation.animateTo(1f, tween(if (reduceMotion) 90 else 170))
+                }
+                // 背景只平滑变化，不随面板弹簧忽清忽糊。
                 motion.revealAnimation.animateTo(1f, if (reduceMotion) tween(90)
-                    else spring(dampingRatio = .88f, stiffness = 650f))
+                    else tween(240, easing = FastOutSlowInEasing))
             }
         } else if (!open) {
             if (actionClosing && !reduceMotion) delay(70)
@@ -54,6 +66,11 @@ internal fun rememberContextMenuMotion(
                 if (actionClosing) launch {
                     motion.actionExitAnimation.animateTo(1f, tween(if (reduceMotion) 90 else 170))
                 }
+                if (!actionClosing) {
+                    launch { motion.panelAnimation.animateTo(0f, tween(if (reduceMotion) 90 else 200)) }
+                    launch { motion.sourceAnimation.animateTo(0f, tween(if (reduceMotion) 90 else 200)) }
+                }
+                launch { motion.opacityAnimation.animateTo(0f, tween(if (reduceMotion) 90 else 180)) }
                 motion.revealAnimation.animateTo(0f,
                     tween(if (reduceMotion) 90 else if (actionClosing) 170 else 200,
                         easing = FastOutSlowInEasing))
@@ -61,6 +78,9 @@ internal fun rememberContextMenuMotion(
             closed(showing)
         } else {
             motion.revealAnimation.snapTo(0f)
+            motion.panelAnimation.snapTo(0f)
+            motion.opacityAnimation.snapTo(0f)
+            motion.sourceAnimation.snapTo(0f)
             motion.actionExitAnimation.snapTo(0f)
         }
     }

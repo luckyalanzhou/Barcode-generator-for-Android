@@ -6,6 +6,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MenuPanelMotionTest {
+    @Test fun genericTabTitleIsOmittedButEditingTitlesRemain() {
+        assertFalse(menuShowsTitle(true, "操作"))
+        assertFalse(menuShowsTitle(true, ""))
+        assertTrue(menuShowsTitle(true, "收藏备份"))
+        assertTrue(menuShowsTitle(false, "编辑"))
+    }
     private val panel = Rect(20f, 100f, 220f, 300f)
 
     @Test fun tabSourceHasSmallerTravelAndLowerDragGainThanRowSources() {

@@ -92,7 +92,10 @@ internal fun FavoriteFolderRow(
                 }
             }, restoreFocus = { if (anchor != Rect.Zero) focus.requestFocus() },
             title = "编辑文件夹", tabAnchor = false,
-            menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor))
+            menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor,
+            sourceContent = {
+                FavoriteFolderRowContent(row, secondary, folderColor, { if (row.collapsed) -90f else 0f })
+            }))
     }
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy.current.reduceMotion
@@ -106,16 +109,14 @@ internal fun FavoriteFolderRow(
         animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(160),
         label = "favorite-folder-arrow-rotation",
     )
-    val indent = 11.dp + 20.dp * row.level
 
     Box(Modifier.fillMaxWidth()) {
-        Row(
+        Box(
             Modifier.fillMaxWidth().height(if (row.level == 0) 50.dp else 43.dp)
                 .onGloballyPositioned { anchor = it.boundsOnScreen() }
                 .focusRequester(focus)
                 .clip(RoundedCornerShape(14.dp))
                 .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
-                .padding(start = indent, end = 5.dp)
                 .graphicsLayer {
                     scaleX = scale.value
                     scaleY = scale.value
@@ -128,18 +129,30 @@ internal fun FavoriteFolderRow(
                     onLongClickLabel = "编辑文件夹",
                     hapticFeedbackEnabled = false,
                 ),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
-            Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
-            Text(row.label, color = LocalAppColorScheme.current.text.primary, fontSize = if (row.level == 0) 18.sp else 16.sp, fontWeight = if (row.level == 0) FontWeight.SemiBold else FontWeight.Medium, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Icon(
-                imageVector = KeyboardArrowDownIcon,
-                contentDescription = if (row.collapsed) "展开文件夹" else "收起文件夹",
-                tint = secondary,
-                modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation.value },
-            )
+            FavoriteFolderRowContent(row, secondary, folderColor, { arrowRotation.value }) { titleAnchor = it }
         }
+    }
+}
+
+/** 正常行和长按预览保持同样的层级缩进、字体、数量及箭头。 */
+@Composable
+private fun FavoriteFolderRowContent(
+    row: ComposeFavoriteRow, secondary: Color, folderColor: Color,
+    arrowRotation: () -> Float, onTitleBounds: (Rect) -> Unit = {},
+) {
+    Row(Modifier.fillMaxSize().padding(start = 11.dp + 20.dp * row.level, end = 5.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
+        Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
+        Text(row.label, color = LocalAppColorScheme.current.text.primary,
+            fontSize = if (row.level == 0) 18.sp else 16.sp,
+            fontWeight = if (row.level == 0) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.weight(1f).onGloballyPositioned { onTitleBounds(it.boundsOnScreen()) },
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Icon(KeyboardArrowDownIcon, if (row.collapsed) "展开文件夹" else "收起文件夹", tint = secondary,
+            modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation() })
     }
 }
