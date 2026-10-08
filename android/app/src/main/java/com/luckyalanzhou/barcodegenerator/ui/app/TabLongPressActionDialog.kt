@@ -91,6 +91,10 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuWidthDp
 import kotlin.math.roundToInt
 
+/**
+ * Tab 长按操作菜单：按 Tab 锚点显示，手指在菜单项上滑动时更新选中反馈，松开后执行当前项。
+ * 点击菜单外部或系统返回键关闭菜单；具体操作由调用方传入，菜单只负责手势、动画和呈现。
+ */
 @Composable
 internal fun TabLongPressActionOverlay(
     state: TabLongPressMenuState,
@@ -133,7 +137,7 @@ internal fun TabLongPressActionOverlay(
             gesture.origin, anchorMotionRangePx, restingPanelOnScreen.center.y < gesture.origin.y)
         else -> Offset.Zero // A separate touch on the menu is selection, never panel dragging.
     }
-    // Read only from graphicsLayer: active input is direct, springs are release-only.
+    // 手势状态只在 graphicsLayer 绘制阶段读取；拖动直接跟手，弹簧回弹只发生在松手后。
     fun displayedMotion(): Offset = menuMotionForDrawing(
         if (gesture.feedbackPoint != null) pointerMotion() else null,
         effects.reduceMotion,
@@ -160,7 +164,7 @@ internal fun TabLongPressActionOverlay(
     ) {
             Box(
                 Modifier.fillMaxSize()
-                    // Transparent hit target: blur must not whiten or dim the original theme.
+                    // 外层仅负责透明触控命中，不能用遮罩把原背景额外提亮或压暗。
                     .clickable(onClick = onDismiss)
                     .clearAndSetSemantics { },
             )
@@ -181,7 +185,7 @@ internal fun TabLongPressActionOverlay(
             val sourceShiftPx = if (state.tabAnchor) 0f else rowMenuAnchor.top - anchorBoundsOnScreen.top
             LaunchedEffect(gesture, rowMenuAnchor, focusLiftPx) {
                 snapshotFlow { progress.value }.collect { value ->
-                    // Re-grabbing uses the clear card's displayed position, not its old list row.
+                    // 再次按住时以当前显示中的卡片位置为起点，而非列表中原始行的位置。
                     gesture.sourceBounds = anchorBoundsOnScreen.translate(
                         Offset(0f, (sourceShiftPx - focusLiftPx) * value))
                 }
@@ -234,7 +238,7 @@ internal fun TabLongPressActionOverlay(
                                     (placement.top - focusLiftPx) - panelSize.height))
                         }
                         .then(if (state.tabAnchor) Modifier else Modifier
-                            // Only folder/file sources get a lifted card. Tabs remain unframed.
+                            // 只有文件夹/收藏文件长按时显示浮起卡片；Tab 菜单不绘制来源卡片外框。
                             .shadow(12.dp, sourceCardShape, clip = false,
                                 ambientColor = Color.Black.copy(alpha = if (dark) .24f else .10f),
                                 spotColor = Color.Black.copy(alpha = if (dark) .30f else .16f))
@@ -278,10 +282,10 @@ internal fun TabLongPressActionOverlay(
                     }
                 }
             }
-            // Leave room for the bounded follow/swell even on tall, large-font menus.
+            // 即使菜单较高或系统字体较大，也为受限的跟随位移和膨胀动画预留空间。
             val availableHeightPx = (menuSpace.height - motionMarginPx).coerceAtLeast(with(density) { 48.dp.toPx() })
             LaunchedEffect(placement, panelSize, overlayOriginOnScreen, focusLiftPx) {
-                // Use resting geometry, not the animated panel's bounds, to avoid feedback loops.
+                // 使用静止布局尺寸而不是动画中的面板边界，避免测量与位移动画互相反馈。
                 restingPanelOnScreen = Rect(placement.left + overlayOriginOnScreen.x,
                     placement.top - focusLiftPx + overlayOriginOnScreen.y,
                     placement.left + overlayOriginOnScreen.x + panelSize.width,
@@ -310,7 +314,7 @@ internal fun TabLongPressActionOverlay(
                             val dragScale = menuDragScale(motion)
                             scaleX = dragScale
                             scaleY = dragScale
-                            // Stable, unscaled bounds make edge limiting independent of animation.
+                            // 用稳定且未缩放的边界限制触点范围，避免限制结果随动画变化。
                             translationX = (motion.x * 28.dp.toPx()).coerceIn(
                                 minOf(0f, edgePaddingPx - placement.left),
                                 maxOf(0f, screenWidthPx - edgePaddingPx - placement.left - panelSize.width))
@@ -319,7 +323,7 @@ internal fun TabLongPressActionOverlay(
                                 maxOf(0f, screenHeightPx - bottomInsetPx - edgePaddingPx -
                                     (placement.top - focusLiftPx) - panelSize.height))
                             if (state.tabAnchor) {
-                                // Dragging the source changes size, never the panel's position.
+                                // 拖动来源只改变面板尺寸，不改变菜单锚定位置。
                                 translationX = 0f
                                 translationY = 0f
                                 transformOrigin = tabMenuDragOrigin(
@@ -357,8 +361,7 @@ internal fun TabLongPressActionOverlay(
                             }
                         }
                         .pointerInput(Unit) {
-                            // Header/empty panel taps must not fall through to the backdrop.
-                            // Consume taps in Main; scrolling from the header remains available.
+                            // 标题区或空白面板上的点按不能穿透到背景并关闭菜单；仍允许从标题区域开始滚动。
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false).consume()
                                 waitForUpOrCancellation()?.consume()
@@ -366,7 +369,7 @@ internal fun TabLongPressActionOverlay(
                         },
                 ) {
                     if (state.tabAnchor) {
-                        // Tab menus use a stable surface, not a live glass shader.
+                        // Tab 操作菜单使用稳定材质，不应用实时玻璃着色器。
                         Box(Modifier.matchParentSize().background(colors.surfaces.panel))
                     } else GlassBackdropSurface(
                         modifier = Modifier.matchParentSize(), color = colors.surfaces.panel,
@@ -399,7 +402,7 @@ internal fun TabLongPressActionOverlay(
                                 .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Destructive menu labels and icons share the same fixed red in both themes.
+                            // 删除等破坏性操作的文字和图标在浅色、深色主题中都固定使用红色。
                             val actionColor = if (action.icon == DeleteIcon) colors.content.deleteIcon else colors.text.primary
                             Text(
                                 text = action.label,

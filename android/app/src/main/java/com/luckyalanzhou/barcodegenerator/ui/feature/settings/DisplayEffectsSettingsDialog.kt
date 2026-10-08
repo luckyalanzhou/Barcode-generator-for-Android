@@ -30,7 +30,10 @@ import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
-/** Compact secondary settings; only each switch is interactive, outside tap/back dismiss. */
+/**
+ * 紧凑的显示与动效设置弹窗：由开关本身接收点击并立即回传样式变更；点弹窗外区域或返回键关闭。
+ * 说明文字仅用于解释选项，不作为切换开关的点击区域。
+ */
 @Composable
 internal fun DisplayEffectsSettingsDialog(
     style: StyleSettings,

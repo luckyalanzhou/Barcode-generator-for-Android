@@ -4,6 +4,7 @@ data class BarcodeValidationResult(val valid: Boolean, val message: String = "")
 
 /** 条码格式校验规则；保留现有用户输入约束和错误文案。 */
 object BarcodeValidator {
+    /** 按指定格式验证内容，失败时返回可直接向用户展示的原因。 */
     fun validate(value: String, format: String): BarcodeValidationResult {
         if (value.isEmpty()) return BarcodeValidationResult(false, "内容不能为空")
         return when (format) {

@@ -14,7 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** History-only confirmation content, isolated from Activity and persistence APIs. */
+/** 仅负责呈现历史清空确认内容，不直接依赖 Activity 或持久化接口。 */
+/** 清空历史记录的二次确认内容；确认后才执行删除回调，取消或关闭弹窗不会改动记录。 */
 @Composable
 internal fun ClearHistoryDialogContent(
     dark: Boolean,

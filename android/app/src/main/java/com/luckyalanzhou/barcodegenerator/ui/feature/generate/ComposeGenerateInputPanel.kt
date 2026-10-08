@@ -53,6 +53,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * 渲染可编辑的多行条码输入区。每行支持输入、调整顺序和删除；长按删除入口用于请求清空全部输入。
+ * 业务数据由父级回调维护，本组件只呈现输入状态和行操作。
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ComposeGenerateInputPanel(
@@ -79,8 +83,7 @@ internal fun ComposeGenerateInputPanel(
             .heightIn(min = 72.dp, max = 296.dp)
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            // Keep the complete input + reorder/delete action row aligned to the
-            // full-width action row below (Add row / Capture text).
+            // 输入框及排序/删除按钮占满一整行，与下方“添加一行/拍照填充”操作区保持对齐。
             .padding(vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {

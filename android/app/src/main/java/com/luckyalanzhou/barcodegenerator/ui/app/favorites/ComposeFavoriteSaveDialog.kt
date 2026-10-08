@@ -48,6 +48,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * 显示结果收藏对话框：用户选择一级/二级文件夹并输入文件名后提交保存。
+ * 成功时关闭对话框并通知调用方；重名或写入失败时保留对话框，提示用户修正后重试。
+ */
 internal fun MainActivity.saveResultAsFavoriteCompose(
     resultState: ResultUiState,
     dataState: BarcodeDataState,

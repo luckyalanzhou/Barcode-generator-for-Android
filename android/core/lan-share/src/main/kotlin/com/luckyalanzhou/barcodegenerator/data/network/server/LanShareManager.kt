@@ -91,6 +91,7 @@ class LanShareManager(
         }.firstOrNull().orEmpty()
     }
 
+    /** 开始新的分享会话：停止旧服务、按需清理会话文件，并在当前 Wi-Fi 子网随机端口启动服务。 */
     override fun start(): LanShareSession = start(clearSharedFiles = true)
 
     private fun start(clearSharedFiles: Boolean): LanShareSession {
@@ -139,6 +140,7 @@ class LanShareManager(
 
     override fun observeRealtimeState(): StateFlow<LanShareRealtimeState> = realtimeState.asStateFlow()
 
+    /** 关闭 HTTP/WebSocket 服务并清空实时状态；是否删除会话文件由调用方明确指定。 */
     override fun stop(clearSharedFiles: Boolean) {
         synchronized(realtimeStateLock) {
             serverGeneration.incrementAndGet()
@@ -157,6 +159,7 @@ class LanShareManager(
     }
 
     override fun list(session: LanShareSession) = client.list(session)
+    /** 将 App 选中的文件通过 HTTP 上传到浏览器创建的分享房间，并持续回报字节进度。 */
     override fun upload(
         session: LanShareSession,
         transferId: String,

@@ -91,6 +91,10 @@ private data class ComposeTabSpec(
     val icon: ImageVector,
 )
 
+/**
+ * 主导航栏：点击切换页面，滑动手势由外层路由协调；重新点击历史/收藏 Tab 可请求回到默认滚动位置。
+ * 历史、收藏和设置 Tab 长按分别打开清空历史、收藏导入/导出、检查更新菜单。
+ */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 internal fun BarcodeComposeBottomTabBar(
@@ -159,7 +163,7 @@ internal fun BarcodeComposeBottomTabBar(
             .padding(horizontal = 4.dp, vertical = 5.dp)
             .pointerInput(motion, showSelectionIndicator, density) {
                 if (!showSelectionIndicator) return@pointerInput
-                // Observe the real contact location without consuming clicks or long presses.
+                // 读取手指实际触点以驱动玻璃反馈，不消费事件，确保点击和长按仍由对应控件处理。
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     val selectedTab = motion.progress.roundToInt().coerceIn(tabs.indices)
@@ -179,11 +183,11 @@ internal fun BarcodeComposeBottomTabBar(
                 }
             }
             .pointerInput(motion, showSelectionIndicator, density) {
-                // The root menu host owns the continuing long-press pointer.
+                // 长按进入菜单后，后续拖动由根菜单容器接管，Tab 栏不再重复处理同一指针事件。
                 if (!showSelectionIndicator) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    // Eligibility belongs to the original DOWN, never to a later slop position.
+                    // 长按资格只按最初按下位置判断，不能因手指越过触摸阈值而改变目标 Tab。
                     val selectedTab = motion.progress.roundToInt().coerceIn(tabs.indices)
                     if (!tabSelectedCellContains(
                             size.width.toFloat(), size.height.toFloat(), tabs.size, selectedTab, down.position,
@@ -245,6 +249,7 @@ internal fun BarcodeComposeBottomTabBar(
                         animationSpec = if (effects.reduceMotion) tween(0) else ComposeAnimationConfig.pressSpring(),
                         label = "tab-icon-tap-response-$index",
                     )
+                    // 长按动作按当前 Tab 组装；菜单关闭动画结束后才执行，避免焦点与新弹窗相互抢占。
                     val openMenu: () -> Unit = {
                                 hapticView.performLightMenuOpenHaptic()
                                 val actions = when (index) {
@@ -407,7 +412,7 @@ internal fun BarcodeComposeBottomTabBar(
 
 private const val TAB_SWITCH_HAPTIC_MIN_INTERVAL_MS = 120L
 
-/** Prefer Android's intentionally soft frequent-choice tick, with compatible older-API fallbacks. */
+/** 优先使用 Android 轻柔的频繁选择反馈，旧系统回退到兼容的轻触感常量。 */
 private fun View.performSubtleTabHaptic() {
     val feedback = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->

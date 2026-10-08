@@ -70,6 +70,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+
+/**
+ * 生成页的输入与操作界面：编辑多行内容、选择条码格式，并将确认后的输入交给生成流程。
+ * 行编辑、拍照填充和生成分别通过回调交给上层；没有有效输入、数据未就绪或结果准备中时禁用生成。
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun GenerateContent(
@@ -115,6 +120,7 @@ internal fun GenerateContent(
         }
     }
 
+    // 长按输入行的删除操作会进入二次确认；确认后清空内容，但保留一个可继续输入的空行。
     if (clearDialog) {
         Dialog(
             onDismissRequest = { clearDialog = false },
@@ -149,6 +155,7 @@ internal fun GenerateContent(
     }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 修改、上下移动和删除输入行都会同步草稿，保证离开页面后可恢复。
         ComposeGenerateInputPanel(
             values = values,
             dark = dark,
@@ -212,6 +219,7 @@ internal fun GenerateContent(
         val generateEnabled = count > 0 && isDataReady && !isPreparingResult
         val generateContainer = if (generateEnabled) themeColors.controls.accent else themeColors.controls.disabledContainer
         val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
+        // 次要操作：添加行插入到当前焦点之后；拍照填充把识别文字交给上层处理。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ComposeGenerateActionButton(
                 icon = AddIcon,
@@ -240,6 +248,7 @@ internal fun GenerateContent(
             )
         }
 
+        // 条码类型按钮只负责展开菜单；选中后同步更新本地显示和上层保存的格式。
         Box {
             Row(
                 Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(18.dp)).background(cardColor).padding(horizontal = 18.dp),
@@ -299,6 +308,7 @@ internal fun GenerateContent(
             }
         }
 
+        // 主操作满足前置条件后才提交输入；准备期间显示进度并阻止重复提交。
         val generateInteraction = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier.fillMaxWidth().iosPressFeedback(generateInteraction)

@@ -31,7 +31,7 @@ import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.launch
 
-/** 页面渲染器；页面键由状态层保存，路由元数据由 UI 层解释。 */
+/** 页面渲染入口：由导航状态选择页面，并把 ViewModel 状态与界面操作回调连接起来。 */
 @Composable
 internal fun ComposePageRenderer(dependencies: ComposeAppShellDependencies, displayPage: AppRoute, dark: Boolean) {
     ComposePageRoute(dependencies, displayPage, dark)
@@ -213,9 +213,8 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onEdit = {
                         DebugLog.actionStarted("result_edit", "count=${resultState.items.size}")
                         dependencies.resultsViewModel.editCurrentResult {
-                            // Finish the toolbar click before replacing the root page.
-                            // The result toolbar is inside the composition being removed;
-                            // posting avoids a re-entrant composition transition.
+                            // 先完成工具栏点击，再替换根页面。工具栏属于即将移除的组合树，
+                            // 将导航放到下一轮消息队列，避免点击回调中重入页面切换。
                             Handler(Looper.getMainLooper()).post {
                                 DebugLog.actionSucceeded("result_edit", "to=Generate")
                                 dependencies.actions.navigateTo(AppRoute.Generate)

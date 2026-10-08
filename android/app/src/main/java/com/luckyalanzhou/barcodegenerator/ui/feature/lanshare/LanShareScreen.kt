@@ -9,7 +9,10 @@ import androidx.compose.runtime.setValue
 import android.graphics.Bitmap
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 
-/** Stateless feature screen: renders state and reports user actions through callbacks. */
+/**
+ * 局域网分享页入口：维护当前文字草稿，并将扫码、附件选择、预览、保存、取消上传和发送操作回调给上层。
+ * 连接与传输状态来自 [lanState]，此层不直接启动或关闭网络服务。
+ */
 @Composable
 internal fun LanShareScreen(
     lanState: LanShareContentState,

@@ -4,15 +4,15 @@ package com.luckyalanzhou.barcodegenerator.domain
 data class FavoriteGroupItem(
     val groupId: Long,
     val itemId: Long,
-    /** Zero-based order of this barcode inside its favorite file. */
+    /** 条码在收藏文件中的从零开始的固定顺序。 */
     val position: Int,
 )
 
-/** A consistent, single-read view of a favorite file and every barcode linked to it. */
+/** 单次读取得到的收藏文件及其全部关联条码，避免分步查询期间数据变化造成内容不一致。 */
 data class FavoriteGroupContent(
     val group: FavoriteGroup,
     val items: List<CodeItem>,
-    /** Linked item IDs that could not be resolved or contain blank barcode data. */
+    /** 无法读取或条码内容为空的关联条目 ID；上层据此阻止打开不完整文件。 */
     val invalidItemIds: List<Long>,
 )
 
@@ -22,11 +22,11 @@ data class BarcodeSnapshot(
     val groups: List<FavoriteGroup>,
     val links: List<FavoriteGroupItem>,
     val folders: List<String>,
-    /** Only these groups have authoritative in-memory link contents during a partial load. */
+    /** 分页加载时，仅这些分组的内存关联列表是完整权威数据，可安全替换其关联记录。 */
     val replaceGroupLinkIds: Set<Long> = emptySet(),
 )
 
-/** Stable cursor for favorite-group paging; avoids OFFSET drift after mutations. */
+/** 收藏文件分页游标，以保存时间和 ID 定位，避免数据变更时 OFFSET 分页漂移。 */
 data class FavoriteGroupPageCursor(
     val savedAt: Long,
     val id: Long,
@@ -49,7 +49,7 @@ data class StartupBarcodeSnapshot(
     val links: List<FavoriteGroupItem>,
     val folders: List<String>,
     val hasMoreGroups: Boolean,
-    /** All favorite identities, without links, for collision checks independent of UI paging. */
+    /** 不受界面分页影响的全部收藏文件身份，用于全局重名检测。 */
     val identityGroups: List<FavoriteGroup> = groups,
 )
 
@@ -60,14 +60,17 @@ data class LegacyBarcodeData(
     val folders: Set<String>,
 )
 
-/** Domain 定义的持久化端口；具体存储实现由 Data 层提供。 */
+/**
+ * 领域层定义的持久化边界；Data 层提供 Room 实现。
+ * 插入、分页、搜索与收藏事务的约束在此声明，UI 不直接访问 DAO 或数据库实体。
+ */
 interface BarcodeRepository {
     suspend fun saveAll(snapshot: BarcodeSnapshot)
-    /** Applies the currently loaded favorite state atomically without deleting unloaded pages. */
+    /** 原子应用当前已加载的收藏状态；不得因分页未加载而删除数据库中的其他收藏页。 */
     suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot)
     suspend fun saveItems(items: List<CodeItem>)
     suspend fun upsertItems(items: List<CodeItem>)
-    /** Allocates IDs against all persisted rows and inserts, never overwriting an existing item. */
+    /** 根据全部已持久化条目分配新 ID 并插入，不覆盖任何已有条码。 */
     suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem>
     suspend fun deleteItem(itemId: Long, modifiedAt: Long)
     suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long)
@@ -95,7 +98,7 @@ interface BarcodeRepository {
     suspend fun loadSnapshot(): BarcodeSnapshot
     suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot
     suspend fun appendSnapshot(snapshot: BarcodeSnapshot)
-    /** Replaces conflicting favorite groups and writes imported rows in one transaction. */
+    /** 在同一事务中替换冲突收藏文件并写入导入内容，失败时由数据库回滚。 */
     suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>)
 
     suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData)

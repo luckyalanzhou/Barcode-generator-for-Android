@@ -43,12 +43,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import kotlin.math.roundToInt
 
+/** 解析数值输入并校验范围；非法或越界文本返回 null，由界面显示错误状态且不保存。 */
 internal fun parseSliderValue(text: String, range: ClosedFloatingPointRange<Float>): Float? =
     text.trim().toIntOrNull()?.toFloat()?.takeIf { it in range }
 
 internal fun useStackedSlider(widthDp: Float, fontScale: Float): Boolean =
     widthDp < 290f || fontScale > 1.2f
 
+/**
+ * 设置页的数值滑块：拖动后在结束时提交；点击右侧数值可直接键盘输入，失焦时校验并保存。
+ * 输入越界时将数值标红并提示合法区间，确认提示后恢复到最近一次有效值。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsSliderRow(
@@ -136,8 +141,7 @@ internal fun SettingsSliderRow(
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
                 .semantics { contentDescription = "$title，$shownValue，点击输入数值" }
                 .padding(end = 8.dp).offset(x = 6.dp),
-            // Shift the complete value display 6.dp right within the reserved
-            // trailing inset, without changing the slider or row measurements.
+            // 只将数值显示整体右移 6.dp，利用预留尾部空间，不改变滑块或整行测量宽度。
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {

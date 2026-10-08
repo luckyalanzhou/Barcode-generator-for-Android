@@ -1,6 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.domain
 
-/** Pure conflict and deduplication policy for importing favorite files. */
+/**
+ * 收藏导入的纯规则规划器：检测现存重名和备份内重复，并按覆盖策略计算待替换与待导入文件。
+ * 不执行数据库写入，便于在真正提交事务前向用户展示冲突并单独测试规则。
+ */
 class FavoritesImportPlanner {
     data class Plan(
         val conflictingFileKeys: List<String>,
@@ -8,6 +11,7 @@ class FavoritesImportPlanner {
         val favoritesToImport: List<InterchangeFavorite>,
     )
 
+    /** 汇总与现有收藏重名、以及备份自身重复的文件键，供确认界面展示。 */
     fun inspectConflicts(
         existingGroups: List<FavoriteGroup>,
         incomingFavorites: List<InterchangeFavorite>,
@@ -23,6 +27,7 @@ class FavoritesImportPlanner {
         return FavoritesImportConflictSummary(allConflicts, duplicateBackupKeys)
     }
 
+    /** 根据是否覆盖冲突生成最终导入清单，同时给出需要替换的既有收藏 ID。 */
     fun plan(
         existingGroups: List<FavoriteGroup>,
         incomingFavorites: List<InterchangeFavorite>,

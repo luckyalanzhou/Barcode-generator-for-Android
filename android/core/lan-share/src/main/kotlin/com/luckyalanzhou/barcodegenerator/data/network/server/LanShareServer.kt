@@ -37,7 +37,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-/** 浏览器端服务：HTTP 文件接口和 WebSocket 会话消息。 */
+/**
+ * 浏览器端分享服务：HTTP 负责页面、文件上传/下载和图片预览，WebSocket 负责连接状态与文字消息。
+ * 上传先流式写入同目录临时文件，校验完整后再发布为可见文件，避免失败留下半成品。
+ */
 internal class LanShareServer(
     host: String,
     port: Int,
@@ -115,7 +118,7 @@ internal class LanShareServer(
         val framing: String,
     )
 
-    /** Timings stay in memory until a request completes; never log per buffer. */
+    /** 单次请求的计时数据暂存在内存中，完成后统一记录，不按缓冲区逐次写日志。 */
     private data class UploadMetrics(
         var bodyReadNanos: Long = 0L,
         var fileWriteNanos: Long = 0L,
@@ -134,7 +137,7 @@ internal class LanShareServer(
         runCatching { logger.record("lan-server", "$label=$bytes$note", null) }
     }
 
-    /** Accept a fixed-length request or a correctly declared HTTP/1.1 chunked body. */
+    /** 解析固定长度或格式正确的 HTTP/1.1 分块请求体，并校验声明长度是否一致。 */
     private fun uploadBody(session: IHTTPSession): UploadBody? {
         val rawContentLength = session.headers["content-length"]
         val contentLength = rawContentLength?.toLongOrNull()
@@ -166,7 +169,7 @@ internal class LanShareServer(
         )
     }
 
-    /** Capacity reservation is brief; file/network I/O happens outside this lock. */
+    /** 仅在锁内快速预留房间容量；文件和网络 I/O 均在锁外执行。 */
     private fun reserveUploadCapacity(size: Long): Boolean = synchronized(uploadLock) {
         val stored = folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() }
         if (stored > LanShareLimits.MAX_ROOM_BYTES ||
@@ -184,7 +187,7 @@ internal class LanShareServer(
         reservedUploadBytes = (reservedUploadBytes - bytes).coerceAtLeast(0L)
     }
 
-    /** Persist directly to one same-directory staging file, then atomically publish it. */
+    /** 将收到的数据直接写入同目录临时文件，完整校验后再原子发布，期间不暴露未完成文件。 */
     private fun receiveUpload(
         session: IHTTPSession,
         body: UploadBody,
@@ -610,6 +613,7 @@ internal class LanShareServer(
     override fun serve(session: IHTTPSession): Response =
         super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
 
+    /** 根据 HTTP 方法和路径分发网页、文件清单、上传、预览和下载请求。 */
     override fun serveHttp(session: IHTTPSession): Response {
         val requestPath = session.uri.substringBefore('?')
         return try {

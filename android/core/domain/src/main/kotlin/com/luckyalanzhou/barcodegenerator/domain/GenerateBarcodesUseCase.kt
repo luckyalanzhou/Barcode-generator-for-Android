@@ -10,6 +10,7 @@ class GenerateBarcodesUseCase {
         val isValid: Boolean get() = errorIndex < 0
     }
 
+    /** 验证所有非空输入；若任一行不合法返回原始行号，否则生成临时 ID 的条码对象列表。 */
     fun execute(
         input: List<String>,
         format: String,

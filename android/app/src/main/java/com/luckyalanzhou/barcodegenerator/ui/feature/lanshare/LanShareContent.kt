@@ -90,6 +90,10 @@ private sealed interface LanShareTimelineEntry {
     }
 }
 
+/**
+ * 局域网聊天与文件时间线：按发送方区分气泡，将上传进度与已完成消息放入同一列表。
+ * 图片点击打开全屏预览，文件动作负责预览或保存；连接、发送和上传状态均由上层提供。
+ */
 @Composable
 internal fun LanShareContent(
     lanState: LanShareContentState,
@@ -151,6 +155,7 @@ internal fun LanShareContent(
     }
 
     Box(Modifier.fillMaxSize().background(background)) {
+        // 时间线只滚动消息区域；连接信息在列表头部，输入栏固定在底部。
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -188,6 +193,7 @@ internal fun LanShareContent(
                             },
                         )
                     }
+                    // 取消只针对尚未完成的当前上传任务；已完成文件使用独立的预览和下载入口。
                     is LanShareTimelineEntry.UploadEntry -> {
                         LanShareUploadingBubble(entry.upload) { onCancelUpload(entry.upload.id) }
                     }
@@ -204,6 +210,7 @@ internal fun LanShareContent(
             }
         }
 
+        // 文字或待传文件由同一个发送入口提交；附件菜单负责打开拍照、图库或文件选择器。
         LanShareInputBar(
             dark = dark,
             panel = panel,

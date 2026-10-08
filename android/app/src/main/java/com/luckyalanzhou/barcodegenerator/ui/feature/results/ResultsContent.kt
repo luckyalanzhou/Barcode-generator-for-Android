@@ -66,6 +66,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
 
+/**
+ * 结果页：先在后台准备本批全部条码图片，全部就绪后才显示列表；顶部固定提供编辑、收藏、分享和保存。
+ * 四个按钮使用独立回调，分享与保存共用互斥导出状态，编辑和收藏不受导出状态影响。
+ */
 @Composable
 internal fun ResultsContent(
     exportAction: ResultExportAction?,
@@ -109,8 +113,7 @@ internal fun ResultsContent(
         return@BoxWithConstraints
     }
 
-    // Do not reveal a partially populated result list. This also covers restored results
-    // whose image cache may have been cleared while the app was stopped.
+    // 不显示只准备了一部分的结果；进程停止后图片缓存被清理时，恢复结果也会走此准备流程。
     val preparedRows by key(items, style, dark, density, rowWidth, fontScale) {
         produceState<List<Bitmap>?>(null, items, style, dark, density, rowWidth, fontScale) {
             value = try {
@@ -155,10 +158,8 @@ internal fun ResultsContent(
         return@BoxWithConstraints
     }
 
-    // Results stays composed briefly while AnimatedContent draws the incoming
-    // page. It must own a separate recording layer from the shell backdrop;
-    // sharing one GraphicsLayer lets both route draw passes record the same
-    // RenderNode during that overlap.
+    // 页面切换动画期间，结果页与主界面可能短暂同时绘制，因此结果页必须使用独立的背景录制层，
+    // 避免两个路由共享 GraphicsLayer 时同时写入同一个 RenderNode。
     val backdrop = rememberGlassBackdrop()
     val toolbarInitialHeightPx = with(LocalDensity.current) { 64.dp.roundToPx() }
     var toolbarSize by remember(toolbarInitialHeightPx) {
@@ -167,6 +168,7 @@ internal fun ResultsContent(
     val toolbarHeight = with(LocalDensity.current) { toolbarSize.height.toDp() }
     CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
     Box(Modifier.fillMaxSize()) {
+        // 条码列表位于固定工具栏下方并独立滚动，顶部预留状态栏和工具栏高度以避免遮挡。
         LazyColumn(
             modifier = Modifier.fillMaxSize().recordGlassBackdrop(backdrop),
             contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),
@@ -230,10 +232,11 @@ private suspend fun prepareResultRows(
     }
 }
 
-// Grow labels with the system font scale, but keep each two-action group usable on a phone.
+// 按系统字体缩放标签宽度，同时限制最大值，保证手机上每组两个操作仍可使用。
 internal fun resultToolbarActionWidth(fontScale: Float): Float =
     64f * (if (fontScale.isFinite()) fontScale else 1f).coerceIn(1f, 1.5f)
 
+/** 结果页四个操作入口保持各自回调和按压状态，仅分享与保存互斥执行导出。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean,
@@ -242,9 +245,9 @@ private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean
     val actionWidth = resultToolbarActionWidth(LocalDensity.current.fontScale).dp
     val resultActionBlue = themeColors.controls.accent
     val favoriteActionIcon = if (isFavorite) FavoriteFilledIcon else FavoriteIcon
-    // Share and Save share only a one-at-a-time export guard; all four actions
-    // keep separate callbacks, stable composition identities, and press state.
+    // 仅分享和保存共用单次导出互斥状态；四个操作仍各自保留回调、组合身份和按压状态。
     val exportBusy = exportAction != null
+    // 编辑把结果带回生成页，收藏进入文件夹/文件名选择，分享与保存分别触发对应导出方式。
     FlowRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(0.dp, Alignment.End),

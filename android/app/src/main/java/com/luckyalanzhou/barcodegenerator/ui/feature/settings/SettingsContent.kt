@@ -66,6 +66,10 @@ import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
 import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
+/**
+ * 设置页：分组呈现外观、条码显示、OCR、局域网分享、调试日志和更新检查。
+ * 设置控件通过回调保存对应状态；启动分享、导出日志和检查更新是独立动作，不耦合到样式更新。
+ */
 @Composable
 internal fun SettingsContent(
     checkingForUpdates: Boolean,
@@ -92,8 +96,7 @@ internal fun SettingsContent(
     val listState = rememberLazyListState()
     val contentExceedsViewport by remember(listState) {
         derivedStateOf {
-            // The shell bounds this viewport above the Tab bar. Check both directions
-            // so a scrolled-to-bottom list can still return to the top.
+            // 内容视口被主界面限制在 Tab 栏上方；同时检测前后滚动能力，确保滚到底后仍可返回顶部。
             listState.canScrollForward || listState.canScrollBackward
         }
     }
@@ -107,6 +110,7 @@ internal fun SettingsContent(
         contentPadding = PaddingValues(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(dimensions.settingsCardSpacing),
     ) {
+        // 外观分组：主题选择立即保存；显示与动效选项在独立对话框中调整。
         item("settings-appearance") {
             SettingsCard(colors.surfaces.card, dark) {
                     SettingsRow("外观", colors.settingsText.primary) {
@@ -152,6 +156,7 @@ internal fun SettingsContent(
             }
         }
 
+        // 条码分组：滑块、格式显示开关和 OCR 选项分别只更新各自对应的设置字段。
         item("settings-barcode") {
             SettingsCard(colors.surfaces.card, dark) {
                     SettingsSliderRow("文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary) {
@@ -228,6 +233,7 @@ internal fun SettingsContent(
             }
         }
 
+        // 工具分组：启动局域网分享和导出调试日志属于独立操作，不修改条码样式。
         item("settings-tools") {
             SettingsCard(colors.surfaces.card, dark) {
                     SettingsRow("局域网文件分享", colors.settingsText.primary) {
@@ -257,6 +263,7 @@ internal fun SettingsContent(
             }
         }
 
+        // 关于分组保留单独的检查更新按钮；检查中状态只影响按钮提示与可用状态。
         item("settings-about") {
             SettingsCard(colors.surfaces.card, dark) {
                 Text("关于", color = colors.settingsText.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 1.dp))

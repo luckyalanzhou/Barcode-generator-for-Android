@@ -118,7 +118,10 @@ internal fun MainActivity.buildComposeShell() {
     composeShellReady = true
 }
 
-/** Single source of truth for pages: AppUiState drives rendering; no NavController race. */
+/**
+ * 应用主界面外壳：以导航状态作为页面唯一来源，统一协调页面切换、系统返回、Tab 栏和长按菜单。
+ * 页面可保存自身滚动状态；网络、持久化和系统选择器等副作用通过依赖回调交给上层处理。
+ */
 @Composable
 internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val appUiState by dependencies.navigationViewModel.uiState.collectAsStateWithLifecycle()
@@ -153,7 +156,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     )
     fun dismissMenu(action: (() -> Unit)? = null) {
         menuGesture.close()
-        // A dismiss may precede the first animated frame; do not wait for a non-existent exit.
+        // 若菜单在首帧动画前关闭，不等待尚未开始的退场动画，立即完成关闭。
         tabMenu.dismiss(immediately = tabMenuProgress.value <= 0f, action = action)
     }
     val tabEnterOffset = with(LocalDensity.current) { 20.dp.roundToPx() }
@@ -235,8 +238,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             }
                         }
 
-                        // A stationary parent clips both incoming and outgoing animated layers.
-                        // Retain the outgoing page's inset until it is disposed, including Generate.
+                        // 固定父容器裁切进入和离开的页面图层；旧页面销毁前继续保留其底部安全间距，包括生成页。
                         Box(Modifier.fillMaxWidth().weight(1f)
                                 .padding(bottom = pageTransitionBottomInset(pageTransition.currentState,
                                     pageTransition.targetState, dimensions.bottomTabBarHeight))
@@ -263,7 +265,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                 }
                             },
                         ) { targetPage ->
-                            // Keep the title stationary while only the page body enters from below.
+                            // 标题保持原位，只让页面主体从下方向上进入，避免标题在切页时重叠。
                             Box(
                                 Modifier.fillMaxSize()
                                     .background(colors.surfaces.background)

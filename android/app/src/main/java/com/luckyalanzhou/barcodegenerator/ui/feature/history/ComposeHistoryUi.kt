@@ -64,7 +64,10 @@ internal fun historyBatchSummary(batch: List<CodeItem>): String =
     batch.firstOrNull()?.text.orEmpty().replace('\n', ' ').replace('\r', ' ') +
         if (batch.size > 1) "…" else ""
 
-/** 历史页使用完整内容高度展示空状态或历史批次；清空操作由历史 Tab 长按菜单触发。 */
+/**
+ * 历史列表界面：空列表时显示空状态，有记录时按批次显示首条内容、时间和删除按钮。
+ * 点击卡片查看整批结果，长按进入批次编辑；清空全部历史由历史 Tab 长按菜单触发。
+ */
 @Composable
 internal fun HistoryComposePage(
     entries: List<Pair<Long, List<CodeItem>>>,
@@ -138,6 +141,7 @@ private fun HistoryBatchCard(
     val colors = LocalAppColorScheme.current
     val card = colors.surfaces.card
 
+    // 卡片主体点击用于查看、长按用于编辑；右侧独立删除按钮只删除当前批次。
     Surface(
         modifier = Modifier
             .fillMaxWidth()

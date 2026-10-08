@@ -17,7 +17,7 @@ data class LanShareFile(
     val mimeType: String? = null,
 )
 
-/** Ephemeral text chat entry shared by the App host and connected browser clients. */
+/** App 主机与已连接浏览器共享的会话内文字消息，不作为永久聊天记录保存。 */
 data class LanShareMessage(
     val id: String,
     val text: String,
@@ -25,14 +25,14 @@ data class LanShareMessage(
     val createdAt: Long,
 )
 
-/** Live, in-process events emitted by the active LAN sharing server. */
+/** 局域网服务运行期间在进程内发布的连接、消息和文件事件。 */
 sealed interface LanShareRealtimeEvent {
     data class ConnectionChanged(val connected: Boolean) : LanShareRealtimeEvent
     data class MessageAdded(val message: LanShareMessage) : LanShareRealtimeEvent
     data class FileAdded(val file: LanShareFile) : LanShareRealtimeEvent
 }
 
-/** Latest host-side LAN-share state; StateFlow conflation avoids an unbounded event backlog. */
+/** 主机端最新局域网分享状态；StateFlow 只保留最新快照，避免事件积压无限增长。 */
 data class LanShareRealtimeState(
     val browserConnected: Boolean = false,
     val files: List<LanShareFile> = emptyList(),
@@ -56,7 +56,7 @@ data class LanShareRealtimeState(
 data class LanShareSession(
     val baseUrl: String,
 ) {
-    /** QR and copied address for direct access from the local network. */
+    /** 用于二维码展示和复制的局域网直连地址。 */
     val shareUrl: String get() = baseUrl
 
     companion object {
@@ -75,11 +75,11 @@ data class LanShareSession(
     }
 }
 
-/** Bound generated preview payloads; source photos are decoded and resized on the host. */
+/** 预览缓存上限；原始照片由主机端解码并生成尺寸受控的预览图。 */
 const val LAN_SHARE_PREVIEW_MAX_FILE_BYTES = 64L * 1024L * 1024L
 const val LAN_SHARE_PREVIEW_CACHE_MAX_BYTES = 256L * 1024L * 1024L
 
-/** File types that can be rendered as LAN Share previews. */
+/** 根据文件名扩展名判断浏览器端可请求预览的图片类型。 */
 fun isLanShareImageName(name: String): Boolean =
     name.substringAfterLast('.', "").lowercase() in
         setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif", "tif", "tiff")
@@ -94,7 +94,7 @@ fun isLanShareTiffName(name: String): Boolean =
 fun isLanShareTiff(name: String, mimeType: String? = null): Boolean =
     isLanShareTiffName(name) || mimeType?.substringBefore(';')?.trim()?.equals("image/tiff", ignoreCase = true) == true
 
-/** Platform-neutral upload input; the app layer supplies the stream from a Uri. */
+/** 与 Android Uri 解耦的上传输入；App 层负责按需打开对应的字节流。 */
 data class LanShareUploadSource(
     val name: String,
     val size: Long,
@@ -102,7 +102,7 @@ data class LanShareUploadSource(
     val openStream: () -> InputStream?,
 )
 
-/** LAN Share boundary used by the app layer; the HTTP implementation lives in :core:lan-share. */
+/** App 层使用的局域网分享端口；HTTP/WebSocket 具体实现位于 `:core:lan-share`。 */
 interface LanShareGateway {
     fun isOnLocalNetwork(): Boolean
     fun isRouterLanHost(host: String?): Boolean

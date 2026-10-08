@@ -48,8 +48,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) {
         database.withTransaction {
-            // The in-memory store may contain only the loaded favorite pages. Upsert the
-            // supplied rows and replace links only for those groups; never delete unloaded data.
+            // 内存数据可能只包含已经加载的收藏页；仅写入本次提供的行，并只替换明确标记的分组关联，
+            // 不得把尚未加载的分页误删。
             dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
             if (snapshot.groups.isNotEmpty()) {
                 val groupIds = snapshot.groups.map { it.id }
@@ -58,7 +58,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
                 dao.clearGroupItemsForGroups(linkGroups.toList())
                 dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap(FavoriteGroup::toLinkEntities))
             }
-            // Loaded pages are not proof that an item has no other favorite links.
+            // 已加载页面不代表条码没有其他收藏关联，因此重新汇总其收藏标记。
             dao.reconcileFavoriteFlags()
             dao.clearFolders()
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
@@ -279,7 +279,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>) {
         database.withTransaction {
-            // Import planning may race another writer; its IDs are drafts, not durable identities.
+            // 导入规划期间可能有其他写入；规划生成的 ID 只是草稿，不能当作最终持久化身份。
             val imported = allocateImportedSnapshotIds(snapshot, dao.maxItemId(), dao.maxGroupId())
             if (replacedGroupIds.isNotEmpty()) {
                 val ids = replacedGroupIds.toList()
@@ -293,7 +293,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.clearGroupItemsForGroups(importedGroupIds)
             dao.saveGroupItems(imported.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
             dao.reconcileFavoriteFlags()
-            // Import adds folders but must not erase pre-existing empty folders.
+            // 导入只补充文件夹，不删除用户原有的空文件夹。
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
     }

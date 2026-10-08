@@ -60,6 +60,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * 收藏文件行：点击打开条码文件，长按弹出编辑菜单；移动、重命名、编辑和删除分别委托给上层回调。
+ * 收藏状态按收藏文件身份判断，而不是按文件内某一条码的内容判断。
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun FavoriteGroupRow(
@@ -83,6 +87,7 @@ internal fun FavoriteGroupRow(
     var anchor by remember(group.id) { mutableStateOf(Rect.Zero) }
     var titleAnchor by remember(group.id) { mutableStateOf(Rect.Zero) }
     DisposableEffect(group.id) { onDispose { anchor = Rect.Zero } }
+    // 长按菜单提供查看/编辑、移动、重命名和删除；删除需二次确认后才写入数据层。
     val openMenu: () -> Unit = {
         view.performLightMenuOpenHaptic()
         menuHost(TabLongPressMenuState(anchor, AttachFileIcon, group.name, fileColor, dark,

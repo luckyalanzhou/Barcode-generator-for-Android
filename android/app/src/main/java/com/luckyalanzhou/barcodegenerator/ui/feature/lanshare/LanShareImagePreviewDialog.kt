@@ -46,6 +46,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowCompat
 import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
 
+/** 全屏图片预览：支持手势缩放/平移，点关闭按钮或系统返回键退出，不触发文件下载。 */
 @Composable
 internal fun LanShareImagePreviewDialog(
     fileName: String,

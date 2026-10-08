@@ -23,6 +23,10 @@ import kotlinx.coroutines.launch
 
 private val Context.settingsDataStore by preferencesDataStore(name = "barcode_settings")
 
+/**
+ * DataStore 设置实现：统一读取和保存条码样式、外观选项、OCR 与更新状态。
+ * 所有异步写入按顺序排队，防止快速拖动滑块时旧值晚到并覆盖最新设置。
+ */
 class SettingsStore(private val context: Context) : SettingsRepository {
     companion object {
         val SHOW_TEXT = booleanPreferencesKey("style_show_text")

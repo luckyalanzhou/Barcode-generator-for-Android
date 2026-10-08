@@ -40,6 +40,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * 已完成文件的聊天气泡：图片区域点击打开全屏预览，图片文件名或普通附件的“下载”按钮保存原文件。
+ * 气泡左右位置由当前设备是否为发送方决定，其他加入设备按稳定颜色索引区分。
+ */
 @Composable
 internal fun LanShareMessageBubble(
     ownFileIds: Set<String>,

@@ -90,6 +90,7 @@ internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Co
     SettingsButton(text, color, contentColor, onClick, modifier, showDisclosure = pickerLabel != null)
 }
 
+/** 设置页通用按钮：忙碌时禁止重复点击；带下拉提示时只负责打开选择菜单。 */
 @Composable
 internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -113,7 +114,7 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
     }
 }
 
-/** A button owns its surface; inherited host text backgrounds must never paint another rectangle. */
+/** 按钮文字不继承宿主背景，避免文字层再绘制一块多余的背景矩形。 */
 internal fun settingsButtonTextStyle(inherited: TextStyle): TextStyle =
     inherited.copy(background = Color.Transparent)
 
@@ -132,6 +133,7 @@ internal fun SettingsDivider(dark: Boolean) {
     )
 }
 
+/** 开关只有自身触控区域可切换；标题说明不响应点击，语义状态由开关控件统一提供。 */
 @Composable
 internal fun SettingsSwitchTarget(
     title: String,
@@ -141,7 +143,7 @@ internal fun SettingsSwitchTarget(
     explanation: String? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    // One event/semantics owner; the track must not intercept this target's taps.
+    // 触控和无障碍语义只归开关目标所有，避免内部轨道再次拦截点击或重复触发状态变更。
     Box(
         modifier.width(52.dp).heightIn(min = 48.dp)
             .toggleable(value = checked, enabled = enabled, role = Role.Switch,

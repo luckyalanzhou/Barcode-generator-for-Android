@@ -32,6 +32,7 @@ internal class LanShareClient(
     private val uploadLock = Any()
     private val activeUploads = mutableMapOf<String, ActiveUpload>()
 
+    /** 从分享服务获取文件清单，并将响应内容转换为领域文件模型。 */
     fun list(session: LanShareSession) = request(session, "/api/files") { connection ->
         JSONArray(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }).let { json ->
             (0 until json.length()).map { index ->
@@ -50,6 +51,7 @@ internal class LanShareClient(
         }
     }
 
+    /** 流式上传 App 文件，报告进度并登记任务 ID，以便界面取消正在进行的请求。 */
     fun upload(
         session: LanShareSession,
         transferId: String,
@@ -78,6 +80,7 @@ internal class LanShareClient(
         }
     }
 
+    /** 标记指定上传任务已取消并断开其 HTTP 连接；不会影响其他并行上传。 */
     fun cancelUpload(transferId: String) {
         val connection = synchronized(uploadLock) {
             activeUploads[transferId]?.also { it.cancelled = true }?.connection
@@ -141,6 +144,7 @@ internal class LanShareClient(
         }
     }
 
+    /** 下载原文件到同目录临时文件，完成后替换目标文件，避免留下不完整下载结果。 */
     fun downloadToFile(session: LanShareSession, id: String, destination: File) =
         request(session, "/dl/${Uri.encode(id)}") { connection ->
             destination.parentFile?.mkdirs()
@@ -157,6 +161,7 @@ internal class LanShareClient(
             }
         }
 
+    /** 下载有字节上限的图片预览副本；原始下载仍走 [downloadToFile]。 */
     fun downloadPreview(session: LanShareSession, id: String, destination: File, maxBytes: Long) =
         request(session, "/api/preview/${Uri.encode(id)}", readTimeoutMs = 120_000) { connection ->
             val declaredSize = connection.getHeaderFieldLong("Content-Length", -1L)

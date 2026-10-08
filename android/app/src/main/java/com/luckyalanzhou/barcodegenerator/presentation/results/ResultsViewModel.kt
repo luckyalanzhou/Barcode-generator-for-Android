@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
-/** Owns result-page state, image rendering, and result-to-editor preparation. */
+/** 负责结果页状态、条码图片准备、结果恢复，以及从结果页返回生成页时的输入快照交接。 */
 @HiltViewModel
 class ResultsViewModel @Inject constructor(
     private val imageRenderer: BarcodeImageRenderer,
@@ -181,20 +181,20 @@ class ResultsViewModel @Inject constructor(
         }
     }
 
+    /** 将完整结果一次性写入生成页编辑状态，再导航回生成页，避免页面观察到半更新数据。 */
     fun editCurrentResult(onNavigateToGenerate: () -> Unit) {
         val items = results.current().items
         if (items.isEmpty()) {
             appLogger.record("results", "edit ignored because result list is empty", null)
             return
         }
-        // Publish one complete editor snapshot before changing the route. Two separate
-        // StateFlow writes allowed GenerateContent to observe a half-updated snapshot
-        // while its editable list was being replaced, which could lead to a stale index
-        // callback and an IndexOutOfBoundsException on the first tap.
+        // 在切换页面前一次性发布完整的编辑快照。分两次写入 StateFlow 时，生成页可能在输入列表替换期间
+        // 观察到不完整状态，导致首次点击回调使用旧索引并触发越界。
         generateEditor.beginEditing(items.map { it.text }, items.firstOrNull()?.format)
         onNavigateToGenerate()
     }
 
+    /** 数据就绪且整批图片准备成功后，才持久化新条码并进入结果页；失败时保留原页面状态。 */
     fun commitGeneratedBarcodes(
         items: List<CodeItem>,
         style: StyleSettings,

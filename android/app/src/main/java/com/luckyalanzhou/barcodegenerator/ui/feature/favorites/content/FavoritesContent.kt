@@ -97,6 +97,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
+/**
+ * 收藏页界面协调器：按查询条件展示收藏文件与文件夹树，并处理展开折叠、滚动恢复和分页加载。
+ * 文件/文件夹的重命名、移动、删除及条目编辑均通过回调交由上层执行，UI 不直接写持久化数据。
+ */
 @Composable
 internal fun FavoritesContent(
     state: FavoritesContentState,
@@ -222,8 +226,7 @@ internal fun FavoritesContent(
             return@LaunchedEffect
         }
 
-        // Keep collapsing rows composed until their height transition finishes;
-        // LazyColumn remains virtualized, and a rapid re-expand cancels this delay.
+        // 收起动画结束前暂时保留行节点；LazyColumn 仍按需组合，快速重新展开会取消这段等待。
         delay(ComposeAnimationConfig.favoriteRowCollapseDurationMillis + ComposeAnimationConfig.favoriteRowRemovalBufferMillis)
         displayedRows = targetRows
     }
@@ -272,6 +275,7 @@ internal fun FavoritesContent(
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(Modifier.width(10.dp))
+                    // 搜索覆盖收藏文件名、文件夹路径和条码内容；提交键只收起键盘，不创建第二份搜索状态。
                     BasicTextField(
                         value = query,
                         onValueChange = onQueryChange,
@@ -321,6 +325,7 @@ internal fun FavoritesContent(
                             }
                         },
                     )
+                    // 清除按钮只清空查询条件，不会删除收藏数据。
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp)) {
                             Icon(CloseSmallIcon, contentDescription = "清除搜索文字",
@@ -329,6 +334,7 @@ internal fun FavoritesContent(
                     }
                 }
             }
+            // 清空收藏是破坏性操作，确认与数据删除由上层的 Tab 操作流程执行。
             TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp)) {
                 Text("清空收藏", color = themeColors.text.destructive, fontSize = 14.sp)
             }
@@ -358,8 +364,7 @@ internal fun FavoritesContent(
                     modifier = Modifier.fillMaxWidth().padding(top = 40.dp), textAlign = TextAlign.Center)
             }
         } else if (rowsForDisplay == null) {
-            // The tree projection is computed off the main thread; keep the page quiet
-            // during the short recomposition instead of showing a flashing placeholder.
+            // 文件夹树投影在后台线程计算；短暂重组期间保持页面稳定，避免闪现占位内容。
         } else if (rowsForDisplay.isEmpty()) {
             item(key = "favorite-empty") {
                 Text(
@@ -379,7 +384,7 @@ internal fun FavoritesContent(
                 val key = rowKey(row)
                 val targetVisible = !listPositionRestored || key in targetRowKeys
                 val visibility = remember(key) {
-                    // Off-screen rows returning during scroll are already visible.
+                    // 滚动后重新进入视口的旧行本来就是可见状态，不要重复播放进入动画。
                     MutableTransitionState(favoriteRowInitiallyVisible(key, enteringRowKeys))
                 }
                 LaunchedEffect(targetVisible) {
@@ -387,8 +392,7 @@ internal fun FavoritesContent(
                 }
                 AnimatedVisibility(
                     visibleState = visibility,
-                    // One size transition only: do not also animate placement,
-                    // which causes following rows to chase their moving layout.
+                    // 只动画行高，不再动画位置，避免后续行追逐动态布局而产生抖动。
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(themeColors.surfaces.background),
@@ -407,9 +411,9 @@ internal fun FavoritesContent(
                         ),
                     ),
                 ) {
-                  // Cache the full row display list while its outer height is animated.
-                  // Keep placement disabled: neighboring rows must not chase layout changes.
+                  // 行高动画期间缓存完整内容绘制；不启用位移动画，避免相邻行追逐布局变化。
                   Column(Modifier.graphicsLayer().padding(bottom = 6.dp)) {
+                    // 点击文件夹只切换展开状态；打开文件前先记住滚动位置，返回收藏树时恢复原位置。
                     if (row.folder) {
                         FavoriteFolderRow(
                             row = row,

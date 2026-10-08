@@ -44,6 +44,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * 收藏文件夹行：点击切换展开/折叠；长按打开文件夹操作菜单，重命名、建子文件夹和删除由回调执行。
+ * 本行只呈现给定层级与展开状态，不在组件内部维护文件夹树。
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun FavoriteFolderRow(
@@ -66,6 +70,7 @@ internal fun FavoriteFolderRow(
     var anchor by remember(row.path) { mutableStateOf(Rect.Zero) }
     var titleAnchor by remember(row.path) { mutableStateOf(Rect.Zero) }
     DisposableEffect(row.path) { onDispose { anchor = Rect.Zero } }
+    // 长按菜单中的删除会先弹出确认框，确认后删除该文件夹及其内部收藏。
     val openMenu: () -> Unit = {
         view.performLightMenuOpenHaptic()
         val labels = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")

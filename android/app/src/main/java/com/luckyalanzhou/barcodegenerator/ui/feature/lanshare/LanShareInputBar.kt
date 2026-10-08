@@ -40,6 +40,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 
+/**
+ * 固定在分享页底部的输入栏：加号打开拍照/图库/文件选择，发送按钮提交文字或待传文件。
+ * 有待上传文件时允许空文字发送；上传状态与网络服务由上层协调。
+ */
 @Composable
 internal fun BoxScope.LanShareInputBar(
     dark: Boolean,
@@ -70,6 +74,7 @@ internal fun BoxScope.LanShareInputBar(
         shape = RoundedCornerShape(18.dp),
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // 选择附件后先关闭菜单，再启动对应的系统入口，避免菜单遮挡系统选择界面。
             Box {
                 IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp)) {
                     Icon(AddIcon, "添加附件", tint = accent, modifier = Modifier.size(28.dp))
@@ -102,6 +107,7 @@ internal fun BoxScope.LanShareInputBar(
                 },
             )
             Spacer(Modifier.width(8.dp))
+            // 空文字且没有待上传文件时禁用发送，避免产生无内容的消息。
             Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(48.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = themeColors.content.sentContent,
                 disabledContainerColor = themeColors.controls.disabledContainer, disabledContentColor = themeColors.text.disabled)) {
                 Text("发送", fontSize = 15.sp, fontWeight = FontWeight.Medium)

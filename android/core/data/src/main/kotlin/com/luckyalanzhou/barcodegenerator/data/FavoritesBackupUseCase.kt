@@ -29,9 +29,8 @@ class FavoritesBackupUseCase(
         val existing = existingSnapshot.toTransferEntities()
         val plan = importPlanner.plan(existingSnapshot.groups, backup.favorites, overwriteConflicts)
         val replacedGroupIds = plan.replacedGroupIds
-        // Build the complete post-import snapshot without deleting durable data first.
-        // Room applies the replacement and import together, so any constraint/write failure
-        // rolls back and leaves every old favorite intact.
+        // 先在内存中构造完整的导入后快照，不提前删除持久化数据。
+        // Room 会在同一事务内执行替换和新增；约束或写入失败时回滚，保留全部旧收藏。
         val retainedExisting = if (replacedGroupIds.isEmpty()) existing else existing.copy(
             groups = existing.groups.filterNot { it.id in replacedGroupIds },
             links = existing.links.filterNot { it.groupId in replacedGroupIds },

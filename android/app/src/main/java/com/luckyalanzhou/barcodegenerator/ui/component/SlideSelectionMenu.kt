@@ -29,9 +29,11 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 import kotlin.math.max
 import kotlin.math.min
 
+/** 将 Compose 布局坐标换算为屏幕坐标，用于菜单锚定和跨组件命中判断。 */
 internal fun LayoutCoordinates.boundsOnScreen(): Rect =
     boundsInWindow().translate(localToScreen(Offset.Zero) - localToWindow(Offset.Zero))
 
+/** 保存菜单项当前屏幕范围及选中项，并按可视区域裁剪命中范围。 */
 internal class SlideSelectionMenuScope {
     internal data class Entry(val coordinates: LayoutCoordinates, val action: () -> Unit)
     internal val entries = mutableMapOf<Int, Entry>()
@@ -53,7 +55,7 @@ internal class SlideSelectionMenuScope {
     }
 }
 
-/** Root observer owns both the original long-press and subsequent menu touches. */
+/** 手势会话负责跟踪原始长按和后续菜单触摸，使拖动选项和普通点击共用一套选中状态。 */
 internal class ContextMenuGestureSession {
     val selection = SlideSelectionMenuScope()
     val gesture = MenuSlideSelection()
@@ -77,7 +79,7 @@ internal class ContextMenuGestureSession {
         menuOpen = true
         ready = false
         continuation = pointerDown
-        // A new presentation must not inherit the previous menu's debounce window.
+        // 新菜单每次重新计时，不能继承上一次菜单的触感反馈防抖窗口。
         lastHapticAt = 0L
         moved = false
         origin = lastPointer
@@ -95,7 +97,7 @@ internal class ContextMenuGestureSession {
         val chosen = if (ready) gesture.release(point, bounds) else null
         val result = when {
             chosen != null -> ContextMenuRelease.Select(chosen)
-            // Releasing a source drag ends the drag, not the context-menu presentation.
+            // 从来源卡片拖入菜单后松手，只结束来源拖动，不关闭操作菜单。
             continuation -> ContextMenuRelease.KeepOpen
             !ready -> ContextMenuRelease.KeepOpen
             else -> ContextMenuRelease.Dismiss
@@ -125,6 +127,10 @@ internal sealed interface ContextMenuRelease {
     data object Dismiss : ContextMenuRelease
 }
 
+/**
+ * 在根触摸层协调菜单手势：拖动时更新高亮和轻触感，松手命中菜单项时执行动作；
+ * 点击来源区域可继续拖动，点击菜单外部才关闭菜单。
+ */
 @Composable
 internal fun Modifier.contextMenuGestures(
     session: ContextMenuGestureSession,
@@ -197,7 +203,7 @@ internal fun Modifier.contextMenuGestures(
     }
 }
 
-/** Preserve keyboard/TalkBack clicks; pointer events are processed by the root host. */
+/** 保留键盘与 TalkBack 的点击操作；触屏拖动由根手势层统一处理，避免每个菜单项重复识别。 */
 @Composable
 internal fun Modifier.slideMenuItem(
     scope: SlideSelectionMenuScope,
@@ -219,6 +225,7 @@ internal fun Modifier.slideMenuItem(
     }
 }
 
+/** 记录菜单整体和子项位置，为拖动选择提供可见范围内的稳定命中区域。 */
 @Composable
 internal fun SlideSelectionMenu(
     scope: SlideSelectionMenuScope,
