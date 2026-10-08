@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.lanshare
 
 import com.luckyalanzhou.barcodegenerator.ui.app.*
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.showIos26NoticeDialogCompose
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogCompose
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile

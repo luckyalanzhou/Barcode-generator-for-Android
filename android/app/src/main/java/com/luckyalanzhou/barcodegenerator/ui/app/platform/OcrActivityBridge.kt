@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.dialogs
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 

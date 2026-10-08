@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.dialogs
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
@@ -9,6 +9,10 @@ import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.UpdateAvailableDialogContent
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDownloadProgressDialog
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
 
 import androidx.core.net.toUri
 import java.io.File
@@ -122,48 +126,6 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
             },
         )
     }
-}
-
-@Composable
-internal fun UpdateAvailableDialogContent(
-    latest: String,
-    dark: Boolean,
-    onLater: () -> Unit,
-    onUpdate: () -> Unit,
-) {
-    ComposeGlassDialogCard(dark, horizontalPadding = 14.dp) {
-        Text("发现新版本", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-        Text(
-            "检测到版本 $latest，是否立即更新？",
-            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-            color = LocalAppColorScheme.current.text.secondary,
-            fontSize = 15.sp,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            ComposeUpdateAction("稍后更新", dark, onClick = onLater)
-            ComposeUpdateAction("立即更新", dark, primary = true, onClick = onUpdate)
-        }
-    }
-}
-
-@Composable
-private fun ComposeUpdateAction(
-    text: String,
-    dark: Boolean,
-    modifier: Modifier = Modifier,
-    primary: Boolean = false,
-    onClick: () -> Unit,
-) {
-    DialogAction(
-        text = text,
-        dark = dark,
-        onClick = onClick,
-        modifier = modifier,
-        primary = primary,
-    )
 }
 
 internal fun MainActivity.cancelUpdateDownload() {

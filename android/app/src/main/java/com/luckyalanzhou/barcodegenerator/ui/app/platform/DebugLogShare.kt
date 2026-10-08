@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.support.logging
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.MainActivity

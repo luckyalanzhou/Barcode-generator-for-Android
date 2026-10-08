@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.dialogs
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
@@ -7,9 +7,8 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.createFavoritesDocumentExportForCompose
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.importFavoritesForCompose
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.shareFavoritesExportForCompose
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding

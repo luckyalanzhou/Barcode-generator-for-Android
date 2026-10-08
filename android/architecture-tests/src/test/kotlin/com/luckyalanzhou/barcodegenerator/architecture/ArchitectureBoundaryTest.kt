@@ -69,6 +69,27 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
+    fun `feature and shared UI packages do not import the Activity host`() {
+        val nonCompositionUiScopes = listOf(
+            "com.luckyalanzhou.barcodegenerator.ui.dialogs..",
+            "com.luckyalanzhou.barcodegenerator.ui.support..",
+            "com.luckyalanzhou.barcodegenerator.ui.component..",
+            "com.luckyalanzhou.barcodegenerator.ui.animation..",
+            "com.luckyalanzhou.barcodegenerator.ui.feature..",
+        )
+        val violations = nonCompositionUiScopes.flatMap { packagePattern ->
+            Konsist.scopeFromPackage(packagePattern).files.filter { file ->
+                file.hasImport { it.name == "com.luckyalanzhou.barcodegenerator.MainActivity" }
+            }
+        }
+
+        org.junit.Assert.assertTrue(
+            "Only ui.app composition bridges may depend on MainActivity: ${violations.map { it.path }}",
+            violations.isEmpty(),
+        )
+    }
+
+    @Test
     fun `history feature UI cannot depend on presentation or app composition`() {
         Konsist.scopeFromProduction().assertArchitecture {
             val historyFeature = Layer("HistoryFeature", "com.luckyalanzhou.barcodegenerator.ui.feature.history..")

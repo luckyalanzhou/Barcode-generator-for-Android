@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeConfirmDialog
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 

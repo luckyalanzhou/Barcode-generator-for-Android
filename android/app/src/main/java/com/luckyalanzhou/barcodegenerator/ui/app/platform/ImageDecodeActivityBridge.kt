@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.dialogs
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -6,6 +6,8 @@ import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.calculateInSampleSize
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.exifBitmapTransform
 
 /** Decodes camera/gallery recognition images at a bounded size and applies their EXIF orientation. */
 internal fun MainActivity.decodeRecognitionBitmap(uri: Uri, maxEdge: Int): Bitmap? = runCatching {

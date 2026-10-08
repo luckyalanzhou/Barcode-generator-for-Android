@@ -11,17 +11,19 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.captureText
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.checkForUpdates
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.restoreFavoritesImport
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.showComposeConfirmDialog as showComposeConfirmDialogImpl
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.captureText
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.checkForUpdates
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.createFavoritesExportCompose
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.restoreFavoritesImport
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeConfirmDialog as showComposeConfirmDialogImpl
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showUpdateAvailableDialogCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.app.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.app.editor.showItemEditorCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.*
-import com.luckyalanzhou.barcodegenerator.ui.support.logging.shareDebugLog
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.shareDebugLog
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 /** Compose 根层可发出的动作；具体由宿主适配系统能力和暂存的旧 UI 流程。 */

@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.ui.dialogs
+package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
@@ -6,8 +6,8 @@ import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.readFavoritesBackupBounded
 import com.luckyalanzhou.barcodegenerator.ui.app.composeAppShellActions
-import com.luckyalanzhou.barcodegenerator.ui.dialogs.confirmImportFavoritesCompose
 import com.luckyalanzhou.barcodegenerator.ui.app.showComposeDialog
 import com.luckyalanzhou.barcodegenerator.ui.app.toast
 

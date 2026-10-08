@@ -3,6 +3,8 @@ package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeConfirmDialog
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.FAVORITE_ROOT_ONLY_OPTION
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderChildren

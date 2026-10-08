@@ -7,7 +7,6 @@ import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
-import com.luckyalanzhou.barcodegenerator.MainActivity
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -120,29 +119,4 @@ internal fun DialogAction(
 @Composable
 internal fun ComposeDropdownDivider(dark: Boolean) {
     HorizontalDivider(thickness = if (dark) 0.5.dp else 1.dp, color = LocalAppColorScheme.current.borders.divider)
-}
-
-internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {
-    showComposeDialog(compact = true) { dismiss ->
-        val dark = isDark()
-        ComposeGlassDialogCard(dark) {
-            Text(message, modifier = Modifier.fillMaxWidth(), color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp)
-            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) { DialogAction("确定", dark, dismiss) }
-        }
-    }
-}
-
-/** 带实际确认回调的 Compose 确认弹窗，供收藏编辑等业务继续复用原确认逻辑。 */
-internal fun MainActivity.showComposeConfirmDialog(title: String, message: String, positive: String, onConfirm: () -> Unit) {
-    showComposeDialog(compact = false) { dismiss ->
-        val dark = isDark()
-        ComposeGlassDialogCard(dark) {
-            Text(title, color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            Text(message, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalAppColorScheme.current.text.secondary, fontSize = 15.sp)
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
-                DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 20.dp))
-            }
-        }
-    }
 }
