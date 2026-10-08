@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
+
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
@@ -220,7 +222,11 @@ internal fun TabLongPressActionOverlay(
             }
             LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
             if (popupReady) {
-                val focusWidth = if (state.tabAnchor) 64.dp else with(density) { anchorBoundsOnScreen.width.toDp() }
+                // 整行预览为 1.15 倍放大预留空间，避免放大后在屏幕两侧被裁掉。
+                val focusWidth = if (state.tabAnchor) 64.dp else with(density) {
+                    minOf(anchorBoundsOnScreen.width,
+                        (screenWidthPx - edgePaddingPx * 2f) / if (effects.reduceMotion) 1f else 1.15f).toDp()
+                }
                 val focusHeight = if (state.tabAnchor) 54.dp else with(density) { anchorBoundsOnScreen.height.toDp() }
                 val focusWidthPx = with(density) { focusWidth.toPx() }
                 val focusHeightPx = with(density) { focusHeight.toPx() }
@@ -238,9 +244,8 @@ internal fun TabLongPressActionOverlay(
                             val exit = actionExit.value
                             alpha = if (actionClosing) 1f - exit else if (effects.reduceMotion)
                                 opacity.value else if (interactive) 1f else (progress.value / .15f).coerceIn(0f, 1f)
-                            val pop = if (effects.reduceMotion) 1f else if (actionClosing)
-                                (if (state.tabAnchor) 1f else 1.012f) * (1f - .03f * exit)
-                                else .97f + (if (state.tabAnchor) .03f else .042f) * sourceProgress.value.coerceIn(0f, 1.06f)
+                            val pop = contextMenuSourceScale(sourceProgress.value,
+                                if (actionClosing) exit else 0f, effects.reduceMotion)
                             scaleX = pop
                             scaleY = pop
                             val rawMotion = displayedMotion()

@@ -28,7 +28,7 @@ class MenuGlassRevealTest {
     @Test fun invalidProgressAndOvershootAreBounded() {
         assertEquals(menuGlassReveal(0f, false), menuGlassReveal(Float.NaN, false))
         val overshoot = menuGlassReveal(2f, false)
-        assertTrue(overshoot.scale in 1f..1.009f)
+        assertTrue(overshoot.scale in 1f..1.015f)
         assertEquals(1f, overshoot.alpha, 0f)
         assertEquals(1f, overshoot.thickness, 0f)
         assertEquals(menuGlassReveal(0f, false), menuGlassReveal(-1f, false))

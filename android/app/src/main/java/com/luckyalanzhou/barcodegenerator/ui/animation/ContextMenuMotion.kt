@@ -28,6 +28,14 @@ internal class ContextMenuMotion {
     val source: State<Float> = sourceAnimation.asState()
 }
 
+/** 聚焦预览整体放大到 1.15；减少动态效果时不缩放，操作关闭时平滑回到原尺寸。 */
+internal fun contextMenuSourceScale(progress: Float, actionExit: Float, reduceMotion: Boolean): Float {
+    if (reduceMotion) return 1f
+    val focus = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
+    val exit = if (actionExit.isFinite()) actionExit.coerceIn(0f, 1f) else 0f
+    return 1f + .15f * focus * (1f - exit)
+}
+
 /**
  * 一个可取消任务协调来源弹起、背景和面板；重新打开菜单会取消旧退场。
  * 点击空白向来源收回；选中操作先确认，再整体缩小淡出；减少动态效果时仅短暂淡入淡出。
@@ -46,15 +54,17 @@ internal fun rememberContextMenuMotion(
             coroutineScope {
                 launch {
                     motion.sourceAnimation.animateTo(1f, if (reduceMotion) tween(90)
-                        else spring(dampingRatio = .72f, stiffness = 460f))
+                        else spring(dampingRatio = .86f, stiffness = 380f))
                 }
                 launch {
+                    // 先看清长按目标的聚焦，再让菜单从该目标生长；仍在同一个可取消任务中。
+                    if (!reduceMotion) delay(70)
                     motion.panelAnimation.animateTo(1f, if (reduceMotion) tween(90)
-                        else spring(dampingRatio = .74f, stiffness = 420f))
+                        else spring(dampingRatio = .80f, stiffness = 420f))
                 }
                 launch {
-                    if (!reduceMotion) delay(25)
-                    motion.opacityAnimation.animateTo(1f, tween(if (reduceMotion) 90 else 170))
+                    if (!reduceMotion) delay(70)
+                    motion.opacityAnimation.animateTo(1f, tween(if (reduceMotion) 90 else 190))
                 }
                 // 背景只平滑变化，不随面板弹簧忽清忽糊。
                 motion.revealAnimation.animateTo(1f, if (reduceMotion) tween(90)
