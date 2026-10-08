@@ -205,7 +205,7 @@ internal fun TabLongPressActionOverlay(
                 with(density) { maxHeight.toPx() }, statusBarTopPx, bottomInsetPx,
                 gapPx, focusLiftPx, desiredHeightPx, state.tabAnchor)
             val placement = if (state.tabAnchor) tabMenuPlacement(rowMenuAnchor, overlayOriginOnScreen, panelSize,
-                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
+                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above, alignTabEdge = true)
             else rowMenuPlacement(rowMenuAnchor, overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
