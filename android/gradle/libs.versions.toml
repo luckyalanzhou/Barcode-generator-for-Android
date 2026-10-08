@@ -15,6 +15,7 @@ exifinterface = "1.4.2"
 tiffRenderer = "3.0.0"
 lifecycle = "2.11.0"
 room = "2.8.5"
+robolectric = "4.17"
 datastore = "1.2.1"
 nanohttpd = "2.3.1"
 konsist = "0.17.3"
@@ -42,6 +43,7 @@ hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.re
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
 nanohttpd-websocket = { module = "org.nanohttpd:nanohttpd-websocket", version.ref = "nanohttpd" }
