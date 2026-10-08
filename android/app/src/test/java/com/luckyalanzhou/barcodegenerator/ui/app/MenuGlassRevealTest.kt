@@ -21,7 +21,7 @@ class MenuGlassRevealTest {
 
     @Test fun reducedMotionHasNoScaleOrThicknessAnimation() {
         for (p in listOf(.01f, .5f, 1f)) {
-            assertEquals(MenuGlassReveal(1f, 1f, 1f, 1f), menuGlassReveal(p, true, true))
+            assertEquals(MenuGlassReveal(1f, p, 1f, 1f), menuGlassReveal(p, true, true))
         }
         assertEquals(0f, menuGlassReveal(0f, true, true).alpha, 0f)
     }

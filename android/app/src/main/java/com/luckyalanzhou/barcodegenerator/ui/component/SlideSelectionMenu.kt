@@ -39,6 +39,8 @@ internal class SlideSelectionMenuScope {
     internal val entries = mutableMapOf<Int, Entry>()
     internal var coordinates: LayoutCoordinates? = null
     internal var selected by mutableStateOf<Int?>(null)
+    // 松手后保留一次确认高亮，直到退场完成，避免触摸清理提前抹掉反馈。
+    internal var confirmed by mutableStateOf<Int?>(null)
     private val hitBounds = linkedMapOf<Int, Rect>()
 
     fun bounds(): Map<Int, Rect> {
@@ -76,6 +78,7 @@ internal class ContextMenuGestureSession {
     fun open() {
         selection.entries.clear()
         selection.selected = null
+        selection.confirmed = null
         menuOpen = true
         ready = false
         continuation = pointerDown
@@ -95,6 +98,7 @@ internal class ContextMenuGestureSession {
 
     fun release(point: Offset, bounds: Map<Int, Rect> = selection.bounds()): ContextMenuRelease {
         val chosen = if (ready) gesture.release(point, bounds) else null
+        selection.confirmed = chosen
         val result = when {
             chosen != null -> ContextMenuRelease.Select(chosen)
             // 从来源卡片拖入菜单后松手，只结束来源拖动，不关闭操作菜单。
@@ -114,10 +118,11 @@ internal class ContextMenuGestureSession {
         moved = false
     }
 
-    fun close() {
+    fun close(preserveConfirmation: Boolean = false) {
         menuOpen = false
         ready = false
         cancelTouch()
+        if (!preserveConfirmation) selection.confirmed = null
     }
 }
 
@@ -221,7 +226,7 @@ internal fun Modifier.slideMenuItem(
         if (enabled) scope.entries[key] = SlideSelectionMenuScope.Entry(it) { action() }
         else scope.entries.remove(key)
     }.drawBehind {
-        if (scope.selected == key) drawRect(selectionColor)
+        if (scope.selected == key || scope.confirmed == key) drawRect(selectionColor)
     }
 }
 

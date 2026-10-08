@@ -17,10 +17,14 @@ internal class TabMenuPresentation<T>(private val onClosed: (T) -> Unit = {}) {
         private set
     var open by mutableStateOf(false)
         private set
+    // 选择操作与点击空白使用不同退场轨迹；操作仍在退场结束后执行。
+    var actionClosing by mutableStateOf(false)
+        private set
     private var pendingAction: (() -> Unit)? = null
 
     fun show(value: T) {
         pendingAction = null
+        actionClosing = false
         ready = false
         menu = value
         open = true
@@ -31,6 +35,7 @@ internal class TabMenuPresentation<T>(private val onClosed: (T) -> Unit = {}) {
     fun dismiss(immediately: Boolean = false, action: (() -> Unit)? = null) {
         if (!open) return
         open = false
+        actionClosing = action != null
         pendingAction = action
         if (!ready || immediately) closed()
     }
@@ -42,6 +47,7 @@ internal class TabMenuPresentation<T>(private val onClosed: (T) -> Unit = {}) {
         pendingAction = null
         menu = null
         ready = false
+        actionClosing = false
         // 菜单动作可能打开系统选择器或对话框；此时不恢复 Tab 焦点，避免新界面失去焦点。
         if (oldMenu != null && action == null) onClosed(oldMenu)
         action?.invoke()

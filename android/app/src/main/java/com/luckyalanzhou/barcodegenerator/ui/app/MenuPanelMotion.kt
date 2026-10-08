@@ -33,7 +33,7 @@ internal data class MenuGlassReveal(val scale: Float, val alpha: Float, val thic
 
 internal fun menuGlassReveal(progress: Float, tabAnchor: Boolean, reduceMotion: Boolean): MenuGlassReveal {
     val p = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
-    if (reduceMotion) return MenuGlassReveal(1f, if (p > 0f) 1f else 0f, 1f, 1f)
+    if (reduceMotion) return MenuGlassReveal(1f, p, 1f, 1f)
     val initialScale = if (tabAnchor) .94f else .86f
     return MenuGlassReveal(initialScale + (1f - initialScale) * p,
         (p / .2f).coerceIn(0f, 1f), p * p * (3f - 2f * p), .35f + .65f * p)

@@ -4,6 +4,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabMenuPresentationTest {
+    @Test fun selectionAndCancellationHaveSeparateClosingState() {
+        val controller = TabMenuPresentation<String>()
+        controller.show("收藏")
+        controller.measured()
+        controller.dismiss { }
+        assertTrue(controller.actionClosing)
+        controller.dismiss() // 退场中点击外部不能覆盖待执行操作。
+        assertTrue(controller.actionClosing)
+        controller.closed()
+        assertFalse(controller.actionClosing)
+        controller.show("设置")
+        controller.measured()
+        controller.dismiss()
+        assertFalse(controller.actionClosing)
+    }
     @Test fun measuredMenuBeforeFirstFrameCanCloseImmediately() {
         val controller = TabMenuPresentation<String>()
         var calls = 0

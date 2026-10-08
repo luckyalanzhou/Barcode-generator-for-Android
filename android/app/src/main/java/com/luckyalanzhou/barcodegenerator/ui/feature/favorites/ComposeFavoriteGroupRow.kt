@@ -104,7 +104,9 @@ internal fun FavoriteGroupRow(
     }
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy.current.reduceMotion
-    val scale = animateFloatAsState(if (pressed && !reduceMotion) .965f else 1f, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-group-scale")
+    val scale = animateFloatAsState(if (pressed && !reduceMotion) .97f else 1f,
+        if (reduceMotion) androidx.compose.animation.core.snap() else if (pressed) androidx.compose.animation.core.tween(100)
+        else animation.settleSpring(), label = "favorite-group-scale")
     val background = animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-group-background")
 
     Box(Modifier.fillMaxWidth()) {

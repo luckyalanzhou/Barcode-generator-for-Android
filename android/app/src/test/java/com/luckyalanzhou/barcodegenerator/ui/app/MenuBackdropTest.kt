@@ -4,6 +4,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MenuBackdropTest {
+    @Test fun dimmingIsBoundedAndReturnsToOriginalThemeWithoutWhiteVeil() {
+        assertEquals(.045f, menuBackdropDimAlpha(1f, false), 0f)
+        assertEquals(.025f, menuBackdropDimAlpha(1f, true), 0f)
+        assertEquals(0f, menuBackdropDimAlpha(0f, true), 0f)
+        assertEquals(0f, menuBackdropDimAlpha(Float.NaN, false), 0f)
+        assertEquals(.025f, menuBackdropDimAlpha(2f, true), 0f)
+    }
     @Test fun closingContinuouslyRemovesBlurUsingOnePresentationCoordinate() {
         var previous = menuBackdropBlurPx(1f, 3f, false)
         assertEquals(60f, previous, 0f)

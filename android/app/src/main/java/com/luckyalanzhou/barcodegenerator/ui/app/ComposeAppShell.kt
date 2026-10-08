@@ -15,6 +15,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.animation.rememberContextMenuMotion
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
@@ -29,7 +30,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -148,14 +148,14 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             restore?.invoke()
         }
     }
-    val tabMenuProgress = animateFloatAsState(
-        targetValue = if (tabMenu.open && tabMenu.ready) 1f else 0f,
-        animationSpec = tween(if (effects.reduceMotion) 0 else if (tabMenu.menu?.tabAnchor == false) 240 else 190, easing = FastOutSlowInEasing),
-        finishedListener = { if (it == 0f) tabMenu.closed() },
-        label = "tab-menu-presentation",
-    )
+    val menuMotion = rememberContextMenuMotion(tabMenu.menu, tabMenu.open, tabMenu.ready,
+        tabMenu.actionClosing, effects.reduceMotion) { showing ->
+        if (tabMenu.menu === showing) tabMenu.closed()
+    }
+    val tabMenuProgress = menuMotion.reveal
     fun dismissMenu(action: (() -> Unit)? = null) {
-        menuGesture.close()
+        if (!tabMenu.open) return // 退场中的额外触摸不能清除确认高亮或覆盖待执行操作。
+        menuGesture.close(preserveConfirmation = action != null)
         // 若菜单在首帧动画前关闭，不等待尚未开始的退场动画，立即完成关闭。
         tabMenu.dismiss(immediately = tabMenuProgress.value <= 0f, action = action)
     }
@@ -194,7 +194,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             .contextMenuGestures(menuGesture, onDismiss = { dismissMenu() }, onAction = { dismissMenu(it) })) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val blurPx = menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass)
+                    val blurPx = menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass || effects.reduceMotion)
                     renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && blurPx > .1f) {
                         BlurEffect(blurPx, blurPx, TileMode.Clamp)
                     } else null
@@ -302,6 +302,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 TabLongPressActionOverlay(
                     state = menuState,
                     progress = tabMenuProgress,
+                    sourceScale = menuMotion.sourceScale,
+                    actionExit = menuMotion.actionExit,
+                    actionClosing = tabMenu.actionClosing,
                     interactive = tabMenu.open,
                     gesture = menuGesture,
                     onMeasured = { menuGesture.ready = true; tabMenu.measured() },

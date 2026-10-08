@@ -96,7 +96,10 @@ internal fun FavoriteFolderRow(
     }
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy.current.reduceMotion
-    val scale = animateFloatAsState(if (pressed && !reduceMotion) .965f else 1f, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-folder-scale")
+    // 按下短暂轻压，松手或滚动取消时弹性恢复；原有 combinedClickable 负责手势仲裁。
+    val scale = animateFloatAsState(if (pressed && !reduceMotion) .97f else 1f,
+        if (reduceMotion) androidx.compose.animation.core.snap() else if (pressed) androidx.compose.animation.core.tween(100)
+        else animation.settleSpring(), label = "favorite-folder-scale")
     val background = animateColorAsState(if (pressed) folderColor.copy(alpha = .16f) else Color.Transparent, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-folder-background")
     val arrowRotation = animateFloatAsState(
         targetValue = if (row.collapsed) -90f else 0f,

@@ -26,6 +26,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -241,6 +242,13 @@ internal fun BarcodeComposeBottomTabBar(
                 tabs.forEachIndexed { index, tab ->
                     val selected = selectedIndex == index
                     val interactionSource = remember(index) { MutableInteractionSource() }
+                    val pressed by interactionSource.collectIsPressedAsState()
+                    // 只压缩可长按 Tab 的图标和文字，命中区域保持原尺寸。
+                    val menuPressScale = animateFloatAsState(
+                        if (index in 1..3 && pressed && !effects.reduceMotion) .97f else 1f,
+                        if (effects.reduceMotion) tween(0) else if (pressed) tween(100)
+                        else ComposeAnimationConfig.pressSpring(), label = "tab-menu-press-$index",
+                    )
                     var tabPlaced by remember { mutableStateOf(false) }
                     DisposableEffect(Unit) { onDispose { tabPlaced = false } }
                     val itemColor = if (!showSelectionIndicator && selected) selectedColor else unselectedColor
@@ -335,7 +343,10 @@ internal fun BarcodeComposeBottomTabBar(
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 3.dp),
+                            modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
+                                scaleX = menuPressScale.value
+                                scaleY = menuPressScale.value
+                            },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
@@ -378,7 +389,10 @@ internal fun BarcodeComposeBottomTabBar(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(vertical = 3.dp),
+                                    modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
+                                        scaleX = menuPressScale.value
+                                        scaleY = menuPressScale.value
+                                    },
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
