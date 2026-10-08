@@ -247,5 +247,9 @@ Tab 与文件/文件夹长按菜单共用 `ActionMenuMetrics` 和 `ActionMenuCol
 - Beta：将已验证的提交推送到 `beta`，再手动运行仓库的 **Build Android Beta APK** 工作流。工作流负责签名、打包并发布 Beta APK，不重复运行测试或 lint。
 - 正式版：只有经用户确认后才将变更合入 `main`；正式版手动工作流负责签名、打包及发布，同样不代替本地验证。
 - Beta 与正式版使用不同应用 ID；本仓库日常开发和测试先在 `beta` 完成。
+- Gradle 的通用并行、增量编译和构建缓存开关统一维护在 `android/gradle.properties`；正式版 workflow 只保留有意设置的 JVM 堆大小覆盖，避免两处配置逐渐不一致。
+- GitHub Actions 使用 `gradle/actions/setup-gradle@v6` 复用依赖、Wrapper、任务输出和转换缓存。`gradle-home-cache-includes` 只列依赖与 Wrapper，避免把 action 单独管理的任务输出缓存再复制一份。
+- 远程发布命令不使用 Configuration Cache：Beta 每次将不同的 `versionCode` 作为 Gradle 项目属性传入，App 构建脚本在配置阶段读取它，因此每次发布都会使前一次配置缓存失效；测试与 lint 仍由本地验证承担。
+- 两个发布 workflow 将同一渠道的发布串行化，避免新手动运行取消正在更新 Release 的构建；普通只读 checkout 使用 `contents: read`，Release 写入仍由专用发布凭据完成。
 
 版本号、签名 secrets、工作流输入以及产物命名以 `.github/workflows/` 内当前配置为准，本文只记录职责边界，不复制可能随发布策略变化的流水线细节。
