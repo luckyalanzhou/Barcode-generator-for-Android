@@ -15,6 +15,13 @@ val expectedArchitectureModuleDependencies = mapOf(
     ":core:lan-share" to setOf(":core:domain"),
 )
 
+val forbiddenDomainDependencyPrefixes = listOf(
+    "androidx.",
+    "com.android.",
+    "com.google.zxing",
+    "com.google.dagger",
+)
+
 tasks.register("verifyArchitectureModuleDependencies") {
     group = "verification"
     description = "Verifies production Gradle module dependencies against ARCHITECTURE.md."
@@ -43,6 +50,24 @@ tasks.register("verifyArchitectureModuleDependencies") {
                 "$modulePath has unexpected project dependencies. " +
                     "Expected=$expectedDependencies, actual=$actualDependencies"
             }
+        }
+
+        val domain = project(":core:domain")
+        val domainProductionConfigurations = listOf("api", "implementation", "compileOnly", "runtimeOnly")
+        val forbiddenDomainDependencies = domainProductionConfigurations
+            .flatMap { configurationName ->
+                domain.configurations.getByName(configurationName).dependencies
+                    .withType(org.gradle.api.artifacts.ExternalModuleDependency::class.java)
+            }
+            .mapNotNull { dependency ->
+                dependency.group?.takeIf { group -> forbiddenDomainDependencyPrefixes.any(group::startsWith) }
+                    ?.let { group -> "$group:${dependency.name}" }
+            }
+            .distinct()
+
+        check(forbiddenDomainDependencies.isEmpty()) {
+            ":core:domain must not depend on Android, Compose, ZXing, or DI implementations. " +
+                "Found=$forbiddenDomainDependencies"
         }
     }
 }
