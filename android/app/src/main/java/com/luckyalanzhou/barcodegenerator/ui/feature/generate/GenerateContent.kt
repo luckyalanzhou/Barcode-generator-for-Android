@@ -286,11 +286,11 @@ internal fun GenerateContent(
                         anchorWidth = formatAnchorWidth,
                         alignEndWithAnchor = true,
                     ) {
-                        barcodeFormats.forEachIndexed { index, (name, _) ->
+                        barcodeFormats.forEachIndexed { index, option ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            SingleChoiceMenuItem(name, name == formatName) {
-                                formatName = name
-                                onFormatChanged(name)
+                            SingleChoiceMenuItem(option.displayName, option.displayName == formatName) {
+                                formatName = option.displayName
+                                onFormatChanged(option.displayName)
                                 formatExpanded = false
                             }
                         }

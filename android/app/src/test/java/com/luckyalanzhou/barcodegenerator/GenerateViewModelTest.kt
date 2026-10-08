@@ -24,6 +24,8 @@ class GenerateViewModelTest {
         assertEquals("Code 128-B", canonicalBarcodeFormatName("CODE_128"))
         assertEquals("QR Code", canonicalBarcodeFormatName("qr_code"))
         assertEquals("Code 128-B", canonicalBarcodeFormatName(null))
+        assertEquals(BarcodeFormatIds.CODE_128, barcodeFormatId("CODE_128"))
+        assertEquals(BarcodeFormatIds.QR_CODE, barcodeFormatId("QR Code"))
     }
 
     @Test

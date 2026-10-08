@@ -303,6 +303,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onOpenFiles = dependencies.actions::openLanShareFiles,
                     onSaveFile = dependencies.actions::saveLanShareFile,
                     onCopyAddress = dependencies.actions::copyLanShareAddress,
+                    createQrBitmap = dependencies.lanShareQrBitmapFactory::create,
                     onSetQrVisible = viewModel::setQrVisible,
                     onCancelUpload = viewModel::cancelUpload,
                     onLoadImagePreview = viewModel::loadImagePreview,

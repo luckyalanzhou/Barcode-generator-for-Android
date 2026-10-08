@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
+import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.composeResultRowImage
@@ -50,7 +51,7 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
     val images = completeExportBatch(resultItems) { item ->
         resultsViewModel.createBarcodeImage(
             item.text,
-            barcodeFormats.firstOrNull { it.first == item.format }?.second ?: com.google.zxing.BarcodeFormat.CODE_128,
+            barcodeFormats.firstOrNull { it.displayName == item.format }?.id ?: BarcodeFormatIds.CODE_128,
             style,
             dark,
             density,

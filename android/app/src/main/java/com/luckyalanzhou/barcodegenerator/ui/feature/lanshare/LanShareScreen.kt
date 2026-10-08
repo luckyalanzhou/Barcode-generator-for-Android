@@ -20,6 +20,7 @@ internal fun LanShareScreen(
     onOpenFiles: () -> Unit,
     onSaveFile: (LanShareFile) -> Unit,
     onCopyAddress: (String) -> Unit,
+    createQrBitmap: (String, Int, Int, Int) -> Bitmap,
     onSetQrVisible: (Boolean) -> Unit,
     onCancelUpload: (String) -> Unit,
     onLoadImagePreview: suspend (LanShareFile) -> Bitmap?,
@@ -45,5 +46,6 @@ internal fun LanShareScreen(
         onOpenFiles = onOpenFiles,
         onSaveFile = onSaveFile,
         onCopyAddress = onCopyAddress,
+        createQrBitmap = createQrBitmap,
     )
 }

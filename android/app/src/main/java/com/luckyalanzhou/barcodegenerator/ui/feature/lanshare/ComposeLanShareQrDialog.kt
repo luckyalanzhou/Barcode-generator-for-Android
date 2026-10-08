@@ -29,8 +29,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.set
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -46,13 +44,14 @@ internal fun ComposeLanShareQrDialog(
     secondary: Color,
     onDismiss: () -> Unit,
     onCopyAddress: (String) -> Unit,
+    createQrBitmap: (String, Int, Int, Int) -> Bitmap,
 ) {
     val qrSize = 260.dp
     val colors = LocalAppColorScheme.current
     val foreground = colors.barcode.qrForeground.toArgb()
     val background = colors.barcode.qrBackground.toArgb()
     val bitmap = remember(session.shareUrl, dark) {
-        createLanShareQrBitmap(session.shareUrl, foreground, background, qrSize.value.toInt())
+        createQrBitmap(session.shareUrl, foreground, background, qrSize.value.toInt())
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -115,21 +114,6 @@ internal fun ComposeLanShareQrDialog(
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("复制连接地址", dark, { onCopyAddress(session.shareUrl) }, primary = true)
             }
-        }
-    }
-}
-
-private fun createLanShareQrBitmap(value: String, foreground: Int, background: Int, size: Int): Bitmap {
-    val matrix = com.google.zxing.MultiFormatWriter().encode(
-        value,
-        com.google.zxing.BarcodeFormat.QR_CODE,
-        size,
-        size,
-        mapOf(com.google.zxing.EncodeHintType.MARGIN to 1),
-    )
-    return createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { image ->
-        for (x in 0 until matrix.width) for (y in 0 until matrix.height) {
-            image[x, y] = if (matrix[x, y]) foreground else background
         }
     }
 }

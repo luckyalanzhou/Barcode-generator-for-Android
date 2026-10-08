@@ -7,13 +7,13 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.results.preview.PreviewDial
 
 /** Application boundary for preview generation and Android media actions. */
 internal fun MainActivity.previewCompose(item: CodeItem) {
-    val format = barcodeFormats.firstOrNull { it.first == item.format }?.second ?: run {
+    val formatId = barcodeFormats.firstOrNull { it.displayName == item.format }?.id ?: run {
         toast("不支持的条码格式")
         return
     }
     val bitmap = resultsViewModel.createBarcodeImage(
         item.text,
-        format,
+        formatId,
         settingsViewModel.style,
         isDark(),
         resources.displayMetrics.density,

@@ -16,6 +16,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareQrBitmapFactory
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
@@ -52,6 +53,7 @@ import androidx.activity.viewModels
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +68,7 @@ import java.io.File
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject lateinit var lanShareQrBitmapFactory: LanShareQrBitmapFactory
     private val barcodeDisplayHandler = Handler(Looper.getMainLooper())
     private var barcodeDisplayModeActive = false
     private var barcodePreviousBrightness = -1f

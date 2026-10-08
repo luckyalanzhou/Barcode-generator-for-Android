@@ -106,6 +106,7 @@ internal fun LanShareContent(
     onOpenFiles: () -> Unit,
     onSaveFile: (LanShareFile) -> Unit,
     onCopyAddress: (String) -> Unit,
+    createQrBitmap: (String, Int, Int, Int) -> Bitmap,
 ) {
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
@@ -232,6 +233,7 @@ internal fun LanShareContent(
             primary = primary,
             secondary = secondary,
             onDismiss = { onSetQrVisible(false) },
+            createQrBitmap = createQrBitmap,
         )
     }
 

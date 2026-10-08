@@ -39,10 +39,10 @@ internal fun MainActivity.showItemEditorCompose(
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val availableFormats = barcodeFormats
-        val fallbackFormat = availableFormats.firstOrNull()?.first.orEmpty()
+        val fallbackFormat = availableFormats.firstOrNull()?.displayName.orEmpty()
         var value by remember { mutableStateOf(initialText) }
         var selectedFormat by remember {
-            mutableStateOf(availableFormats.firstOrNull { it.first == initialFormat }?.first ?: fallbackFormat)
+            mutableStateOf(availableFormats.firstOrNull { it.displayName == initialFormat }?.displayName ?: fallbackFormat)
         }
         ComposeGlassDialogCard(dark) {
             Text("编辑条目", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
@@ -63,7 +63,7 @@ internal fun MainActivity.showItemEditorCompose(
                 ),
             )
             Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
-                ComposeChoiceField(selectedFormat, availableFormats.map { it.first }, dark,
+                ComposeChoiceField(selectedFormat, availableFormats.map { it.displayName }, dark,
                     modifier = Modifier.widthIn(max = 200.dp), compact = true) { choice ->
                     selectedFormat = choice
                 }

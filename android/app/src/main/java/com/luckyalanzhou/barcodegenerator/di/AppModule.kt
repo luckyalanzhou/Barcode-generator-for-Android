@@ -11,7 +11,11 @@ import com.luckyalanzhou.barcodegenerator.data.LocalBarcodeFileStore
 import com.luckyalanzhou.barcodegenerator.data.RoomBarcodeRepository
 import com.luckyalanzhou.barcodegenerator.data.SettingsStore
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageRenderer
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareBitmapPreviewDecoder
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareQrBitmapFactory
+import com.luckyalanzhou.barcodegenerator.infrastructure.barcode.ZxingBarcodeImageRenderer
+import com.luckyalanzhou.barcodegenerator.infrastructure.barcode.ZxingLanShareQrBitmapFactory
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidApkValidationGateway
 import com.luckyalanzhou.barcodegenerator.data.platform.AndroidUpdateCatalogGateway
@@ -78,6 +82,16 @@ object AppModule {
     @Singleton
     internal fun provideBarcodeImageCache(@ApplicationContext context: Context): BarcodeImageCache =
         LocalBarcodeImageCacheAdapter(LocalBarcodeFileStore(context))
+
+    @Provides
+    @Singleton
+    internal fun provideBarcodeImageRenderer(imageCache: BarcodeImageCache): BarcodeImageRenderer =
+        ZxingBarcodeImageRenderer(imageCache)
+
+    @Provides
+    @Singleton
+    internal fun provideLanShareQrBitmapFactory(): LanShareQrBitmapFactory =
+        ZxingLanShareQrBitmapFactory()
 
     @Provides
     @Singleton

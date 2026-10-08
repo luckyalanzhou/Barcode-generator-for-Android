@@ -15,9 +15,11 @@ class ArchitectureBoundaryTest {
             val icons = Layer("Icons", "com.luckyalanzhou.barcodegenerator.icons..")
             val presentation = Layer("Presentation", "com.luckyalanzhou.barcodegenerator.presentation..")
             val ui = Layer("UI", "com.luckyalanzhou.barcodegenerator.ui..")
+            val barcodeInfrastructure = Layer("BarcodeInfrastructure", "com.luckyalanzhou.barcodegenerator.infrastructure.barcode..")
 
             domain.dependsOnNothing()
-            listOf(data, dependencyInjection, icons, presentation, ui).include()
+            barcodeInfrastructure.dependsOn(domain, presentation)
+            listOf(data, dependencyInjection, icons, presentation, ui, barcodeInfrastructure).include()
         }
     }
 
@@ -49,6 +51,21 @@ class ArchitectureBoundaryTest {
             presentation.doesNotDependOn(data)
             listOf(presentation, data).include()
         }
+    }
+
+    @Test
+    fun `presentation and UI do not import ZXing directly`() {
+        val forbiddenImports = listOf(
+            Konsist.scopeFromPackage("com.luckyalanzhou.barcodegenerator.presentation.."),
+            Konsist.scopeFromPackage("com.luckyalanzhou.barcodegenerator.ui.."),
+        ).flatMap { scope ->
+            scope.files.filter { file -> file.hasImport { it.name.startsWith("com.google.zxing.") } }
+        }
+
+        org.junit.Assert.assertTrue(
+            "ZXing imports must stay in app infrastructure adapters: ${forbiddenImports.map { it.path }}",
+            forbiddenImports.isEmpty(),
+        )
     }
 
     @Test

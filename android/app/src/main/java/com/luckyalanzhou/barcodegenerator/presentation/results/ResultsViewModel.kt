@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.google.zxing.BarcodeFormat
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
@@ -14,7 +13,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoriteGroupCo
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
-import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageRenderer
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,7 +32,7 @@ import kotlinx.coroutines.launch
 /** Owns result-page state, image rendering, and result-to-editor preparation. */
 @HiltViewModel
 class ResultsViewModel @Inject constructor(
-    imageCache: BarcodeImageCache,
+    private val imageRenderer: BarcodeImageRenderer,
     private val dataSession: LibraryDataSession,
     private val persistence: BarcodePersistenceCoordinator,
     private val appLogger: AppLogger,
@@ -42,7 +40,6 @@ class ResultsViewModel @Inject constructor(
     private val barcodeRepository: BarcodeRepository,
     savedState: SavedStateHandle,
 ) : ViewModel() {
-    private val imageRenderer = BarcodeImageRenderer(imageCache)
     private val savedResult = SavedResultState(savedState)
     private val pendingRestoration = savedResult.read()
     private val results = ResultsCoordinator(pendingRestoration?.let {
@@ -271,12 +268,12 @@ class ResultsViewModel @Inject constructor(
 
     fun createBarcodeImage(
         text: String,
-        format: BarcodeFormat,
+        formatId: String,
         style: StyleSettings,
         dark: Boolean,
         density: Float,
         withBackground: Boolean = true,
-    ): Bitmap? = imageRenderer.create(text, format, style, dark, density, withBackground)
+    ): Bitmap? = imageRenderer.create(text, formatId, style, dark, density, withBackground)
 
     private fun persistGeneratedItems() {
         persistence.persistItems(dataSession.store.itemsSnapshot())
