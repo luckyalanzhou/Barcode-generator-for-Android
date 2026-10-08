@@ -138,7 +138,7 @@ internal fun SettingsContent(
                                 listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
-                                    SingleChoiceMenuItem(label, value == selectedScheme) {
+                                    SingleChoiceMenuItem(label, value == selectedScheme, highlightSelection = false) {
                                         schemeMenu = false
                                         persist(settings.style.copy(colorScheme = value))
                                     }
@@ -208,8 +208,6 @@ internal fun SettingsContent(
                                     val checked = settings.ocrMask and bit != 0
                                     androidx.compose.material3.DropdownMenuItem(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(if (checked) colors.controls.selectedContainer else Color.Transparent)
                                             .height(40.dp),
                                         contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
                                         text = { Text(label, color = colors.settingsText.primary, maxLines = 1, softWrap = false) },

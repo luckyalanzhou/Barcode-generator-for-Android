@@ -8,7 +8,6 @@ import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuStat
 import com.luckyalanzhou.barcodegenerator.ui.component.SlideSelectionMenu
 import com.luckyalanzhou.barcodegenerator.ui.component.slideMenuItem
 import com.luckyalanzhou.barcodegenerator.ui.component.ContextMenuGestureSession
-import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
@@ -130,7 +129,6 @@ internal fun TabLongPressActionOverlay(
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
-    val material = menuGlassMaterial(colors.surfaces.panel, panelSize.height / density.density)
     val actionsReady by remember(progress, panelProgress, opacity, effects.reduceMotion, interactive) {
         derivedStateOf { interactive && opacity.value >= .99f &&
             (effects.reduceMotion || (progress.value >= .95f && panelProgress.value >= .99f)) }
@@ -388,16 +386,6 @@ internal fun TabLongPressActionOverlay(
                             }
                             val edgeWidth = (.45.dp.toPx()).coerceIn(1f, 1.5f)
                             drawPath(path, menuColors.outline, style = Stroke(edgeWidth))
-                            if (!effects.highContrast && !state.tabAnchor) {
-                                drawPath(
-                                    path,
-                                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                                        listOf(Color.White.copy(alpha = if (dark) .16f else .38f),
-                                            Color.Transparent, Color.Black.copy(alpha = if (dark) .15f else .06f)),
-                                    ),
-                                    style = Stroke(edgeWidth),
-                                )
-                            }
                         }
                         .pointerInput(Unit) {
                             // 标题区或空白面板上的点按不能穿透到背景并关闭菜单；仍允许从标题区域开始滚动。
@@ -407,15 +395,8 @@ internal fun TabLongPressActionOverlay(
                             }
                         },
                 ) {
-                    if (state.tabAnchor) {
-                        // Tab 操作菜单使用稳定材质，不应用实时玻璃着色器。
-                        Box(Modifier.matchParentSize().background(colors.surfaces.panel))
-                    } else GlassBackdropSurface(
-                        modifier = Modifier.matchParentSize(), color = colors.surfaces.panel,
-                        opacity = material.opacity, cornerDp = panelCorner.value, blurDp = material.blurDp,
-                        refractionDp = { material.refractionDp * menuGlassReveal(if (actionClosing) 1f else progress.value, effects.reduceMotion).thickness },
-                        thicknessProgress = { menuGlassReveal(if (actionClosing) 1f else progress.value, effects.reduceMotion).thickness },
-                    )
+                    // Tab、文件夹和文件菜单都使用静态面板；背景聚焦模糊与弹出动画独立保留。
+                    Box(Modifier.matchParentSize().background(colors.surfaces.panel))
                     key(state) {
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
                     if (showTitle) {

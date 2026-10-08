@@ -20,12 +20,12 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 
 /** A value picker, not an action menu. Reserve the mark column for every option. */
 @Composable
-internal fun SingleChoiceMenuItem(label: String, isSelected: Boolean, onClick: () -> Unit) {
+internal fun SingleChoiceMenuItem(label: String, isSelected: Boolean, highlightSelection: Boolean = true, onClick: () -> Unit) {
     val colors = LocalAppColorScheme.current
     DropdownMenuItem(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(if (isSelected) colors.controls.selectedContainer else androidx.compose.ui.graphics.Color.Transparent)
+            .background(if (isSelected && highlightSelection) colors.controls.selectedContainer else androidx.compose.ui.graphics.Color.Transparent)
             .heightIn(min = 40.dp)
             .semantics { selected = isSelected },
         text = { Text(label, color = colors.text.primary, maxLines = 1, softWrap = false) },
