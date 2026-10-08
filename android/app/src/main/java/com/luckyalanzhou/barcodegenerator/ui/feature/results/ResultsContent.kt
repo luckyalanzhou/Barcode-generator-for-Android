@@ -112,34 +112,24 @@ internal fun ResultsContent(
     // Do not reveal a partially populated result list. This also covers restored results
     // whose image cache may have been cleared while the app was stopped.
     val preparedRows by key(items, style, dark, density, rowWidth, fontScale) {
-      produceState<List<Bitmap>?>(
-        initialValue = null,
-        items,
-        style,
-        dark,
-        density,
-        rowWidth,
-        fontScale,
-    ) {
-        value = try {
-            withContext(Dispatchers.Default.limitedParallelism(8)) {
-                items.chunked(8).flatMap { batch ->
-                    coroutineScope {
-                        batch.map { item ->
-                            async {
-                                val raw = checkNotNull(loadBarcodeImage(item, dark, density))
-                                composeResultRowImage(raw, item, style, dark, rowWidth, density, fontScale)
-                            }
-                        }.awaitAll()
-                    }
-                }
+        produceState<List<Bitmap>?>(null, items, style, dark, density, rowWidth, fontScale) {
+            value = try {
+                prepareResultRows(items, style, dark, density, fontScale, rowWidth, loadBarcodeImage)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: OutOfMemoryError) {
+                emptyList()
+            } catch (_: Exception) {
+                emptyList()
             }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            emptyList()
         }
     }
+
+    androidx.compose.runtime.DisposableEffect(preparedRows) {
+        val ownedRows = preparedRows
+        onDispose {
+            ownedRows.orEmpty().forEach { if (!it.isRecycled) it.recycle() }
+        }
     }
 
     val prepared = preparedRows
@@ -207,6 +197,37 @@ internal fun ResultsContent(
     }
     }
 }
+}
+
+private suspend fun prepareResultRows(
+    items: List<CodeItem>,
+    style: StyleSettings,
+    dark: Boolean,
+    density: Float,
+    fontScale: Float,
+    rowWidth: Int,
+    loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
+): List<Bitmap> {
+    val createdRows = java.util.Collections.synchronizedList(mutableListOf<Bitmap>())
+    return try {
+        withContext(Dispatchers.Default.limitedParallelism(8)) {
+            items.chunked(8).flatMap { batch ->
+                coroutineScope {
+                    batch.map { item ->
+                        async {
+                            val raw = checkNotNull(loadBarcodeImage(item, dark, density))
+                            composeResultRowImage(raw, item, style, dark, rowWidth, density, fontScale)
+                                .also(createdRows::add)
+                        }
+                    }.awaitAll()
+                }
+            }
+        }
+    } catch (error: Throwable) {
+        val partiallyCreatedRows = synchronized(createdRows) { createdRows.toList() }
+        partiallyCreatedRows.forEach { if (!it.isRecycled) it.recycle() }
+        throw error
+    }
 }
 
 // Grow labels with the system font scale, but keep each two-action group usable on a phone.

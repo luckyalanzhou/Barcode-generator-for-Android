@@ -11,7 +11,9 @@ import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.composeResultRowImage
-import com.luckyalanzhou.barcodegenerator.ui.feature.results.completeExportBatch
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.consumeCompleteExportBatch
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultExportDimensions
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultImageRowSize
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultImageSpacing
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultPageBackground
 
@@ -48,28 +50,53 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
     // Measured viewport width also covers landscape, split screen and window insets.
     val contentWidth = resultImageContentWidthPx.takeIf { it > 0 } ?: return null
     return withContext(Dispatchers.Default) {
-    val images = completeExportBatch(resultItems) { item ->
-        resultsViewModel.createBarcodeImage(
-            item.text,
-            barcodeFormats.firstOrNull { it.displayName == item.format }?.id ?: BarcodeFormatIds.CODE_128,
-            style,
-            dark,
-            density,
-        )?.let { composeResultRowImage(it, item, style, dark, contentWidth, density, fontScale) }
-    } ?: return@withContext null
-    val width = images.maxOf { it.width }
-    val spacing = resultImageSpacing(style.margin, density)
-    val outerPadding = (8 * density).toInt()
-    val height = images.sumOf { it.height } + spacing * (images.size - 1) + outerPadding * 2
-    val pageImage = createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(pageImage)
-    canvas.drawColor(resultPageBackground(dark))
-    var top = outerPadding
-    images.forEach { image ->
-        canvas.drawBitmap(image, (width - image.width) / 2f, top.toFloat(), null)
-        top += image.height + spacing
-    }
-    ResultPageImage(pageImage, "本页生成的 ${images.size} 个条码")
+        if (resultItems.isEmpty()) return@withContext null
+        val rowSizes = resultItems.map { item ->
+            resultImageRowSize(item, style, contentWidth, density, fontScale)
+        }
+        val spacing = resultImageSpacing(style.margin, density)
+        val outerPadding = (8 * density).toInt().coerceAtLeast(0)
+        val pageSize = resultExportDimensions(
+            rowWidths = rowSizes.map { it.width },
+            rowHeights = rowSizes.map { it.height },
+            spacing = spacing,
+            outerPadding = outerPadding,
+        ) ?: return@withContext null
+
+        val pageImage = createBitmap(pageSize.width, pageSize.height, Bitmap.Config.ARGB_8888)
+        var completed = false
+        try {
+            val canvas = Canvas(pageImage)
+            canvas.drawColor(resultPageBackground(dark))
+            var top = outerPadding
+            val batchComplete = consumeCompleteExportBatch(
+                items = resultItems,
+                render = { item ->
+                    resultsViewModel.createBarcodeImage(
+                        item.text,
+                        barcodeFormats.firstOrNull { it.displayName == item.format }?.id ?: BarcodeFormatIds.CODE_128,
+                        style,
+                        dark,
+                        density,
+                    )?.let { bitmap -> item to bitmap }
+                },
+                consume = { (item, barcode) ->
+                    val row = composeResultRowImage(barcode, item, style, dark, contentWidth, density, fontScale)
+                    try {
+                        canvas.drawBitmap(row, (pageSize.width - row.width) / 2f, top.toFloat(), null)
+                        top += row.height + spacing
+                    } finally {
+                        row.recycle()
+                    }
+                },
+                release = { (_, barcode) -> if (!barcode.isRecycled) barcode.recycle() },
+            )
+            if (!batchComplete) return@withContext null
+            completed = true
+            ResultPageImage(pageImage, "本页生成的 ${resultItems.size} 个条码")
+        } finally {
+            if (!completed && !pageImage.isRecycled) pageImage.recycle()
+        }
     }
 }
 
@@ -88,6 +115,8 @@ private fun MainActivity.withResultPageImage(action: ResultExportAction, onReady
             }
         } catch (error: CancellationException) {
             throw error
+        } catch (_: OutOfMemoryError) {
+            toast("图片占用内存过大，请减少条码数量后重试")
         } catch (_: Exception) {
             toast("条码图片准备失败，请重试")
         } finally {
@@ -99,7 +128,10 @@ private fun MainActivity.withResultPageImage(action: ResultExportAction, onReady
 /** Sharing means opening the system Sharesheet, not a second app-target picker. */
 internal fun MainActivity.shareResultPage() = withResultPageImage(ResultExportAction.Share) { result ->
     shareBitmap(result.bitmap, result.label, onStarted = { resultExportAction = ResultExportAction.Share },
-        onFinished = { resultExportAction = null })
+        onFinished = {
+            if (!result.bitmap.isRecycled) result.bitmap.recycle()
+            resultExportAction = null
+        })
 }
 
 /** Saving remains discoverable without adding a step to system sharing. */

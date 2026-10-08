@@ -78,24 +78,48 @@ class ZxingBarcodeImageRenderer(
     }.getOrNull()
 
     private fun trim(source: Bitmap, foreground: Int): Bitmap {
-        val pixels = IntArray(source.width * source.height)
-        source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
-        var left = source.width
-        var right = -1
-        for (x in 0 until source.width) {
-            var hasBar = false
-            for (y in 0 until source.height) {
-                if (pixels[y * source.width + x] == foreground) { hasBar = true; break }
+        var completed = false
+        try {
+            val pixels = IntArray(source.width * source.height)
+            source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+            var left = source.width
+            var right = -1
+            for (x in 0 until source.width) {
+                var hasBar = false
+                for (y in 0 until source.height) {
+                    if (pixels[y * source.width + x] == foreground) { hasBar = true; break }
+                }
+                if (hasBar) { left = minOf(left, x); right = maxOf(right, x) }
             }
-            if (hasBar) { left = minOf(left, x); right = maxOf(right, x) }
+            if (right < left) {
+                completed = true
+                return source
+            }
+            val trimmed = Bitmap.createBitmap(source, left, 0, right - left + 1, source.height)
+            if (trimmed !== source) source.recycle()
+            completed = true
+            return trimmed
+        } finally {
+            if (!completed && !source.isRecycled) source.recycle()
         }
-        return if (right >= left) Bitmap.createBitmap(source, left, 0, right - left + 1, source.height) else source
     }
 
     private fun addQuietZone(source: Bitmap, backgroundColor: Int): Bitmap {
         val quiet = maxOf(8, source.height / 4)
-        return createBitmap(source.width + quiet * 2, source.height, Bitmap.Config.ARGB_8888).also {
-            Canvas(it).apply { drawColor(backgroundColor); drawBitmap(source, quiet.toFloat(), 0f, Paint()) }
+        var result: Bitmap? = null
+        try {
+            val padded = createBitmap(source.width + quiet * 2, source.height, Bitmap.Config.ARGB_8888)
+            result = padded
+            Canvas(padded).apply {
+                drawColor(backgroundColor)
+                drawBitmap(source, quiet.toFloat(), 0f, Paint())
+            }
+            return padded
+        } catch (error: Throwable) {
+            result?.let { if (!it.isRecycled) it.recycle() }
+            throw error
+        } finally {
+            if (!source.isRecycled) source.recycle()
         }
     }
 
