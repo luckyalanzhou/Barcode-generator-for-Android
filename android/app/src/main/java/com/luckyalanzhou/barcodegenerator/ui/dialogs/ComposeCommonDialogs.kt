@@ -53,6 +53,7 @@ internal fun AnchoredDropdownMenu(
     menuWidth: Dp? = null,
     anchorWidth: Dp? = null,
     alignEndWithAnchor: Boolean = false,
+    cornerReveal: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val containerSize = LocalWindowInfo.current.containerSize
@@ -62,6 +63,13 @@ internal fun AnchoredDropdownMenu(
     val resolvedMenuWidth = menuWidth?.coerceAtMost(maxWidth)
     val widthModifier = if (menuWidth != null) Modifier.width(resolvedMenuWidth ?: maxWidth) else Modifier.widthIn(max = maxWidth)
     val horizontalOffset = if (alignEndWithAnchor && anchorWidth != null && resolvedMenuWidth != null) anchorWidth - resolvedMenuWidth else 0.dp
+    if (cornerReveal) {
+        CornerDropdownMenu(expanded, onDismissRequest,
+            modifier.then(widthModifier).heightIn(max = maxHeight), shape,
+            containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
+            shadowElevation, content)
+        return
+    }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,

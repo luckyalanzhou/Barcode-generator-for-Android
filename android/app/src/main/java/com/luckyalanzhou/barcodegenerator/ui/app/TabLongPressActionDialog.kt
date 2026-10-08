@@ -206,7 +206,7 @@ internal fun TabLongPressActionOverlay(
                 gapPx, focusLiftPx, desiredHeightPx, state.tabAnchor)
             val placement = if (state.tabAnchor) tabMenuPlacement(rowMenuAnchor, overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above, alignTabEdge = true)
-            else rowMenuPlacement(rowMenuAnchor, overlayOriginOnScreen, panelSize,
+            else rowMenuPlacement(rowMenuAnchor.copy(left = menuAnchorBoundsOnScreen.left), overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
             LaunchedEffect(popupReady) {
@@ -357,6 +357,9 @@ internal fun TabLongPressActionOverlay(
                             translationY += -focusLiftPx * source - sourceShiftPx * (1f - source)
                             if (!effects.reduceMotion && !actionClosing) {
                                 // 从靠近来源的一侧短距离展开，方向随上下锚定改变。
+                                val remaining = 1f - panelProgress.value.coerceIn(0f, 1f)
+                                translationX += (if (state.tabAnchor && placement.anchorCenterX >= screenWidthPx / 2f)
+                                    10f else -10f).dp.toPx() * remaining
                                 translationY += (if (menuSpace.above) 14f else -14f).dp.toPx() *
                                     (1f - panelProgress.value.coerceIn(0f, 1.08f))
                             }
