@@ -1,6 +1,6 @@
 # 开发与验证
 
-本文说明如何在本机检查项目、如何手动发布 APK，以及两者的区别。架构规则见[架构原则](ARCHITECTURE.md)，传输接口见 [LAN Share 协议](core/lan-share/PROTOCOL.md)。
+本文只说明如何准备环境、运行本地检查、验证设备功能和启动 GitHub Actions。代码修改流程见[贡献指南](../CONTRIBUTING.md)；架构原因见[架构原则](ARCHITECTURE.md)，通信约定见 [LAN Share 协议](core/lan-share/PROTOCOL.md)。
 
 ## 环境
 
