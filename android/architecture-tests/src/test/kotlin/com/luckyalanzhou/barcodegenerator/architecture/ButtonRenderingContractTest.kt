@@ -10,13 +10,22 @@ import org.junit.Test
 class ButtonRenderingContractTest {
     @Test fun `round result actions keep static optics without press animations`() {
         val button = source("GlassRoundActionButton.kt")
-        for (forbidden in listOf("animateFloatAsState", "collectIsPressedAsState", "PressInteraction",
+        for (forbidden in listOf("animateFloatAsState", "PressInteraction",
             "pressPosition", "scaleX =", "scaleY =", "translationY =", "radialGradient")) {
             assertFalse("静态圆按钮不可引入 $forbidden", button.contains(forbidden))
         }
         val frame = source("RoundActionGlassFrame.kt")
         assertTrue(frame.contains("motion = 0f"))
         assertTrue(frame.contains("travelStrength = 0f"))
+    }
+    @Test fun `press feedback affects only the round action foreground`() {
+        val button = source("GlassRoundActionButton.kt")
+        val feedback = button.substringAfter("// 反馈只作用于前景图标")
+        assertTrue(feedback.contains("alpha = if (pressed && enabled && !busy)"))
+        assertTrue(feedback.contains("content(contentTint)"))
+        assertFalse(feedback.contains("GlassBackdropSurface("))
+        assertFalse(feedback.contains("resultActionShadow("))
+        assertFalse(feedback.contains("roundActionGlassFrame("))
     }
     @Test fun `round glass optics are isolated from callbacks tabs and menu material`() {
         val button = source("GlassRoundActionButton.kt")

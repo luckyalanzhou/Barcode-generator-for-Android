@@ -3,12 +3,14 @@ package com.luckyalanzhou.barcodegenerator.ui.component.glass
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +40,7 @@ internal fun GlassRoundActionButton(
     content: @Composable (contentTint: Color) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
 
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
@@ -108,7 +111,17 @@ internal fun GlassRoundActionButton(
                     )
                 }
             }
-            content(contentTint)
+            // 反馈只作用于前景图标，不改变下方玻璃、折射或阴影；取消手势也会恢复。
+            Box(
+                Modifier.graphicsLayer {
+                    alpha = if (pressed && enabled && !busy) {
+                        if (effects.highContrast) .80f else .65f
+                    } else 1f
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                content(contentTint)
+            }
         }
     }
 }
