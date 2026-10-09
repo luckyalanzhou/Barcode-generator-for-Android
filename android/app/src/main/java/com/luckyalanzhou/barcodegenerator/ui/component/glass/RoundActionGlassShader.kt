@@ -15,10 +15,10 @@ half4 roundActionMaterial(float2 p, float2 normal, float depth, float mask) {
     float2 samplePoint = clamp(p - normal * shape.z * lens, float2(0.5), resolution - 0.5);
     half3 center = content.eval(samplePoint).rgb;
     float spread = max(shape.y, density);
-    half3 wide = half3(0.0);
+    half3 localAverage = half3(0.0);
     float minimum = 1.0;
     float maximum = 0.0;
-    // 固定九次采样上限，不读取 CPU 位图；复杂程度由周围亮度差决定。
+    // 近场只检测细节，不能直接作为扩散结果，否则规则采样会保留条码条纹。
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
             half3 tap = (x == 0 && y == 0) ? center :
@@ -27,15 +27,30 @@ half4 roundActionMaterial(float2 p, float2 normal, float depth, float mask) {
             float brightness = dot(float3(tap), float3(0.2126, 0.7152, 0.0722));
             minimum = min(minimum, brightness);
             maximum = max(maximum, brightness);
-            wide += tap / 9.0;
+            localAverage += tap / 9.0;
         }
     }
+    // 宽场扩散开始：固定十二个非网格采样点，避免与条码周期对齐产生摩尔纹。
+    // 范围按 dp 缩放并限制在按钮半径内，不增加 CPU 读回或随帧随机噪点。
+    float diffusionRadius = min(max(spread * 2.8, density * 7.0), radius * 0.42);
+    half3 diffused = half3(0.0);
+    for (int i = 0; i < 12; i++) {
+        float angle = float(i) * 2.399963;
+        float distance = sqrt((float(i) + 0.5) / 12.0) * diffusionRadius;
+        half3 tap = content.eval(clamp(samplePoint + float2(cos(angle), sin(angle)) * distance,
+            float2(0.5), resolution - 0.5)).rgb;
+        float brightness = dot(float3(tap), float3(0.2126, 0.7152, 0.0722));
+        minimum = min(minimum, brightness);
+        maximum = max(maximum, brightness);
+        diffused += tap / 12.0;
+    }
     float detail = smoothstep(0.035, 0.30, maximum - minimum);
-    half3 scene = mix(center, wide, half(detail * 0.82));
+    half3 scene = mix(center, mix(localAverage, diffused, half(0.92)), half(detail * 0.98));
+    // 宽场扩散结束
     float luminance = dot(float3(scene), float3(0.2126, 0.7152, 0.0722));
     float base = dot(float3(surfaceColor.rgb), float3(0.2126, 0.7152, 0.0722));
     // 同色背景不增加灰底，跨明暗的复杂内容才逐渐提高背景保护。
-    float protection = smoothstep(0.12, 0.70, abs(luminance - base)) * 0.46 + detail * 0.08;
+    float protection = smoothstep(0.12, 0.70, abs(luminance - base)) * 0.46 + detail * 0.16;
     float opacity = clamp(shape.w + protection, 0.0, 1.0);
     half3 color = mix(scene, surfaceColor.rgb, half(opacity));
     float lightSurface = smoothstep(0.15, 0.75, base);

@@ -81,9 +81,9 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False, density=1.0, runtime_effect=None):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False, density=1.0, runtime_effect=None, input_scene=None):
         builder = skia.RuntimeShaderBuilder(effect if runtime_effect is None else runtime_effect)
-        input_page = page
+        input_page = page if input_scene is None else input_scene
         if page_color is not None:
             input_page = skia.Surface(w, h)
             input_page.getCanvas().clear(page_color)
@@ -131,6 +131,46 @@ def main():
         solid_dim = render(1, 2.5, 0, dark, 0xFF000000, surface_color=(*base, 1), round_button=True)
         assert np.array_equal(solid_bright, solid_dim), "Opaque round material leaks background"
     print("PASS: round material compiles; clear center, static rim, bounded press, adaptive diffusion and opaque isolation")
+
+    # 用当前材质恢复旧九点扩散作对照，边缘、坐标和其他参数完全一致。
+    legacy_round = round_action.replace("half3 localAverage", "half3 wide").replace("localAverage +=", "wide +=")
+    begin, tail = legacy_round.split("// 宽场扩散开始", 1)
+    legacy_round = begin + """
+    float detail = smoothstep(0.035, 0.30, maximum - minimum);
+    half3 scene = mix(center, wide, half(detail * 0.82));
+    """ + tail.split("// 宽场扩散结束", 1)[1]
+    legacy_round = legacy_round.replace("+ detail * 0.16", "+ detail * 0.08")
+    legacy_effect = skia.RuntimeEffect.MakeForShader(adaptive_tint + lens_profile + backdrop_parts[1] + legacy_round + backdrop_parts[3])
+    detail_pairs = []
+    for density in (1.0, 2.0, 3.5, 4.0):
+        for dark, background, opacity in ((False, 0xFFF2F3F8, .18), (True, 0xFF17191D, .22)):
+            base = tuple((background >> shift & 255) / 255 for shift in (16, 8, 0))
+            for period in (4, 9, 17):
+                for phase in (0, period // 2):
+                    barcode = skia.Surface(w, h)
+                    barcode.getCanvas().clear(background)
+                    ink = skia.Paint(Color=0xFFF2F3F8 if dark else 0xFF000000)
+                    for x in range(-period + phase, w, period):
+                        barcode.getCanvas().drawRect(skia.Rect.MakeXYWH(x, 0, period * .45, h), ink)
+                    options = dict(capsule=True, surface_color=(*base, 1), round_button=True,
+                                   density=density, input_scene=barcode)
+                    new = render(opacity, 2.5 * density, .55 * density, dark, **options)
+                    old = render(opacity, 2.5 * density, .55 * density, dark, runtime_effect=legacy_effect, **options)
+                    # 排除倒角，测细条纹在玻璃内的水平对比，不以整体加灰冒充扩散。
+                    area = (slice(75, 105), slice(145, 175), slice(0, 3))
+                    new_detail = new[area].astype(float).std(axis=1).mean()
+                    old_detail = old[area].astype(float).std(axis=1).mean()
+                    ratio = new_detail / max(old_detail, 1.0)
+                    detail_pairs.append((new_detail, old_detail))
+                    # 旧路径偶然接近无条纹时，不用相对比值放大不足几级的量化差异。
+                    # 所有背景均须低残留；旧路径明显暴露条纹时还须至少改善 20%。
+                    assert new_detail < 8.0, f"Visible barcode stripes remain: density={density}, dark={dark}, period={period}, phase={phase}, detail={new_detail}"
+                    if old_detail > 8.0:
+                        assert ratio < .80, f"Wide diffusion did not improve exposed stripes: density={density}, dark={dark}, period={period}, phase={phase}, ratio={ratio}"
+                    assert new[area].astype(float).std(axis=1).mean() > .1, "Detailed backdrop became a flat fill"
+    mean_ratio = sum(new for new, _ in detail_pairs) / sum(old for _, old in detail_pairs)
+    assert mean_ratio < .60, "Barcode fixture set shows no overall diffusion improvement"
+    print(f"PASS: barcode diffusion across density/theme/period/phase; mean detail ratio versus previous={mean_ratio:.3f}; max residual={max(new for new, _ in detail_pairs):.2f}/255")
 
     # 按钮的高光与切面须在高密度下仍分开，避免只测 1x 的单点颜色。
     # 此处使用固定较大圆观察边缘剖面；几何和抗锯齿仍由同一个实际 shader 计算。
