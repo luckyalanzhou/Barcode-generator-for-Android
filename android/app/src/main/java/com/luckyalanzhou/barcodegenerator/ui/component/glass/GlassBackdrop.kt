@@ -35,7 +35,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Stable
 internal class GlassBackdropSource(val layer: GraphicsLayer) {
     var origin by mutableStateOf(Offset.Zero)
+    // Popup 与主页面不属于同一窗口，菜单采样使用屏幕坐标，不混用各自的窗口原点。
+    var screenOrigin by mutableStateOf(Offset.Zero)
     var ready by mutableStateOf(false)
+    var hasFrame by mutableStateOf(false)
 
     /**
      * A page transition can temporarily keep the outgoing Results page alive
@@ -71,6 +74,7 @@ internal fun rememberGlassBackdrop(): GlassBackdropSource {
 internal fun Modifier.recordGlassBackdrop(source: GlassBackdropSource): Modifier =
     onGloballyPositioned {
         source.origin = it.localToWindow(Offset.Zero)
+        source.screenOrigin = it.localToScreen(Offset.Zero)
         source.ready = true
     }.drawWithContent {
         if (!source.recording.compareAndSet(false, true)) {
@@ -82,6 +86,7 @@ internal fun Modifier.recordGlassBackdrop(source: GlassBackdropSource): Modifier
         }
         try {
             source.layer.record { this@drawWithContent.drawContent() }
+            if (!source.hasFrame) source.hasFrame = true
             drawLayer(source.layer)
         } finally {
             source.recording.set(false)
@@ -101,16 +106,19 @@ internal fun GlassBackdropSurface(
     drawFallback: Boolean = true,
     thicknessProgress: () -> Float = { 1f },
     renderer: BackdropRenderer? = rememberGlassBackdropRenderer(),
+    screenCoordinates: Boolean = false,
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current.density
     var origin by remember { mutableStateOf(Offset.Zero) }
+    var screenOrigin by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
     val gpu = glassGpuAvailable(Build.VERSION.SDK_INT, LocalView.current.isHardwareAccelerated,
-        source?.ready == true, renderer != null, policy.opaqueGlass)
+        source?.ready == true && (!screenCoordinates || source.hasFrame), renderer != null, policy.opaqueGlass)
     Canvas(modifier.onGloballyPositioned {
         origin = it.localToWindow(Offset.Zero)
+        screenOrigin = it.localToScreen(Offset.Zero)
         size = it.size
     }.graphicsLayer {
         if (Build.VERSION.SDK_INT >= 33 && gpu && renderer != null && size.width > 0 && size.height > 0) {
@@ -121,7 +129,7 @@ internal fun GlassBackdropSurface(
     }) {
         if (gpu && source != null) {
             drawRect(color)
-            val offset = source.origin - origin
+            val offset = backdropSampleOffset(source.origin, source.screenOrigin, origin, screenOrigin, screenCoordinates)
             translate(offset.x, offset.y) { drawLayer(source.layer) }
         } else if (drawFallback) {
             drawRoundRect(
@@ -131,6 +139,11 @@ internal fun GlassBackdropSurface(
         }
     }
 }
+
+/** 同窗口保留原采样路径；菜单跨 Popup 时统一换算到屏幕，来源与目标整体平移不会改变采样。 */
+internal fun backdropSampleOffset(sourceWindow: Offset, sourceScreen: Offset,
+    targetWindow: Offset, targetScreen: Offset, screenCoordinates: Boolean): Offset =
+    if (screenCoordinates) sourceScreen - targetScreen else sourceWindow - targetWindow
 
 /** Menus protect text; small controls retain their intended coverage even without a shader. */
 internal fun glassFallbackOpacity(opacity: Float, smallControl: Boolean, opaque: Boolean): Float =

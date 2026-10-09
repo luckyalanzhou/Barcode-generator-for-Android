@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassBackdropSurface
 
 /** 菜单唯一材质入口：只绘制背景与边缘，业务回调、定位、手势和整块动画仍由宿主管理。 */
 @Composable
@@ -35,6 +36,10 @@ internal fun MenuSurface(
         }
     }) {
         Box(Modifier.matchParentSize().background(color))
+        // 背景先采样、前景后绘制，文字和分割线永远不进入模糊效果。
+        GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = .78f,
+            cornerDp = 12f, blurDp = 12f, refractionDp = { 0f },
+            drawFallback = false, screenCoordinates = true)
         content()
     }
 }
