@@ -89,9 +89,13 @@ internal fun SettingsContent(
     val effectsSettings = displayEffectsSettingsState(settings.style, LocalVisualEffectsPolicy.current)
     var schemeButtonWidth by remember { mutableIntStateOf(0) }
     var ocrButtonWidth by remember { mutableIntStateOf(0) }
+    var schemeButtonHeight by remember { mutableIntStateOf(0) }
+    var ocrButtonHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val schemeWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val schemeHeight = schemeButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val ocrHeight = ocrButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val dimensions = LocalAppDimensions.current
     val listState = rememberLazyListState()
     val contentExceedsViewport by remember(listState) {
@@ -124,7 +128,7 @@ internal fun SettingsContent(
                                 color = colors.controls.button,
                                 contentColor = colors.settingsText.primary,
                                 onClick = { schemeMenu = true },
-                                onMeasured = { schemeButtonWidth = it },
+                                onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
                                 pickerLabel = "外观",
                                 expanded = schemeMenu,
                             )
@@ -133,6 +137,7 @@ internal fun SettingsContent(
                                 expanded = schemeMenu,
                                 menuWidth = 160.dp,
                                 anchorWidth = schemeWidth,
+                                anchorHeight = schemeHeight,
                                 onDismiss = { schemeMenu = false },
                             ) {
                                 listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
@@ -194,13 +199,14 @@ internal fun SettingsContent(
                                 color = colors.controls.button,
                                 contentColor = colors.settingsText.primary,
                                 onClick = { ocrMenu = true },
-                                onMeasured = { ocrButtonWidth = it },
+                                onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },
                             )
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = ocrMenu,
                                 menuWidth = 140.dp,
                                 anchorWidth = ocrWidth,
+                                anchorHeight = ocrHeight,
                                 onDismiss = { ocrMenu = false },
                             ) {
                                 ocrReplacementLabels.forEachIndexed { index, (label, bit) ->

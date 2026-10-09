@@ -10,14 +10,14 @@ import org.junit.Test
 class CornerMenuPositionTest {
     @Test fun alignsToButtonRightAndOpensBelow() {
         val provider = CornerMenuPositionProvider()
-        assertEquals(IntOffset(140, 100), provider.calculatePosition(IntRect(260, 60, 340, 100),
-            IntSize(400, 800), LayoutDirection.Ltr, IntSize(200, 160)))
+        assertEquals(IntOffset(140, 60), provider.calculatePosition(IntRect(260, 60, 340, 100),
+            IntSize(400, 800), LayoutDirection.Ltr, IntSize(200, 200)))
         assertFalse(provider.above)
     }
     @Test fun fallsBackAboveAndKeepsPanelInWindow() {
         val provider = CornerMenuPositionProvider()
         assertEquals(IntOffset(0, 580), provider.calculatePosition(IntRect(20, 740, 100, 780),
-            IntSize(400, 800), LayoutDirection.Ltr, IntSize(200, 160)))
+            IntSize(400, 800), LayoutDirection.Ltr, IntSize(200, 200)))
         assertTrue(provider.above)
     }
 }

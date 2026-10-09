@@ -45,9 +45,10 @@ internal fun rememberContextMenuMotion(
     identity: Any?, open: Boolean, ready: Boolean, actionClosing: Boolean,
     reduceMotion: Boolean, onClosed: (Any) -> Unit,
 ): ContextMenuMotion {
-    val motion = remember { ContextMenuMotion() }
+    // 新目标不继承上一个菜单的完整展开状态，快速换目标时仍从来源进入。
+    val motion = remember(identity) { ContextMenuMotion() }
     val closed by rememberUpdatedState(onClosed)
-    LaunchedEffect(identity, open, ready, reduceMotion) {
+    LaunchedEffect(identity, open, ready, actionClosing, reduceMotion) {
         val showing = identity ?: return@LaunchedEffect
         if (open && ready) {
             motion.actionExitAnimation.snapTo(0f)
@@ -57,13 +58,12 @@ internal fun rememberContextMenuMotion(
                         else spring(dampingRatio = .86f, stiffness = 380f))
                 }
                 launch {
-                    // 先看清长按目标的聚焦，再让菜单从该目标生长；仍在同一个可取消任务中。
-                    if (!reduceMotion) delay(70)
+                    // 来源、背景与菜单同步起步，避免先浮起、再凭空弹出另一块面板。
                     motion.panelAnimation.animateTo(1f, if (reduceMotion) tween(90)
                         else spring(dampingRatio = .80f, stiffness = 420f))
                 }
                 launch {
-                    if (!reduceMotion) delay(70)
+                    if (!reduceMotion) delay(35)
                     motion.opacityAnimation.animateTo(1f, tween(if (reduceMotion) 90 else 190))
                 }
                 // 背景只平滑变化，不随面板弹簧忽清忽糊。

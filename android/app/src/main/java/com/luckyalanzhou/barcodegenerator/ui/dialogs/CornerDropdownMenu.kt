@@ -2,78 +2,121 @@ package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.rememberTransition
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
-/** 外观、字符纠错：以按钮右边缘为锚点，整个菜单向左下展开，收起后才移除窗口。 */
+/** 只插值材质边界；菜单文字保持正常字号，不随按钮到菜单的尺寸变化拉伸。 */
+internal fun dropdownMorphBounds(source: Rect, target: Rect, progress: Float): Rect {
+    val p = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
+    fun blend(a: Float, b: Float) = a + (b - a) * p
+    return Rect(blend(source.left, target.left), blend(source.top, target.top),
+        blend(source.right, target.right), blend(source.bottom, target.bottom))
+}
+
+internal fun dropdownContentAlpha(progress: Float): Float =
+    if (progress.isFinite()) ((progress - .35f) / .65f).coerceIn(0f, 1f) else 0f
+
+/** 保留 48dp 触控目标，动画来源只取居中的可见按钮外框，不把触控留白当成玻璃。 */
+internal fun dropdownVisualSource(anchor: Rect, visualHeight: Float): Rect {
+    val height = if (visualHeight.isFinite() && visualHeight > 0f)
+        visualHeight.coerceAtMost(anchor.height) else anchor.height
+    val inset = (anchor.height - height) / 2f
+    return Rect(anchor.left, anchor.top + inset, anchor.right, anchor.bottom - inset)
+}
+
+/** 点击菜单：来源边界连续扩展成菜单，取消时沿原轨迹收回；不放大目标、不模糊整屏。 */
 @Composable
 internal fun CornerDropdownMenu(
     expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier,
-    shape: Shape, color: Color, shadow: Dp, content: @Composable ColumnScope.() -> Unit,
+    shape: Shape, color: Color, anchorHeight: Dp?, content: @Composable ColumnScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
     val reduced = LocalVisualEffectsPolicy.current.reduceMotion
     val transition = rememberTransition(state, label = "settings-menu")
-    val scale = transition.animateFloat(transitionSpec = {
-        if (reduced) tween(90) else spring(dampingRatio = .86f, stiffness = 460f)
-    }, label = "whole-panel-scale") { if (it || reduced) 1f else .86f }
-    val panelAlpha = transition.animateFloat(transitionSpec = { tween(if (reduced) 90 else 160) },
-        label = "panel-opacity") { if (it) 1f else 0f }
+    val reveal = transition.animateFloat(transitionSpec = {
+        if (reduced) tween(90) else if (targetState) spring(dampingRatio = 1f, stiffness = 420f)
+        else tween(180)
+    }, label = "button-to-menu-bounds") { if (it) 1f else 0f }
     val position = remember { CornerMenuPositionProvider() }
+    val density = LocalDensity.current
+    val edge = LocalAppColorScheme.current.borders.button
+    val visualHeight = with(density) { anchorHeight?.toPx() ?: 0f }
+    val dismiss by rememberUpdatedState(onDismiss)
     if (state.currentState || state.targetState || !state.isIdle) {
+        val reserve = with(density) { position.anchor.height.toDp() }
         Popup(position, onDismiss, PopupProperties(focusable = true)) {
-            Surface(modifier.graphicsLayer {
-                scaleX = scale.value
-                scaleY = scale.value
-                alpha = panelAlpha.value
-                transformOrigin = TransformOrigin(1f, if (position.above) 1f else 0f)
-            }, shape = shape, color = color, shadowElevation = shadow) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
+            // 窗口同时包含来源与最终菜单，避免展开初期在 Popup 边缘被裁掉。
+            // 来源预留区也是空白关闭区域；菜单项消费自己的点击，不触发这里。
+            Box(modifier.pointerInput(Unit) { detectTapGestures { dismiss() } }.drawWithContent {
+                val sourceHeight = position.anchor.height.toFloat()
+                val target = Rect(0f, if (position.above) 0f else sourceHeight,
+                    size.width, if (position.above) size.height - sourceHeight else size.height)
+                val p = reveal.value.coerceIn(0f, 1f)
+                val source = dropdownVisualSource(position.sourceInPopup, visualHeight)
+                val bounds = if (reduced) target else dropdownMorphBounds(source, target, p)
+                val finalOutline = shape.createOutline(target.size, layoutDirection, this)
+                val radius = (finalOutline as? Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f
+                val corner = if (reduced) radius else 10.dp.toPx() + (radius - 10.dp.toPx()) * p
+                val path = Path().apply { addRoundRect(RoundRect(bounds, CornerRadius(corner))) }
+                // 单次静态材质绘制，不使用透明按钮原生阴影或实时折射。
+                drawPath(path, color, alpha = if (reduced) p else 1f)
+                clipPath(path) { this@drawWithContent.drawContent() }
+                drawPath(path, edge, alpha = if (reduced) p else 1f, style = Stroke(1.dp.toPx()))
+            }.padding(top = if (position.above) 0.dp else reserve,
+                bottom = if (position.above) reserve else 0.dp)) {
+                Column(Modifier.graphicsLayer {
+                    alpha = if (reduced) reveal.value else dropdownContentAlpha(reveal.value)
+                }.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
             }
         }
     }
 }
 
-/** 常规向下，只有下方不足时改为向上；始终保持按钮右侧锚定并避让窗口。 */
+/** 右侧锚定，空间不足向上；将实际来源与最终菜单放在同一个窗口内。 */
 internal class CornerMenuPositionProvider : PopupPositionProvider {
     var above by mutableStateOf(false)
         private set
+    var anchor by mutableStateOf(IntRect.Zero)
+        private set
+    var sourceInPopup by mutableStateOf(Rect.Zero)
+        private set
     override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
         layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
-        above = anchorBounds.bottom + popupContentSize.height > windowSize.height &&
-            anchorBounds.top >= popupContentSize.height
+        val menuHeight = (popupContentSize.height - anchorBounds.height).coerceAtLeast(0)
+        above = anchorBounds.bottom + menuHeight > windowSize.height && anchorBounds.top >= menuHeight
+        anchor = anchorBounds
         val x = (anchorBounds.right - popupContentSize.width)
             .coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-        val y = (if (above) anchorBounds.top - popupContentSize.height else anchorBounds.bottom)
+        val y = (if (above) anchorBounds.bottom - popupContentSize.height else anchorBounds.top)
             .coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0))
+        sourceInPopup = Rect((anchorBounds.left - x).toFloat(), (anchorBounds.top - y).toFloat(),
+            (anchorBounds.right - x).toFloat(), (anchorBounds.bottom - y).toFloat())
         return IntOffset(x, y)
     }
 }

@@ -52,6 +52,7 @@ internal fun AnchoredDropdownMenu(
     shadowElevation: Dp = 1.dp,
     menuWidth: Dp? = null,
     anchorWidth: Dp? = null,
+    anchorHeight: Dp? = null,
     alignEndWithAnchor: Boolean = false,
     cornerReveal: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
@@ -67,7 +68,7 @@ internal fun AnchoredDropdownMenu(
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
             containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
-            shadowElevation, content)
+            anchorHeight, content)
         return
     }
     DropdownMenu(
