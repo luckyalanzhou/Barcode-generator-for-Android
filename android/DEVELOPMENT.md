@@ -31,20 +31,14 @@
 $buildDir = 'D:\Barcode_build'
 $gradleLauncher = Join-Path $buildDir 'run-barcode-android-gradle.ps1'
 $gradleTasks = @(
-    ':architecture-tests:test'
-    'verifyArchitectureModuleDependencies'
-    ':core:domain:test'
-    ':core:data:testDebugUnitTest'
-    ':core:lan-share:testDebugUnitTest'
-    ':app:testBetaDebugUnitTest'
-    ':app:lintBetaRelease'
+    'verifyLocal'
     '-PenableAppUnitTests=true'
     '--no-configuration-cache'
 )
 & $gradleLauncher @gradleTasks
 ```
 
-它会运行架构、各模块和 Beta App 测试，并检查 Beta Release 的 lint；不会生成或发布 APK。只检查某项改动时，可以将对应的 Gradle task 交给同一个启动器，例如：
+它会运行完整架构、各模块和 Beta App 测试，以及两个 Release 渠道的编译和 lint；不会生成或发布 APK。Compose/Robolectric 测试验证真实组件的点击和状态，不等于真机 GPU 或帧耗时验收。只检查某项改动时，可以将对应的 Gradle task 交给同一个启动器，例如：
 
 ```powershell
 $buildDir = 'D:\Barcode_build'

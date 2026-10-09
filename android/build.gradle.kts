@@ -71,3 +71,15 @@ tasks.register("verifyArchitectureModuleDependencies") {
         }
     }
 }
+
+/** 单一本地验收入口；不打包、不发布，也不改变远端手动构建任务。 */
+tasks.register("verifyLocal") {
+    group = "verification"
+    description = "Runs complete architecture, core/app tests and both release channel checks without packaging."
+    if (providers.gradleProperty("enableAppUnitTests").map(String::toBoolean).getOrElse(false)) {
+        dependsOn(":architecture-tests:test", "verifyArchitectureModuleDependencies",
+            ":core:domain:test", ":core:data:testDebugUnitTest", ":core:lan-share:testDebugUnitTest",
+            ":app:testBetaDebugUnitTest", ":app:compileBetaReleaseKotlin", ":app:compileOfficialReleaseKotlin",
+            ":app:lintBetaRelease", ":app:lintOfficialRelease")
+    } else doFirst { error("verifyLocal requires -PenableAppUnitTests=true; it does not enable or publish debug APKs automatically.") }
+}
