@@ -81,6 +81,7 @@ internal fun ResultsContent(
     onSave: () -> Unit,
     onImageWidthChanged: (Int) -> Unit,
     loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
+    onRenderFailure: (Throwable, Int, Int) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val themeColors = LocalAppColorScheme.current
@@ -119,9 +120,11 @@ internal fun ResultsContent(
                 prepareResultRows(items, style, dark, density, fontScale, rowWidth, loadBarcodeImage)
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: OutOfMemoryError) {
+            } catch (error: OutOfMemoryError) {
+                onRenderFailure(error, items.size, rowWidth)
                 emptyList()
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                onRenderFailure(error, items.size, rowWidth)
                 emptyList()
             }
         }

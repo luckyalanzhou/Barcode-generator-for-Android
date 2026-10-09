@@ -17,10 +17,12 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageRenderer
 import com.luckyalanzhou.barcodegenerator.presentation.shared.barcodeRenderKey
 import com.luckyalanzhou.barcodegenerator.domain.barcodeRenderSize
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
 /** ZXing-backed adapter kept behind the presentation image-rendering port. */
 class ZxingBarcodeImageRenderer(
     private val imageCache: BarcodeImageCache,
+    private val logger: AppLogger,
 ) : BarcodeImageRenderer {
     private val renderLocks = Array(64) { Any() }
 
@@ -75,6 +77,8 @@ class ZxingBarcodeImageRenderer(
         createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { bitmap ->
             bitmap.setPixels(pixels, 0, matrix.width, 0, 0, matrix.width, matrix.height)
         }
+    }.onFailure { error ->
+        logger.record("barcode_render", "encode failed format=$format textLength=${text.length} density=$density", error)
     }.getOrNull()
 
     private fun trim(source: Bitmap, foreground: Int): Bitmap {

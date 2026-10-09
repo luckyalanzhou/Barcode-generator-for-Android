@@ -11,6 +11,8 @@ import java.util.Date
 import java.util.Locale
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.selectRecentLogRecords
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.buildLogExport
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DiagnosticWriteQueue
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 /** Beta 专用应用内诊断日志；正式版不包含此实现。 */
 private object BetaDebugLogBackend {
@@ -23,6 +25,10 @@ private object BetaDebugLogBackend {
     private val lock = Any()
     private val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     @Volatile private var directory: File? = null
+    private val writer = DiagnosticWriteQueue(
+        onFailure = { DebugLog.recordBackendFailure("diagnostics", "async write failed", null, it) },
+        onDropped = { writeNow("diagnostics", "queue_overflow omittedRecords=$it", null) },
+    )
 
     fun initialize(context: Context) {
         val target = File(context.applicationContext.filesDir, DIRECTORY_NAME)
@@ -35,12 +41,24 @@ private object BetaDebugLogBackend {
     }
 
     fun record(tag: String, message: String, error: Throwable? = null) {
+        val recordedAt = System.currentTimeMillis()
+        if (tag == "crash") {
+            // 崩溃记录必须同步兜底，不能依赖进程退出前异步队列恰好完成。
+            if (!writer.flush()) writeNow("diagnostics", "crash_flush_timeout pending records may be omitted", null)
+            writeNow(tag, message, error, recordedAt)
+        } else writer.submit {
+            try { writeNow(tag, message, error, recordedAt) }
+            catch (backendError: Throwable) { DebugLog.recordBackendFailure(tag, message, error, backendError) }
+        }
+    }
+
+    private fun writeNow(tag: String, message: String, error: Throwable?, recordedAt: Long = System.currentTimeMillis()) {
         synchronized(lock) {
             val targetDirectory = directory ?: error("Beta log backend not initialized")
             val target = dailyFile(targetDirectory)
             val line = buildString {
                 // SimpleDateFormat 非线程安全，格式化必须与写入共用锁。
-                append(formatter.format(Date())).append(" [").append(tag).append("] ")
+                append(formatter.format(Date(recordedAt))).append(" [").append(tag).append("] ")
                 append(message.replace('\n', ' '))
                 error?.let { append(" | ").append(Log.getStackTraceString(it)) }
                 append("\n")
@@ -57,6 +75,7 @@ private object BetaDebugLogBackend {
     }
 
     fun snapshot(context: Context): File {
+        val fullyFlushed = writer.flush()
         val targetDirectory = directory ?: File(context.applicationContext.filesDir, DIRECTORY_NAME).also {
             it.mkdirs()
             directory = it
@@ -77,6 +96,7 @@ private object BetaDebugLogBackend {
                 }
             }
             export.writeText(buildLogExport(readable, MAX_EXPORT_BYTES.toInt()), Charsets.UTF_8)
+            if (!fullyFlushed) export.appendText("\n[diagnostics] export_flush_timeout pending records may be omitted\n", Charsets.UTF_8)
             return export
         }
     }

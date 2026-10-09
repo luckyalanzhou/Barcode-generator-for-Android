@@ -85,8 +85,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    internal fun provideBarcodeImageRenderer(imageCache: BarcodeImageCache): BarcodeImageRenderer =
-        ZxingBarcodeImageRenderer(imageCache)
+    internal fun provideBarcodeImageRenderer(imageCache: BarcodeImageCache, logger: AppLogger): BarcodeImageRenderer =
+        ZxingBarcodeImageRenderer(imageCache, logger)
 
     @Provides
     @Singleton

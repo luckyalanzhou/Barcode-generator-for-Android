@@ -225,6 +225,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onShare = dependencies.actions::shareResult,
                     onSave = dependencies.actions::saveResult,
                     onImageWidthChanged = dependencies.actions::updateResultImageWidth,
+                    onRenderFailure = dependencies.resultsViewModel::recordRowRenderFailure,
                     loadBarcodeImage = { item, isDark, density ->
                         dependencies.resultsViewModel.loadOrCreateBarcodeImage(item, settings.style, isDark, density)
                     },

@@ -74,9 +74,14 @@ object DebugLog {
         try {
             debugLogRecordImpl(tag, message, error)
         } catch (backendError: Throwable) {
-            Log.e(TAG, "Beta log backend record failed: [$tag] $message", backendError)
-            writeFallback(tag, message, error ?: backendError)
+            recordBackendFailure(tag, message, error, backendError)
         }
+    }
+
+    /** 异步后端也走同一兜底路径，不能把写入线程的异常吞掉。 */
+    internal fun recordBackendFailure(tag: String, message: String, error: Throwable?, backendError: Throwable) {
+        Log.e(TAG, "Beta log backend record failed: [$tag] $message", backendError)
+        writeFallback(tag, message, error ?: backendError)
     }
 
     private fun buildActionDescriptor(name: String, details: String): String =
