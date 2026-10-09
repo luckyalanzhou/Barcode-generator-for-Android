@@ -53,6 +53,12 @@ half4 roundActionMaterial(float2 p, float2 normal, float depth, float mask) {
         bevel * facing * mix(0.075, 0.14, lightSurface) + edge * opposite * 0.035;
     reflection *= (1.0 + motion * 0.12) * (1.0 - shape.w);
     color = mix(color, half3(1.0), half(clamp(reflection, 0.0, 0.75)));
+    // 高光在浅色背景上会抵消暗边：在高光内侧保留连续的细切面。
+    // 宽度使用物理像素，不随屏幕密度变成厚圈；中心和外部阴影不参与。
+    float cut = exp(-pow((depth - 1.45) / 0.65, 2.0)) * (1.0 - shape.w);
+    color *= half(1.0 - cut * mix(0.025, 0.065, lightSurface));
+    // 暗背景用少量反射维持同一条切面，不把整块按钮提亮成灰片。
+    color = mix(color, half3(1.0), half(cut * (1.0 - lightSurface) * 0.055));
     return half4(clamp(color, half3(0.0), half3(1.0)) * half(mask), half(mask));
 }
 """

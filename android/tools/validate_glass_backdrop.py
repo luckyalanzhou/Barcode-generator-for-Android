@@ -110,9 +110,12 @@ def main():
         # 白底顶部高光本就接近背景；检查整圈的高光与暗边，不用单一受光点代替轮廓。
         rim_regions = ((slice(26, 28), slice(155, 165)), (slice(152, 154), slice(155, 165)),
                        (slice(85, 95), slice(96, 98)), (slice(85, 95), slice(222, 224)))
-        rim_delta = np.mean([np.abs(static[ys, xs, :3].astype(int) - original[ys, xs, :3].astype(int)).mean()
-                             for ys, xs in rim_regions])
-        assert rim_delta > 2, f"Static round glass edge disappears: dark={dark}, delta={rim_delta:.2f}"
+        rim_deltas = [np.abs(static[ys, xs, :3].astype(int) - original[ys, xs, :3].astype(int)).mean()
+                      for ys, xs in rim_regions]
+        # 四个方向分别验收：不能再用明显的底边掩盖顶部和侧边消失。
+        assert min(rim_deltas) > 2, f"Static round glass edge disappears: dark={dark}, deltas={rim_deltas}"
+        print(f"PASS: {'dark' if dark else 'light'} round top/bottom/left/right rim deltas: " +
+              ", ".join(f"{delta:.2f}" for delta in rim_deltas))
         detailed = render(opacity, 2.5, .55, dark, capsule=True, surface_color=(*base, 1), round_button=True)
         input_pixels = page.makeImageSnapshot().toarray()[65:115, 135:185, :3].astype(float)
         output_pixels = detailed[65:115, 135:185, :3].astype(float)
