@@ -47,7 +47,7 @@ class MenuRenderingContractTest {
         assertTrue(item.contains("toggleableState"))
         assertTrue(item.contains("selected = checked"))
         assertTrue(item.contains("if (pressed || hovered)"))
-        assertTrue(item.contains("heightIn(min = 40.dp)"))
+        assertTrue(item.contains("heightIn(min = 36.dp)"))
         assertFalse(item.contains("selectedContainer"))
     }
 

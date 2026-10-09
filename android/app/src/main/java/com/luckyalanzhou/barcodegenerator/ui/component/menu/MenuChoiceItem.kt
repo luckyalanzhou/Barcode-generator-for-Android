@@ -42,10 +42,10 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
     val pressed by interactions.collectIsPressedAsState()
     val hovered by interactions.collectIsHoveredAsState()
     val feedback = colors.controls.accent.copy(alpha = if (LocalVisualEffectsPolicy.current.highContrast) .20f else .10f)
-    // 不使用 Material 菜单项默认的最小行高：正文 20sp 行高 + 16dp 留白，普通字号实际为 40dp。
+    // 正文 20sp 行高 + 16dp 留白，普通字号最小高度为 36dp，不使用 Material 默认行高。
     // 内容自然测量，系统大字体需要更多空间时才增高；保留整行键盘/读屏点击与勾选语义。
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
+        modifier = Modifier.fillMaxWidth().heightIn(min = 36.dp)
             .hoverable(interactions)
             .background(if (pressed || hovered) feedback else Color.Transparent)
             .clickable(interactionSource = interactions, indication = null,
