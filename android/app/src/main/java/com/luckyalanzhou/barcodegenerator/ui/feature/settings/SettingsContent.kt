@@ -123,7 +123,7 @@ internal fun SettingsContent(
                                     else -> "跟随系统"
                                 },
                                 color = colors.controls.button,
-                                contentColor = colors.settingsText.primary,
+                                contentColor = colors.settingsText.secondary,
                                 onClick = { schemeMenu = true },
                                 onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
                                 pickerLabel = "外观",
@@ -194,7 +194,7 @@ internal fun SettingsContent(
                             SettingsDropdownButton(
                                 text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
                                 color = colors.controls.button,
-                                contentColor = colors.settingsText.primary,
+                                contentColor = colors.settingsText.secondary,
                                 onClick = { ocrMenu = true },
                                 onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },
                             )
@@ -269,7 +269,7 @@ internal fun SettingsContent(
                         text = if (checkingForUpdates) "检查中…" else "检查更新",
                         busy = checkingForUpdates,
                         color = colors.controls.button,
-                        contentColor = colors.settingsText.primary,
+                        contentColor = colors.controls.accent,
                         onClick = onCheckForUpdates,
                         modifier = Modifier.width(112.dp),
                     )

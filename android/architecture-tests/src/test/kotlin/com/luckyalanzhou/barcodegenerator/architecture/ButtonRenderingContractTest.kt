@@ -8,6 +8,18 @@ import org.junit.Test
 
 /** 本地渲染边界约束不是截图测试：防止已知危险组合再次引入，真机观感仍需独立验收。 */
 class ButtonRenderingContractTest {
+    @Test fun `settings distinguish current values from executable actions`() {
+        val settings = source("SettingsContent.kt")
+        for (open in listOf("schemeMenu", "ocrMenu")) {
+            val beforeOpen = settings.substringBefore("onClick = { $open = true }").takeLast(180)
+            assertTrue(beforeOpen.contains("contentColor = colors.settingsText.secondary"))
+        }
+        val update = settings.substringAfter("busy = checkingForUpdates").substringBefore("onClick = onCheckForUpdates")
+        assertTrue(update.contains("contentColor = colors.controls.accent"))
+        val action = source("ComposeSettingsComponents.kt").substringAfter("internal fun SettingsActionRow(").substringBefore("internal fun SettingsDropdownButton(")
+        assertTrue(action.contains("SettingsRow(title, color)"))
+        assertTrue(action.contains("SettingsButton(action, buttonColor, LocalAppColorScheme.current.controls.accent"))
+    }
     @Test fun `capture and LAN launch emphasize content without tinted containers`() {
         val camera = source("GenerateContent.kt").substringAfter("label = \"拍照填充\"").substringBefore("onClick = onCaptureText")
         assertTrue(camera.contains("containerColor = Color.Transparent"))

@@ -78,7 +78,8 @@ internal fun SettingsRow(title: String, color: Color, modifier: Modifier = Modif
 
 @Composable
 internal fun SettingsActionRow(title: String, action: String, color: Color, buttonColor: Color, onClick: () -> Unit) {
-    SettingsRow(title, color) { SettingsButton(action, buttonColor, color, onClick) }
+    // 标题表达设置项，右侧操作表达可执行动作，两者不共用文字颜色。
+    SettingsRow(title, color) { SettingsButton(action, buttonColor, LocalAppColorScheme.current.controls.accent, onClick) }
 }
 
 @Composable
