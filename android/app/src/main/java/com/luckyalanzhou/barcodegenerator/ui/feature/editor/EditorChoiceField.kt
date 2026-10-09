@@ -45,7 +45,7 @@ internal fun ComposeChoiceField(
             enabled = enabled,
             modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
                 .onGloballyPositioned { buttonWidth = it.size.width }
-                .globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp), 0.dp),
+                .globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
             border = null,
             contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,

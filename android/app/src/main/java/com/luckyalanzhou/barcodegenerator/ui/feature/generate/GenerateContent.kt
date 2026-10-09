@@ -259,7 +259,7 @@ internal fun GenerateContent(
                         onClick = { formatExpanded = true },
                         modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
                             .heightIn(min = 48.dp)
-                            .globalButtonChrome(RoundedCornerShape(12.dp), 0.dp)
+                            .globalButtonChrome(RoundedCornerShape(12.dp))
                             .semantics {
                                 contentDescription = "条码类型"
                                 stateDescription = "$formatName，${if (formatExpanded) "已展开" else "已收起"}"
@@ -311,7 +311,7 @@ internal fun GenerateContent(
         val generateInteraction = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier.fillMaxWidth().iosPressFeedback(generateInteraction)
-                .globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).heightIn(min = 52.dp)
+                .globalButtonChrome(RoundedCornerShape(18.dp)).heightIn(min = 52.dp)
                 .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled,
                     interactionSource = generateInteraction, indication = null, role = Role.Button) {
                 onGenerate(values.toList(), formatName)
@@ -325,6 +325,7 @@ internal fun GenerateContent(
                 if (isPreparingResult) "正在准备全部条码…" else "\u751f\u6210 $count \u4e2a\u6761\u7801",
                 color = generateContent,
                 fontSize = 16.sp,
+                style = LocalTextStyle.current.copy(background = Color.Transparent),
             )
             }
         }

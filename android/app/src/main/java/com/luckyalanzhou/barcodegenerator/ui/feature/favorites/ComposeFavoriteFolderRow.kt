@@ -30,7 +30,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -116,10 +117,12 @@ internal fun FavoriteFolderRow(
                 .onGloballyPositioned { anchor = it.boundsOnScreen() }
                 .focusRequester(focus)
                 .clip(RoundedCornerShape(14.dp))
-                .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
-                .graphicsLayer {
-                    scaleX = scale.value
-                    scaleY = scale.value
+                .drawWithContent {
+                    // 单次绘制整行；不再缓存整行 RenderNode 后又叠加缩放图层。
+                    scale(scale.value) {
+                        drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx()))
+                        this@drawWithContent.drawContent()
+                    }
                 }
                 .combinedClickable(
                     interactionSource,
@@ -149,8 +152,10 @@ private fun FavoriteFolderRowContent(
             fontSize = if (row.level == 0) 18.sp else 16.sp,
             fontWeight = if (row.level == 0) FontWeight.SemiBold else FontWeight.Medium,
             modifier = Modifier.weight(1f).onGloballyPositioned { onTitleBounds(it.boundsOnScreen()) },
+            style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(row.count.toString(), color = secondary, fontSize = 13.sp, modifier = Modifier.width(28.dp),
+            style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Icon(KeyboardArrowDownIcon, if (row.collapsed) "展开文件夹" else "收起文件夹", tint = secondary,
             modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation() })

@@ -46,7 +46,7 @@ internal fun ComposeGenerateActionButton(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape, 0.5.dp, borderColor).semantics { role = Role.Button },
+        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape, borderColor).semantics { role = Role.Button },
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
@@ -66,7 +66,8 @@ internal fun ComposeGenerateActionButton(
                 )
                 Spacer(Modifier.width(contentSpacing))
             }
-            Text(label, color = contentColor, fontSize = 15.sp)
+            Text(label, color = contentColor, fontSize = 15.sp,
+                style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent))
         }
     }
 }

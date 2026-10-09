@@ -77,7 +77,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -411,8 +410,8 @@ internal fun FavoritesContent(
                         ),
                     ),
                 ) {
-                  // 行高动画期间缓存完整内容绘制；不启用位移动画，避免相邻行追逐布局变化。
-                  Column(Modifier.graphicsLayer().padding(bottom = 6.dp)) {
+                  // 展开只改变行高，不额外缓存完整行图层；绘制与按压反馈由行组件单独负责。
+                  Column(Modifier.padding(bottom = 6.dp)) {
                     // 点击文件夹只切换展开状态；打开文件前先记住滚动位置，返回收藏树时恢复原位置。
                     if (row.folder) {
                         FavoriteFolderRow(

@@ -97,7 +97,7 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
     Box(modifier.heightIn(min = 48.dp).iosPressFeedback(interactionSource)
         .clickable(enabled = !busy, interactionSource = interactionSource, indication = null,
             role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-      Row(Modifier.globalButtonChrome(RoundedCornerShape(10.dp), 1.dp)
+      Row(Modifier.globalButtonChrome(RoundedCornerShape(10.dp))
           .clip(RoundedCornerShape(10.dp)).background(color)
           .heightIn(min = 34.dp).padding(horizontal = 10.dp, vertical = 4.dp),
           verticalAlignment = Alignment.CenterVertically) {

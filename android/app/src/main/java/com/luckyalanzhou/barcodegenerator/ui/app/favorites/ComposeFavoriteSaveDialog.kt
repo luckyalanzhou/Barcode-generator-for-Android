@@ -194,7 +194,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             selectedChild = ""
                         }
                     },
-                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp), 0.dp),
+                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp)),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = null,
@@ -212,7 +212,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             selectedChild = child
                         }, onCreateFolder = onCreateFolder)
                     },
-                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp), 0.dp),
+                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp)),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = null,

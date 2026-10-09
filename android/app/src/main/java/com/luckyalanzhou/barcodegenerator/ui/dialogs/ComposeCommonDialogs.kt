@@ -114,7 +114,7 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .iosPressFeedback(interactionSource)
-            .globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp, border)
+            .globalButtonChrome(RoundedCornerShape(12.dp), borderColor = border)
             .background(background, RoundedCornerShape(12.dp))
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
