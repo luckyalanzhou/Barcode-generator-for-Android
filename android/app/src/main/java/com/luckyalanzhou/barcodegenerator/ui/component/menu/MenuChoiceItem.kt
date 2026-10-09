@@ -63,11 +63,17 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
         Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
             // 勾号放在文字前，使用同色笔画；未选中也保留标记列，避免文字跳动。
             if (checked) Canvas(Modifier.size(iconSize).clearAndSetSemantics { }) {
-                val strokeWidth = size.minDimension * .12f
-                val joint = Offset(size.width * .42f, size.height * .72f)
-                drawLine(colors.text.primary, Offset(size.width * .16f, size.height * .50f), joint,
+                // 保留与正文相差 4dp 的布局尺寸，只将勾号墨迹收至 84%，平衡旁边的线性图标。
+                val checkmarkGlyphScale = .84f
+                val glyphWidth = size.width * checkmarkGlyphScale
+                val glyphHeight = size.height * checkmarkGlyphScale
+                val glyphLeft = (size.width - glyphWidth) / 2f
+                val glyphTop = (size.height - glyphHeight) / 2f
+                val strokeWidth = size.minDimension * checkmarkGlyphScale * .12f
+                val joint = Offset(glyphLeft + glyphWidth * .42f, glyphTop + glyphHeight * .72f)
+                drawLine(colors.text.primary, Offset(glyphLeft + glyphWidth * .16f, glyphTop + glyphHeight * .50f), joint,
                     strokeWidth, cap = StrokeCap.Round)
-                drawLine(colors.text.primary, joint, Offset(size.width * .86f, size.height * .24f),
+                drawLine(colors.text.primary, joint, Offset(glyphLeft + glyphWidth * .86f, glyphTop + glyphHeight * .24f),
                     strokeWidth, cap = StrokeCap.Round)
             }
         }
