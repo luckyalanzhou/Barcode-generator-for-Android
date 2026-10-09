@@ -29,13 +29,8 @@ def main():
     adaptive_tint = (shader_dir / "GlassAdaptiveTint.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     lens_profile = (shader_dir / "GlassLensProfile.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     backdrop_parts = (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""')
-    round_action = (shader_dir / "RoundActionGlassShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
-    source = adaptive_tint + lens_profile + backdrop_parts[1] + round_action + backdrop_parts[3]
+    source = adaptive_tint + lens_profile + backdrop_parts[1]
     effect = skia.RuntimeEffect.MakeForShader(source)
-    # 移除本轮静态增益得到旧动态路径，实际像素比较保证按压效果没有被一并改写。
-    before_static, static_tail = source.split("// 静态切面增益开始", 1)
-    previous_dynamic_source = before_static + static_tail.split("// 静态切面增益结束", 1)[1]
-    previous_dynamic_effect = skia.RuntimeEffect.MakeForShader(previous_dynamic_source)
     profile_effect = skia.RuntimeEffect.MakeForShader(lens_profile + """
         half4 main(float2 p) {
             return half4(half3(glassLensProfile(p.x - 0.5, 100.0 / 0.85, 1.0)), 1.0);
@@ -81,7 +76,7 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False, density=1.0, runtime_effect=None, input_scene=None):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, density=1.0, runtime_effect=None, input_scene=None):
         builder = skia.RuntimeShaderBuilder(effect if runtime_effect is None else runtime_effect)
         input_page = page if input_scene is None else input_scene
         if page_color is not None:
@@ -89,114 +84,17 @@ def main():
             input_page.getCanvas().clear(page_color)
         builder.setChild("content", input_page.makeImageSnapshot().makeShader())
         builder.setUniform("resolution", skia.V2(w, h))
-        builder.setUniform("bounds", skia.V4(w / 2, h / 2, 65 if round_button else 135, 65))
-        builder.setUniform("shape", skia.V4(65 if round_button else 24, blur, refract, opacity))
+        builder.setUniform("bounds", skia.V4(w / 2, h / 2, 135, 65))
+        builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
         builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
         builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
         builder.setUniform("menuMaterial", 1.0 if menu else 0.0)
-        builder.setUniform("roundAction", 1.0 if round_button else 0.0)
         builder.setUniform("pixelDensity", density)
         builder.setUniform("capsuleOptics", skia.V2(0, 0))
         builder.setUniform("surfaceColor", skia.V4(*(surface_color if surface_color is not None else ((.08, .09, .12, 1) if dark else (.97, .98, 1, 1)))))
         output = skia.Surface(w, h)
         output.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
         return output.makeImageSnapshot().toarray()
-
-    # 圆按钮单独验证；合成像素约束不证明与苹果原生的相似度。
-    for dark, background, opacity in ((False, 0xFFF2F3F8, .18), (True, 0xFF17191D, .22)):
-        base = tuple((background >> shift & 255) / 255 for shift in (16, 8, 0))
-        static = render(opacity, 2.5, .55, dark, background, capsule=True, surface_color=(*base, 1), round_button=True)
-        baseline = skia.Surface(w, h)
-        baseline.getCanvas().clear(background)
-        original = baseline.makeImageSnapshot().toarray()
-        assert np.max(np.abs(static[75:105, 145:175, :3].astype(int) - original[75:105, 145:175, :3].astype(int))) <= 1, "Round glass adds a fixed gray center"
-        assert np.max(static[:24, :, 3]) == 0, "Round optics leak outside circle"
-        # 白底顶部高光本就接近背景；检查整圈的高光与暗边，不用单一受光点代替轮廓。
-        rim_regions = ((slice(26, 28), slice(155, 165)), (slice(152, 154), slice(155, 165)),
-                       (slice(85, 95), slice(96, 98)), (slice(85, 95), slice(222, 224)))
-        rim_deltas = [np.abs(static[ys, xs, :3].astype(int) - original[ys, xs, :3].astype(int)).mean()
-                      for ys, xs in rim_regions]
-        # 四个方向分别验收：不能再用明显的底边掩盖顶部和侧边消失。
-        assert min(rim_deltas) > 2, f"Static round glass edge disappears: dark={dark}, deltas={rim_deltas}"
-        print(f"PASS: {'dark' if dark else 'light'} round top/bottom/left/right rim deltas: " +
-              ", ".join(f"{delta:.2f}" for delta in rim_deltas))
-        detailed = render(opacity, 2.5, .55, dark, capsule=True, surface_color=(*base, 1), round_button=True)
-        input_pixels = page.makeImageSnapshot().toarray()[65:115, 135:185, :3].astype(float)
-        output_pixels = detailed[65:115, 135:185, :3].astype(float)
-        assert output_pixels.std(axis=1).mean() < input_pixels.std(axis=1).mean() * .8, "Detailed background is not diffused"
-        pressed = render(opacity, 2.5, 1.2, dark, contact=1, capsule=True, surface_color=(*base, 1), round_button=True)
-        assert np.count_nonzero(np.max(np.abs(pressed.astype(int) - detailed.astype(int)), axis=2) > 2) > 20, "Round press optics do not respond"
-        assert np.max(pressed[:24, :, 3]) == 0, "Press optics create outside halo"
-        solid_bright = render(1, 2.5, 0, dark, 0xFFFFFFFF, surface_color=(*base, 1), round_button=True)
-        solid_dim = render(1, 2.5, 0, dark, 0xFF000000, surface_color=(*base, 1), round_button=True)
-        assert np.array_equal(solid_bright, solid_dim), "Opaque round material leaks background"
-    print("PASS: round material compiles; clear center, static rim, bounded press, adaptive diffusion and opaque isolation")
-
-    # 用当前材质恢复旧九点扩散作对照，边缘、坐标和其他参数完全一致。
-    legacy_round = round_action.replace("half3 localAverage", "half3 wide").replace("localAverage +=", "wide +=")
-    begin, tail = legacy_round.split("// 宽场扩散开始", 1)
-    legacy_round = begin + """
-    float detail = smoothstep(0.035, 0.30, maximum - minimum);
-    half3 scene = mix(center, wide, half(detail * 0.82));
-    """ + tail.split("// 宽场扩散结束", 1)[1]
-    legacy_round = legacy_round.replace("+ detail * 0.16", "+ detail * 0.08")
-    legacy_effect = skia.RuntimeEffect.MakeForShader(adaptive_tint + lens_profile + backdrop_parts[1] + legacy_round + backdrop_parts[3])
-    detail_pairs = []
-    for density in (1.0, 2.0, 3.5, 4.0):
-        for dark, background, opacity in ((False, 0xFFF2F3F8, .18), (True, 0xFF17191D, .22)):
-            base = tuple((background >> shift & 255) / 255 for shift in (16, 8, 0))
-            for period in (4, 9, 17):
-                for phase in (0, period // 2):
-                    barcode = skia.Surface(w, h)
-                    barcode.getCanvas().clear(background)
-                    ink = skia.Paint(Color=0xFFF2F3F8 if dark else 0xFF000000)
-                    for x in range(-period + phase, w, period):
-                        barcode.getCanvas().drawRect(skia.Rect.MakeXYWH(x, 0, period * .45, h), ink)
-                    options = dict(capsule=True, surface_color=(*base, 1), round_button=True,
-                                   density=density, input_scene=barcode)
-                    new = render(opacity, 2.5 * density, .55 * density, dark, **options)
-                    old = render(opacity, 2.5 * density, .55 * density, dark, runtime_effect=legacy_effect, **options)
-                    # 排除倒角，测细条纹在玻璃内的水平对比，不以整体加灰冒充扩散。
-                    area = (slice(75, 105), slice(145, 175), slice(0, 3))
-                    new_detail = new[area].astype(float).std(axis=1).mean()
-                    old_detail = old[area].astype(float).std(axis=1).mean()
-                    ratio = new_detail / max(old_detail, 1.0)
-                    detail_pairs.append((new_detail, old_detail))
-                    # 旧路径偶然接近无条纹时，不用相对比值放大不足几级的量化差异。
-                    # 所有背景均须低残留；旧路径明显暴露条纹时还须至少改善 20%。
-                    assert new_detail < 8.0, f"Visible barcode stripes remain: density={density}, dark={dark}, period={period}, phase={phase}, detail={new_detail}"
-                    if old_detail > 8.0:
-                        assert ratio < .80, f"Wide diffusion did not improve exposed stripes: density={density}, dark={dark}, period={period}, phase={phase}, ratio={ratio}"
-                    assert new[area].astype(float).std(axis=1).mean() > .1, "Detailed backdrop became a flat fill"
-    mean_ratio = sum(new for new, _ in detail_pairs) / sum(old for _, old in detail_pairs)
-    assert mean_ratio < .60, "Barcode fixture set shows no overall diffusion improvement"
-    print(f"PASS: barcode diffusion across density/theme/period/phase; mean detail ratio versus previous={mean_ratio:.3f}; max residual={max(new for new, _ in detail_pairs):.2f}/255")
-
-    # 按钮的高光与切面须在高密度下仍分开，避免只测 1x 的单点颜色。
-    # 此处使用固定较大圆观察边缘剖面；几何和抗锯齿仍由同一个实际 shader 计算。
-    for density in (1.0, 2.0, 3.0, 4.0):
-        for dark, background, opacity in ((False, 0xFFF2F3F8, .18), (True, 0xFF17191D, .22)):
-            base = tuple((background >> shift & 255) / 255 for shift in (16, 8, 0))
-            pixels = render(opacity, 2.5 * density, .55 * density, dark, background,
-                            surface_color=(*base, 1), round_button=True, density=density)
-            profile = pixels[26:45, 160, :3].astype(float).mean(axis=1)
-            baseline = np.mean(base) * 255
-            # 像素中心在边缘内 1.5px 起；按两个带的中点分区，避免向下取整错取高光。
-            split = max(1, int(density * 1.15 + .4 - 1.5) + 1)
-            bevel_end = min(len(profile), int(density * 2.2 + .4 - 1.5) + 2)
-            assert np.max(profile[split:bevel_end]) > np.min(profile[:split]) + 2, f"Optical layers are not separated: density={density}, dark={dark}, profile={profile}"
-            assert abs(profile[-1] - baseline) <= 1, "Optical band tints the clear interior"
-            # 反射面深入约 3dp，区别于一根细描边，中心仍保持原色。
-            facet_start = max(0, int(density * 2.5 - 1.5))
-            facet_end = min(len(profile), int(density * 3.5 - 1.5) + 2)
-            assert np.max(profile[facet_start:facet_end]) > baseline + (3 if dark else 4), f"Static inner reflection is too weak: density={density}, dark={dark}"
-            pressed = render(opacity, 2.5 * density, 1.2 * density, dark, background, contact=1,
-                             surface_color=(*base, 1), round_button=True, density=density)
-            previous_pressed = render(opacity, 2.5 * density, 1.2 * density, dark, background, contact=1,
-                                      surface_color=(*base, 1), round_button=True, density=density,
-                                      runtime_effect=previous_dynamic_effect)
-            assert np.array_equal(pressed, previous_pressed), "Static tuning changed fully pressed optics"
-    print("PASS: light/dark edge profiles keep separate cut and reflection at 1x/2x/3x/4x density; clear interior unchanged")
 
     for dark in (False, True):
         rest = render(.45, 0, 0, dark)
@@ -365,7 +263,6 @@ def main():
                     builder.setUniform("shape", skia.V4(halfheight, .75, (1.8 if circular else 1.2) * (1 - movement) + 4.5 * movement, opacity))
                     builder.setUniform("contact", skia.V4(cx + halfwidth * .6, y - halfheight * .6, movement, 1))
                     builder.setUniform("capsuleMode", 1.0)
-                    builder.setUniform("roundAction", 0.0)
                     builder.setUniform("menuMaterial", 0.0)
                     builder.setUniform("capsuleOptics", skia.V2(.4 * movement, .10 * movement))
                     builder.setUniform("pixelDensity", 1.5)

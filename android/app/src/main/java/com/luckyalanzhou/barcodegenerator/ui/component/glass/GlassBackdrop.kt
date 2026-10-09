@@ -63,9 +63,9 @@ internal fun glassBackdropAvailable(policy: com.luckyalanzhou.barcodegenerator.u
         LocalGlassBackdrop.current?.ready == true, renderer != null, policy.opaqueGlass)
 
 @Composable
-internal fun rememberGlassBackdropRenderer(menuMaterial: Boolean = false, roundAction: Boolean = false): BackdropRenderer? {
-    val factory = remember(menuMaterial, roundAction) { lazy {
-        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull(menuMaterial, roundAction) else null
+internal fun rememberGlassBackdropRenderer(menuMaterial: Boolean = false): BackdropRenderer? {
+    val factory = remember(menuMaterial) { lazy {
+        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull(menuMaterial) else null
     } }
     return if (LocalVisualEffectsPolicy.current.opaqueGlass) null else factory.value
 }
@@ -169,9 +169,8 @@ internal fun glassFallbackOpacity(opacity: Float, smallControl: Boolean, opaque:
     if (opaque) 1f else if (smallControl) opacity.coerceIn(0f, 1f) else opacity.coerceIn(.92f, 1f)
 
 @RequiresApi(33)
-internal class BackdropRenderer(private val shader: RuntimeShader, private val menuMaterial: Boolean = false,
-    private val roundAction: Boolean = false) {
-    val diagnosticRole: String get() = if (roundAction) "round_action" else if (menuMaterial) "menu" else "tab_or_surface"
+internal class BackdropRenderer(private val shader: RuntimeShader, private val menuMaterial: Boolean = false) {
+    val diagnosticRole: String get() = if (menuMaterial) "menu" else "tab_or_surface"
     private data class EffectKey(val size: IntSize, val density: Float, val color: Color,
         val opacity: Float, val corner: Float, val blur: Float, val refraction: Float, val capsule: TabGlassFrame?)
     private var previous: EffectKey? = null
@@ -189,14 +188,13 @@ internal class BackdropRenderer(private val shader: RuntimeShader, private val m
             capsule?.motion ?: 0f, capsule?.contactSpread ?: 1f)
         shader.setFloatUniform("capsuleMode", if (capsule == null) 0f else 1f)
         shader.setFloatUniform("menuMaterial", if (menuMaterial) 1f else 0f)
-        shader.setFloatUniform("roundAction", if (roundAction) 1f else 0f)
         shader.setFloatUniform("pixelDensity", density)
-        val optics = if (roundAction) null else capsule?.let(::tabDynamicOptics)
+        val optics = capsule?.let(::tabDynamicOptics)
         shader.setFloatUniform("capsuleOptics", optics?.dispersionPx ?: 0f, optics?.edgeColorStrength ?: 0f)
         shader.setColorUniform("surfaceColor", color.toArgb())
         val lens = RenderEffect.createRuntimeShaderEffect(shader, "content")
         // 圆按钮在 shader 内按复杂度扩散；预先全局模糊会丢失分类依据。
-        val effect = if (blur > 0f && !roundAction) {
+        val effect = if (blur > 0f) {
             val blurPx = blur * density
             val blurEffect = blurCache.get(blurPx) {
                 RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
@@ -210,10 +208,10 @@ internal class BackdropRenderer(private val shader: RuntimeShader, private val m
     }
 
     companion object {
-        fun createOrNull(menuMaterial: Boolean = false, roundAction: Boolean = false): BackdropRenderer? = try {
-            BackdropRenderer(RuntimeShader(GLASS_BACKDROP_SHADER), menuMaterial, roundAction)
+        fun createOrNull(menuMaterial: Boolean = false): BackdropRenderer? = try {
+            BackdropRenderer(RuntimeShader(GLASS_BACKDROP_SHADER), menuMaterial)
         } catch (error: IllegalArgumentException) {
-            DebugLog.record("glass_render", "shader_creation_failed menu=$menuMaterial roundAction=$roundAction sdk=${Build.VERSION.SDK_INT}", error)
+            DebugLog.record("glass_render", "shader_creation_failed menu=$menuMaterial sdk=${Build.VERSION.SDK_INT}", error)
             null
         }
     }

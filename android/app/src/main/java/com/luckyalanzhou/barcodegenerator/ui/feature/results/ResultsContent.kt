@@ -36,7 +36,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.material3.Icon
@@ -158,19 +157,15 @@ internal fun ResultsContent(
         return@BoxWithConstraints
     }
 
-    // 页面切换动画期间，结果页与主界面可能短暂同时绘制，因此结果页必须使用独立的背景录制层，
-    // 避免两个路由共享 GraphicsLayer 时同时写入同一个 RenderNode。
-    val backdrop = rememberGlassBackdrop()
     val toolbarInitialHeightPx = with(LocalDensity.current) { 64.dp.roundToPx() }
     var toolbarSize by remember(toolbarInitialHeightPx) {
         androidx.compose.runtime.mutableStateOf(IntSize(0, toolbarInitialHeightPx))
     }
     val toolbarHeight = with(LocalDensity.current) { toolbarSize.height.toDp() }
-    CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
     Box(Modifier.fillMaxSize()) {
         // 条码列表位于固定工具栏下方并独立滚动，顶部预留状态栏和工具栏高度以避免遮挡。
         LazyColumn(
-            modifier = Modifier.fillMaxSize().recordGlassBackdrop(backdrop),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(style.margin.coerceIn(0, 10).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -196,7 +191,6 @@ internal fun ResultsContent(
                 onSave = onSave,
             )
         }
-    }
     }
 }
 }

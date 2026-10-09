@@ -14,9 +14,11 @@ class ButtonRenderingContractTest {
             "pressPosition", "scaleX =", "scaleY =", "translationY =", "radialGradient")) {
             assertFalse("静态圆按钮不可引入 $forbidden", button.contains(forbidden))
         }
-        val frame = source("RoundActionGlassFrame.kt")
-        assertTrue(frame.contains("motion = 0f"))
-        assertTrue(frame.contains("travelStrength = 0f"))
+        assertFalse(button.contains("rememberGlassBackdropRenderer"))
+        assertFalse(button.contains("GlassBackdropSurface("))
+        val results = source("ResultsContent.kt")
+        assertFalse(results.contains("recordGlassBackdrop"))
+        assertFalse(results.contains("rememberGlassBackdrop"))
     }
     @Test fun `press feedback affects only the round action foreground`() {
         val button = source("GlassRoundActionButton.kt")
@@ -27,18 +29,13 @@ class ButtonRenderingContractTest {
         assertFalse(feedback.contains("resultActionShadow("))
         assertFalse(feedback.contains("roundActionGlassFrame("))
     }
-    @Test fun `round glass optics are isolated from callbacks tabs and menu material`() {
+    @Test fun `round action appearance stays separate from functionality and GPU samplers`() {
         val button = source("GlassRoundActionButton.kt")
-        assertTrue(button.contains("rememberGlassBackdropRenderer(roundAction = true)"))
-        assertTrue(button.indexOf("content(contentTint)") > button.indexOf("GlassBackdropSurface("))
+        assertTrue(button.contains("drawGlassControlBevel("))
+        assertTrue(button.indexOf("content(contentTint)") > button.indexOf("drawGlassControlBevel("))
         assertTrue(button.contains("onClick = onClick"))
-        val shader = source("RoundActionGlassShader.kt")
-        for (forbidden in listOf("onClick", "ViewModel", "Bitmap", "capsuleOptics", "menuMaterial")) {
-            assertFalse("圆按钮材质不能包含 $forbidden", shader.contains(forbidden))
-        }
-        val renderer = source("GlassBackdrop.kt")
-        assertTrue(renderer.contains("blur > 0f && !roundAction"))
-        assertTrue(renderer.contains("if (roundAction) null else capsule?.let(::tabDynamicOptics)"))
+        assertFalse(button.contains("RuntimeShader("))
+        assertFalse(source("GlassBackdropShader.kt").contains("roundAction"))
     }
     @Test fun `settings distinguish current values from executable actions`() {
         val settings = source("SettingsContent.kt")

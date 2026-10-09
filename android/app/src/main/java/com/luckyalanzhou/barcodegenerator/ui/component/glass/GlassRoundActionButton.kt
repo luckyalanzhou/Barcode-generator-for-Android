@@ -45,8 +45,6 @@ internal fun GlassRoundActionButton(
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current.density
-    val renderer = rememberGlassBackdropRenderer(roundAction = true)
-    val backdropAvailable = glassBackdropAvailable(effects, renderer)
     val material = resultActionGlassMaterial(colors.surfaces.background).let {
         if (effects.opaqueGlass) it.copy(accentTint = 0f, surfaceOpacity = 1f) else it
     }
@@ -77,41 +75,21 @@ internal fun GlassRoundActionButton(
                 .clip(CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            val circlePx = 48f * density
-            val frame = {
-                roundActionGlassFrame(
-                    width = circlePx,
-                    height = circlePx,
-                    density = density,
+            Canvas(Modifier.matchParentSize()) {
+                // 固定主题底色与倒角高光，不读取背景、不创建 RuntimeShader。
+                drawCircle(glassColor.copy(alpha = if (effects.opaqueGlass) 1f else .88f))
+                drawGlassControlBevel(
+                    Offset.Zero,
+                    size,
+                    size.minDimension * .5f,
+                    material,
+                    colors.surfaces.background,
+                    contentTint,
+                    density,
+                    effects.highContrast,
                 )
             }
-            GlassBackdropSurface(
-                modifier = Modifier.matchParentSize(),
-                color = glassColor,
-                opacity = material.surfaceOpacity,
-                cornerDp = 24f,
-                blurDp = GlassControlDefaults.RoundActionBlurDp,
-                refractionDp = { frame().refractionPx / density },
-                capsule = frame,
-                drawFallback = true,
-                renderer = renderer,
-                diagnosticName = contentDescription,
-            )
-            Canvas(Modifier.matchParentSize()) {
-                if (!backdropAvailable || effects.highContrast) {
-                    drawGlassControlBevel(
-                        Offset.Zero,
-                        size,
-                        size.minDimension * .5f,
-                        material,
-                        colors.surfaces.background,
-                        contentTint,
-                        density,
-                        effects.highContrast,
-                    )
-                }
-            }
-            // 反馈只作用于前景图标，不改变下方玻璃、折射或阴影；取消手势也会恢复。
+            // 反馈只作用于前景图标，不改变下方玻璃外观或阴影；取消手势也会恢复。
             Box(
                 Modifier.graphicsLayer {
                     alpha = if (pressed && enabled && !busy) {

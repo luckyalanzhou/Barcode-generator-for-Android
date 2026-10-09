@@ -9,11 +9,9 @@ uniform float4 shape;
 uniform float4 contact;
 uniform float capsuleMode;
 uniform float menuMaterial;
-uniform float roundAction;
 uniform float2 capsuleOptics;
 uniform float pixelDensity;
 layout(color) uniform half4 surfaceColor;
-""" + ROUND_ACTION_GLASS_SHADER + """
 half4 main(float2 p) {
     float2 halfSize = bounds.zw;
     float radius = min(shape.x, min(halfSize.x, halfSize.y));
@@ -25,7 +23,6 @@ half4 main(float2 p) {
     float2 edge = local - clamp(local, -halfSize + radius, halfSize - radius);
     float2 normal = edge / max(length(edge), 0.001);
     float depth = max(-sd, 0.0);
-    if (roundAction > 0.5) return roundActionMaterial(p, normal, depth, mask);
     float density = max(pixelDensity, 0.1);
     float lens = capsuleMode > 0.5 ? glassLensProfile(depth, radius, density) :
         1.0 - smoothstep(0.0, max(radius * 0.5, 1.0), depth);
