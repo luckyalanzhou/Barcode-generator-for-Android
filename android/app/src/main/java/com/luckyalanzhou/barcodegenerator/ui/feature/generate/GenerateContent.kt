@@ -97,6 +97,7 @@ internal fun GenerateContent(
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
+    var formatButtonHeight by remember { mutableIntStateOf(0) }
     val themeColors = LocalAppColorScheme.current
     val textColor = themeColors.text.primary
     val secondary = themeColors.text.secondary
@@ -255,7 +256,10 @@ internal fun GenerateContent(
                 Box {
                     Button(
                         onClick = { formatExpanded = true },
-                        modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
+                        modifier = Modifier.onGloballyPositioned {
+                            formatButtonWidth = it.size.width
+                            formatButtonHeight = it.size.height
+                        }
                             .heightIn(min = 48.dp)
                             .globalButtonChrome(RoundedCornerShape(12.dp))
                             .semantics {
@@ -290,11 +294,14 @@ internal fun GenerateContent(
                         shadowElevation = 1.dp,
                         menuWidth = (formatAnchorWidth ?: 176.dp).coerceAtLeast(176.dp),
                         anchorWidth = formatAnchorWidth,
+                        anchorHeight = with(density) { formatButtonHeight.toDp() },
                         alignEndWithAnchor = true,
+                        // 与外观/字符纠错一致：整个菜单从按钮边界展开，不走 Material 默认动画。
+                        cornerReveal = true,
                     ) {
                         barcodeFormats.forEachIndexed { index, option ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            SingleChoiceMenuItem(option.displayName, option.displayName == formatName) {
+                            SingleChoiceMenuItem(option.displayName, option.displayName == formatName, highlightSelection = false) {
                                 formatName = option.displayName
                                 onFormatChanged(option.displayName)
                                 formatExpanded = false

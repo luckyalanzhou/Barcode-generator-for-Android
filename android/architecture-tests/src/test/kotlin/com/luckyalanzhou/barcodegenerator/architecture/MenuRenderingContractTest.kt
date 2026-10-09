@@ -8,6 +8,16 @@ import org.junit.Test
 
 /** 菜单绘制边界的本地回归约束；不替代 Popup 跨窗口重放与真机视觉验收。 */
 class MenuRenderingContractTest {
+    @Test fun `barcode format menus use whole panel reveal at both entry points`() {
+        val generate = source("GenerateContent.kt").substringAfter("AnchoredDropdownMenu(")
+        assertTrue(generate.contains("cornerReveal = true"))
+        assertTrue(generate.contains("anchorHeight = with(density) { formatButtonHeight.toDp() }"))
+        assertTrue(generate.contains("highlightSelection = false"))
+        val editor = source("EditorChoiceField.kt")
+        assertTrue(editor.contains("cornerReveal = compact"))
+        assertTrue(editor.contains("anchorHeight = with(density) { buttonHeight.toDp() }"))
+        assertTrue(editor.contains("SingleChoiceMenuItem(option, option == value, highlightSelection = false)"))
+    }
     private fun source(name: String): String = File(Konsist.scopeFromProduction().files.single {
         File(it.path).name == name
     }.path).readText()
