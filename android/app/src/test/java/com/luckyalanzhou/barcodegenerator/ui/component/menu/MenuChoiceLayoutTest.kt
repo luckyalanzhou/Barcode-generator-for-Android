@@ -35,8 +35,7 @@ class MenuChoiceLayoutTest {
             val density = Density(2f, fontScale)
             val textSize = with(density) { 16.sp.toDp() }
             val iconSize = menuOptionIconSize(density)
-            assertEquals(2f, iconSize.value - textSize.value, .001f)
-            assertEquals(iconSize, with(density) { menuOptionIconFontSize(density).toDp() })
+            assertEquals(4f, iconSize.value - textSize.value, .001f)
         }
     }
 

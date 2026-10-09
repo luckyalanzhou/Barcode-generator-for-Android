@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.component.menu
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +21,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -27,7 +31,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -58,9 +61,15 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-            // 勾号放在文字前，略增字重并与正文同色；未选中也保留标记列，避免文字跳动。
-            if (checked) Text("✓", color = colors.text.primary, fontSize = menuOptionIconFontSize(density),
-                lineHeight = 20.sp, fontWeight = FontWeight.Normal, style = MenuLineStyle)
+            // 勾号放在文字前，使用同色笔画；未选中也保留标记列，避免文字跳动。
+            if (checked) Canvas(Modifier.size(iconSize).clearAndSetSemantics { }) {
+                val strokeWidth = size.minDimension * .12f
+                val joint = Offset(size.width * .42f, size.height * .72f)
+                drawLine(colors.text.primary, Offset(size.width * .16f, size.height * .50f), joint,
+                    strokeWidth, cap = StrokeCap.Round)
+                drawLine(colors.text.primary, joint, Offset(size.width * .86f, size.height * .24f),
+                    strokeWidth, cap = StrokeCap.Round)
+            }
         }
         Spacer(Modifier.width(12.dp))
         Text(label, color = colors.text.primary, fontSize = 16.sp, lineHeight = 20.sp,

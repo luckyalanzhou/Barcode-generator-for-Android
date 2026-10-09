@@ -4,7 +4,6 @@ import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuLineStyle
-import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionIconFontSize
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionIconSize
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
@@ -443,7 +442,7 @@ internal fun TabLongPressActionOverlay(
                                 text = action.label,
                                 modifier = Modifier.weight(1f),
                                 color = actionColor,
-                                fontSize = menuOptionIconFontSize(density),
+                                fontSize = 16.sp,
                                 lineHeight = 20.sp,
                                 style = MenuLineStyle,
                             )
