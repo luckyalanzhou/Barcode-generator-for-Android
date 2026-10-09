@@ -40,4 +40,13 @@ class MenuRenderingContractTest {
         assertTrue(item.contains("heightIn(min = 40.dp)"))
         assertFalse(item.contains("selectedContainer"))
     }
+
+    @Test fun `value menu rows keep compact height without material minimum height`() {
+        val item = source("MenuChoiceItem.kt")
+        assertFalse(item.contains("DropdownMenuItem("))
+        assertTrue(item.contains("fontSize = 14.sp, lineHeight = 20.sp"))
+        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 8.dp)"))
+        assertTrue(item.contains("verticalAlignment = Alignment.CenterVertically"))
+        assertTrue(item.contains(".clickable("))
+    }
 }
