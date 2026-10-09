@@ -56,7 +56,7 @@ internal class FavoritesMutationCoordinator(
         return removed
     }
 
-    fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
+    suspend fun saveResultAsFavorite(resultItemIds: List<Long>, editingGroupId: Long?, targetGroupId: Long?, folder: String, name: String): Boolean {
         if (orderedFavoriteItems(store.itemsSnapshot(), resultItemIds).isNullOrEmpty() || folder.isBlank() || name.isBlank()) return false
         val excludedIds = setOfNotNull(editingGroupId, targetGroupId).toSet()
         if (store.hasFavoriteIdentity(folder, name, excludedIds)) return false
@@ -80,7 +80,8 @@ internal class FavoritesMutationCoordinator(
             store.setFavoriteIdentity(savedGroupId, folder, name)
         }
         savedGroupId?.let(store::markGroupLinksChanged)
-        persistAllFavorites()
+        // 数据库确认提交后，调用方才可关闭输入弹窗并显示保存成功。
+        persistAllFavorites().await().getOrThrow()
         return savedGroupId != null
     }
 
@@ -152,11 +153,12 @@ internal class FavoritesMutationCoordinator(
         persistence.clearAllFavoriteGroups()
         persistAllFavorites()
     }
-    fun persistAllFavorites() {
-        persistence.persistAllFavorites(
+    fun persistAllFavorites(): kotlinx.coroutines.Deferred<Result<Unit>> {
+        val commit = persistence.persistAllFavorites(
             store.itemsSnapshot(), store.groupsSnapshot(), store.foldersSnapshot(), store.loadedGroupLinkIdsSnapshot(),
         )
         persistence.refreshFavoriteFlags(store, onReconciled)
+        return commit
     }
 
     private fun createsFavoriteIdentityCollision(path: String, renamedPath: String): Boolean {

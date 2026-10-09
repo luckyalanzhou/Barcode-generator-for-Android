@@ -13,7 +13,7 @@ import androidx.core.graphics.withTranslation
 import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
 import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
-import com.luckyalanzhou.barcodegenerator.presentation.shared.barcodeRenderSize
+import com.luckyalanzhou.barcodegenerator.domain.barcodeRenderSize
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import kotlin.math.roundToInt

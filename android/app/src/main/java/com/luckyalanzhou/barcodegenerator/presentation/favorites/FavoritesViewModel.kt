@@ -188,14 +188,24 @@ class FavoritesViewModel @Inject constructor(
     fun restoreFavorites(bytes: ByteArray): InterchangeBackup = barcodeDataCoordinator.restoreFavorites(bytes)
 
     /** 将结果页条码保存为指定文件或更新现有收藏文件；成功后同步刷新收藏视图。 */
-    fun saveResultAsFavorite(
+    suspend fun saveResultAsFavorite(
         resultItemIds: List<Long>,
         editingGroupId: Long?,
         targetGroupId: Long?,
         folder: String,
         name: String,
     ): Boolean {
-        if (!mutations.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
+        try {
+            if (!mutations.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // 等恢复完成再允许弹窗重试，避免失败的乐观快照被误判为重名。
+            try { libraryDataCoordinator.loadPersistedData() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (reloadError: Exception) { error.addSuppressed(reloadError) }
+            throw error
+        }
         publishAfterMutation()
         return true
     }

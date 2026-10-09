@@ -16,6 +16,8 @@ import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
@@ -26,6 +28,7 @@ data class SettingsUiState(
     val barHeight: Float = 55f,
     val barWidth: Float = 220f,
     val margin: Float = 4f,
+    val saveFailed: Boolean = false,
 )
 
 /** 设置页状态与设置持久化之间的边界。 */
@@ -39,6 +42,8 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var initialized = false
     private var currentStyle = StyleSettings()
+    private val writeFailureNotices = Channel<Unit>(Channel.BUFFERED)
+    val persistenceFailures = writeFailureNotices.receiveAsFlow()
 
     /** 设置的唯一内存所有者；外部只能读取快照，写入必须经过本 ViewModel。 */
     internal val style: StyleSettings
@@ -73,7 +78,7 @@ class SettingsViewModel @Inject constructor(
 
     fun getOcrMask(): Int = settingsRepository.getOcrConfusionReplacementMask()
 
-    fun recordUpdateError(message: String): Job = settingsRepository.setUpdateError(message)
+    fun recordUpdateError(message: String): Job = trackWrite("update_error_save") { settingsRepository.setUpdateError(message) }
 
     /** Job 完成才报告持久化结果，不把“开始保存”误记为“保存成功”。 */
     private fun trackWrite(name: String, write: () -> Job): Job {
@@ -83,6 +88,10 @@ class SettingsViewModel @Inject constructor(
             return write().also { job -> job.invokeOnCompletion { error ->
                 val stage = if (error == null) "success" else if (error is CancellationException) "cancelled" else "failed"
                 logger.record("settings", "$name $stage operation=$operation", error.takeUnless { it is CancellationException })
+                if (error !is CancellationException) {
+                    _uiState.update { it.copy(saveFailed = error != null) }
+                    if (error != null) writeFailureNotices.trySend(Unit)
+                }
             } }
         } catch (error: Exception) {
             logger.record("settings", "$name failed operation=$operation", error)

@@ -16,7 +16,7 @@ import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageRenderer
 import com.luckyalanzhou.barcodegenerator.presentation.shared.barcodeRenderKey
-import com.luckyalanzhou.barcodegenerator.presentation.shared.barcodeRenderSize
+import com.luckyalanzhou.barcodegenerator.domain.barcodeRenderSize
 
 /** ZXing-backed adapter kept behind the presentation image-rendering port. */
 class ZxingBarcodeImageRenderer(

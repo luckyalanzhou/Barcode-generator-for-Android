@@ -14,9 +14,9 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,8 +37,9 @@ class BarcodePersistenceCoordinator @Inject constructor(
     // The process-owned scope outlives any screen ViewModel; leaving a page must not cancel a queued write.
     private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writeQueue = PersistenceWriteQueue(persistenceScope)
-    private val _writeFailures = MutableSharedFlow<Throwable>(extraBufferCapacity = 8)
-    val writeFailures: SharedFlow<Throwable> = _writeFailures.asSharedFlow()
+    // 应用只有一个恢复消费者；暂时没有 ViewModel 时保留失败，不能用无重放广播丢弃。
+    private val _writeFailures = Channel<Throwable>(Channel.BUFFERED)
+    val writeFailures: Flow<Throwable> = _writeFailures.receiveAsFlow()
 
     fun persistAllFavorites(
         items: List<CodeItem>,
@@ -155,7 +156,7 @@ class BarcodePersistenceCoordinator @Inject constructor(
             runCatching { deferred.await() }
                 .getOrNull()
                 ?.exceptionOrNull()
-                ?.let { _writeFailures.emit(it) }
+                ?.let { _writeFailures.send(it) }
         }
         return deferred
     }

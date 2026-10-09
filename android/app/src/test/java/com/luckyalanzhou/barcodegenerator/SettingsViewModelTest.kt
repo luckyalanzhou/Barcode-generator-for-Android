@@ -139,5 +139,10 @@ class SettingsViewModelTest {
         pending.completeExceptionally(failure)
         assertTrue(entries.last().first.startsWith("save failed"))
         assertEquals(failure, entries.last().second)
+        assertTrue(model.uiState.value.saveFailed)
+        pending = Job()
+        model.save()
+        pending.complete()
+        assertEquals(false, model.uiState.value.saveFailed)
     }
 }

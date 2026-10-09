@@ -8,8 +8,47 @@ import org.junit.Test
 import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.first
+import java.io.IOException
 
 class FavoritesPartialLoadMutationTest {
+    @Test
+    fun favoriteSuccessWaitsForCommitAndFailureSurvivesMissingSubscriber() = runBlocking {
+        val store = LibraryStateStore().apply {
+            replace(listOf(CodeItem(20, "new", "QR_CODE", 2)), emptyList(), listOf("new"))
+        }
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val failure = IOException("disk full")
+        val repository = Proxy.newProxyInstance(BarcodeRepository::class.java.classLoader, arrayOf(BarcodeRepository::class.java)) { _, method, _ ->
+            when (method.name) {
+                "applyFavoritesMutation" -> {
+                    entered.countDown()
+                    check(release.await(5, TimeUnit.SECONDS))
+                    throw failure
+                }
+                "loadItemsByIds" -> store.itemsSnapshot()
+                else -> error("Unexpected repository operation: ${method.name}")
+            }
+        } as BarcodeRepository
+        val persistence = BarcodePersistenceCoordinator(repository, object : BarcodeDataMigration {
+            override suspend fun migrateIfNeeded() = Unit
+        })
+        val save = async { runCatching { FavoritesMutationCoordinator(store, persistence)
+            .saveResultAsFavorite(listOf(20), null, null, "new", "new file") } }
+        try {
+            withTimeout(5000) { while (entered.count > 0) delay(5) }
+            assertFalse(save.isCompleted)
+        } finally { release.countDown() }
+        assertNotNull(save.await().exceptionOrNull())
+        // 失败已发生之后才订阅，恢复通知仍必须送达。
+        assertNotNull(withTimeout(5000) { persistence.writeFailures.first() })
+    }
+
     @Test
     fun searchOnlyGroupRenamePersistsByIdAndUpdatesSearchCache() {
         val group = FavoriteGroup(200, "old", "original", 1, mutableListOf(10))
@@ -56,7 +95,7 @@ class FavoritesPartialLoadMutationTest {
         })
 
         val mutations = FavoritesMutationCoordinator(store, persistence)
-        assertTrue(mutations.saveResultAsFavorite(listOf(20), null, null, "new", "new file"))
+        assertTrue(runBlocking { mutations.saveResultAsFavorite(listOf(20), null, null, "new", "new file") })
         assertTrue(written.await(5, TimeUnit.SECONDS))
         val saved = requireNotNull(snapshot)
         assertTrue(saved.items.first { it.id == 10L }.favorite)

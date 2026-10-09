@@ -46,6 +46,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,7 +61,7 @@ import androidx.compose.ui.unit.sp
 internal fun MainActivity.saveResultAsFavoriteCompose(
     resultState: ResultUiState,
     dataState: BarcodeDataState,
-    onSave: (List<Long>, Long?, Long?, String, String) -> Boolean,
+    onSave: suspend (List<Long>, Long?, Long?, String, String) -> Boolean,
     onCreateFolder: (String) -> Unit,
     onSaved: () -> Unit,
 ) {
@@ -83,21 +86,24 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
         val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
         var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
         var saving by remember { mutableStateOf(false) }
-        fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String): Boolean {
-            if (saving) return false
+        fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String, onCommitted: () -> Unit) {
+            if (saving) return
             saving = true
-            val saved = runCatching {
-                onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
-            }.getOrElse {
-                DebugLog.record("favorites", "保存收藏点击操作失败", it)
-                saving = false
-                false
+            // Activity 生命周期持有等待任务：覆盖确认替换 Dialog 时不会取消保存确认。
+            lifecycleScope.launch {
+                try {
+                    val saved = onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
+                    if (saved) onCommitted()
+                    else toast("该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    DebugLog.record("favorites", "保存收藏提交失败", error)
+                    toast("收藏保存失败，输入已保留，请重试")
+                } finally {
+                    saving = false
+                }
             }
-            if (!saved) {
-                toast("该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
-                saving = false
-            }
-            return saved
         }
         fun finishSave(folder: String) {
             // 先关闭原生 Dialog，再在下一帧切换根路由，避免在 Compose 点击回调
@@ -245,8 +251,8 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                 label = { Text("收藏文件名", color = LocalAppColorScheme.current.text.primary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
-                DialogAction("保存", dark, {
+                DialogAction("取消", dark, { if (!saving) dismiss() })
+                DialogAction(if (saving) "保存中…" else "保存", dark, {
                     val cleanName = name.trim()
                     when {
                         cleanName.isEmpty() -> toast("请输入收藏文件名")
@@ -256,23 +262,17 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                                 it.id != editingGroup?.id && it.folder == selectedFolder && it.name == cleanName
                             }
                             if (conflict == null) {
-                                if (persistFavorite(editingGroup, selectedFolder, cleanName)) {
+                                persistFavorite(editingGroup, selectedFolder, cleanName) {
                                     finishSave(selectedFolder)
                                 }
                             } else {
-                                dismiss()
                                 showComposeConfirmDialog(
                                     "覆盖收藏",
                                     "“" + selectedFolder + "/" + cleanName + "”已存在，是否覆盖？",
                                     "覆盖",
                                 ) {
-                                    if (persistFavorite(conflict, selectedFolder, cleanName)) {
-                                        window.decorView.post {
-                                            if (!isFinishing && !isDestroyed) {
-                                                toast("已保存到 $selectedFolder")
-                                                onSaved()
-                                            }
-                                        }
+                                    persistFavorite(conflict, selectedFolder, cleanName) {
+                                        finishSave(selectedFolder)
                                     }
                                 }
                             }

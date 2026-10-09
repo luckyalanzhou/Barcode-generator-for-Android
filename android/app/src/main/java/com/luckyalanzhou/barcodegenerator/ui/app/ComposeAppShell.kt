@@ -173,6 +173,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             dependencies.actions.notice("数据保存失败，请稍后重试")
         }
     }
+    LaunchedEffect(dependencies.settingsViewModel) {
+        dependencies.settingsViewModel.persistenceFailures.collect {
+            dependencies.actions.notice("设置未保存，当前调整仍保留，请重试")
+        }
+    }
     BackHandler(enabled = tabMenu.menu != null) {
         dismissMenu()
     }
