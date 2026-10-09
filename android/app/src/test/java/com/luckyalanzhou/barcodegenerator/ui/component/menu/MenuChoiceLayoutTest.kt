@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -28,6 +29,16 @@ class MenuChoiceLayoutTest {
 
     @Test fun checkedAndUncheckedRowsHaveEqualNaturalHeight() = verifyHeight(1f)
     @Test fun largerFontGrowsBothRowsEqually() = verifyHeight(1.5f)
+
+    @Test fun iconsRemainTwoDpLargerThanOptionTextAcrossFontScales() {
+        for (fontScale in listOf(.85f, 1f, 1.5f, 2f)) {
+            val density = Density(2f, fontScale)
+            val textSize = with(density) { 16.sp.toDp() }
+            val iconSize = menuOptionIconSize(density)
+            assertEquals(2f, iconSize.value - textSize.value, .001f)
+            assertEquals(iconSize, with(density) { menuOptionIconFontSize(density).toDp() })
+        }
+    }
 
     private fun verifyHeight(fontScale: Float) {
         var density = 1f

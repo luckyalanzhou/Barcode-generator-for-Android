@@ -4,6 +4,8 @@ import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuLineStyle
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionIconFontSize
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionIconSize
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
@@ -125,9 +127,10 @@ internal fun TabLongPressActionOverlay(
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
     // 普通选项自然测量；标题跟随最高选项取 2/3，兼容大字体与换行。
-    val estimatedRowHeightPx = with(density) { maxOf(20.sp.toPx(), ActionMenuMetrics.iconSize.toPx()) + 16.dp.toPx() }
+    val optionIconSize = menuOptionIconSize(density)
+    val estimatedRowHeightPx = with(density) { maxOf(20.sp.toPx(), optionIconSize.toPx()) + 16.dp.toPx() }
     var measuredRowHeightPx by remember(state, density) { mutableStateOf(estimatedRowHeightPx) }
-    val headingHeight = with(density) { (measuredRowHeightPx * (2f / 3f)).toDp() }
+    val headingHeight = with(density) { (measuredRowHeightPx * (3f / 4f)).toDp() }
     val panelCorner = ActionMenuMetrics.corner
     val sourceCardShape = remember { RoundedCornerShape(14.dp) }
     val menuColors = actionMenuColors(colors, dark, effects.highContrast)
@@ -194,7 +197,7 @@ internal fun TabLongPressActionOverlay(
             val bottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
             val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 12.dp.toPx() }
             val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 40.dp.toPx() }
-            val desiredHeightPx = (if (showTitle) measuredRowHeightPx * (2f / 3f) else 0f) + actions.size * measuredRowHeightPx + motionMarginPx
+            val desiredHeightPx = (if (showTitle) measuredRowHeightPx * (3f / 4f) else 0f) + actions.size * measuredRowHeightPx + motionMarginPx
             val rowMenuAnchor = if (state.tabAnchor) menuAnchorBoundsOnScreen else liftedRowMenuAnchor(
                 anchorBoundsOnScreen, overlayOriginOnScreen, screenHeightPx, statusBarTopPx,
                 bottomInsetPx, gapPx, desiredHeightPx)
@@ -440,7 +443,7 @@ internal fun TabLongPressActionOverlay(
                                 text = action.label,
                                 modifier = Modifier.weight(1f),
                                 color = actionColor,
-                                fontSize = 16.sp,
+                                fontSize = menuOptionIconFontSize(density),
                                 lineHeight = 20.sp,
                                 style = MenuLineStyle,
                             )
@@ -448,7 +451,7 @@ internal fun TabLongPressActionOverlay(
                                 imageVector = action.icon,
                                 contentDescription = null,
                                 tint = actionColor,
-                                modifier = Modifier.padding(start = ActionMenuMetrics.iconGap).size(ActionMenuMetrics.iconSize),
+                                modifier = Modifier.padding(start = ActionMenuMetrics.iconGap).size(optionIconSize),
                             )
                         }
                     }

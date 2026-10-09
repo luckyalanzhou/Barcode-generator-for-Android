@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
@@ -36,6 +37,8 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 @Composable
 internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean = false, highlightSelection: Boolean = false, onClick: () -> Unit) {
     val colors = LocalAppColorScheme.current
+    val density = LocalDensity.current
+    val iconSize = menuOptionIconSize(density)
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     val hovered by interactions.collectIsHoveredAsState()
@@ -54,9 +57,9 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
             }.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(18.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
             // 勾号放在文字前，略增字重并与正文同色；未选中也保留标记列，避免文字跳动。
-            if (checked) Text("✓", color = colors.text.primary, fontSize = 18.sp,
+            if (checked) Text("✓", color = colors.text.primary, fontSize = menuOptionIconFontSize(density),
                 lineHeight = 20.sp, fontWeight = FontWeight.Normal, style = MenuLineStyle)
         }
         Spacer(Modifier.width(12.dp))

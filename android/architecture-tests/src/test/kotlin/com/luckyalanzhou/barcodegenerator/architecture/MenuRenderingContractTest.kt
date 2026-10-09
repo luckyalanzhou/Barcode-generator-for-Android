@@ -69,21 +69,24 @@ class MenuRenderingContractTest {
 
     @Test fun `choice check precedes label and shares its text color`() {
         val item = source("MenuChoiceItem.kt")
-        assertTrue(item.indexOf("Box(Modifier.width(18.dp)") < item.indexOf("Text(label,"))
+        assertTrue(item.indexOf("Box(Modifier.width(iconSize)") < item.indexOf("Text(label,"))
         assertTrue(item.contains("Text(\"✓\", color = colors.text.primary"))
-        assertTrue(item.contains("fontSize = 18.sp"))
+        assertTrue(item.contains("fontSize = menuOptionIconFontSize(density)"))
         assertTrue(item.contains("Text(label, color = colors.text.primary"))
         assertTrue(item.contains("fontWeight = FontWeight.Normal"))
         assertTrue(item.contains("clearAndSetSemantics"))
     }
 
-    @Test fun `context rows use natural eighteen sp layout and heading follows measured row`() {
+    @Test fun `context rows use natural sixteen sp layout and heading follows measured row`() {
         val host = source("TabLongPressActionDialog.kt")
-        assertTrue(host.contains("fontSize = 16.sp,"))
+        assertTrue(host.contains("fontSize = menuOptionIconFontSize(density),"))
         assertTrue(host.contains("lineHeight = 20.sp,"))
         assertTrue(host.contains("vertical = 8.dp"))
         assertFalse(host.contains("heightIn(min = ActionMenuMetrics.rowHeight)"))
-        assertTrue(host.contains("measuredRowHeightPx * (2f / 3f)"))
-        assertTrue(source("ActionMenuStyle.kt").contains("iconSize = 18.dp"))
+        assertTrue(host.contains("measuredRowHeightPx * (3f / 4f)"))
+        assertTrue(host.contains("menuOptionIconSize(density)"))
+        val iconSizing = source("MenuLineStyle.kt")
+        assertTrue(iconSizing.contains("16.sp.toDp() + 2.dp"))
+        assertTrue(iconSizing.contains(".toSp()"))
     }
 }
