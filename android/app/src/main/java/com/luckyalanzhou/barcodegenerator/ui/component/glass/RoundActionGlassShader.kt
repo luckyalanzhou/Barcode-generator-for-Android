@@ -58,6 +58,17 @@ half4 roundActionMaterial(float2 p, float2 normal, float depth, float mask) {
         (1.0 - facing) * mix(0.035, 0.04, lightSurface));
     reflection *= (1.0 + motion * 0.12) * (1.0 - shape.w);
     color = mix(color, half3(1.0), half(clamp(reflection, 0.0, 0.75)));
+    // 静态切面增益开始：静止时形成可读的内侧反射面，不用加深外圈补质感。
+    // 手势开始后平滑退出；原有按压光学、折射位移与外部投影保持原路径。
+    float stationary = 1.0 - smoothstep(0.0, 0.40, motion);
+    float innerFacet = exp(-pow((depth - density * 3.0) / max(density * 0.85, 0.9), 2.0));
+    float topFacet = pow(facing, 2.0) * mix(0.12, 0.78, lightSurface);
+    float counterFacet = pow(opposite, 3.0) * mix(0.045, 0.09, lightSurface);
+    float facetReflection = innerFacet * (topFacet + counterFacet) * stationary * (1.0 - shape.w);
+    color = mix(color, half3(1.0), half(facetReflection));
+    // 暗切面与反射面之间保留过渡，侧面有层次但不铺满整个内部。
+    color *= half(1.0 - cut * facing * mix(0.015, 0.035, lightSurface) * stationary * (1.0 - shape.w));
+    // 静态切面增益结束
     return half4(clamp(color, half3(0.0), half3(1.0)) * half(mask), half(mask));
 }
 """

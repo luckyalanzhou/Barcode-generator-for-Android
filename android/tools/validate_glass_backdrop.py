@@ -32,6 +32,10 @@ def main():
     round_action = (shader_dir / "RoundActionGlassShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     source = adaptive_tint + lens_profile + backdrop_parts[1] + round_action + backdrop_parts[3]
     effect = skia.RuntimeEffect.MakeForShader(source)
+    # 移除本轮静态增益得到旧动态路径，实际像素比较保证按压效果没有被一并改写。
+    before_static, static_tail = source.split("// 静态切面增益开始", 1)
+    previous_dynamic_source = before_static + static_tail.split("// 静态切面增益结束", 1)[1]
+    previous_dynamic_effect = skia.RuntimeEffect.MakeForShader(previous_dynamic_source)
     profile_effect = skia.RuntimeEffect.MakeForShader(lens_profile + """
         half4 main(float2 p) {
             return half4(half3(glassLensProfile(p.x - 0.5, 100.0 / 0.85, 1.0)), 1.0);
@@ -77,8 +81,8 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False, density=1.0):
-        builder = skia.RuntimeShaderBuilder(effect)
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False, density=1.0, runtime_effect=None):
+        builder = skia.RuntimeShaderBuilder(effect if runtime_effect is None else runtime_effect)
         input_page = page
         if page_color is not None:
             input_page = skia.Surface(w, h)
@@ -142,6 +146,16 @@ def main():
             bevel_end = min(len(profile), int(density * 2.2 + .4 - 1.5) + 2)
             assert np.max(profile[split:bevel_end]) > np.min(profile[:split]) + 2, f"Optical layers are not separated: density={density}, dark={dark}, profile={profile}"
             assert abs(profile[-1] - baseline) <= 1, "Optical band tints the clear interior"
+            # 反射面深入约 3dp，区别于一根细描边，中心仍保持原色。
+            facet_start = max(0, int(density * 2.5 - 1.5))
+            facet_end = min(len(profile), int(density * 3.5 - 1.5) + 2)
+            assert np.max(profile[facet_start:facet_end]) > baseline + (3 if dark else 4), f"Static inner reflection is too weak: density={density}, dark={dark}"
+            pressed = render(opacity, 2.5 * density, 1.2 * density, dark, background, contact=1,
+                             surface_color=(*base, 1), round_button=True, density=density)
+            previous_pressed = render(opacity, 2.5 * density, 1.2 * density, dark, background, contact=1,
+                                      surface_color=(*base, 1), round_button=True, density=density,
+                                      runtime_effect=previous_dynamic_effect)
+            assert np.array_equal(pressed, previous_pressed), "Static tuning changed fully pressed optics"
     print("PASS: light/dark edge profiles keep separate cut and reflection at 1x/2x/3x/4x density; clear interior unchanged")
 
     for dark in (False, True):
