@@ -8,6 +8,19 @@ import org.junit.Test
 
 /** 本地渲染边界约束不是截图测试：防止已知危险组合再次引入，真机观感仍需独立验收。 */
 class ButtonRenderingContractTest {
+    @Test fun `round glass optics are isolated from callbacks tabs and menu material`() {
+        val button = source("GlassRoundActionButton.kt")
+        assertTrue(button.contains("rememberGlassBackdropRenderer(roundAction = true)"))
+        assertTrue(button.indexOf("content(contentTint)") > button.indexOf("GlassBackdropSurface("))
+        assertTrue(button.contains("onClick = onClick"))
+        val shader = source("RoundActionGlassShader.kt")
+        for (forbidden in listOf("onClick", "ViewModel", "Bitmap", "capsuleOptics", "menuMaterial")) {
+            assertFalse("圆按钮材质不能包含 $forbidden", shader.contains(forbidden))
+        }
+        val renderer = source("GlassBackdrop.kt")
+        assertTrue(renderer.contains("blur > 0f && !roundAction"))
+        assertTrue(renderer.contains("if (roundAction) null else capsule?.let(::tabDynamicOptics)"))
+    }
     @Test fun `settings distinguish current values from executable actions`() {
         val settings = source("SettingsContent.kt")
         for (open in listOf("schemeMenu", "ocrMenu")) {

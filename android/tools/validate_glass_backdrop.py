@@ -28,7 +28,9 @@ def main():
     shader_dir = Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/component/glass"
     adaptive_tint = (shader_dir / "GlassAdaptiveTint.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     lens_profile = (shader_dir / "GlassLensProfile.kt").read_text(encoding="utf-8").split('"""', 2)[1]
-    source = adaptive_tint + lens_profile + (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    backdrop_parts = (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""')
+    round_action = (shader_dir / "RoundActionGlassShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
+    source = adaptive_tint + lens_profile + backdrop_parts[1] + round_action + backdrop_parts[3]
     effect = skia.RuntimeEffect.MakeForShader(source)
     profile_effect = skia.RuntimeEffect.MakeForShader(lens_profile + """
         half4 main(float2 p) {
@@ -75,7 +77,7 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False):
         builder = skia.RuntimeShaderBuilder(effect)
         input_page = page
         if page_color is not None:
@@ -83,17 +85,45 @@ def main():
             input_page.getCanvas().clear(page_color)
         builder.setChild("content", input_page.makeImageSnapshot().makeShader())
         builder.setUniform("resolution", skia.V2(w, h))
-        builder.setUniform("bounds", skia.V4(w / 2, h / 2, 135, 65))
-        builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
+        builder.setUniform("bounds", skia.V4(w / 2, h / 2, 65 if round_button else 135, 65))
+        builder.setUniform("shape", skia.V4(65 if round_button else 24, blur, refract, opacity))
         builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
         builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
         builder.setUniform("menuMaterial", 1.0 if menu else 0.0)
+        builder.setUniform("roundAction", 1.0 if round_button else 0.0)
         builder.setUniform("pixelDensity", 1.0)
         builder.setUniform("capsuleOptics", skia.V2(0, 0))
         builder.setUniform("surfaceColor", skia.V4(*(surface_color if surface_color is not None else ((.08, .09, .12, 1) if dark else (.97, .98, 1, 1)))))
         output = skia.Surface(w, h)
         output.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
         return output.makeImageSnapshot().toarray()
+
+    # 圆按钮单独验证；合成像素约束不证明与苹果原生的相似度。
+    for dark, background, opacity in ((False, 0xFFF2F3F8, .18), (True, 0xFF17191D, .22)):
+        base = tuple((background >> shift & 255) / 255 for shift in (16, 8, 0))
+        static = render(opacity, 2.5, .55, dark, background, capsule=True, surface_color=(*base, 1), round_button=True)
+        baseline = skia.Surface(w, h)
+        baseline.getCanvas().clear(background)
+        original = baseline.makeImageSnapshot().toarray()
+        assert np.max(np.abs(static[75:105, 145:175, :3].astype(int) - original[75:105, 145:175, :3].astype(int))) <= 1, "Round glass adds a fixed gray center"
+        assert np.max(static[:24, :, 3]) == 0, "Round optics leak outside circle"
+        # 白底顶部高光本就接近背景；检查整圈的高光与暗边，不用单一受光点代替轮廓。
+        rim_regions = ((slice(26, 28), slice(155, 165)), (slice(152, 154), slice(155, 165)),
+                       (slice(85, 95), slice(96, 98)), (slice(85, 95), slice(222, 224)))
+        rim_delta = np.mean([np.abs(static[ys, xs, :3].astype(int) - original[ys, xs, :3].astype(int)).mean()
+                             for ys, xs in rim_regions])
+        assert rim_delta > 2, f"Static round glass edge disappears: dark={dark}, delta={rim_delta:.2f}"
+        detailed = render(opacity, 2.5, .55, dark, capsule=True, surface_color=(*base, 1), round_button=True)
+        input_pixels = page.makeImageSnapshot().toarray()[65:115, 135:185, :3].astype(float)
+        output_pixels = detailed[65:115, 135:185, :3].astype(float)
+        assert output_pixels.std(axis=1).mean() < input_pixels.std(axis=1).mean() * .8, "Detailed background is not diffused"
+        pressed = render(opacity, 2.5, 1.2, dark, contact=1, capsule=True, surface_color=(*base, 1), round_button=True)
+        assert np.count_nonzero(np.max(np.abs(pressed.astype(int) - detailed.astype(int)), axis=2) > 2) > 20, "Round press optics do not respond"
+        assert np.max(pressed[:24, :, 3]) == 0, "Press optics create outside halo"
+        solid_bright = render(1, 2.5, 0, dark, 0xFFFFFFFF, surface_color=(*base, 1), round_button=True)
+        solid_dim = render(1, 2.5, 0, dark, 0xFF000000, surface_color=(*base, 1), round_button=True)
+        assert np.array_equal(solid_bright, solid_dim), "Opaque round material leaks background"
+    print("PASS: round material compiles; clear center, static rim, bounded press, adaptive diffusion and opaque isolation")
 
     for dark in (False, True):
         rest = render(.45, 0, 0, dark)
@@ -262,6 +292,8 @@ def main():
                     builder.setUniform("shape", skia.V4(halfheight, .75, (1.8 if circular else 1.2) * (1 - movement) + 4.5 * movement, opacity))
                     builder.setUniform("contact", skia.V4(cx + halfwidth * .6, y - halfheight * .6, movement, 1))
                     builder.setUniform("capsuleMode", 1.0)
+                    builder.setUniform("roundAction", 0.0)
+                    builder.setUniform("menuMaterial", 0.0)
                     builder.setUniform("capsuleOptics", skia.V2(.4 * movement, .10 * movement))
                     builder.setUniform("pixelDensity", 1.5)
                     builder.setUniform("surfaceColor", skia.V4(*tint, 1))

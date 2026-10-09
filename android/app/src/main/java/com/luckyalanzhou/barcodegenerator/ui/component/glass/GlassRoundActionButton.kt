@@ -58,7 +58,7 @@ internal fun GlassRoundActionButton(
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current.density
-    val renderer = rememberGlassBackdropRenderer()
+    val renderer = rememberGlassBackdropRenderer(roundAction = true)
     val backdropAvailable = glassBackdropAvailable(effects, renderer)
     val material = resultActionGlassMaterial(colors.surfaces.background).let {
         if (effects.opaqueGlass) it.copy(accentTint = 0f, surfaceOpacity = 1f) else it
@@ -87,10 +87,11 @@ internal fun GlassRoundActionButton(
         Box(
             Modifier.width(48.dp).height(48.dp)
                 .graphicsLayer {
-                    val lift = opticalActivity
-                    scaleX = 1f + .035f * lift
-                    scaleY = 1f + .035f * lift
-                    translationY = -1.5f * density * lift
+                    val lift = opticalActivity.coerceIn(0f, 1f)
+                    // 按压聚焦保持克制，光学变化与外部投影独立。
+                    scaleX = 1f + .018f * lift
+                    scaleY = 1f + .018f * lift
+                    translationY = -.5f * density * lift
                     val shadow = resultActionShadow(colors.surfaces.background, lift, effects.opaqueGlass)
                     shadowElevation = shadow.elevationDp * density
                     ambientShadowColor = Color.Black.copy(alpha = shadow.ambientAlpha)

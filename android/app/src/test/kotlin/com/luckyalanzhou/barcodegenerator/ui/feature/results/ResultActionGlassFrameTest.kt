@@ -7,6 +7,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ResultActionGlassFrameTest {
+    @Test fun opticsRemainContinuousAndBoundedAcrossDensityAndActivity() {
+        for (density in listOf(1f, 2f, 3f, 4f)) {
+            var previous = 0f
+            for (step in 0..100) {
+                val frame = roundActionGlassFrame(48f * density, 48f * density, density, step / 100f, null)
+                val refractionDp = frame.refractionPx / density
+                assertTrue(refractionDp in .549f..1.201f)
+                assertTrue(refractionDp >= previous)
+                previous = refractionDp
+            }
+        }
+    }
     @Test
     fun idleGlassStaysQuietAndCentered() {
         val frame = roundActionGlassFrame(144f, 144f, 3f, 0f, null)
