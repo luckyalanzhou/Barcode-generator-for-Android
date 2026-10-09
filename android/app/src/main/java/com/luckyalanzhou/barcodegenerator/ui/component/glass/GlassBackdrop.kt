@@ -58,9 +58,9 @@ internal fun glassBackdropAvailable(policy: com.luckyalanzhou.barcodegenerator.u
         LocalGlassBackdrop.current?.ready == true, renderer != null, policy.opaqueGlass)
 
 @Composable
-internal fun rememberGlassBackdropRenderer(): BackdropRenderer? {
-    val factory = remember { lazy {
-        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull() else null
+internal fun rememberGlassBackdropRenderer(menuMaterial: Boolean = false): BackdropRenderer? {
+    val factory = remember(menuMaterial) { lazy {
+        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull(menuMaterial) else null
     } }
     return if (LocalVisualEffectsPolicy.current.opaqueGlass) null else factory.value
 }
@@ -150,7 +150,7 @@ internal fun glassFallbackOpacity(opacity: Float, smallControl: Boolean, opaque:
     if (opaque) 1f else if (smallControl) opacity.coerceIn(0f, 1f) else opacity.coerceIn(.92f, 1f)
 
 @RequiresApi(33)
-internal class BackdropRenderer(private val shader: RuntimeShader) {
+internal class BackdropRenderer(private val shader: RuntimeShader, private val menuMaterial: Boolean = false) {
     private data class EffectKey(val size: IntSize, val density: Float, val color: Color,
         val opacity: Float, val corner: Float, val blur: Float, val refraction: Float, val capsule: TabGlassFrame?)
     private var previous: EffectKey? = null
@@ -167,6 +167,7 @@ internal class BackdropRenderer(private val shader: RuntimeShader) {
         shader.setFloatUniform("contact", capsule?.touchX ?: size.width / 2f, capsule?.touchY ?: 0f,
             capsule?.motion ?: 0f, capsule?.contactSpread ?: 1f)
         shader.setFloatUniform("capsuleMode", if (capsule == null) 0f else 1f)
+        shader.setFloatUniform("menuMaterial", if (menuMaterial) 1f else 0f)
         shader.setFloatUniform("pixelDensity", density)
         val optics = capsule?.let(::tabDynamicOptics)
         shader.setFloatUniform("capsuleOptics", optics?.dispersionPx ?: 0f, optics?.edgeColorStrength ?: 0f)
@@ -186,8 +187,8 @@ internal class BackdropRenderer(private val shader: RuntimeShader) {
     }
 
     companion object {
-        fun createOrNull(): BackdropRenderer? = try {
-            BackdropRenderer(RuntimeShader(GLASS_BACKDROP_SHADER))
+        fun createOrNull(menuMaterial: Boolean = false): BackdropRenderer? = try {
+            BackdropRenderer(RuntimeShader(GLASS_BACKDROP_SHADER), menuMaterial)
         } catch (_: IllegalArgumentException) { null }
     }
 }

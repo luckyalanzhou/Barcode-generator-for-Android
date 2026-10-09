@@ -8,6 +8,7 @@ uniform float4 bounds;
 uniform float4 shape;
 uniform float4 contact;
 uniform float capsuleMode;
+uniform float menuMaterial;
 uniform float2 capsuleOptics;
 uniform float pixelDensity;
 layout(color) uniform half4 surfaceColor;
@@ -56,7 +57,8 @@ half4 main(float2 p) {
     // Menus contain labels: quiet the interior without making the rim an opaque slab.
     // Capsules keep their existing material; this protection must not tint the whole tab bar.
     float interior = smoothstep(1.5, 12.0, depth) * (1.0 - capsuleMode);
-    float interiorOpacity = mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance));
+    // 新菜单采用自己的厚度参数；原有 Tab/结果页控件保持原路径，避免材质迁移影响其他控件。
+    float interiorOpacity = mix(mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance)), shape.w, menuMaterial);
     opacity = max(opacity, mix(shape.w, interiorOpacity, interior));
     half3 materialTint = capsuleMode > 0.5 ? glassAdaptiveTint(surfaceColor.rgb, scene, opacity) : surfaceColor.rgb;
     half3 color = mix(scene, materialTint, half(opacity));
@@ -107,7 +109,7 @@ half4 main(float2 p) {
             half(capsuleEdge * capsuleOptics.y * darkSurface);
     }
     // Tab rim is drawn once by TabGlassSurface; only menu backgrounds own their rim here.
-    float rim = (1.0 - smoothstep(0.0, 1.5, depth)) * (1.0 - capsuleMode);
+    float rim = (1.0 - smoothstep(0.0, 1.5, depth)) * (1.0 - capsuleMode) * (1.0 - menuMaterial);
     float2 lightVector = contact.xy - bounds.xy;
     float2 direction = lightVector / max(length(lightVector), 0.001);
     float contactLight = pow(max(dot(normal, direction), 0.0), mix(14.0, 4.0, clamp(contact.w, 0.0, 1.0))) * contact.z;
