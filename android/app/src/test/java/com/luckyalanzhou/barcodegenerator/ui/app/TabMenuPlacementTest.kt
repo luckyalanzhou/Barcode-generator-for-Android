@@ -7,6 +7,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabMenuPlacementTest {
+    @Test fun tabMenusAlignToWholeSlotEdgesNotIconCenters() {
+        for (x in listOf(20f, 120f, 220f, 320f)) {
+            val result = tabMenuPlacement(Rect(x, 700f, x + 60f, 760f), Offset.Zero,
+                IntSize(180, 140), 400f, 24f, 12f, 8f, 10f, alignTabEdge = true)
+            assertEquals(if (x < 200f) x else x + 60f - 180f, result.left, 0f)
+        }
+    }
+
     @Test fun fourTabsPreferSourceCenterAndRespectScreenEdges() {
         for (x in listOf(20f, 120f, 220f, 320f)) {
             val result = tabMenuPlacement(Rect(x, 700f, x + 60f, 760f), Offset.Zero,

@@ -30,7 +30,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
-/** 只插值材质边界；菜单文字保持正常字号，不随按钮到菜单的尺寸变化拉伸。 */
+/** 来源与菜单边界插值，供整个面板共享同一几何变换。 */
 internal fun dropdownMorphBounds(source: Rect, target: Rect, progress: Float): Rect {
     val p = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
     fun blend(a: Float, b: Float) = a + (b - a) * p
@@ -38,8 +38,18 @@ internal fun dropdownMorphBounds(source: Rect, target: Rect, progress: Float): R
         blend(source.right, target.right), blend(source.bottom, target.bottom))
 }
 
-internal fun dropdownContentAlpha(progress: Float): Float =
-    if (progress.isFinite()) ((progress - .35f) / .65f).coerceIn(0f, 1f) else 0f
+internal data class DropdownPanelTransform(
+    val scaleX: Float, val scaleY: Float, val translationX: Float, val translationY: Float,
+)
+
+/** 外框、文字、分割线共用一个变换，不能只变形外框而另行渐显内容。 */
+internal fun dropdownPanelTransform(source: Rect, target: Rect, progress: Float): DropdownPanelTransform {
+    if (target.width <= 0f || target.height <= 0f) return DropdownPanelTransform(1f, 1f, 0f, 0f)
+    val bounds = dropdownMorphBounds(source, target, progress)
+    val sx = bounds.width / target.width
+    val sy = bounds.height / target.height
+    return DropdownPanelTransform(sx, sy, bounds.left - target.left * sx, bounds.top - target.top * sy)
+}
 
 /** 保留 48dp 触控目标，动画来源只取居中的可见按钮外框，不把触控留白当成玻璃。 */
 internal fun dropdownVisualSource(anchor: Rect, visualHeight: Float): Rect {
@@ -73,26 +83,33 @@ internal fun CornerDropdownMenu(
         Popup(position, onDismiss, PopupProperties(focusable = true)) {
             // 窗口同时包含来源与最终菜单，避免展开初期在 Popup 边缘被裁掉。
             // 来源预留区也是空白关闭区域；菜单项消费自己的点击，不触发这里。
-            Box(modifier.pointerInput(Unit) { detectTapGestures { dismiss() } }.drawWithContent {
+            Box(modifier.pointerInput(Unit) { detectTapGestures { dismiss() } }.graphicsLayer {
                 val sourceHeight = position.anchor.height.toFloat()
                 val target = Rect(0f, if (position.above) 0f else sourceHeight,
                     size.width, if (position.above) size.height - sourceHeight else size.height)
                 val p = reveal.value.coerceIn(0f, 1f)
-                val source = dropdownVisualSource(position.sourceInPopup, visualHeight)
-                val bounds = if (reduced) target else dropdownMorphBounds(source, target, p)
+                val geometry = dropdownPanelTransform(
+                    dropdownVisualSource(position.sourceInPopup, visualHeight), target, if (reduced) 1f else p)
+                scaleX = geometry.scaleX
+                scaleY = geometry.scaleY
+                translationX = geometry.translationX
+                translationY = geometry.translationY
+                transformOrigin = TransformOrigin(0f, 0f)
+                alpha = p
+            }.drawWithContent {
+                val sourceHeight = position.anchor.height.toFloat()
+                val target = Rect(0f, if (position.above) 0f else sourceHeight,
+                    size.width, if (position.above) size.height - sourceHeight else size.height)
                 val finalOutline = shape.createOutline(target.size, layoutDirection, this)
                 val radius = (finalOutline as? Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f
-                val corner = if (reduced) radius else 10.dp.toPx() + (radius - 10.dp.toPx()) * p
-                val path = Path().apply { addRoundRect(RoundRect(bounds, CornerRadius(corner))) }
+                val path = Path().apply { addRoundRect(RoundRect(target, CornerRadius(radius))) }
                 // 单次静态材质绘制，不使用透明按钮原生阴影或实时折射。
-                drawPath(path, color, alpha = if (reduced) p else 1f)
+                drawPath(path, color)
                 clipPath(path) { this@drawWithContent.drawContent() }
-                drawPath(path, edge, alpha = if (reduced) p else 1f, style = Stroke(1.dp.toPx()))
+                drawPath(path, edge, style = Stroke(1.dp.toPx()))
             }.padding(top = if (position.above) 0.dp else reserve,
                 bottom = if (position.above) reserve else 0.dp)) {
-                Column(Modifier.graphicsLayer {
-                    alpha = if (reduced) reveal.value else dropdownContentAlpha(reveal.value)
-                }.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
             }
         }
     }

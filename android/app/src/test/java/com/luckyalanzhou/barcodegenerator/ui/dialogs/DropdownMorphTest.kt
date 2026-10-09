@@ -27,10 +27,22 @@ class DropdownMorphTest {
         }
     }
 
-    @Test fun contentDoesNotAppearBeforeSurfaceHasGrown() {
-        assertEquals(0f, dropdownContentAlpha(.35f), 0f)
-        assertEquals(1f, dropdownContentAlpha(1f), 0f)
-        assertEquals(0f, dropdownContentAlpha(Float.NaN), 0f)
+    @Test fun everyPanelPointSharesTheSurfaceTransformThroughoutReveal() {
+        for (step in 0..100) {
+            val p = step / 100f
+            val geometry = dropdownPanelTransform(source, target, p)
+            val transformed = Rect(target.left * geometry.scaleX + geometry.translationX,
+                target.top * geometry.scaleY + geometry.translationY,
+                target.right * geometry.scaleX + geometry.translationX,
+                target.bottom * geometry.scaleY + geometry.translationY)
+            val expected = dropdownMorphBounds(source, target, p)
+            assertEquals(expected.left, transformed.left, .0001f)
+            assertEquals(expected.top, transformed.top, .0001f)
+            assertEquals(expected.right, transformed.right, .0001f)
+            assertEquals(expected.bottom, transformed.bottom, .0001f)
+        }
+        assertEquals(DropdownPanelTransform(1f, 1f, 0f, 0f), dropdownPanelTransform(source, target, 1f))
+        assertEquals(DropdownPanelTransform(1f, 1f, 0f, 0f), dropdownPanelTransform(source, Rect.Zero, 0f))
     }
 
     @Test fun visualSourceExcludesTouchPaddingButNeverExceedsAnchor() {

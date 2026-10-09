@@ -10,11 +10,13 @@ internal data class TabMenuPlacement(val left: Float, val top: Float, val pivotX
 internal fun tabMenuPlacement(
     anchor: Rect, origin: Offset, panel: IntSize, screenWidth: Float,
     statusTop: Float, edgePadding: Float, gap: Float, lift: Float,
-    above: Boolean = true,
+    above: Boolean = true, alignTabEdge: Boolean = false,
 ): TabMenuPlacement {
     val center = anchor.center.x - origin.x
-    // 以实际来源为中心，只有空间不足时向安全区域偏移。
-    val desiredLeft = center - panel.width / 2f
+    // Tab 按整个槽位边缘对齐；其他来源保持原本的中心定位。
+    val desiredLeft = if (!alignTabEdge) center - panel.width / 2f
+        else if (center < screenWidth / 2f) anchor.left - origin.x
+        else anchor.right - origin.x - panel.width
     val left = desiredLeft.coerceIn(edgePadding,
         (screenWidth - panel.width - edgePadding).coerceAtLeast(edgePadding))
     val top = if (above) (anchor.top - origin.y - panel.height - gap).coerceAtLeast(statusTop + gap + lift)
