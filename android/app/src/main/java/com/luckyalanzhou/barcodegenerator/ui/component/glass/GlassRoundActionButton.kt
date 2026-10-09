@@ -128,6 +128,7 @@ internal fun GlassRoundActionButton(
                 capsule = frame,
                 drawFallback = true,
                 renderer = renderer,
+                diagnosticName = contentDescription,
             )
             Canvas(Modifier.matchParentSize()) {
                 val activity = opticalActivity

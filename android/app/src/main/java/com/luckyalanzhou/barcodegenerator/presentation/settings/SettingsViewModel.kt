@@ -14,6 +14,8 @@ import kotlinx.coroutines.withContext
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import kotlinx.coroutines.CancellationException
 
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
@@ -31,6 +33,7 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val legacySettingsMigrator: SettingsMigration,
+    private val logger: AppLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -42,25 +45,50 @@ class SettingsViewModel @Inject constructor(
         get() = currentStyle.copy()
 
     suspend fun loadPersistedState() {
-        val (style, ocrMask) = withContext(Dispatchers.IO) {
-            settingsRepository.load()
-            legacySettingsMigrator.migrateIfNeeded()
-            settingsRepository.loadStyle() to settingsRepository.getOcrConfusionReplacementMask()
+        logger.record("settings", "load start", null)
+        try {
+            val (style, ocrMask) = withContext(Dispatchers.IO) {
+                settingsRepository.load()
+                legacySettingsMigrator.migrateIfNeeded()
+                settingsRepository.loadStyle() to settingsRepository.getOcrConfusionReplacementMask()
+            }
+            // 回到调用方上下文后再发布状态，日志仅记录设置类型、不记录输入内容。
+            initialize(style, ocrMask)
+            logger.record("settings", "load success scheme=${style.colorScheme} reduceMotion=${style.reduceMotion} enhanceContrast=${style.enhanceContrast}", null)
+        } catch (cancelled: CancellationException) {
+            logger.record("settings", "load cancelled", null)
+            throw cancelled
+        } catch (error: Exception) {
+            logger.record("settings", "load failed", error)
+            throw error
         }
-        // Return to the caller context (the Activity's main thread) before publishing ViewModel state.
-        initialize(style, ocrMask)
     }
 
-    fun save(): Job = settingsRepository.saveStyle(style)
+    fun save(): Job = trackWrite("save") { settingsRepository.saveStyle(style) }
 
     fun setOcrMaskPersisted(mask: Int): Job {
         setOcrMask(mask)
-        return settingsRepository.setOcrConfusionReplacementMask(mask)
+        return trackWrite("ocr_mask_save") { settingsRepository.setOcrConfusionReplacementMask(mask) }
     }
 
     fun getOcrMask(): Int = settingsRepository.getOcrConfusionReplacementMask()
 
     fun recordUpdateError(message: String): Job = settingsRepository.setUpdateError(message)
+
+    /** Job 完成才报告持久化结果，不把“开始保存”误记为“保存成功”。 */
+    private fun trackWrite(name: String, write: () -> Job): Job {
+        val operation = System.nanoTime()
+        logger.record("settings", "$name start operation=$operation", null)
+        try {
+            return write().also { job -> job.invokeOnCompletion { error ->
+                val stage = if (error == null) "success" else if (error is CancellationException) "cancelled" else "failed"
+                logger.record("settings", "$name $stage operation=$operation", error.takeUnless { it is CancellationException })
+            } }
+        } catch (error: Exception) {
+            logger.record("settings", "$name failed operation=$operation", error)
+            throw error
+        }
+    }
 
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return

@@ -84,6 +84,9 @@ object DebugLog {
 
     fun snapshot(context: Context): File {
         if (!BuildConfig.DEBUG_LOG_EXPORT) return File(context.cacheDir, "debug.log")
+        record("diagnostics", "export_environment version=${BuildConfig.VERSION_NAME} versionCode=${BuildConfig.VERSION_CODE} " +
+            "sdk=${android.os.Build.VERSION.SDK_INT} manufacturer=${android.os.Build.MANUFACTURER} model=${android.os.Build.MODEL} " +
+            "density=${context.resources.displayMetrics.density} fontScale=${context.resources.configuration.fontScale} lastAction=${lastAction.get()}")
         try {
             val exported = debugLogSnapshotImpl(context)
             if (exported.isFile && exported.length() > 0L) return exported
@@ -91,12 +94,10 @@ object DebugLog {
         } catch (error: Throwable) {
             Log.e(TAG, "Beta log backend snapshot failed", error)
             val source = fallbackTarget ?: File(context.applicationContext.filesDir, FALLBACK_FILE_NAME)
-            if (!source.exists() || source.length() == 0L) {
-                writeFallback("diagnostics", "日志导出后端不可用，已使用兜底日志文件", error, source)
-            }
+            writeFallback("diagnostics", "日志导出后端不可用，已使用兜底日志文件", error, source)
             val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
             return File(context.cacheDir, "barcode-generator-debug-$timestamp.log").also { export ->
-                source.copyTo(export, overwrite = true)
+                export.writeText(buildLogExport(listOf("fallback-debug.log" to source.readText(Charsets.UTF_8)), 8 * 1024 * 1024), Charsets.UTF_8)
             }
         }
     }
@@ -117,7 +118,10 @@ private fun writeFallback(tag: String, message: String, error: Throwable? = null
     synchronized(fallbackLock) {
         runCatching {
             target.parentFile?.mkdirs()
-            target.appendText(line, Charsets.UTF_8)
+            if (target.length() + line.toByteArray(Charsets.UTF_8).size > 2 * 1024 * 1024) {
+                val recent = selectRecentLogRecords((if (target.exists()) target.readText(Charsets.UTF_8) else "") + line, 2 * 1024 * 1024 - 256)
+                target.writeText("[diagnostics] fallback_rotation omittedRecords=${recent.omittedRecords}\n" + recent.text, Charsets.UTF_8)
+            } else target.appendText(line, Charsets.UTF_8)
         }.onFailure { Log.e("BarcodeGenerator.DebugLog", "Fallback log write failed", it) }
     }
 }

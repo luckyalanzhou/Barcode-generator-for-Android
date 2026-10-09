@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -30,6 +31,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import java.util.concurrent.atomic.AtomicBoolean
+import com.luckyalanzhou.barcodegenerator.BuildConfig
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Records only the page, never a glass output. Replaying the display list requires no bitmap readback. */
 @Stable
@@ -107,6 +112,7 @@ internal fun GlassBackdropSurface(
     thicknessProgress: () -> Float = { 1f },
     renderer: BackdropRenderer? = rememberGlassBackdropRenderer(),
     screenCoordinates: Boolean = false,
+    diagnosticName: String = "surface",
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
@@ -116,6 +122,19 @@ internal fun GlassBackdropSurface(
     var size by remember { mutableStateOf(IntSize.Zero) }
     val gpu = glassGpuAvailable(Build.VERSION.SDK_INT, LocalView.current.isHardwareAccelerated,
         source?.ready == true && (!screenCoordinates || source.hasFrame), renderer != null, policy.opaqueGlass)
+    // 只记录路径或稳定几何变化，不读取动画参数，不逐帧写日志；磁盘写入放到 IO。
+    if (BuildConfig.DEBUG_LOG_EXPORT) {
+        val accelerated = LocalView.current.isHardwareAccelerated
+        val reason = glassRenderReason(Build.VERSION.SDK_INT, accelerated, source?.ready == true,
+            source?.hasFrame == true, renderer != null, policy.opaqueGlass, screenCoordinates, size.width, size.height)
+        val role = if (Build.VERSION.SDK_INT >= 33) renderer?.diagnosticRole ?: "unavailable" else "unavailable"
+        val diagnostic = "component=$diagnosticName role=$role route=$reason effectEligible=${gpu && size.width > 0 && size.height > 0} " +
+            "sdk=${Build.VERSION.SDK_INT} hardware=$accelerated sourceReady=${source?.ready == true} hasFrame=${source?.hasFrame == true} " +
+            "size=${size.width}x${size.height} sourceSize=${source?.layer?.size} density=$density " +
+            "opaque=${policy.opaqueGlass} highContrast=${policy.highContrast} reduceMotion=${policy.reduceMotion} " +
+            "screenCoordinates=$screenCoordinates opacity=$opacity cornerDp=$cornerDp blurDp=$blurDp"
+        LaunchedEffect(diagnostic) { withContext(Dispatchers.IO) { DebugLog.record("glass_render", diagnostic) } }
+    }
     Canvas(modifier.onGloballyPositioned {
         origin = it.localToWindow(Offset.Zero)
         screenOrigin = it.localToScreen(Offset.Zero)
@@ -152,6 +171,7 @@ internal fun glassFallbackOpacity(opacity: Float, smallControl: Boolean, opaque:
 @RequiresApi(33)
 internal class BackdropRenderer(private val shader: RuntimeShader, private val menuMaterial: Boolean = false,
     private val roundAction: Boolean = false) {
+    val diagnosticRole: String get() = if (roundAction) "round_action" else if (menuMaterial) "menu" else "tab_or_surface"
     private data class EffectKey(val size: IntSize, val density: Float, val color: Color,
         val opacity: Float, val corner: Float, val blur: Float, val refraction: Float, val capsule: TabGlassFrame?)
     private var previous: EffectKey? = null
@@ -192,6 +212,9 @@ internal class BackdropRenderer(private val shader: RuntimeShader, private val m
     companion object {
         fun createOrNull(menuMaterial: Boolean = false, roundAction: Boolean = false): BackdropRenderer? = try {
             BackdropRenderer(RuntimeShader(GLASS_BACKDROP_SHADER), menuMaterial, roundAction)
-        } catch (_: IllegalArgumentException) { null }
+        } catch (error: IllegalArgumentException) {
+            DebugLog.record("glass_render", "shader_creation_failed menu=$menuMaterial roundAction=$roundAction sdk=${Build.VERSION.SDK_INT}", error)
+            null
+        }
     }
 }

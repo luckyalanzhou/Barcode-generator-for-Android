@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogC
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import android.Manifest
@@ -34,6 +35,7 @@ internal fun MainActivity.enterLanShare() {
     runCatching {
         lanShareViewModel.startHostSession()
     }.onFailure {
+        DebugLog.record("lan_share", "host_start_failed", it)
         lanShareViewModel.closeSession()
         composeAppShellActions().navigateTo(AppRoute.Settings)
         if (it.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
@@ -68,7 +70,8 @@ internal fun MainActivity.openLanShareCamera() {
             cameraOcrViewModel.clearCameraOutput()
             photoFile?.delete()
         }
-    } catch (_: Exception) {
+    } catch (error: Exception) {
+        DebugLog.record("lan_share", "camera_launch_failed", error)
         cameraOcrViewModel.clearCameraOutput()
         photoFile?.delete()
         toast("当前设备没有可用的系统相机")

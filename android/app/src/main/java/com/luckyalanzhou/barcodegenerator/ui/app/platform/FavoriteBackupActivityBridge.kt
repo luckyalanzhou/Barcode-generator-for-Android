@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.BuildConfig
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.readFavoritesBackupBounded
@@ -33,6 +34,7 @@ import java.util.Locale
  */
 /** 生成 ZIP 后交给系统分享面板，可发送至聊天、邮件、网盘或文件管理器。 */
 internal fun MainActivity.shareFavoritesExportForCompose() {
+    DebugLog.actionStarted("favorites_backup_share")
     val name = timestampedBackupFileName()
     toast("正在准备收藏备份…")
     lifecycleScope.launch(Dispatchers.IO) {
@@ -43,6 +45,7 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
         }
         withContext(Dispatchers.Main) {
             result.onSuccess { exportUri ->
+                DebugLog.actionSucceeded("favorites_backup_prepare", "bytes=${exportFile.length()}")
                 val share = Intent(Intent.ACTION_SEND).apply {
                     type = "application/zip"
                     putExtra(Intent.EXTRA_STREAM, exportUri)
@@ -52,10 +55,12 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
                 }
                 runCatching { startActivity(Intent.createChooser(share, "分享收藏备份")) }
                     .onFailure {
+                        DebugLog.actionFailed("favorites_backup_share", it)
                         exportFile.delete()
                         toast("无法打开分享面板，请使用保存备份")
                     }
             }.onFailure {
+                DebugLog.actionFailed("favorites_backup_prepare", it)
                 exportFile.delete()
                 toast(formatFavoritesExportError(it))
             }
@@ -94,6 +99,7 @@ internal fun MainActivity.restoreFavoritesImport() {
 }
 
 internal fun MainActivity.exportFavorites(uri: Uri) {
+    DebugLog.actionStarted("favorites_backup_export")
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
             val temporary = File.createTempFile("favorites-export-", ".zip", cacheDir)
@@ -108,8 +114,8 @@ internal fun MainActivity.exportFavorites(uri: Uri) {
         }
         withContext(Dispatchers.Main) {
             result
-                .onSuccess { toast("收藏备份已导出") }
-                .onFailure { toast(formatFavoritesExportError(it)) }
+                .onSuccess { DebugLog.actionSucceeded("favorites_backup_export"); toast("收藏备份已导出") }
+                .onFailure { DebugLog.actionFailed("favorites_backup_export", it); toast(formatFavoritesExportError(it)) }
         }
     }
 }
@@ -126,6 +132,7 @@ private fun formatFavoritesExportError(error: Throwable): String {
 }
 
 internal fun MainActivity.confirmImportFavorites(uri: Uri) {
+    DebugLog.actionStarted("favorites_backup_parse")
     lifecycleScope.launch(Dispatchers.IO) {
         val parsed = runCatching {
             val declaredSize = runCatching {
@@ -140,13 +147,14 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
         }
         withContext(Dispatchers.Main) {
             parsed
-                .onFailure { toast("无法导入收藏：${it.message ?: "文件格式无效"}") }
-                .onSuccess { backup -> confirmImportFavoritesCompose(uri, backup) }
+                .onFailure { DebugLog.actionFailed("favorites_backup_parse", it); toast("无法导入收藏：${it.message ?: "文件格式无效"}") }
+                .onSuccess { backup -> DebugLog.actionSucceeded("favorites_backup_parse"); confirmImportFavoritesCompose(uri, backup) }
         }
     }
 }
 
 internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, overwriteConflicts: Boolean = false) {
+    DebugLog.actionStarted("favorites_backup_import", "overwrite=$overwriteConflicts")
     lifecycleScope.launch(Dispatchers.IO) {
         val result = runCatching {
             val counts = favoritesViewModel.importFavorites(backup, overwriteConflicts)
@@ -158,10 +166,11 @@ internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, o
         withContext(Dispatchers.Main) {
             result
                 .onSuccess { (itemCount, groupCount) ->
+                    DebugLog.actionSucceeded("favorites_backup_import", "groups=$groupCount items=$itemCount")
                     composeAppShellActions().navigateTo(AppRoute.Favorites)
                     toast("已导入 $groupCount 个收藏，$itemCount 条码")
                 }
-                .onFailure { toast("收藏导入失败：${it.message ?: "无法写入数据"}") }
+                .onFailure { DebugLog.actionFailed("favorites_backup_import", it); toast("收藏导入失败：${it.message ?: "无法写入数据"}") }
         }
     }
 }

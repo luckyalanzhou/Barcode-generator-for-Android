@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.data.SettingsStore
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -40,7 +41,7 @@ class SettingsViewModelTest {
                 return null
             }
         }
-        val viewModel = SettingsViewModel(settingsRepository, settingsMigration)
+        val viewModel = SettingsViewModel(settingsRepository, settingsMigration, AppLogger { _, _, _ -> })
 
         viewModel.loadPersistedState()
 
@@ -57,6 +58,7 @@ class SettingsViewModelTest {
         val viewModel = SettingsViewModel(
             settingsStore,
             LegacySettingsMigrator(android.app.Application(), settingsStore),
+            AppLogger { _, _, _ -> },
         )
         viewModel.initialize(
             StyleSettings(showFormat = true, textSize = 12f, barHeight = 50, barWidth = 200f, margin = 3),
@@ -86,6 +88,7 @@ class SettingsViewModelTest {
         val viewModel = SettingsViewModel(
             settingsStore,
             LegacySettingsMigrator(android.app.Application(), settingsStore),
+            AppLogger { _, _, _ -> },
         )
         val style = StyleSettings(textSize = 18f, barWidth = 260f, colorScheme = "dark",
             reduceMotion = true, enhanceContrast = true)
@@ -103,4 +106,38 @@ class SettingsViewModelTest {
     }
 
     private fun completedJob() = Job().also { it.complete() }
+
+    @Test
+    fun writeLogsCompletionInsteadOfPretendingAnActiveJobSucceeded() {
+        val entries = mutableListOf<Pair<String, Throwable?>>()
+        var pending = Job()
+        val repository = object : SettingsRepository {
+            override suspend fun load() = Unit
+            override fun loadStyle() = StyleSettings()
+            override fun saveStyle(style: StyleSettings) = pending
+            override fun getOcrConfusionReplacementMask() = 0
+            override fun setOcrConfusionReplacementMask(mask: Int) = pending
+            override fun setUpdateError(error: String) = pending
+        }
+        val migration = object : SettingsMigration {
+            override suspend fun migrateIfNeeded(): StyleSettings? = null
+        }
+        val model = SettingsViewModel(repository, migration, AppLogger { _, message, error -> entries.add(message to error) })
+        model.save()
+        assertEquals(1, entries.size)
+        assertTrue(entries.last().first.startsWith("save start"))
+        pending.complete()
+        assertTrue(entries.last().first.startsWith("save success"))
+        pending = Job()
+        model.setOcrMaskPersisted(2)
+        pending.cancel()
+        assertTrue(entries.last().first.startsWith("ocr_mask_save cancelled"))
+        assertEquals(null, entries.last().second)
+        pending = Job()
+        model.save()
+        val failure = IllegalStateException("write failed")
+        pending.completeExceptionally(failure)
+        assertTrue(entries.last().first.startsWith("save failed"))
+        assertEquals(failure, entries.last().second)
+    }
 }

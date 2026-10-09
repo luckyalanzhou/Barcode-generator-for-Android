@@ -2,12 +2,15 @@ package com.luckyalanzhou.barcodegenerator
 
 import android.content.Context
 import android.util.Log
+import android.util.AtomicFile
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.selectRecentLogRecords
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.buildLogExport
 
 /** Beta 专用应用内诊断日志；正式版不包含此实现。 */
 private object BetaDebugLogBackend {
@@ -32,22 +35,24 @@ private object BetaDebugLogBackend {
     }
 
     fun record(tag: String, message: String, error: Throwable? = null) {
-        val targetDirectory = directory ?: return
-        val target = dailyFile(targetDirectory)
-        val line = buildString {
-            append(formatter.format(Date())).append(" [").append(tag).append("] ")
-            append(message.replace('\n', ' '))
-            error?.let { append(" | ").append(Log.getStackTraceString(it)) }
-            append("\n")
-        }
         synchronized(lock) {
-            runCatching {
-                target.parentFile?.mkdirs()
-                if (target.length() > MAX_BYTES) {
-                    target.writeText(target.readText(Charsets.UTF_8).takeLast((MAX_BYTES / 2).toInt()), Charsets.UTF_8)
-                }
+            val targetDirectory = directory ?: error("Beta log backend not initialized")
+            val target = dailyFile(targetDirectory)
+            val line = buildString {
+                // SimpleDateFormat 非线程安全，格式化必须与写入共用锁。
+                append(formatter.format(Date())).append(" [").append(tag).append("] ")
+                append(message.replace('\n', ' '))
+                error?.let { append(" | ").append(Log.getStackTraceString(it)) }
+                append("\n")
+            }
+            target.parentFile?.mkdirs()
+            if (target.length() + line.toByteArray(Charsets.UTF_8).size > MAX_BYTES) {
+                val recent = selectRecentLogRecords((if (target.exists()) target.readText(Charsets.UTF_8) else "") + line, (MAX_BYTES - 256).toInt())
+                replaceLog(target, "${formatter.format(Date())} [diagnostics] rotation omittedRecords=${recent.omittedRecords}\n" + recent.text)
+            } else {
                 target.appendText(line, Charsets.UTF_8)
-            }.onFailure { Log.e("BarcodeGenerator.DebugLog", "Beta log write failed", it) }
+            }
+            // 写入失败向上传递，由 DebugLog 写兜底文件，不能静默丢日志。
         }
     }
 
@@ -59,26 +64,19 @@ private object BetaDebugLogBackend {
         synchronized(lock) {
             cleanup(targetDirectory)
             // 最新日志优先，避免导出大小达到上限时丢掉最近一次崩溃上下文。
-            val sources = dailyFiles(targetDirectory).asReversed()
+            val fallback = File(context.applicationContext.filesDir, "debug.log")
+            val sources = (listOf(fallback).filter { it.isFile && it.length() > 0 } + dailyFiles(targetDirectory))
+                .sortedByDescending { it.lastModified() }
             val export = File(context.cacheDir, "barcode-generator-debug-${exportTimestamp()}.log")
-            export.outputStream().bufferedWriter(Charsets.UTF_8).use { writer ->
-                if (sources.isEmpty()) {
-                    writer.append("暂无应用调试日志\n")
-                } else {
-                    var remaining = MAX_EXPORT_BYTES
-                    sources.forEach { source ->
-                        if (remaining <= 0L) return@forEach
-                        val content = source.readText(Charsets.UTF_8)
-                        val bytes = content.toByteArray(Charsets.UTF_8)
-                        writer.append("===== ").append(source.name).append(" =====\n")
-                        remaining -= source.name.length + 10L
-                        val length = bytes.size.coerceAtMost(remaining.toInt().coerceAtLeast(0))
-                        if (length > 0) writer.write(String(bytes, 0, length, Charsets.UTF_8))
-                        writer.append('\n')
-                        remaining -= length.toLong()
-                    }
+            val readable = sources.map { file ->
+                file.name to try {
+                    file.readText(Charsets.UTF_8)
+                } catch (error: Exception) {
+                    // 单个日志损坏不能导致其余日期全部丢失，导出中保留失败说明。
+                    "${formatter.format(Date())} [diagnostics] source_read_failed file=${file.name} | ${Log.getStackTraceString(error)}\n"
                 }
             }
+            export.writeText(buildLogExport(readable, MAX_EXPORT_BYTES.toInt()), Charsets.UTF_8)
             return export
         }
     }
@@ -107,12 +105,28 @@ private object BetaDebugLogBackend {
         if (!legacy.isFile) return
         val current = dailyFile(targetDirectory)
         runCatching {
-            if (!current.exists()) legacy.copyTo(current)
-            legacy.delete()
+            // 当当天日志已存在时也合并旧文件，不能直接删除未迁移的异常。
+            val merged = legacy.readText(Charsets.UTF_8) + (if (current.exists()) current.readText(Charsets.UTF_8) else "")
+            val recent = selectRecentLogRecords(merged, (MAX_BYTES - 256).toInt())
+            replaceLog(current, "${formatter.format(Date())} [diagnostics] legacy_migration omittedRecords=${recent.omittedRecords}\n" + recent.text)
+            check(legacy.delete()) { "Could not delete migrated legacy log" }
         }.onFailure { Log.w("BarcodeGenerator.DebugLog", "Could not migrate legacy debug log", it) }
     }
 
     private fun today(): String = LocalDate.now(ZoneId.systemDefault()).toString()
+
+    /** 轮转或迁移失败时恢复旧文件，不能先清空再写导致整天日志丢失。 */
+    private fun replaceLog(file: File, text: String) {
+        val atomic = AtomicFile(file)
+        val output = atomic.startWrite()
+        try {
+            output.write(text.toByteArray(Charsets.UTF_8))
+            atomic.finishWrite(output)
+        } catch (error: Throwable) {
+            atomic.failWrite(output)
+            throw error
+        }
+    }
 
     private fun exportTimestamp(): String =
         SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
