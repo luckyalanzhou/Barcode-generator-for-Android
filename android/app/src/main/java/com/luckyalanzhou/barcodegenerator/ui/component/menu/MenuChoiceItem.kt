@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -60,7 +61,9 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
             maxLines = 2, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(12.dp))
         Box(Modifier.size(20.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-            if (checked) Text("✓", color = colors.controls.accent, fontSize = 17.sp)
+            // 勾号减轻字重，不缩小标记列或改变整行触控目标。
+            if (checked) Text("✓", color = colors.controls.accent, fontSize = 17.sp,
+                fontWeight = FontWeight.Light)
         }
     }
 }
