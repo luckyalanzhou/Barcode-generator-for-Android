@@ -5,32 +5,25 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ResultActionShadowTest {
-    @Test fun shadowsAreLowAndContinuousAcrossPressStates() {
+    @Test fun shadowsRemainLowAndFixed() {
         for (background in listOf(Color.White, Color.Black)) {
-            var previous = 0f
-            for (step in 0..100) {
-                val shadow = resultActionShadow(background, step / 100f, false)
-                assertTrue(shadow.elevationDp in .6f..1.2f)
-                assertTrue(shadow.elevationDp >= previous)
+            repeat(100) {
+                val shadow = resultActionShadow(background, false)
+                assertEquals(.6f, shadow.elevationDp, 0f)
                 assertTrue(shadow.ambientAlpha <= .04f)
                 assertTrue(shadow.spotAlpha <= .07f)
-                previous = shadow.elevationDp
             }
         }
     }
 
     @Test fun darkThemeDoesNotAddHeavyBlackShadow() {
-        val light = resultActionShadow(Color.White, 0f, false)
-        val dark = resultActionShadow(Color.Black, 0f, false)
+        val light = resultActionShadow(Color.White, false)
+        val dark = resultActionShadow(Color.Black, false)
         assertTrue(dark.ambientAlpha < light.ambientAlpha)
         assertTrue(dark.spotAlpha < light.spotAlpha)
     }
 
-    @Test fun accessibilityAndInvalidActivityHaveSafeBounds() {
-        assertEquals(ResultActionShadow(0f, 0f, 0f), resultActionShadow(Color.White, 1f, true))
-        for (activity in listOf(Float.NaN, Float.POSITIVE_INFINITY, -1f)) {
-            assertEquals(.6f, resultActionShadow(Color.White, activity, false).elevationDp, 0f)
-        }
-        assertEquals(1.2f, resultActionShadow(Color.White, 100f, false).elevationDp, 0f)
+    @Test fun accessibilityRemovesShadow() {
+        assertEquals(ResultActionShadow(0f, 0f, 0f), resultActionShadow(Color.White, true))
     }
 }

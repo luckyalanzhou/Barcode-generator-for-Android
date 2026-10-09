@@ -14,5 +14,4 @@ internal object GlassControlDefaults {
     // 扩散采样半径，不是整块按钮的高斯模糊；仅复杂背景启用。
     const val RoundActionBlurDp = 2.5f
     const val RoundActionRestRefractionDp = .55f
-    const val RoundActionPressRefractionDp = .65f
 }

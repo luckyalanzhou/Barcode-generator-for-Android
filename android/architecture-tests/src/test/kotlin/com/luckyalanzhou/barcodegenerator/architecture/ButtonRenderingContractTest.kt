@@ -8,6 +8,16 @@ import org.junit.Test
 
 /** 本地渲染边界约束不是截图测试：防止已知危险组合再次引入，真机观感仍需独立验收。 */
 class ButtonRenderingContractTest {
+    @Test fun `round result actions keep static optics without press animations`() {
+        val button = source("GlassRoundActionButton.kt")
+        for (forbidden in listOf("animateFloatAsState", "collectIsPressedAsState", "PressInteraction",
+            "pressPosition", "scaleX =", "scaleY =", "translationY =", "radialGradient")) {
+            assertFalse("静态圆按钮不可引入 $forbidden", button.contains(forbidden))
+        }
+        val frame = source("RoundActionGlassFrame.kt")
+        assertTrue(frame.contains("motion = 0f"))
+        assertTrue(frame.contains("travelStrength = 0f"))
+    }
     @Test fun `round glass optics are isolated from callbacks tabs and menu material`() {
         val button = source("GlassRoundActionButton.kt")
         assertTrue(button.contains("rememberGlassBackdropRenderer(roundAction = true)"))
