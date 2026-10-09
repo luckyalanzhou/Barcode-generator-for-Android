@@ -13,9 +13,8 @@ class ActionMenuStyleTest {
     }
 
     @Test fun existingMenuGeometryIsPreserved() {
-        assertEquals(40f, ActionMenuMetrics.rowHeight.value, .001f)
         assertEquals(12f, ActionMenuMetrics.corner.value, .001f)
-        assertEquals(20f, ActionMenuMetrics.iconSize.value, .001f)
+        assertEquals(18f, ActionMenuMetrics.iconSize.value, .001f)
     }
 
     @Test fun titleKeepsPlaceholderColorAndHighContrastRemainsReadable() {

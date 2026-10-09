@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuLineStyle
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
@@ -44,7 +45,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -124,6 +124,10 @@ internal fun TabLongPressActionOverlay(
     val effects = LocalVisualEffectsPolicy.current
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
+    // 普通选项自然测量；标题跟随最高选项取 2/3，兼容大字体与换行。
+    val estimatedRowHeightPx = with(density) { maxOf(20.sp.toPx(), ActionMenuMetrics.iconSize.toPx()) + 12.dp.toPx() }
+    var measuredRowHeightPx by remember(state, density) { mutableStateOf(estimatedRowHeightPx) }
+    val headingHeight = with(density) { (measuredRowHeightPx * (2f / 3f)).toDp() }
     val panelCorner = ActionMenuMetrics.corner
     val sourceCardShape = remember { RoundedCornerShape(14.dp) }
     val menuColors = actionMenuColors(colors, dark, effects.highContrast)
@@ -190,7 +194,7 @@ internal fun TabLongPressActionOverlay(
             val bottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
             val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 12.dp.toPx() }
             val motionMarginPx = with(density) { if (effects.reduceMotion) 0f else 40.dp.toPx() }
-            val desiredHeightPx = with(density) { ((if (showTitle) 38 else 0) + actions.size * 40).dp.toPx() } + motionMarginPx
+            val desiredHeightPx = (if (showTitle) measuredRowHeightPx * (2f / 3f) else 0f) + actions.size * measuredRowHeightPx + motionMarginPx
             val rowMenuAnchor = if (state.tabAnchor) menuAnchorBoundsOnScreen else liftedRowMenuAnchor(
                 anchorBoundsOnScreen, overlayOriginOnScreen, screenHeightPx, statusBarTopPx,
                 bottomInsetPx, gapPx, desiredHeightPx)
@@ -403,13 +407,15 @@ internal fun TabLongPressActionOverlay(
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
                     if (showTitle) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = ActionMenuMetrics.titleHeight).padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().height(headingHeight).padding(horizontal = ActionMenuMetrics.horizontalPadding),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(
                             text = state.title,
                             color = menuColors.title,
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            style = MenuLineStyle,
                             fontWeight = FontWeight.Medium,
                         )
                     }
@@ -418,13 +424,14 @@ internal fun TabLongPressActionOverlay(
                     actions.forEachIndexed { index, action ->
                         if (index > 0) ActionSeparator(color = separator)
                         Row(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = ActionMenuMetrics.rowHeight)
+                            modifier = Modifier.fillMaxWidth()
+                                .onSizeChanged { measuredRowHeightPx = maxOf(measuredRowHeightPx, it.height.toFloat()) }
                                 .slideMenuItem(selection, index, actionsReady, onClick = action.onClick)
                                 .clickable(enabled = actionsReady, role = Role.Button) {
                                     selection.confirmed = index
                                     onAction(action.onClick)
                                 }
-                                .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 8.dp),
+                                .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             // 删除等破坏性操作的文字和图标在浅色、深色主题中都固定使用红色。
@@ -433,7 +440,9 @@ internal fun TabLongPressActionOverlay(
                                 text = action.label,
                                 modifier = Modifier.weight(1f),
                                 color = actionColor,
-                                style = MaterialTheme.typography.labelLarge,
+                                fontSize = 18.sp,
+                                lineHeight = 20.sp,
+                                style = MenuLineStyle,
                             )
                             Icon(
                                 imageVector = action.icon,

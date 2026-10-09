@@ -8,6 +8,13 @@ import org.junit.Test
 
 /** 菜单绘制边界的本地回归约束；不替代 Popup 跨窗口重放与真机视觉验收。 */
 class MenuRenderingContractTest {
+    @Test fun `context menu heading uses smaller twelve sp text`() {
+        val heading = source("TabLongPressActionDialog.kt")
+            .substringAfter("text = state.title,").substringBefore("actions.forEachIndexed")
+        assertTrue(heading.contains("fontSize = 12.sp"))
+        assertTrue(heading.contains("color = menuColors.title"))
+    }
+
     @Test fun `barcode format menus use whole panel reveal at both entry points`() {
         val generate = source("GenerateContent.kt").substringAfter("AnchoredDropdownMenu(")
         assertTrue(generate.contains("cornerReveal = true"))
@@ -47,25 +54,35 @@ class MenuRenderingContractTest {
         assertTrue(item.contains("toggleableState"))
         assertTrue(item.contains("selected = checked"))
         assertTrue(item.contains("if (pressed || hovered)"))
-        assertTrue(item.contains("heightIn(min = 36.dp)"))
-        assertFalse(item.contains("selectedContainer"))
+        assertFalse(item.contains("heightIn(min ="))
+        assertTrue(item.contains("highlightSelection && checked"))
     }
 
     @Test fun `value menu rows keep compact height without material minimum height`() {
         val item = source("MenuChoiceItem.kt")
         assertFalse(item.contains("DropdownMenuItem("))
-        assertTrue(item.contains("fontSize = 14.sp, lineHeight = 20.sp"))
-        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 8.dp)"))
+        assertTrue(item.contains("fontSize = 18.sp, lineHeight = 20.sp"))
+        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 6.dp)"))
         assertTrue(item.contains("verticalAlignment = Alignment.CenterVertically"))
         assertTrue(item.contains(".clickable("))
     }
 
     @Test fun `choice check precedes label and shares its text color`() {
         val item = source("MenuChoiceItem.kt")
-        assertTrue(item.indexOf("Box(Modifier.size(20.dp)") < item.indexOf("Text(label,"))
+        assertTrue(item.indexOf("Box(Modifier.width(18.dp)") < item.indexOf("Text(label,"))
         assertTrue(item.contains("Text(\"✓\", color = colors.text.primary"))
         assertTrue(item.contains("Text(label, color = colors.text.primary"))
         assertTrue(item.contains("fontWeight = FontWeight.Normal"))
         assertTrue(item.contains("clearAndSetSemantics"))
+    }
+
+    @Test fun `context rows use natural eighteen sp layout and heading follows measured row`() {
+        val host = source("TabLongPressActionDialog.kt")
+        assertTrue(host.contains("fontSize = 18.sp,"))
+        assertTrue(host.contains("lineHeight = 20.sp,"))
+        assertTrue(host.contains("vertical = 6.dp"))
+        assertFalse(host.contains("heightIn(min = ActionMenuMetrics.rowHeight)"))
+        assertTrue(host.contains("measuredRowHeightPx * (2f / 3f)"))
+        assertTrue(source("ActionMenuStyle.kt").contains("iconSize = 18.dp"))
     }
 }

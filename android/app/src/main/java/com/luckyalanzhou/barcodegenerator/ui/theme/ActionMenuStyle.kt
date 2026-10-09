@@ -7,11 +7,9 @@ import androidx.compose.ui.unit.dp
 /** Shared by Tab and file/folder menus; geometry and gestures remain separate. */
 internal object ActionMenuMetrics {
     val width = 200.dp
-    val rowHeight = 40.dp
-    val titleHeight = 38.dp
     val corner = 12.dp
     val horizontalPadding = 16.dp
-    val iconSize = 20.dp
+    val iconSize = 18.dp
     val iconGap = 12.dp
     val separatorHeight = .5.dp
 }

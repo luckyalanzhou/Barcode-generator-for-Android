@@ -10,11 +10,9 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -83,11 +81,9 @@ internal fun ComposeChoiceField(
                 if (index > 0) ComposeDropdownDivider(dark)
                 if (compact) SingleChoiceMenuItem(option, option == value, highlightSelection = false) {
                     onSelected(option); expanded = false
-                } else DropdownMenuItem(
-                    modifier = Modifier.height(40.dp),
-                    text = { Text(option, color = LocalAppColorScheme.current.text.primary) },
-                    onClick = { onSelected(option); expanded = false },
-                )
+                } else SingleChoiceMenuItem(option, option == value, highlightSelection = false) {
+                    onSelected(option); expanded = false
+                }
             }
         }
     }

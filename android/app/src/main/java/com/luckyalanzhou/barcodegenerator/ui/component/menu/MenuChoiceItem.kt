@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,34 +34,33 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
 /** 值选项共用显示：勾号表示保存状态，底色只表示当前按压或悬停，不参与业务状态更新。 */
 @Composable
-internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean = false, onClick: () -> Unit) {
+internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean = false, highlightSelection: Boolean = false, onClick: () -> Unit) {
     val colors = LocalAppColorScheme.current
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     val hovered by interactions.collectIsHoveredAsState()
     val feedback = colors.controls.accent.copy(alpha = if (LocalVisualEffectsPolicy.current.highContrast) .20f else .10f)
-    // 正文 20sp 行高 + 16dp 留白，普通字号最小高度为 36dp，不使用 Material 默认行高。
-    // 内容自然测量，系统大字体需要更多空间时才增高；保留整行键盘/读屏点击与勾选语义。
+    // 18sp 正文、20sp 行高，上下各 6dp；不限制最小高度，大字体和换行自然增高。
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 36.dp)
+        modifier = Modifier.fillMaxWidth()
             .hoverable(interactions)
-            .background(if (pressed || hovered) feedback else Color.Transparent)
+            .background(if (pressed || hovered) feedback else if (highlightSelection && checked) colors.controls.selectedContainer else Color.Transparent)
             .clickable(interactionSource = interactions, indication = null,
                 role = if (multiple) Role.Checkbox else Role.RadioButton, onClick = onClick)
             .semantics {
                 role = if (multiple) Role.Checkbox else Role.RadioButton
                 if (multiple) toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
                 else selected = checked
-            }.padding(horizontal = 12.dp, vertical = 8.dp),
+            }.padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(20.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        Box(Modifier.width(18.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
             // 勾号放在文字前，略增字重并与正文同色；未选中也保留标记列，避免文字跳动。
-            if (checked) Text("✓", color = colors.text.primary, fontSize = 17.sp,
-                fontWeight = FontWeight.Normal)
+            if (checked) Text("✓", color = colors.text.primary, fontSize = 18.sp,
+                lineHeight = 20.sp, fontWeight = FontWeight.Normal, style = MenuLineStyle)
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, color = colors.text.primary, fontSize = 14.sp, lineHeight = 20.sp,
-            maxLines = 2, modifier = Modifier.weight(1f))
+        Text(label, color = colors.text.primary, fontSize = 18.sp, lineHeight = 20.sp,
+            style = MenuLineStyle, maxLines = 2, modifier = Modifier.weight(1f))
     }
 }
