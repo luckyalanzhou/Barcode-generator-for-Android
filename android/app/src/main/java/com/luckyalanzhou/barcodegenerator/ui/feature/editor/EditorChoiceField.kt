@@ -52,14 +52,15 @@ internal fun ComposeChoiceField(
             modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
                 .iosPressFeedback(interactions)
                 .onGloballyPositioned { buttonWidth = it.size.width; buttonHeight = it.size.height }
-                .globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+                .then(if (compact) Modifier else Modifier.globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
             border = null,
             contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary,
-                containerColor = if (compact) LocalAppColorScheme.current.controls.button else androidx.compose.ui.graphics.Color.Transparent),
+            // 条码格式入口使用次级文字色、无框无底色；文件夹选择不改变原外观。
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary,
+                containerColor = androidx.compose.ui.graphics.Color.Transparent),
         ) {
-            Text(value, color = LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, color = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         AnchoredDropdownMenu(
             dark = dark,

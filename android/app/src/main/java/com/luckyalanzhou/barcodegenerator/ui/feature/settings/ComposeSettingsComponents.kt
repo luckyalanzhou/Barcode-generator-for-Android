@@ -83,24 +83,26 @@ internal fun SettingsActionRow(title: String, action: String, color: Color, butt
 }
 
 @Composable
-internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, onMeasured: (IntSize) -> Unit, pickerLabel: String? = null, expanded: Boolean = false) {
+internal fun SettingsDropdownButton(text: String, contentColor: Color, onClick: () -> Unit, onMeasured: (IntSize) -> Unit, pickerLabel: String? = null, expanded: Boolean = false) {
     val modifier = Modifier
         .then(if (pickerLabel != null) Modifier.semantics {
             contentDescription = pickerLabel
             stateDescription = "$text，${if (expanded) "已展开" else "已收起"}"
         } else Modifier)
-    SettingsButton(text, color, contentColor, onClick, modifier, showDisclosure = pickerLabel != null,
+    // 值选择入口不画按钮框或底色，保留原点击区域、按压反馈与菜单锚点。
+    SettingsButton(text, Color.Transparent, contentColor, onClick, modifier, showDisclosure = pickerLabel != null,
+        showOutline = false,
         chromeModifier = Modifier.onGloballyPositioned { onMeasured(it.size) })
 }
 
 /** 设置页通用按钮：忙碌时禁止重复点击；带下拉提示时只负责打开选择菜单。 */
 @Composable
-internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false, chromeModifier: Modifier = Modifier) {
+internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false, chromeModifier: Modifier = Modifier, showOutline: Boolean = true) {
     val interactionSource = remember { MutableInteractionSource() }
     Box(modifier.heightIn(min = 48.dp).iosPressFeedback(interactionSource)
         .clickable(enabled = !busy, interactionSource = interactionSource, indication = null,
             role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-      Row(chromeModifier.globalButtonChrome(RoundedCornerShape(10.dp))
+      Row(chromeModifier.then(if (showOutline) Modifier.globalButtonChrome(RoundedCornerShape(10.dp)) else Modifier)
           .clip(RoundedCornerShape(10.dp)).background(color)
           .heightIn(min = 34.dp).padding(horizontal = 10.dp, vertical = 4.dp),
           verticalAlignment = Alignment.CenterVertically) {
@@ -108,7 +110,7 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
             androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = contentColor, strokeWidth = 2.dp)
             androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
         }
-        Text(text, color = contentColor, fontSize = 14.sp, maxLines = 1,
+        Text(text, color = contentColor, fontSize = 16.sp, maxLines = 1,
             style = settingsButtonTextStyle(LocalTextStyle.current))
         if (showDisclosure) Icon(KeyboardArrowDownIcon, contentDescription = null,
             tint = LocalAppColorScheme.current.settingsText.secondary,

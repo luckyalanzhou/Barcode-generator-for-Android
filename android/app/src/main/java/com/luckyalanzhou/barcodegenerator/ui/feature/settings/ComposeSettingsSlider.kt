@@ -153,7 +153,7 @@ internal fun SettingsSliderRow(
                 value = if (editing || warning) input else TextFieldValue(draft.roundToInt().toString()),
                 onValueChange = { input = it }, singleLine = true,
                 textStyle = TextStyle(color = if ((editing || warning) && parseSliderValue(input.text, range) == null)
-                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 15.sp),
+                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 16.sp),
                 cursorBrush = SolidColor(valueColor),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
@@ -173,7 +173,7 @@ internal fun SettingsSliderRow(
             Spacer(Modifier.weight(1f))
             Text(
                 valueParts.getOrNull(1).orEmpty(),
-                style = TextStyle(color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.End,
                 modifier = Modifier.width((20f * fontScale.coerceAtLeast(1f)).dp),
             )

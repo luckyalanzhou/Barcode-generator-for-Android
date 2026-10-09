@@ -122,7 +122,6 @@ internal fun SettingsContent(
                                     "light" -> "浅色"
                                     else -> "跟随系统"
                                 },
-                                color = colors.controls.button,
                                 contentColor = colors.settingsText.secondary,
                                 onClick = { schemeMenu = true },
                                 onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
@@ -151,7 +150,7 @@ internal fun SettingsContent(
                     SettingsDivider(dark)
                     SettingsRow("显示与动效", colors.settingsText.primary,
                         Modifier.clickable(role = Role.Button) { displayEffectsOpen = true }) {
-                        Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 14.sp)
+                        Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 16.sp)
                         Icon(KeyboardArrowRightIcon, contentDescription = null,
                             tint = colors.settingsText.secondary, modifier = Modifier.padding(start = 6.dp).size(20.dp))
                     }
@@ -193,7 +192,6 @@ internal fun SettingsContent(
                         Box {
                             SettingsDropdownButton(
                                 text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
-                                color = colors.controls.button,
                                 contentColor = colors.settingsText.secondary,
                                 onClick = { ocrMenu = true },
                                 onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },

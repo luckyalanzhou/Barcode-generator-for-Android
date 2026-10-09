@@ -102,6 +102,24 @@ class ButtonRenderingContractTest {
         }
     }
 
+    @Test fun `value picker triggers are unframed and settings trailing text matches titles`() {
+        val settings = source("ComposeSettingsComponents.kt")
+        val dropdown = settings.substringAfter("internal fun SettingsDropdownButton(").substringBefore("internal fun SettingsButton(")
+        assertTrue(dropdown.contains("SettingsButton(text, Color.Transparent"))
+        assertTrue(dropdown.contains("showOutline = false"))
+        assertTrue(settings.contains("if (showOutline) Modifier.globalButtonChrome"))
+        assertTrue(settings.contains("Text(text, color = contentColor, fontSize = 16.sp"))
+        assertTrue(source("SettingsContent.kt").contains("Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 16.sp)"))
+        assertFalse(source("ComposeSettingsSlider.kt").contains("fontSize = 15.sp"))
+        val format = source("GenerateContent.kt").substringAfter("onClick = { formatExpanded = true }").substringBefore("AnchoredDropdownMenu(")
+        assertFalse(format.contains("globalButtonChrome"))
+        assertTrue(format.contains("containerColor = Color.Transparent"))
+        assertTrue(format.contains("Text(formatName, color = themeColors.text.secondary"))
+        val editor = source("EditorChoiceField.kt")
+        assertTrue(editor.contains("if (compact) Modifier else Modifier.globalButtonChrome"))
+        assertTrue(editor.contains("if (compact) LocalAppColorScheme.current.text.secondary"))
+    }
+
     @Test fun `unframed press feedback never owns actions or draws a background`() {
         val feedback = source("UnframedActionPressFeedback.kt")
         for (forbidden in listOf("onClick", "onDelete", "onMove", "drawRect", ".background(", "globalButtonChrome")) {

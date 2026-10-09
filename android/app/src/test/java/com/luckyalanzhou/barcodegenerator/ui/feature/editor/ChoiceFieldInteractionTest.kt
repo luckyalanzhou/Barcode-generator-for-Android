@@ -40,4 +40,19 @@ class ChoiceFieldInteractionTest {
         compose.runOnIdle { assertEquals("新格式", value) }
         compose.onNodeWithText("原格式").assertDoesNotExist()
     }
+
+    @Test fun unframedCompactFormatUpdatesValueAndClosesMenu() {
+        var value by mutableStateOf("原格式")
+        compose.setContent {
+            AppTheme("dark") { Box(Modifier.fillMaxSize()) {
+                ComposeChoiceField(value, listOf("原格式", "新格式"), true,
+                    Modifier.width(180.dp), compact = true) { value = it }
+            } }
+        }
+        compose.onNodeWithText("原格式").performClick()
+        compose.onNodeWithText("新格式").performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { assertEquals("新格式", value) }
+        compose.onNodeWithText("原格式").assertDoesNotExist()
+    }
 }

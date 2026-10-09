@@ -263,7 +263,6 @@ internal fun GenerateContent(
                             formatButtonHeight = it.size.height
                         }
                             .heightIn(min = 48.dp)
-                            .globalButtonChrome(RoundedCornerShape(12.dp))
                             .semantics {
                                 contentDescription = "条码类型"
                                 stateDescription = "$formatName，${if (formatExpanded) "已展开" else "已收起"}"
@@ -277,12 +276,12 @@ internal fun GenerateContent(
                             disabledElevation = 0.dp,
                         ),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = themeColors.controls.button,
-                            contentColor = textColor,
+                            containerColor = Color.Transparent,
+                            contentColor = themeColors.text.secondary,
                         ),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                     ) {
-                        Text(formatName, color = textColor, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
+                        Text(formatName, color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
                         Icon(KeyboardArrowDownIcon, contentDescription = null, tint = themeColors.text.secondary,
                             modifier = Modifier.padding(start = 6.dp).size(16.dp))
                     }
