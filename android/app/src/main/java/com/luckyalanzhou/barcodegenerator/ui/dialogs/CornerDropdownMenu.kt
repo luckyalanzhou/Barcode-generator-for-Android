@@ -29,6 +29,7 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 
 /** 来源与菜单边界插值，供整个面板共享同一几何变换。 */
 internal fun dropdownMorphBounds(source: Rect, target: Rect, progress: Float): Rect {
@@ -75,7 +76,6 @@ internal fun CornerDropdownMenu(
     }, label = "button-to-menu-bounds") { if (it) 1f else 0f }
     val position = remember { CornerMenuPositionProvider() }
     val density = LocalDensity.current
-    val edge = LocalAppColorScheme.current.borders.button
     val visualHeight = with(density) { anchorHeight?.toPx() ?: 0f }
     val dismiss by rememberUpdatedState(onDismiss)
     if (state.currentState || state.targetState || !state.isIdle) {
@@ -96,20 +96,11 @@ internal fun CornerDropdownMenu(
                 translationY = geometry.translationY
                 transformOrigin = TransformOrigin(0f, 0f)
                 alpha = p
-            }.drawWithContent {
-                val sourceHeight = position.anchor.height.toFloat()
-                val target = Rect(0f, if (position.above) 0f else sourceHeight,
-                    size.width, if (position.above) size.height - sourceHeight else size.height)
-                val finalOutline = shape.createOutline(target.size, layoutDirection, this)
-                val radius = (finalOutline as? Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f
-                val path = Path().apply { addRoundRect(RoundRect(target, CornerRadius(radius))) }
-                // 单次静态材质绘制，不使用透明按钮原生阴影或实时折射。
-                drawPath(path, color)
-                clipPath(path) { this@drawWithContent.drawContent() }
-                drawPath(path, edge, style = Stroke(1.dp.toPx()))
             }.padding(top = if (position.above) 0.dp else reserve,
                 bottom = if (position.above) reserve else 0.dp)) {
+                MenuSurface(shape = shape, color = color) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
+                }
             }
         }
     }

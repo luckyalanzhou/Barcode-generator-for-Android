@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
@@ -318,7 +319,7 @@ internal fun TabLongPressActionOverlay(
                     placement.left + overlayOriginOnScreen.x + panelSize.width,
                     placement.top - focusLiftPx + overlayOriginOnScreen.y + panelSize.height)
             }
-            Box(
+            MenuSurface(
                     modifier = Modifier.width(panelWidth)
                         .heightIn(max = with(density) { availableHeightPx.toDp() })
                         .onSizeChanged { if (panelSize != it) panelSize = it }
@@ -379,16 +380,6 @@ internal fun TabLongPressActionOverlay(
                             isTraversalGroup = true
                             dismiss { onDismiss(); true }
                         }
-                        .drawWithContent {
-                            drawContent()
-                            val path = androidx.compose.ui.graphics.Path().apply {
-                                addRoundRect(androidx.compose.ui.geometry.RoundRect(
-                                    Rect(0f, 0f, size.width, size.height),
-                                    androidx.compose.ui.geometry.CornerRadius(panelCorner.toPx())))
-                            }
-                            val edgeWidth = (.45.dp.toPx()).coerceIn(1f, 1.5f)
-                            drawPath(path, menuColors.outline, style = Stroke(edgeWidth))
-                        }
                         .pointerInput(Unit) {
                             // 标题区或空白面板上的点按不能穿透到背景并关闭菜单；仍允许从标题区域开始滚动。
                             awaitEachGesture {
@@ -396,9 +387,9 @@ internal fun TabLongPressActionOverlay(
                                 waitForUpOrCancellation()?.consume()
                             }
                         },
+                    shape = RoundedCornerShape(panelCorner),
+                    color = colors.surfaces.panel,
                 ) {
-                    // Tab、文件夹和文件菜单都使用静态面板；背景聚焦模糊与弹出动画独立保留。
-                    Box(Modifier.matchParentSize().background(colors.surfaces.panel))
                     key(state) {
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
                     if (showTitle) {
