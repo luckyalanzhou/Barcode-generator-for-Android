@@ -25,7 +25,7 @@ def main():
     print("PASS: full-width Compose input, single foreground replay and single output (source contract, not device validation)")
     import numpy as np
     import skia
-    shader_dir = Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app"
+    shader_dir = Path(__file__).resolve().parents[1] / "app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/component/glass"
     adaptive_tint = (shader_dir / "GlassAdaptiveTint.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     lens_profile = (shader_dir / "GlassLensProfile.kt").read_text(encoding="utf-8").split('"""', 2)[1]
     source = adaptive_tint + lens_profile + (shader_dir / "GlassBackdropShader.kt").read_text(encoding="utf-8").split('"""', 2)[1]
@@ -61,15 +61,13 @@ def main():
             fixture = skia.Surface(1, 1)
             fixture.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
             rgb = fixture.makeImageSnapshot().toarray()[0, 0, :3].astype(int)
-            assert np.max(np.abs(rgb / 255.0 - base)) < .11, "Adaptive tint loses the theme identity"
+            expected = base + (brightness - base) * .42 * (1 - .20 * .60)
+            assert np.max(np.abs(rgb / 255.0 - expected)) < .006, "Adaptive tint deviates from the current shared sampling formula"
             if previous is not None:
                 assert np.max(np.abs(rgb - previous)) <= 3, "Adaptive tint has a hard brightness jump"
             previous = rgb
-        builder.setUniform("opacity", 1.0)
-        fixture.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
-        opaque_rgb = fixture.makeImageSnapshot().toarray()[0, 0, :3] / 255.0
-        assert np.max(np.abs(opaque_rgb - base)) < .005, "Solid contrast surface still adapts"
-    print("PASS: bounded spatial tint, continuous brightness response and opaque accessibility identity")
+    # 实色策略在合成阶段屏蔽背景，不要求采样辅助函数提前停止适应。
+    print("PASS: shared sampled tint formula and continuous brightness response")
     w, h = 320, 180
     page = skia.Surface(w, h)
     page.getCanvas().clear(0xFF75869A)
@@ -77,7 +75,7 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False):
         builder = skia.RuntimeShaderBuilder(effect)
         input_page = page
         if page_color is not None:
@@ -89,6 +87,7 @@ def main():
         builder.setUniform("shape", skia.V4(24, blur, refract, opacity))
         builder.setUniform("contact", skia.V4(w / 2, 0, contact, 1))
         builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
+        builder.setUniform("menuMaterial", 1.0 if menu else 0.0)
         builder.setUniform("pixelDensity", 1.0)
         builder.setUniform("capsuleOptics", skia.V2(0, 0))
         builder.setUniform("surfaceColor", skia.V4(*(surface_color if surface_color is not None else ((.08, .09, .12, 1) if dark else (.97, .98, 1, 1)))))
@@ -128,6 +127,18 @@ def main():
         tab_dark = render(.56, 0, 0, dark, 0xFF000000, capsule=True)
         assert np.abs(tab_bright[65:115, 90:230, :3].astype(int) - tab_dark[65:115, 90:230, :3].astype(int)).mean() > 30, "Menu protection accidentally makes capsules opaque"
         print(f"PASS: {'dark' if dark else 'light'} backdrop pixels, lens displacement, mask isolation, contrast protection, rim contact and solid fallback")
+
+    # 菜单独立材质：真实背景有透显，但不会改变普通按钮和 Tab 的默认保护策略。
+    for dark in (False, True):
+        opacity = .78 if dark else .70
+        bright = render(opacity, 12, 0, dark, 0xFFFFFFFF, menu=True)
+        dim = render(opacity, 12, 0, dark, 0xFF000000, menu=True)
+        response = np.abs(bright[65:115, 90:230, :3].astype(int) - dim[65:115, 90:230, :3].astype(int)).mean()
+        assert 10 < response < 100, f"Menu is opaque or loses its text contrast protection: dark={dark}, response={response:.2f}"
+        assert np.max(bright[:20, :, 3]) == 0, "Menu material leaks outside its bounds"
+        solid = render(1, 0, 0, dark, menu=True)
+        assert np.ptp(solid[60:120, 90:230, :3].astype(int), axis=0).max() <= 1, "Opaque menu leaks background detail"
+    print("PASS: menu shader compiles, transmits bounded background pixels, isolates bounds and preserves opaque fallback")
 
     # Representative neutral fills; the exact material formula is covered by Kotlin tests.
     # The center separates subtly; a broad matte disk must not substitute for the bevel.

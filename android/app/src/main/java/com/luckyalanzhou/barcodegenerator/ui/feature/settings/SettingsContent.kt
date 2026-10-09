@@ -62,8 +62,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
-import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
-import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 /**

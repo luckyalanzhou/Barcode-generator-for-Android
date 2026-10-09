@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
@@ -18,8 +19,11 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.geometry.Size
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassBackdropSurface
@@ -35,16 +39,19 @@ internal fun MenuSurface(
 ) {
     val policy = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     var heightDp by remember { mutableFloatStateOf(80f) }
     val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp, policy.highContrast)
     val renderer = rememberGlassBackdropRenderer(menuMaterial = true)
     // 轮廓取实际 shape，防止 16dp 下拉菜单却用 12dp shader 蒙版。
-    var cornerDp by remember { mutableFloatStateOf(12f) }
-    Box(modifier.clip(shape).onSizeChanged { heightDp = with(density) { it.height.toDp().value } }.drawWithCache {
+    var measuredSize by remember { mutableStateOf(IntSize.Zero) }
+    val measuredOutline = shape.createOutline(Size(measuredSize.width.toFloat(), measuredSize.height.toFloat()), layoutDirection, density)
+    val cornerDp = ((measuredOutline as? androidx.compose.ui.graphics.Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f) / density.density
+    Box(modifier.clip(shape).onSizeChanged {
+        heightDp = with(density) { it.height.toDp().value }
+        measuredSize = it
+    }.drawWithCache {
         val outline = shape.createOutline(size, layoutDirection, this)
-        val corner = (outline as? androidx.compose.ui.graphics.Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f
-        val measuredCorner = corner / density.density
-        if (cornerDp != measuredCorner) cornerDp = measuredCorner
         val stroke = Stroke(if (policy.highContrast) 1.dp.toPx() else .5.dp.toPx().coerceAtLeast(1f))
         val highlight = Brush.verticalGradient(listOf(spec.highlight, Color.Transparent), endY = size.height * .45f)
         onDrawWithContent {

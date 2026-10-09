@@ -53,6 +53,8 @@ half4 main(float2 p) {
     float targetLuminance = dot(float3(surfaceColor.rgb), float3(0.2126, 0.7152, 0.0722));
     float detail = smoothstep(0.015, 0.35, length(float3(center - scene)));
     float protection = smoothstep(0.12, 0.75, abs(luminance - targetLuminance)) * 0.24 + detail * 0.10;
+    // 菜单已有较厚底色与模糊：额外保护减半，避免深色面板遇到亮背景直接变成实色。
+    protection *= mix(1.0, 0.5, menuMaterial);
     float opacity = clamp(shape.w + protection, 0.0, 1.0);
     // Menus contain labels: quiet the interior without making the rim an opaque slab.
     // Capsules keep their existing material; this protection must not tint the whole tab bar.
