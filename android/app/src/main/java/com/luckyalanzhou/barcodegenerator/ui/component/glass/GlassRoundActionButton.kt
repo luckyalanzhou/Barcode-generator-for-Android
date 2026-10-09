@@ -91,7 +91,10 @@ internal fun GlassRoundActionButton(
                     scaleX = 1f + .035f * lift
                     scaleY = 1f + .035f * lift
                     translationY = -1.5f * density * lift
-                    shadowElevation = (1f + 2f * lift) * density
+                    val shadow = resultActionShadow(colors.surfaces.background, lift, effects.opaqueGlass)
+                    shadowElevation = shadow.elevationDp * density
+                    ambientShadowColor = Color.Black.copy(alpha = shadow.ambientAlpha)
+                    spotShadowColor = Color.Black.copy(alpha = shadow.spotAlpha)
                     shape = CircleShape
                 }
                 .clip(CircleShape),

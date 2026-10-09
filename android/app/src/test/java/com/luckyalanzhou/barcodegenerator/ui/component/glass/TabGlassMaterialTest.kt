@@ -14,7 +14,7 @@ class TabGlassMaterialTest {
                 kotlin.math.abs(fill.green - background.green), kotlin.math.abs(fill.blue - background.blue)) * material.surfaceOpacity
             assertTrue("The surface must not add a gray body tint: background=$background fill=$fill difference=$difference",
                 difference <= .005f)
-            assertTrue(material.rimLight >= .30f && material.innerShadow >= .07f)
+            assertTrue(material.rimLight >= .30f && material.innerShadow in .04f.. .07f)
             assertTrue(material.accentTint < .01f)
             assertTrue(material.rimLight <= .75f)
             assertTrue(tabGlassEdgeWidthPx(material, 3f) <= 1.5f)

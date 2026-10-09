@@ -39,7 +39,7 @@ internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
         accentTint = .006f,
         surfaceOpacity = if (dark) .55f else .48f,
         rimLight = if (dark) .40f else .58f,
-        innerShadow = if (dark) .15f else .075f,
+        innerShadow = if (dark) .07f else .04f,
         outlineOpacity = if (dark) .10f else .09f,
     )
 }
