@@ -54,9 +54,9 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
             }.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(16.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        Box(Modifier.width(18.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
             // 勾号放在文字前，略增字重并与正文同色；未选中也保留标记列，避免文字跳动。
-            if (checked) Text("✓", color = colors.text.primary, fontSize = 16.sp,
+            if (checked) Text("✓", color = colors.text.primary, fontSize = 18.sp,
                 lineHeight = 20.sp, fontWeight = FontWeight.Normal, style = MenuLineStyle)
         }
         Spacer(Modifier.width(12.dp))

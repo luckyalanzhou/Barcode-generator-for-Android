@@ -69,8 +69,9 @@ class MenuRenderingContractTest {
 
     @Test fun `choice check precedes label and shares its text color`() {
         val item = source("MenuChoiceItem.kt")
-        assertTrue(item.indexOf("Box(Modifier.width(16.dp)") < item.indexOf("Text(label,"))
+        assertTrue(item.indexOf("Box(Modifier.width(18.dp)") < item.indexOf("Text(label,"))
         assertTrue(item.contains("Text(\"✓\", color = colors.text.primary"))
+        assertTrue(item.contains("fontSize = 18.sp"))
         assertTrue(item.contains("Text(label, color = colors.text.primary"))
         assertTrue(item.contains("fontWeight = FontWeight.Normal"))
         assertTrue(item.contains("clearAndSetSemantics"))
@@ -83,6 +84,6 @@ class MenuRenderingContractTest {
         assertTrue(host.contains("vertical = 8.dp"))
         assertFalse(host.contains("heightIn(min = ActionMenuMetrics.rowHeight)"))
         assertTrue(host.contains("measuredRowHeightPx * (2f / 3f)"))
-        assertTrue(source("ActionMenuStyle.kt").contains("iconSize = 16.dp"))
+        assertTrue(source("ActionMenuStyle.kt").contains("iconSize = 18.dp"))
     }
 }
