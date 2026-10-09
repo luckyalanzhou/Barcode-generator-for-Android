@@ -21,6 +21,10 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 /** A value picker, not an action menu. Reserve the mark column for every option. */
 @Composable
 internal fun SingleChoiceMenuItem(label: String, isSelected: Boolean, highlightSelection: Boolean = true, onClick: () -> Unit) {
+    if (!highlightSelection) {
+        com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuChoiceItem(label, isSelected, onClick = onClick)
+        return
+    }
     val colors = LocalAppColorScheme.current
     DropdownMenuItem(
         modifier = Modifier

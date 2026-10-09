@@ -212,19 +212,10 @@ internal fun SettingsContent(
                                 ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     val checked = settings.ocrMask and bit != 0
-                                    androidx.compose.material3.DropdownMenuItem(
-                                        modifier = Modifier
-                                            .height(40.dp),
-                                        contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
-                                        text = { Text(label, color = colors.settingsText.primary, maxLines = 1, softWrap = false) },
-                                        trailingIcon = {
-                                            Icon(
-                                                imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
-                                                contentDescription = if (checked) "已选中" else "未选中",
-                                                tint = if (checked) colors.controls.accent else colors.text.secondary,
-                                                modifier = Modifier.padding(end = 12.dp).size(24.dp),
-                                            )
-                                        },
+                                    com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuChoiceItem(
+                                        label = label,
+                                        checked = checked,
+                                        multiple = true,
                                         onClick = {
                                             val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
                                             onOcrMaskChange(mask)
