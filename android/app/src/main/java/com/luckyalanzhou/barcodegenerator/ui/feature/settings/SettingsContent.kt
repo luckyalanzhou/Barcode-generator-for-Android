@@ -52,7 +52,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -232,8 +231,9 @@ internal fun SettingsContent(
                     SettingsRow("局域网文件分享", colors.settingsText.primary) {
                         SettingsButton(
                             text = "启动",
-                            color = lerp(colors.surfaces.card, colors.controls.accent, if (dark) .24f else .10f),
-                            contentColor = if (dark) colors.settingsText.primary else colors.controls.accent,
+                            // 强调色只用于“启动”文字，内部不染色，保留统一按钮外框。
+                            color = Color.Transparent,
+                            contentColor = colors.controls.accent,
                             onClick = onEnterLanShare,
                         )
                     }

@@ -8,6 +8,14 @@ import org.junit.Test
 
 /** 本地渲染边界约束不是截图测试：防止已知危险组合再次引入，真机观感仍需独立验收。 */
 class ButtonRenderingContractTest {
+    @Test fun `capture and LAN launch emphasize content without tinted containers`() {
+        val camera = source("GenerateContent.kt").substringAfter("label = \"拍照填充\"").substringBefore("onClick = onCaptureText")
+        assertTrue(camera.contains("containerColor = Color.Transparent"))
+        assertTrue(camera.contains("contentColor = themeColors.controls.accent"))
+        val launch = source("SettingsContent.kt").substringAfter("text = \"启动\"").substringBefore("onClick = onEnterLanShare")
+        assertTrue(launch.contains("color = Color.Transparent"))
+        assertTrue(launch.contains("contentColor = colors.controls.accent"))
+    }
     private fun source(name: String): String {
         val file = Konsist.scopeFromProduction().files.single { File(it.path).name == name }
         return File(file.path).readText()

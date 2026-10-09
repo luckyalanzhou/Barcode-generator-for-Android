@@ -61,7 +61,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
@@ -238,10 +237,9 @@ internal fun GenerateContent(
                 icon = PhotoCameraIcon,
                 iconDescription = "拍照填充",
                 label = "拍照填充",
-                // 拍照填充是生成页的主要入口之一：使用柔和强调色突出，
-                // 同时让底部实色“生成”按钮继续承担最高优先级。
-                containerColor = lerp(cardColor, themeColors.controls.accent, if (dark) .24f else .10f),
-                contentColor = if (dark) textColor else themeColors.controls.accent,
+                // 强调色只用于图标和文字，按钮内部透明，外框仍使用统一主题描边。
+                containerColor = Color.Transparent,
+                contentColor = themeColors.controls.accent,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )
