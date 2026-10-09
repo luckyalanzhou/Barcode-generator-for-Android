@@ -85,11 +85,32 @@ class ButtonRenderingContractTest {
     @Test fun `ordinary action entry points share the same static outline`() {
         for (name in listOf("ComposeGenerateActionButton.kt", "ComposeSettingsComponents.kt",
             "ComposeCommonDialogs.kt", "EditorChoiceField.kt", "ComposeFavoriteSaveDialog.kt",
-            "FavoritesContent.kt", "ComposeHistoryUi.kt", "LanShareInputBar.kt",
+            "FavoritesContent.kt", "LanShareInputBar.kt",
             "LanShareContent.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
-            "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt", "ComposeGenerateInputPanel.kt",
+            "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt",
             "LanShareImagePreviewDialog.kt")) {
             assertTrue("$name 必须使用统一静态按钮框", source(name).contains(".globalButtonChrome("))
+        }
+    }
+
+    @Test fun `sorting and row deletion remain unframed with explicit press feedback`() {
+        for (name in listOf("ComposeGenerateInputPanel.kt", "ComposeHistoryUi.kt")) {
+            val button = source(name)
+            assertFalse("$name 不添加按钮框", button.contains("globalButtonChrome"))
+            assertTrue(button.contains(".iosPressFeedback("))
+            assertTrue(button.contains("interactionSource ="))
+        }
+    }
+
+    @Test fun `ordinary buttons share explicit press feedback without taking over callbacks`() {
+        for (name in listOf("GenerateContent.kt", "ComposeGenerateActionButton.kt", "EditorChoiceField.kt",
+            "ComposeFavoriteSaveDialog.kt", "FavoritesContent.kt", "ComposeLanShareQrDialog.kt",
+            "ComposeSettingsSlider.kt", "LanShareImagePreviewDialog.kt", "ComposeSettingsComponents.kt",
+            "LanShareInputBar.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
+            "ComposeCommonDialogs.kt")) {
+            val button = source(name)
+            assertTrue("$name 缺少按压反馈", button.contains(".iosPressFeedback("))
+            assertTrue("$name 缺少手势源", button.contains("interactionSource ="))
         }
     }
 

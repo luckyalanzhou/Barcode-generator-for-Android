@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content
 
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -327,7 +328,9 @@ internal fun FavoritesContent(
                     )
                     // 清除按钮只清空查询条件，不会删除收藏数据。
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(48.dp).globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
+                        val clearSearchInteractions = remember { MutableInteractionSource() }
+                        IconButton(onClick = { onQueryChange("") }, interactionSource = clearSearchInteractions,
+                            modifier = Modifier.size(48.dp).iosPressFeedback(clearSearchInteractions).globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
                             Icon(CloseSmallIcon, contentDescription = "清除搜索文字",
                                 tint = themeColors.text.secondary, modifier = Modifier.size(20.dp))
                         }
@@ -335,7 +338,9 @@ internal fun FavoritesContent(
                 }
             }
             // 清空收藏是破坏性操作，确认与数据删除由上层的 Tab 操作流程执行。
-            TextButton(onClick = onClearAll, modifier = Modifier.padding(start = 4.dp).globalButtonChrome()) {
+            val clearAllInteractions = remember { MutableInteractionSource() }
+            TextButton(onClick = onClearAll, interactionSource = clearAllInteractions,
+                modifier = Modifier.padding(start = 4.dp).iosPressFeedback(clearAllInteractions).globalButtonChrome()) {
                 Text("清空收藏", color = themeColors.text.destructive, fontSize = 14.sp)
             }
         }

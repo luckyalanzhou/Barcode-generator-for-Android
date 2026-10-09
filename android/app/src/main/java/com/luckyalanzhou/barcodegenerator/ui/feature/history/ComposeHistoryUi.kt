@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -141,6 +143,7 @@ private fun HistoryBatchCard(
 ) {
     val colors = LocalAppColorScheme.current
     val card = colors.surfaces.card
+    val deleteInteractions = remember { MutableInteractionSource() }
 
     // 卡片主体点击用于查看、长按用于编辑；右侧独立删除按钮只删除当前批次。
     Surface(
@@ -169,7 +172,8 @@ private fun HistoryBatchCard(
             Text(time, color = colors.text.placeholder, fontSize = 12.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
                 modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
-            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp).globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
+            IconButton(onClick = onDelete, interactionSource = deleteInteractions,
+                modifier = Modifier.size(48.dp).iosPressFeedback(deleteInteractions)) {
                 Icon(DeleteIcon, "删除这条历史记录", tint = colors.content.deleteIcon, modifier = Modifier.size(20.dp))
             }
         }

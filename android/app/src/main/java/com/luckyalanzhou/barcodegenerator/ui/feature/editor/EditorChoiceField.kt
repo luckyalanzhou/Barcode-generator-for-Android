@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.editor
 
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
 
@@ -41,11 +43,14 @@ internal fun ComposeChoiceField(
     var buttonWidth by remember { mutableIntStateOf(0) }
     var buttonHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
+    val interactions = remember { MutableInteractionSource() }
     Box(modifier) {
         OutlinedButton(
             onClick = { if (enabled) expanded = true },
             enabled = enabled,
+            interactionSource = interactions,
             modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
+                .iosPressFeedback(interactions)
                 .onGloballyPositioned { buttonWidth = it.size.width; buttonHeight = it.size.height }
                 .globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),

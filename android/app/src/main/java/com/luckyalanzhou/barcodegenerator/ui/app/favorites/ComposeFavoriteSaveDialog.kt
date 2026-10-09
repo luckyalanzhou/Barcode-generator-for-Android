@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
@@ -181,6 +183,8 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                 }
                 if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = LocalAppColorScheme.current.text.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             }
+            val rootInteractions = remember { MutableInteractionSource() }
+            val childInteractions = remember { MutableInteractionSource() }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -194,7 +198,8 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             selectedChild = ""
                         }
                     },
-                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp)),
+                    interactionSource = rootInteractions,
+                    modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(rootInteractions).globalButtonChrome(RoundedCornerShape(8.dp)),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = null,
@@ -212,7 +217,8 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             selectedChild = child
                         }, onCreateFolder = onCreateFolder)
                     },
-                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp)),
+                    interactionSource = childInteractions,
+                    modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(childInteractions).globalButtonChrome(RoundedCornerShape(8.dp)),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = null,

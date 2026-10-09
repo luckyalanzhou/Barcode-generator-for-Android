@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -54,6 +56,7 @@ internal fun ComposeLanShareQrDialog(
     val bitmap = remember(session.shareUrl, dark) {
         createQrBitmap(session.shareUrl, foreground, background, qrSize.value.toInt())
     }
+    val closeInteractions = remember { MutableInteractionSource() }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val closeSheet: () -> Unit = {
@@ -86,7 +89,8 @@ internal fun ComposeLanShareQrDialog(
                         fontSize = 13.sp,
                     )
                 }
-                TextButton(onClick = closeSheet, modifier = Modifier.globalButtonChrome()) {
+                TextButton(onClick = closeSheet, interactionSource = closeInteractions,
+                    modifier = Modifier.iosPressFeedback(closeInteractions).globalButtonChrome()) {
                     Text("关闭", color = secondary)
                 }
             }

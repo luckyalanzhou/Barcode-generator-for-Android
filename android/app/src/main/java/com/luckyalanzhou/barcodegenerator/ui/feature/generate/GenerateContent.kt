@@ -98,6 +98,7 @@ internal fun GenerateContent(
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
     var formatButtonHeight by remember { mutableIntStateOf(0) }
+    val formatInteractions = remember { MutableInteractionSource() }
     val themeColors = LocalAppColorScheme.current
     val textColor = themeColors.text.primary
     val secondary = themeColors.text.secondary
@@ -256,7 +257,8 @@ internal fun GenerateContent(
                 Box {
                     Button(
                         onClick = { formatExpanded = true },
-                        modifier = Modifier.onGloballyPositioned {
+                        interactionSource = formatInteractions,
+                        modifier = Modifier.iosPressFeedback(formatInteractions).onGloballyPositioned {
                             formatButtonWidth = it.size.width
                             formatButtonHeight = it.size.height
                         }

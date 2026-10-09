@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
@@ -186,12 +187,15 @@ private fun GenerateInputAction(
     onClick: () -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
+    val interactions = remember { MutableInteractionSource() }
     val tint = if (enabled) {
         if (description == "删除") themeColors.content.deleteIcon else themeColors.controls.accent
     } else themeColors.text.disabled.copy(alpha = 0.42f)
     Surface(
-        modifier = Modifier.size(34.dp).globalButtonChrome(RoundedCornerShape(10.dp)).clip(RoundedCornerShape(10.dp)).combinedClickable(
+        modifier = Modifier.size(34.dp).iosPressFeedback(interactions).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,
+            interactionSource = interactions,
+            indication = null,
             onClick = onClick,
             onLongClick = onLongClick,
         ).semantics { role = Role.Button },
