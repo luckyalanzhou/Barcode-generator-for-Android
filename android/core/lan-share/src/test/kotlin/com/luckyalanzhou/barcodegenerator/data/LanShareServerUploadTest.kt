@@ -21,6 +21,48 @@ class LanShareServerUploadTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun insufficientStorageRejectsBeforeCreatingPartialFile() {
+        val folder = temporaryFolder.newFolder()
+        val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> }, availableUploadBytes = { 0L })
+        try {
+            server.start(5_000, false)
+            val response = upload(server.listeningPort, byteArrayOf(1, 2, 3), "small.bin", "app", false)
+            assertEquals(503, response.first)
+            assertTrue(response.second.contains("存储空间不足"))
+            assertTrue(folder.listFiles().orEmpty().isEmpty())
+        } finally { server.stop() }
+    }
+
+    @Test
+    fun busyUploadIsRejectedAndDisconnectReleasesSlotForRetry() {
+        val folder = temporaryFolder.newFolder()
+        val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> }, maxConcurrentUploads = 1)
+        var pending: Socket? = null
+        try {
+            server.start(5_000, false)
+            pending = Socket("127.0.0.1", server.listeningPort)
+            pending.getOutputStream().apply {
+                write("PUT /upload?name=slow.bin&client=app HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1048576\r\nConnection: close\r\n\r\n".toByteArray(StandardCharsets.US_ASCII))
+                write(ByteArray(32 * 1024))
+                flush()
+            }
+            val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
+            while (folder.listFiles().orEmpty().none { it.name.endsWith(".part") } && System.nanoTime() < deadline) Thread.sleep(10)
+            assertTrue(folder.listFiles().orEmpty().any { it.name.endsWith(".part") })
+            assertEquals(503, upload(server.listeningPort, byteArrayOf(1, 2), "busy.bin", "app", false).first)
+            pending.close()
+            val retryDeadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
+            var retry = 503
+            while (retry == 503 && System.nanoTime() < retryDeadline) {
+                Thread.sleep(10)
+                retry = upload(server.listeningPort, byteArrayOf(1, 2), "retry.bin", "app", false).first
+            }
+            assertEquals(200, retry)
+            assertTrue(folder.listFiles().orEmpty().none { it.name.endsWith(".part") })
+        } finally { pending?.close(); server.stop() }
+    }
+
+    @Test
     fun fixedLengthUploadWritesOriginalBytesToSingleCommittedFile() {
         val folder = temporaryFolder.newFolder()
         val payload = ByteArray(768 * 1024 + 37) { index -> (index * 31).toByte() }

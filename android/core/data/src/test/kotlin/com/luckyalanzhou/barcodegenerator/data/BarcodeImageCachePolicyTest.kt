@@ -36,6 +36,32 @@ class BarcodeImageCachePolicyTest {
     }
 
     @Test
+    fun pruneDoesNotDeleteAnotherActiveWritersTemporaryImage() {
+        val current = image("current.png", 1, modified = 2L)
+        val active = File(directory, ".active.tmp").apply { writeText("still writing") }
+        val stale = File(directory, ".stale.tmp").apply { writeText("abandoned") }
+        BarcodeImageCachePolicy.prune(directory, current, activeTemporaryNames = setOf(active.name))
+        assertTrue(active.exists())
+        assertFalse(stale.exists())
+    }
+
+    @Test
+    fun maintenanceAvoidsRepeatedScansButKeepsBudgetBounded() {
+        val maintenance = BarcodeCacheMaintenance(maxBytes = 8, maxFiles = 2)
+        val first = image("first.png", 3, modified = 1L)
+        maintenance.onStored(directory, first, emptySet())
+        val second = image("second.png", 3, modified = 2L)
+        maintenance.onStored(directory, second, emptySet())
+        assertTrue(maintenance.directoryScans == 1)
+        val third = image("third.png", 3, modified = 3L)
+        maintenance.onStored(directory, third, emptySet())
+        assertTrue(maintenance.directoryScans == 2)
+        assertFalse(first.exists())
+        assertTrue(second.exists())
+        assertTrue(third.exists())
+    }
+
+    @Test
     fun pruneKeepsRecentlyUsedImageAndRemovesStaleTemporaryFiles() {
         val previous = image("previous.png", 1, modified = 1L)
         val current = image("current.png", 1, modified = 2L)

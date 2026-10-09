@@ -17,6 +17,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(manifest = org.robolectric.annotation.Config.NONE, sdk = [35])
 class LanShareServerOpenAccessTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
 
@@ -262,6 +264,45 @@ class LanShareServerOpenAccessTest {
         val statusLine = socket.getInputStream().bufferedReader().readLine()
         assertTrue("WebSocket upgrade failed: $statusLine", statusLine.contains(" 101 "))
         return socket
+    }
+
+    @Test
+    fun syncSnapshotIsDeliveredThroughPeerWriteQueue() {
+        val diagnostics = CopyOnWriteArrayList<String>()
+        val server = LanShareServer("127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, message, error -> diagnostics.add("$message $error") })
+        try {
+            server.start(5_000, false)
+            Socket("127.0.0.1", server.listeningPort).use { socket ->
+                socket.soTimeout = 5_000
+                val output = socket.getOutputStream()
+                output.write(("GET /ws HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\n" +
+                    "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+                    "Sec-WebSocket-Version: 13\r\n\r\n").toByteArray(Charsets.US_ASCII))
+                output.flush()
+                val input = DataInputStream(socket.getInputStream())
+                val header = StringBuilder()
+                while (!header.endsWith("\r\n\r\n")) {
+                    header.append(input.readUnsignedByte().toChar())
+                    assertTrue(header.length < 8_192)
+                }
+                assertTrue(header.contains(" 101 "))
+                val mask = byteArrayOf(1, 2, 3, 4)
+                output.write(0x81)
+                output.write(0x84)
+                output.write(mask)
+                "sync".toByteArray().forEachIndexed { index, byte -> output.write(byte.toInt() xor mask[index].toInt()) }
+                output.flush()
+                val first = try { input.readUnsignedByte() } catch (error: java.io.IOException) {
+                    throw AssertionError("Snapshot delivery failed: $diagnostics", error)
+                }
+                assertEquals(0x81, first)
+                val size = input.readUnsignedByte()
+                assertTrue(size < 126)
+                val payload = ByteArray(size)
+                input.readFully(payload)
+                assertTrue(payload.toString(Charsets.UTF_8).contains("\"type\":\"snapshot\""))
+            }
+        } finally { server.stop() }
     }
 
     private fun awaitCondition(timeoutMs: Long, condition: () -> Boolean): Boolean {
