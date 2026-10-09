@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -78,11 +77,7 @@ internal fun GlassRoundActionButton(
             Canvas(Modifier.matchParentSize()) {
                 // 固定主题底色与倒角高光，不读取背景、不创建 RuntimeShader。
                 drawCircle(glassColor.copy(alpha = if (effects.opaqueGlass) 1f else .88f))
-                drawGlassControlBevel(
-                    Offset.Zero,
-                    size,
-                    size.minDimension * .5f,
-                    material,
+                drawResultActionRim(
                     colors.surfaces.background,
                     contentTint,
                     density,

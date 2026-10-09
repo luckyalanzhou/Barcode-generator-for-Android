@@ -31,11 +31,20 @@ class ButtonRenderingContractTest {
     }
     @Test fun `round action appearance stays separate from functionality and GPU samplers`() {
         val button = source("GlassRoundActionButton.kt")
-        assertTrue(button.contains("drawGlassControlBevel("))
-        assertTrue(button.indexOf("content(contentTint)") > button.indexOf("drawGlassControlBevel("))
+        assertTrue(button.contains("drawResultActionRim("))
+        assertTrue(button.indexOf("content(contentTint)") > button.indexOf("drawResultActionRim("))
         assertTrue(button.contains("onClick = onClick"))
         assertFalse(button.contains("RuntimeShader("))
         assertFalse(source("GlassBackdropShader.kt").contains("roundAction"))
+    }
+    @Test fun `static result rims keep a complete outline separate from reflection`() {
+        val rim = source("ResultActionRim.kt")
+        assertTrue(rim.contains("palette.outline, radius, style = Stroke(stroke)"))
+        assertTrue(rim.contains("0f to palette.top"))
+        assertTrue(rim.contains(".5f to palette.side"))
+        assertTrue(rim.contains("1f to palette.bottom"))
+        assertFalse(rim.contains("Color.Transparent"))
+        assertFalse(rim.contains("RuntimeShader"))
     }
     @Test fun `settings distinguish current values from executable actions`() {
         val settings = source("SettingsContent.kt")
