@@ -48,6 +48,6 @@ class MenuChoiceLayoutTest {
         // 字体回退的真实字形可能高于声明行高；测量真实文字行框，而非假定字形为 20dp。
         val textHeight = compose.onNodeWithText("未选中", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot.height
-        assertEquals(textHeight + 12f * density, unchecked, 2f)
+        assertEquals(textHeight + 16f * density, unchecked, 2f)
     }
 }

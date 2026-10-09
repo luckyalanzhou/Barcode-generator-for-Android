@@ -125,7 +125,7 @@ internal fun TabLongPressActionOverlay(
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
     // 普通选项自然测量；标题跟随最高选项取 2/3，兼容大字体与换行。
-    val estimatedRowHeightPx = with(density) { maxOf(20.sp.toPx(), ActionMenuMetrics.iconSize.toPx()) + 12.dp.toPx() }
+    val estimatedRowHeightPx = with(density) { maxOf(20.sp.toPx(), ActionMenuMetrics.iconSize.toPx()) + 16.dp.toPx() }
     var measuredRowHeightPx by remember(state, density) { mutableStateOf(estimatedRowHeightPx) }
     val headingHeight = with(density) { (measuredRowHeightPx * (2f / 3f)).toDp() }
     val panelCorner = ActionMenuMetrics.corner
@@ -431,7 +431,7 @@ internal fun TabLongPressActionOverlay(
                                     selection.confirmed = index
                                     onAction(action.onClick)
                                 }
-                                .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 6.dp),
+                                .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             // 删除等破坏性操作的文字和图标在浅色、深色主题中都固定使用红色。
@@ -440,7 +440,7 @@ internal fun TabLongPressActionOverlay(
                                 text = action.label,
                                 modifier = Modifier.weight(1f),
                                 color = actionColor,
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 lineHeight = 20.sp,
                                 style = MenuLineStyle,
                             )

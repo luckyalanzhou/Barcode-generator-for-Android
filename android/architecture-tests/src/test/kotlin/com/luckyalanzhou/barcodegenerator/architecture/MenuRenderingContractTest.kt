@@ -61,15 +61,15 @@ class MenuRenderingContractTest {
     @Test fun `value menu rows keep compact height without material minimum height`() {
         val item = source("MenuChoiceItem.kt")
         assertFalse(item.contains("DropdownMenuItem("))
-        assertTrue(item.contains("fontSize = 18.sp, lineHeight = 20.sp"))
-        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 6.dp)"))
+        assertTrue(item.contains("fontSize = 16.sp, lineHeight = 20.sp"))
+        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 8.dp)"))
         assertTrue(item.contains("verticalAlignment = Alignment.CenterVertically"))
         assertTrue(item.contains(".clickable("))
     }
 
     @Test fun `choice check precedes label and shares its text color`() {
         val item = source("MenuChoiceItem.kt")
-        assertTrue(item.indexOf("Box(Modifier.width(18.dp)") < item.indexOf("Text(label,"))
+        assertTrue(item.indexOf("Box(Modifier.width(16.dp)") < item.indexOf("Text(label,"))
         assertTrue(item.contains("Text(\"✓\", color = colors.text.primary"))
         assertTrue(item.contains("Text(label, color = colors.text.primary"))
         assertTrue(item.contains("fontWeight = FontWeight.Normal"))
@@ -78,11 +78,11 @@ class MenuRenderingContractTest {
 
     @Test fun `context rows use natural eighteen sp layout and heading follows measured row`() {
         val host = source("TabLongPressActionDialog.kt")
-        assertTrue(host.contains("fontSize = 18.sp,"))
+        assertTrue(host.contains("fontSize = 16.sp,"))
         assertTrue(host.contains("lineHeight = 20.sp,"))
-        assertTrue(host.contains("vertical = 6.dp"))
+        assertTrue(host.contains("vertical = 8.dp"))
         assertFalse(host.contains("heightIn(min = ActionMenuMetrics.rowHeight)"))
         assertTrue(host.contains("measuredRowHeightPx * (2f / 3f)"))
-        assertTrue(source("ActionMenuStyle.kt").contains("iconSize = 18.dp"))
+        assertTrue(source("ActionMenuStyle.kt").contains("iconSize = 16.dp"))
     }
 }

@@ -40,7 +40,7 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
     val pressed by interactions.collectIsPressedAsState()
     val hovered by interactions.collectIsHoveredAsState()
     val feedback = colors.controls.accent.copy(alpha = if (LocalVisualEffectsPolicy.current.highContrast) .20f else .10f)
-    // 18sp 正文、20sp 行高，上下各 6dp；不限制最小高度，大字体和换行自然增高。
+    // 16sp 正文、20sp 行高，上下各 8dp；不限制最小高度，大字体和换行自然增高。
     Row(
         modifier = Modifier.fillMaxWidth()
             .hoverable(interactions)
@@ -51,16 +51,16 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
                 role = if (multiple) Role.Checkbox else Role.RadioButton
                 if (multiple) toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
                 else selected = checked
-            }.padding(horizontal = 12.dp, vertical = 6.dp),
+            }.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(18.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        Box(Modifier.width(16.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
             // 勾号放在文字前，略增字重并与正文同色；未选中也保留标记列，避免文字跳动。
-            if (checked) Text("✓", color = colors.text.primary, fontSize = 18.sp,
+            if (checked) Text("✓", color = colors.text.primary, fontSize = 16.sp,
                 lineHeight = 20.sp, fontWeight = FontWeight.Normal, style = MenuLineStyle)
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, color = colors.text.primary, fontSize = 18.sp, lineHeight = 20.sp,
+        Text(label, color = colors.text.primary, fontSize = 16.sp, lineHeight = 20.sp,
             style = MenuLineStyle, maxLines = 2, modifier = Modifier.weight(1f))
     }
 }
