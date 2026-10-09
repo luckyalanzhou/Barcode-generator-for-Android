@@ -12,11 +12,10 @@ internal object AppColorTokens {
         val favoriteActive = Color(0xffd97706)
         val folder = Color(0xff5b8def)
         val childFolder = Color(0xff6883A5)
-        // Cool, near-white surface separates secondary controls from both the
-        // page canvas and white cards without competing with primary blue.
-        val button = Color(0xfff3f6fb)
+        // 普通按钮不添加灰色填充，直接透出所在页面或卡片；边框与文字保留辨识度。
+        val button = Color.Transparent
         val selectedContainer = Color(0xffe8f2ff)
-        val disabledContainer = Color(0xffe7e9ef)
+        val disabledContainer = Color.Transparent
         val border = Color(0xffd9e1ec)
         val buttonBorder = Color(0xffd1d1d6).copy(alpha = .72f)
         val destructive = Color(0xffc2413b)
@@ -45,10 +44,10 @@ internal object AppColorTokens {
         val input = Color(0xff202c3a)
         val accent = Color(0xff0a84ff)
         val favoriteActive = Color(0xffffbb33)
-        // Lifted neutral surface with a restrained cool bias for dark mode.
-        val button = Color(0xff262b33)
+        // 深色模式同样不人为叠加灰色按钮底色，禁用状态由文字和交互表达。
+        val button = Color.Transparent
         val selectedContainer = Color(0xff17334d)
-        val disabledContainer = Color(0xff252529)
+        val disabledContainer = Color.Transparent
         val border = Color.White.copy(alpha = 0.10f)
         val buttonBorder = Color(0xff3a3a3c).copy(alpha = .82f)
         val destructive = Color(0xffffb0b0)

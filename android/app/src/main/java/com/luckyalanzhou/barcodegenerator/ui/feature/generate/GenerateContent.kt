@@ -225,7 +225,7 @@ internal fun GenerateContent(
                 icon = AddIcon,
                 iconDescription = "添加一行",
                 label = "添加一行",
-                containerColor = cardColor,
+                containerColor = themeColors.controls.button,
                 contentColor = textColor,
                 modifier = Modifier.weight(1f),
                 iconSize = 20.dp,
