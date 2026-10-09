@@ -1,7 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import com.luckyalanzhou.barcodegenerator.ui.component.unframedActionPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
@@ -192,7 +192,7 @@ private fun GenerateInputAction(
         if (description == "删除") themeColors.content.deleteIcon else themeColors.controls.accent
     } else themeColors.text.disabled.copy(alpha = 0.42f)
     Surface(
-        modifier = Modifier.size(34.dp).iosPressFeedback(interactions).clip(RoundedCornerShape(10.dp)).combinedClickable(
+        modifier = Modifier.size(34.dp).unframedActionPressFeedback(interactions).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,
             interactionSource = interactions,
             indication = null,

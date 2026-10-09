@@ -97,9 +97,18 @@ class ButtonRenderingContractTest {
         for (name in listOf("ComposeGenerateInputPanel.kt", "ComposeHistoryUi.kt")) {
             val button = source(name)
             assertFalse("$name 不添加按钮框", button.contains("globalButtonChrome"))
-            assertTrue(button.contains(".iosPressFeedback("))
+            assertTrue(button.contains(".unframedActionPressFeedback("))
             assertTrue(button.contains("interactionSource ="))
         }
+    }
+
+    @Test fun `unframed press feedback never owns actions or draws a background`() {
+        val feedback = source("UnframedActionPressFeedback.kt")
+        for (forbidden in listOf("onClick", "onDelete", "onMove", "drawRect", ".background(", "globalButtonChrome")) {
+            assertFalse(feedback.contains(forbidden))
+        }
+        assertTrue(feedback.contains("is PressInteraction.Cancel -> pressed = false"))
+        assertTrue(feedback.contains("reduceMotion"))
     }
 
     @Test fun `ordinary buttons share explicit press feedback without taking over callbacks`() {
