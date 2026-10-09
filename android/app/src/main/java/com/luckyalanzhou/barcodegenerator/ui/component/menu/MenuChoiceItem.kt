@@ -57,13 +57,13 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
             }.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(Modifier.size(20.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+            // 勾号放在文字前，略增字重并与正文同色；未选中也保留标记列，避免文字跳动。
+            if (checked) Text("✓", color = colors.text.primary, fontSize = 17.sp,
+                fontWeight = FontWeight.Normal)
+        }
+        Spacer(Modifier.width(12.dp))
         Text(label, color = colors.text.primary, fontSize = 14.sp, lineHeight = 20.sp,
             maxLines = 2, modifier = Modifier.weight(1f))
-        Spacer(Modifier.width(12.dp))
-        Box(Modifier.size(20.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-            // 勾号减轻字重，不缩小标记列或改变整行触控目标。
-            if (checked) Text("✓", color = colors.controls.accent, fontSize = 17.sp,
-                fontWeight = FontWeight.Light)
-        }
     }
 }

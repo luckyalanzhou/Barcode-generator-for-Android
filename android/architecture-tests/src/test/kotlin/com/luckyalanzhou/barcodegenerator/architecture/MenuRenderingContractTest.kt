@@ -59,4 +59,13 @@ class MenuRenderingContractTest {
         assertTrue(item.contains("verticalAlignment = Alignment.CenterVertically"))
         assertTrue(item.contains(".clickable("))
     }
+
+    @Test fun `choice check precedes label and shares its text color`() {
+        val item = source("MenuChoiceItem.kt")
+        assertTrue(item.indexOf("Box(Modifier.size(20.dp)") < item.indexOf("Text(label,"))
+        assertTrue(item.contains("Text(\"✓\", color = colors.text.primary"))
+        assertTrue(item.contains("Text(label, color = colors.text.primary"))
+        assertTrue(item.contains("fontWeight = FontWeight.Normal"))
+        assertTrue(item.contains("clearAndSetSemantics"))
+    }
 }
