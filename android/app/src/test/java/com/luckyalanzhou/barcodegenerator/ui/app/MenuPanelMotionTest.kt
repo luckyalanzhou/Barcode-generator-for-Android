@@ -31,32 +31,11 @@ class MenuPanelMotionTest {
         assertTrue(TabMenuSourceMotion.returnDamping in .9f..1f)
     }
 
-    @Test fun tabMenusUseTheirOwnLeftOrRightLowerCorner() {
-        assertEquals(androidx.compose.ui.graphics.TransformOrigin(0f, 1f), tabMenuDragOrigin(100f, 400f))
-        assertEquals(androidx.compose.ui.graphics.TransformOrigin(1f, 1f), tabMenuDragOrigin(300f, 400f))
-    }
-
-    @Test fun tabMenuCornerRemainsFixedWhileShrinkingInAllDragDirections() {
-        for (anchorX in listOf(100f, 300f)) {
-            val pivot = tabMenuDragOrigin(anchorX, 400f)
-            val corner = Offset(panel.left + panel.width * pivot.pivotFractionX, panel.bottom)
-            for (motion in listOf(Offset(-1f, 0f), Offset(1f, 0f), Offset(0f, 1f))) {
-                val scale = menuDragScale(motion)
-                val topLeft = corner + (panel.topLeft - corner) * scale
-                val bottomRight = corner + (panel.bottomRight - corner) * scale
-                assertEquals(panel.bottom, bottomRight.y, .0001f)
-                if (anchorX < 200f) {
-                    assertEquals(panel.left, topLeft.x, .0001f)
-                    assertTrue(bottomRight.x < panel.right)
-                } else {
-                    assertEquals(panel.right, bottomRight.x, .0001f)
-                    assertTrue(topLeft.x > panel.left)
-                }
-                assertTrue(topLeft.y > panel.top)
-                assertTrue(scale < 1f)
-            }
-        }
+    @Test fun menuDragFeedbackIsSubtleAndCannotGrowPanel() {
         assertEquals(1f, menuDragScale(Offset.Zero), 0f)
+        for (motion in listOf(Offset(-1f, 0f), Offset(1f, 0f), Offset(0f, 1f))) {
+            assertEquals(.97f, menuDragScale(motion), .0001f)
+        }
     }
 
     @Test fun upwardSelectionKeepsMenuStationaryButSideAndDownDragsStillFollow() {
@@ -97,7 +76,7 @@ class MenuPanelMotionTest {
         assertTrue(long.x < 1f)
         assertEquals(1f, menuDragScale(Offset.Zero), .0001f)
         assertTrue(menuDragScale(long) < menuDragScale(short))
-        assertEquals(.8f, menuDragScale(Offset(1f, 1f)), .0001f)
+        assertEquals(.97f, menuDragScale(Offset(1f, 1f)), .0001f)
     }
 
     @Test fun noTouchAndPanelCenterAreAtRest() {

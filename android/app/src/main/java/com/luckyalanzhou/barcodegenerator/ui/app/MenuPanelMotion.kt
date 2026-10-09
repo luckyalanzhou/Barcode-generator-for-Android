@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.abs
-import androidx.compose.ui.graphics.TransformOrigin
 
 /** Lower drag gain slows the source without queuing animations for every pointer update. */
 internal object TabMenuSourceMotion {
@@ -20,10 +19,6 @@ internal fun tabMenuIconMotion(motion: Offset): Offset {
     return Offset(resist(motion.x), resist(motion.y))
 }
 
-/** Tab menus stay in place and contract toward their own lower corner. */
-internal fun tabMenuDragOrigin(anchorCenterX: Float, screenWidth: Float): TransformOrigin =
-    TransformOrigin(if (anchorCenterX < screenWidth * .5f) 0f else 1f, 1f)
-
 // HIG: a context-menu title is useful only when it explains the target or effect.
 internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =
     title.isNotBlank() && (!tabAnchor || title != "操作")
@@ -36,7 +31,7 @@ internal fun menuGlassReveal(progress: Float, reduceMotion: Boolean): MenuGlassR
     if (reduceMotion) return MenuGlassReveal(1f, p, 1f, 1f)
     // 两类菜单都整体展开；仅允许很小的弹簧超调，不通过裁切隐藏菜单行。
     val elastic = if (progress.isFinite()) progress.coerceIn(0f, 1.08f) else 0f
-    return MenuGlassReveal(.82f + .18f * elastic,
+    return MenuGlassReveal(.94f + .06f * elastic,
         p, p * p * (3f - 2f * p), .35f + .65f * p)
 }
 
@@ -59,7 +54,7 @@ internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): O
 }
 
 internal fun menuDragScale(motion: Offset): Float =
-    1f - .20f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
+    1f - .03f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
 
 /** Sliding toward the menu selects rows, rather than pushing the menu away. */
 internal fun menuSourceInteractionMotion(

@@ -28,12 +28,20 @@ internal class ContextMenuMotion {
     val source: State<Float> = sourceAnimation.asState()
 }
 
-/** 聚焦预览整体放大到 1.15；减少动态效果时不缩放，操作关闭时平滑回到原尺寸。 */
-internal fun contextMenuSourceScale(progress: Float, actionExit: Float, reduceMotion: Boolean): Float {
+/** 按来源尺寸限制聚焦增量：大行不被大幅拉伸，小目标也不超过轻微强调。这是 Android 近似值，不是苹果公开参数。 */
+internal fun contextMenuFocusScale(width: Float, height: Float, edgeGrowth: Float): Float {
+    val dimension = maxOf(width, height)
+    if (!dimension.isFinite() || dimension <= 0f || !edgeGrowth.isFinite()) return 1f
+    return 1f + (2f * edgeGrowth.coerceAtLeast(0f) / dimension).coerceAtMost(.08f)
+}
+
+/** 聚焦由目标几何决定，不再固定放大 1.15 倍；减少动态效果时保持原尺寸。 */
+internal fun contextMenuSourceScale(progress: Float, actionExit: Float, reduceMotion: Boolean, focusScale: Float = 1.04f): Float {
     if (reduceMotion) return 1f
     val focus = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
     val exit = if (actionExit.isFinite()) actionExit.coerceIn(0f, 1f) else 0f
-    return 1f + .15f * focus * (1f - exit)
+    val growth = if (focusScale.isFinite()) (focusScale - 1f).coerceIn(0f, .08f) else 0f
+    return 1f + growth * focus * (1f - exit)
 }
 
 /**
@@ -55,12 +63,12 @@ internal fun rememberContextMenuMotion(
             coroutineScope {
                 launch {
                     motion.sourceAnimation.animateTo(1f, if (reduceMotion) tween(90)
-                        else spring(dampingRatio = .86f, stiffness = 380f))
+                        else spring(dampingRatio = 1f, stiffness = 420f))
                 }
                 launch {
                     // 来源、背景与菜单同步起步，避免先浮起、再凭空弹出另一块面板。
                     motion.panelAnimation.animateTo(1f, if (reduceMotion) tween(90)
-                        else spring(dampingRatio = .80f, stiffness = 420f))
+                        else spring(dampingRatio = .94f, stiffness = 420f))
                 }
                 launch {
                     if (!reduceMotion) delay(35)

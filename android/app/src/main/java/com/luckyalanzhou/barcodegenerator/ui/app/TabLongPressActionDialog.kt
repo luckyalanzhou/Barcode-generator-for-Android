@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
+import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
 
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressAction
@@ -205,7 +206,7 @@ internal fun TabLongPressActionOverlay(
                 with(density) { maxHeight.toPx() }, statusBarTopPx, bottomInsetPx,
                 gapPx, focusLiftPx, desiredHeightPx, state.tabAnchor)
             val placement = if (state.tabAnchor) tabMenuPlacement(rowMenuAnchor, overlayOriginOnScreen, panelSize,
-                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above, alignTabEdge = true)
+                screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             else rowMenuPlacement(rowMenuAnchor.copy(left = menuAnchorBoundsOnScreen.left), overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
@@ -220,10 +221,13 @@ internal fun TabLongPressActionOverlay(
             }
             LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
             if (popupReady) {
-                // 整行预览为 1.15 倍放大预留空间，避免放大后在屏幕两侧被裁掉。
+                // 预览只轻微聚焦，尺寸随实际目标适配；不再套用统一的大幅放大比例。
+                val focusScale = if (effects.reduceMotion) 1f else contextMenuFocusScale(
+                    if (state.tabAnchor) with(density) { 64.dp.toPx() } else anchorBoundsOnScreen.width,
+                    anchorBoundsOnScreen.height, with(density) { 2.dp.toPx() })
                 val focusWidth = if (state.tabAnchor) 64.dp else with(density) {
                     minOf(anchorBoundsOnScreen.width,
-                        (screenWidthPx - edgePaddingPx * 2f) / if (effects.reduceMotion) 1f else 1.15f).toDp()
+                        (screenWidthPx - edgePaddingPx * 2f) / focusScale).toDp()
                 }
                 val focusHeight = if (state.tabAnchor) 54.dp else with(density) { anchorBoundsOnScreen.height.toDp() }
                 val focusWidthPx = with(density) { focusWidth.toPx() }
@@ -243,7 +247,7 @@ internal fun TabLongPressActionOverlay(
                             alpha = if (actionClosing) 1f - exit else if (effects.reduceMotion)
                                 opacity.value else if (interactive) 1f else (progress.value / .15f).coerceIn(0f, 1f)
                             val pop = contextMenuSourceScale(sourceProgress.value,
-                                if (actionClosing) exit else 0f, effects.reduceMotion)
+                                if (actionClosing) exit else 0f, effects.reduceMotion, focusScale)
                             scaleX = pop
                             scaleY = pop
                             val rawMotion = displayedMotion()
@@ -351,11 +355,9 @@ internal fun TabLongPressActionOverlay(
                                 // 拖动来源只改变面板尺寸，不改变菜单锚定位置。
                                 translationX = 0f
                                 translationY = 0f
-                                transformOrigin = tabMenuDragOrigin(
-                                    anchorBoundsOnScreen.center.x - overlayOriginOnScreen.x, screenWidthPx)
-                            } else {
-                                transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
                             }
+                            // 从真实来源位置生长，不再硬编码左右两侧菜单的角点。
+                            transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
                             val source = if (actionClosing || effects.reduceMotion) 1f else sourceProgress.value.coerceIn(0f, 1.06f)
                             translationY += -focusLiftPx * source - sourceShiftPx * (1f - source)
                             if (!effects.reduceMotion && !actionClosing) {
