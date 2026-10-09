@@ -77,7 +77,7 @@ def main():
     for x in range(0, w, 8):
         page.getCanvas().drawLine(x, 0, x, h, paint)
 
-    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False):
+    def render(opacity, blur, refract, dark, page_color=None, contact=0, capsule=False, surface_color=None, menu=False, round_button=False, density=1.0):
         builder = skia.RuntimeShaderBuilder(effect)
         input_page = page
         if page_color is not None:
@@ -91,7 +91,7 @@ def main():
         builder.setUniform("capsuleMode", 1.0 if capsule else 0.0)
         builder.setUniform("menuMaterial", 1.0 if menu else 0.0)
         builder.setUniform("roundAction", 1.0 if round_button else 0.0)
-        builder.setUniform("pixelDensity", 1.0)
+        builder.setUniform("pixelDensity", density)
         builder.setUniform("capsuleOptics", skia.V2(0, 0))
         builder.setUniform("surfaceColor", skia.V4(*(surface_color if surface_color is not None else ((.08, .09, .12, 1) if dark else (.97, .98, 1, 1)))))
         output = skia.Surface(w, h)
@@ -127,6 +127,22 @@ def main():
         solid_dim = render(1, 2.5, 0, dark, 0xFF000000, surface_color=(*base, 1), round_button=True)
         assert np.array_equal(solid_bright, solid_dim), "Opaque round material leaks background"
     print("PASS: round material compiles; clear center, static rim, bounded press, adaptive diffusion and opaque isolation")
+
+    # 按钮的高光与切面须在高密度下仍分开，避免只测 1x 的单点颜色。
+    # 此处使用固定较大圆观察边缘剖面；几何和抗锯齿仍由同一个实际 shader 计算。
+    for density in (1.0, 2.0, 3.0, 4.0):
+        for dark, background, opacity in ((False, 0xFFF2F3F8, .18), (True, 0xFF17191D, .22)):
+            base = tuple((background >> shift & 255) / 255 for shift in (16, 8, 0))
+            pixels = render(opacity, 2.5 * density, .55 * density, dark, background,
+                            surface_color=(*base, 1), round_button=True, density=density)
+            profile = pixels[26:45, 160, :3].astype(float).mean(axis=1)
+            baseline = np.mean(base) * 255
+            # 像素中心在边缘内 1.5px 起；按两个带的中点分区，避免向下取整错取高光。
+            split = max(1, int(density * 1.15 + .4 - 1.5) + 1)
+            bevel_end = min(len(profile), int(density * 2.2 + .4 - 1.5) + 2)
+            assert np.max(profile[split:bevel_end]) > np.min(profile[:split]) + 2, f"Optical layers are not separated: density={density}, dark={dark}, profile={profile}"
+            assert abs(profile[-1] - baseline) <= 1, "Optical band tints the clear interior"
+    print("PASS: light/dark edge profiles keep separate cut and reflection at 1x/2x/3x/4x density; clear interior unchanged")
 
     for dark in (False, True):
         rest = render(.45, 0, 0, dark)

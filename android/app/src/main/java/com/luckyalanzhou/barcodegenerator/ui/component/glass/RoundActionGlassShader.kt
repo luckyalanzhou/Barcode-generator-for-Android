@@ -43,22 +43,21 @@ half4 roundActionMaterial(float2 p, float2 normal, float depth, float mask) {
         (contact.xy - bounds.xy) / max(radius, 1.0) * motion * 0.20);
     float facing = max(dot(normal, lightDirection), 0.0);
     float opposite = max(-dot(normal, lightDirection), 0.0);
-    // 物理像素细边与内倒角分离；不叠加额外 Canvas 外圈。
-    float edge = exp(-depth / 0.75);
-    float bevel = exp(-pow((depth - density * 0.75) / max(density * 0.65, 0.8), 2.0));
-    float shade = edge * mix(0.06, 0.11, lightSurface) * (1.0 - facing * 0.65) +
-        bevel * opposite * mix(0.06, 0.075, lightSurface);
+    // 外缘、暗切面、内倒角使用不同深度；高密度下也保留真实间距。
+    // 外缘仍限制为细像素带，只有内部光学过渡按 dp 缩放，不叠加 Canvas 外圈。
+    float edge = exp(-depth / clamp(density * 0.45, 0.8, 1.4));
+    float cut = exp(-pow((depth - (density * 0.65 + 0.4)) / max(density * 0.42, 0.65), 2.0));
+    float bevel = exp(-pow((depth - (density * 1.65 + 0.4)) / max(density * 0.55, 0.8), 2.0));
+    float shade = cut * mix(0.035, 0.10, lightSurface) +
+        bevel * opposite * mix(0.035, 0.045, lightSurface);
     color *= half(1.0 - shade * (1.0 - shape.w));
-    float reflection = edge * pow(facing, 3.0) * mix(0.42, 0.78, lightSurface) +
-        bevel * facing * mix(0.075, 0.14, lightSurface) + edge * opposite * 0.035;
+    // 顶部镜面亮线与更靠内的柔和反射连接，侧边保留弱反射，不全周画白圈。
+    float reflection = edge * (pow(facing, 3.0) * mix(0.38, 0.70, lightSurface) +
+        (1.0 - facing) * mix(0.07, 0.025, lightSurface)) +
+        bevel * (pow(facing, 2.0) * mix(0.18, 0.38, lightSurface) +
+        (1.0 - facing) * mix(0.035, 0.04, lightSurface));
     reflection *= (1.0 + motion * 0.12) * (1.0 - shape.w);
     color = mix(color, half3(1.0), half(clamp(reflection, 0.0, 0.75)));
-    // 高光在浅色背景上会抵消暗边：在高光内侧保留连续的细切面。
-    // 宽度使用物理像素，不随屏幕密度变成厚圈；中心和外部阴影不参与。
-    float cut = exp(-pow((depth - 1.45) / 0.65, 2.0)) * (1.0 - shape.w);
-    color *= half(1.0 - cut * mix(0.025, 0.065, lightSurface));
-    // 暗背景用少量反射维持同一条切面，不把整块按钮提亮成灰片。
-    color = mix(color, half3(1.0), half(cut * (1.0 - lightSurface) * 0.055));
     return half4(clamp(color, half3(0.0), half3(1.0)) * half(mask), half(mask));
 }
 """
