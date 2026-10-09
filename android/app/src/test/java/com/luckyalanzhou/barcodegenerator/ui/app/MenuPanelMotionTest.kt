@@ -6,6 +6,35 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MenuPanelMotionTest {
+    @Test fun tabDragIsVisibleBoundedAndRestoresAtZero() {
+        val size = androidx.compose.ui.unit.IntSize(200, 160)
+        val rest = tabMenuDragTransform(Offset.Zero, 1f, .25f, 1f, size, false)
+        assertEquals(1f, rest.scale, 0f)
+        assertEquals(Offset.Zero, rest.translation)
+        for (motion in listOf(Offset(-.5f, 0f), Offset(.5f, 0f), Offset(0f, .5f))) {
+            assertEquals(.95f, tabMenuDragTransform(motion, 1f, .25f, 1f, size, false).scale, .0001f)
+        }
+        assertEquals(.90f, tabMenuDragTransform(Offset(100f, 100f), 1f, .25f, 1f, size, false).scale, .0001f)
+        assertEquals(1f, tabMenuDragTransform(Offset(Float.NaN, Float.POSITIVE_INFINITY), 1f, .25f, 1f, size, false).scale, 0f)
+    }
+
+    @Test fun tabDragKeepsItsOwnBottomCornerFixedDuringRevealAndReturn() {
+        val size = androidx.compose.ui.unit.IntSize(200, 160)
+        for (right in listOf(false, true)) {
+            val pivot = if (right) .75f else .25f
+            val corner = if (right) 200f else 0f
+            for (presentation in listOf(.94f, 1f, 1.004f)) {
+                for (amount in listOf(0f, .2f, .5f, 1f)) {
+                    val drag = tabMenuDragTransform(Offset(amount, 0f), presentation, pivot, 1f, size, right)
+                    val composite = pivot * 200f + (corner - pivot * 200f) * presentation * drag.scale + drag.translation.x
+                    val revealOnly = pivot * 200f + (corner - pivot * 200f) * presentation
+                    assertEquals(revealOnly, composite, .0001f)
+                    assertEquals(0f, drag.translation.y, 0f)
+                }
+            }
+        }
+    }
+
     @Test fun genericTabTitleIsOmittedButEditingTitlesRemain() {
         assertFalse(menuShowsTitle(true, "操作"))
         assertFalse(menuShowsTitle(true, ""))

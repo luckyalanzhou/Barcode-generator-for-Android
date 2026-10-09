@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.abs
 
 /** Lower drag gain slows the source without queuing animations for every pointer update. */
@@ -55,6 +56,24 @@ internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): O
 
 internal fun menuDragScale(motion: Offset): Float =
     1f - .03f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
+
+internal data class TabMenuDragTransform(val scale: Float, val translation: Offset)
+
+/** 弹出围绕来源锚点，拖动围绕菜单自身下角；合成为一次图层变换，避免修改 pivot 时跳动。 */
+internal fun tabMenuDragTransform(
+    motion: Offset, presentationScale: Float, pivotX: Float, pivotY: Float,
+    panel: IntSize, rightSide: Boolean,
+): TabMenuDragTransform {
+    fun finiteMagnitude(value: Float) = if (value.isFinite()) abs(value).coerceIn(0f, 1f) else 0f
+    // 64dp 拖动约缩小 5%，极限 10%；图标仍保持原来的小范围阻尼位移。
+    val scale = 1f - .10f * maxOf(finiteMagnitude(motion.x), finiteMagnitude(motion.y))
+    if (scale == 1f) return TabMenuDragTransform(1f, Offset.Zero)
+    val compensation = presentationScale * (1f - scale)
+    return TabMenuDragTransform(scale, Offset(
+        compensation * ((if (rightSide) 1f else 0f) - pivotX) * panel.width,
+        compensation * (1f - pivotY) * panel.height,
+    ))
+}
 
 /** Sliding toward the menu selects rows, rather than pushing the menu away. */
 internal fun menuSourceInteractionMotion(

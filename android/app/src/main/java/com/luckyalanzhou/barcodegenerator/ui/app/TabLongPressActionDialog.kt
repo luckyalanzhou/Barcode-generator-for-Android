@@ -339,9 +339,14 @@ internal fun TabLongPressActionOverlay(
                             ambientShadowColor = Color.Black.copy(alpha = if (dark) .25f else .12f)
                             spotShadowColor = Color.Black.copy(alpha = if (dark) .32f else .18f)
                             val motion = displayedMotion()
-                            val dragScale = menuDragScale(motion)
                             val presentationScale = if (effects.reduceMotion) 1f else if (actionClosing) 1f - .03f * actionExit.value
                                 else reveal.scale
+                            val pivotY = if (menuSpace.above) 1f else 0f
+                            val tabDrag = if (state.tabAnchor) tabMenuDragTransform(
+                                motion, presentationScale, placement.pivotX, pivotY, panelSize,
+                                rightSide = placement.anchorCenterX >= screenWidthPx / 2f,
+                            ) else null
+                            val dragScale = tabDrag?.scale ?: menuDragScale(motion)
                             scaleX = dragScale * presentationScale
                             scaleY = dragScale * presentationScale
                             // 用稳定且未缩放的边界限制触点范围，避免限制结果随动画变化。
@@ -357,8 +362,12 @@ internal fun TabLongPressActionOverlay(
                                 translationX = 0f
                                 translationY = 0f
                             }
-                            // 从真实来源位置生长，不再硬编码左右两侧菜单的角点。
-                            transformOrigin = TransformOrigin(placement.pivotX, if (menuSpace.above) 1f else 0f)
+                            // 弹出锚点不变；补偿平移只用于合成拖动缩放，不是让菜单追随图标。
+                            transformOrigin = TransformOrigin(placement.pivotX, pivotY)
+                            if (tabDrag != null) {
+                                translationX += tabDrag.translation.x
+                                translationY += tabDrag.translation.y
+                            }
                             val source = if (actionClosing || effects.reduceMotion) 1f else sourceProgress.value.coerceIn(0f, 1.06f)
                             translationY += -focusLiftPx * source - sourceShiftPx * (1f - source)
                             if (!effects.reduceMotion && !actionClosing) {

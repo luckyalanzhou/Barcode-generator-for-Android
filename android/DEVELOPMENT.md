@@ -125,6 +125,8 @@ Actions 运行产物会按工作流设置到期清理；Release 附件是单独�
 
 本地 `MenuRenderingContractTest` 检查材质边界与整体动画结构；`MenuBackdropCoordinatesTest` 检查采样坐标；`MenuMaterialSpecTest` 检查主题和高对比度参数。`tools/validate_glass_backdrop.py` 用固定本地 Python/Skia 验证实际 shader，属于合成像素测试，不能证明 Compose 跨窗口重放在目标手机上的表现。苹果未公开统一的缩放比例和时长，最终观感、首帧与收起过程须以真机录屏验收。
 
+Tab 长按拖动与弹出使用独立缩放中心：弹出沿来源锚点展开，拖动时左侧两个菜单向自身左下角、右侧两个向自身右下角收缩。左右或向下拖动有阻尼反馈，向上进入菜单仍用于选项选择；松手未选中操作时回弹并保持菜单打开。减少动态效果时禁用拖动缩放。
+
 ## 缓存与构建时间
 
 GitHub Actions 用 `gradle/actions/setup-gradle@v6` 缓存 Gradle 依赖和可复用任务输出。缓存不代表所有任务都会跳过：输入变化或不可缓存的任务仍需重新运行。本机缓存和 `build` 输出不会传到远程 runner。
