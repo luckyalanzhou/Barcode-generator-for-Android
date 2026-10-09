@@ -74,11 +74,23 @@ class ButtonRenderingContractTest {
     @Test fun `ordinary button chrome cannot own fill shadow or GPU layer`() {
         val chrome = source("ButtonOutlineChrome.kt")
         for (forbidden in listOf(".shadow(", "shadowElevation", "graphicsLayer", "RenderEffect",
-            ".background(", "drawRect(", "drawRoundRect(", "elevation:")) {
+            ".background(", "drawRect(", "drawRoundRect(", "elevation:", "Brush.", "Color.Transparent")) {
             assertFalse("外框不能包含 $forbidden", chrome.contains(forbidden))
         }
         assertTrue(chrome.contains("drawOutline"))
         assertTrue(chrome.contains("style = stroke"))
+        assertTrue(chrome.contains("translate(inset, inset)"))
+    }
+
+    @Test fun `ordinary action entry points share the same static outline`() {
+        for (name in listOf("ComposeGenerateActionButton.kt", "ComposeSettingsComponents.kt",
+            "ComposeCommonDialogs.kt", "EditorChoiceField.kt", "ComposeFavoriteSaveDialog.kt",
+            "FavoritesContent.kt", "ComposeHistoryUi.kt", "LanShareInputBar.kt",
+            "LanShareContent.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
+            "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt", "ComposeGenerateInputPanel.kt",
+            "LanShareImagePreviewDialog.kt")) {
+            assertTrue("$name 必须使用统一静态按钮框", source(name).contains(".globalButtonChrome("))
+        }
     }
 
     @Test fun `transparent button labels explicitly clear inherited backgrounds`() {

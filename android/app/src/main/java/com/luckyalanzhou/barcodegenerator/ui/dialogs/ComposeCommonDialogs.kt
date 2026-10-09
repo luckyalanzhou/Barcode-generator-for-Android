@@ -109,13 +109,12 @@ internal fun DialogAction(
         destructive -> colors.text.destructive
         else -> colors.text.primary
     }
-    val border = if (primary) foreground.copy(alpha = 0.62f) else colors.borders.button
     val background = if (primary) colors.controls.accent else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .iosPressFeedback(interactionSource)
-            .globalButtonChrome(RoundedCornerShape(12.dp), borderColor = border)
+            .globalButtonChrome(RoundedCornerShape(12.dp))
             .background(background, RoundedCornerShape(12.dp))
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),

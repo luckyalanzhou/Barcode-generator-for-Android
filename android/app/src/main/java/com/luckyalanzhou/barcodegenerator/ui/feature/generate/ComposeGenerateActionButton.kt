@@ -37,7 +37,6 @@ internal fun ComposeGenerateActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    borderColor: Color? = null,
     iconSize: Dp = 22.dp,
     contentSpacing: Dp = 6.dp,
 ) {
@@ -46,7 +45,7 @@ internal fun ComposeGenerateActionButton(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape, borderColor).semantics { role = Role.Button },
+        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape).semantics { role = Role.Button },
         shape = shape,
         color = containerColor,
         contentColor = contentColor,

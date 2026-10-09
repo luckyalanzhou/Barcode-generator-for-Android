@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -76,7 +77,7 @@ internal fun BoxScope.LanShareInputBar(
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             // 选择附件后先关闭菜单，再启动对应的系统入口，避免菜单遮挡系统选择界面。
             Box {
-                IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp)) {
+                IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp).globalButtonChrome(RoundedCornerShape(10.dp))) {
                     Icon(AddIcon, "添加附件", tint = accent, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
@@ -108,7 +109,7 @@ internal fun BoxScope.LanShareInputBar(
             )
             Spacer(Modifier.width(8.dp))
             // 空文字且没有待上传文件时禁用发送，避免产生无内容的消息。
-            Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(48.dp), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = themeColors.content.sentContent,
+            Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(64.dp).height(48.dp).globalButtonChrome(RoundedCornerShape(22.dp)), contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = themeColors.content.sentContent,
                 disabledContainerColor = themeColors.controls.disabledContainer, disabledContentColor = themeColors.text.disabled)) {
                 Text("发送", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }

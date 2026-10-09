@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -168,7 +169,7 @@ private fun HistoryBatchCard(
             Text(time, color = colors.text.placeholder, fontSize = 12.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
                 modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
-            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp).globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
                 Icon(DeleteIcon, "删除这条历史记录", tint = colors.content.deleteIcon, modifier = Modifier.size(20.dp))
             }
         }

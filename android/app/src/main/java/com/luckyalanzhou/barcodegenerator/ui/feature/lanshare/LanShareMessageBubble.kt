@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
@@ -119,7 +120,7 @@ internal fun LanShareMessageBubble(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSaveFile(file) }, interactionSource = downloadInteraction,
-                        modifier = Modifier.iosPressFeedback(downloadInteraction).height(36.dp),
+                        modifier = Modifier.iosPressFeedback(downloadInteraction).height(36.dp).globalButtonChrome(RoundedCornerShape(12.dp)),
                         contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (mine) themeColors.content.sentContent.copy(alpha = .18f) else themeColors.controls.button,

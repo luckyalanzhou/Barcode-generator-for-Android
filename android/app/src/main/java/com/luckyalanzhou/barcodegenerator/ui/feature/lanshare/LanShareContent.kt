@@ -262,7 +262,7 @@ private fun LanShareHeader(primary: Color, accent: Color, onQrClick: () -> Unit)
         Spacer(Modifier.width(48.dp))
         Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // 二维码入口保留独立的触控区域，标题区域不承担点击行为。
-        IconButton(onClick = onQrClick, interactionSource = interactionSource, modifier = Modifier.iosPressFeedback(interactionSource).size(48.dp)) {
+        IconButton(onClick = onQrClick, interactionSource = interactionSource, modifier = Modifier.iosPressFeedback(interactionSource).size(48.dp).globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
             Icon(
                 imageVector = QrCode2Icon,
                 contentDescription = "显示二维码",

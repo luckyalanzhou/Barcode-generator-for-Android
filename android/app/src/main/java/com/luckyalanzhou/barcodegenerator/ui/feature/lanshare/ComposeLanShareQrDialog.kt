@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -85,7 +86,7 @@ internal fun ComposeLanShareQrDialog(
                         fontSize = 13.sp,
                     )
                 }
-                TextButton(onClick = closeSheet) {
+                TextButton(onClick = closeSheet, modifier = Modifier.globalButtonChrome()) {
                     Text("关闭", color = secondary)
                 }
             }
