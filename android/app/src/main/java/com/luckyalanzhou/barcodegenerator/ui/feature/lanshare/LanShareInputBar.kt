@@ -39,7 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.height
 
 /**
  * 固定在分享页底部的输入栏：加号打开拍照/图库/文件选择，发送按钮提交文字或待传文件。

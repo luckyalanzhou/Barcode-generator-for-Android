@@ -32,4 +32,20 @@ class LibraryDataSessionTest {
         session.publishLoadedSnapshot(null, hasMoreGroups = false)
         assertEquals(LibraryLoadMetadata(2L, null, false), session.loadMetadata.value)
     }
+
+    @Test
+    fun republishingPreservesReadinessAndDoesNotMutatePriorSnapshot() {
+        val session = LibraryDataSession()
+        session.store.edit { folders += "一级" }
+        session.publishDataState(isReady = true)
+        val previous = session.dataState.value
+        session.store.edit { folders += "一级/二级" }
+        session.publishDataState()
+        assertTrue(session.dataState.value.isReady)
+        assertEquals(listOf("一级"), previous.folders)
+        assertEquals(listOf("一级", "一级/二级"), session.dataState.value.folders)
+        session.publishDataState(isReady = false)
+        assertFalse(session.dataState.value.isReady)
+        assertEquals(listOf("一级", "一级/二级"), session.dataState.value.folders)
+    }
 }
