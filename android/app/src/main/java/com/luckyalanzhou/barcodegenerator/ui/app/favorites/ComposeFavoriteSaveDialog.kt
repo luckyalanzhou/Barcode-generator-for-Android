@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
@@ -20,7 +22,6 @@ import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -193,10 +194,10 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             selectedChild = ""
                         }
                     },
-                    modifier = Modifier.weight(1f).height(40.dp),
+                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp), 0.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+                    border = null,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
                 ) {
                     Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
@@ -211,10 +212,10 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             selectedChild = child
                         }, onCreateFolder = onCreateFolder)
                     },
-                    modifier = Modifier.weight(1f).height(40.dp),
+                    modifier = Modifier.weight(1f).height(40.dp).globalButtonChrome(RoundedCornerShape(8.dp), 0.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+                    border = null,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
                 ) {
                     Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))

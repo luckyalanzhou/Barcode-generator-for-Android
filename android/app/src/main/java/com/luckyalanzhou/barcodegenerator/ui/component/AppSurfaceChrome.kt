@@ -12,6 +12,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 
 /** 全局卡片基座：统一圆角、边缘分离度和极轻阴影，页面保留自己的表面颜色。 */
 @Composable
@@ -43,7 +48,7 @@ internal fun Modifier.groupedContentSurface(
     )
 }
 
-/** 按钮统一的轻量边缘与浮起效果；按钮本身仍负责颜色、语义和点击反馈。 */
+/** 静态玻璃式按钮外框：中性轮廓保证可见性，顶部倒角亮边表达厚度，不增加内部填充。 */
 @Composable
 internal fun Modifier.globalButtonChrome(
     shape: RoundedCornerShape = RoundedCornerShape(LocalAppDimensions.current.buttonCornerRadius),
@@ -51,7 +56,22 @@ internal fun Modifier.globalButtonChrome(
     borderColor: Color? = null,
 ): Modifier {
     val themeColors = LocalAppColorScheme.current
+    val effects = LocalVisualEffectsPolicy.current
+    val dark = themeColors.surfaces.background.luminance() < .5f
+    val outlineColor = if (effects.highContrast) themeColors.text.primary
+        else borderColor ?: themeColors.borders.button
     return this
         .shadow(minOf(elevation, 0.5.dp), shape, clip = false)
-        .border(0.5.dp, borderColor ?: themeColors.borders.button, shape)
+        .drawWithCache {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val stroke = Stroke((if (effects.highContrast) 1.dp else .7.dp).toPx().coerceAtLeast(1f))
+            val bevel = Brush.verticalGradient(listOf(
+                Color.White.copy(alpha = if (dark) .32f else .9f),
+                Color.Transparent, Color.Transparent), endY = size.height)
+            onDrawWithContent {
+                drawContent()
+                drawOutline(outline, outlineColor, style = stroke)
+                if (!effects.highContrast) drawOutline(outline, bevel, style = Stroke(1f))
+            }
+        }
 }

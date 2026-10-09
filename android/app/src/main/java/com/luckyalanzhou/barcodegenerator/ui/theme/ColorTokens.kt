@@ -17,7 +17,7 @@ internal object AppColorTokens {
         val selectedContainer = Color(0xffe8f2ff)
         val disabledContainer = Color.Transparent
         val border = Color(0xffd9e1ec)
-        val buttonBorder = Color(0xffd1d1d6).copy(alpha = .72f)
+        val buttonBorder = Color.Black.copy(alpha = .22f)
         val destructive = Color(0xffc2413b)
         // Apple system blue is shared by the primary action and progress fill.
         val cardBorder = border
@@ -49,7 +49,7 @@ internal object AppColorTokens {
         val selectedContainer = Color(0xff17334d)
         val disabledContainer = Color.Transparent
         val border = Color.White.copy(alpha = 0.10f)
-        val buttonBorder = Color(0xff3a3a3c).copy(alpha = .82f)
+        val buttonBorder = Color.White.copy(alpha = .26f)
         val destructive = Color(0xffffb0b0)
         // Dark-mode system blue keeps primary actions consistent with tabs and sliders.
         val cardBorder = Color.White.copy(alpha = 0.055f)

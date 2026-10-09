@@ -20,7 +20,6 @@ import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -260,12 +259,12 @@ internal fun GenerateContent(
                         onClick = { formatExpanded = true },
                         modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
                             .heightIn(min = 48.dp)
+                            .globalButtonChrome(RoundedCornerShape(12.dp), 0.dp)
                             .semantics {
                                 contentDescription = "条码类型"
                                 stateDescription = "$formatName，${if (formatExpanded) "已展开" else "已收起"}"
                             },
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(0.5.dp, themeColors.borders.button),
                         elevation = ButtonDefaults.buttonElevation(
                             defaultElevation = 0.dp,
                             pressedElevation = 0.dp,

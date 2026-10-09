@@ -108,7 +108,7 @@ internal fun DialogAction(
         destructive -> colors.text.destructive
         else -> colors.text.primary
     }
-    val border = if (primary) foreground.copy(alpha = 0.62f) else colors.borders.border
+    val border = if (primary) foreground.copy(alpha = 0.62f) else colors.borders.button
     val background = if (primary) colors.controls.accent else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(

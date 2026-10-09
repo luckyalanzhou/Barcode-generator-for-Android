@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -53,7 +52,6 @@ internal fun ComposeGenerateActionButton(
         contentColor = contentColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        border = borderColor?.let { BorderStroke(1.dp, it) },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

@@ -1,9 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.editor
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,10 +44,10 @@ internal fun ComposeChoiceField(
             onClick = { if (enabled) expanded = true },
             enabled = enabled,
             modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
-                .onGloballyPositioned { buttonWidth = it.size.width },
+                .onGloballyPositioned { buttonWidth = it.size.width }
+                .globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp), 0.dp),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            border = BorderStroke(if (compact) 1.dp else 0.5.dp,
-                if (compact) LocalAppColorScheme.current.text.primary.copy(alpha = .28f) else LocalAppColorScheme.current.borders.button),
+            border = null,
             contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,
             colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary,
                 containerColor = if (compact) LocalAppColorScheme.current.controls.button else androidx.compose.ui.graphics.Color.Transparent),
