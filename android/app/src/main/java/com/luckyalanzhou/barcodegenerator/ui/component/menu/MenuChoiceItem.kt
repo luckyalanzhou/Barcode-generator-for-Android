@@ -69,7 +69,7 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
                 val glyphHeight = size.height * checkmarkGlyphScale
                 val glyphLeft = (size.width - glyphWidth) / 2f
                 val glyphTop = (size.height - glyphHeight) / 2f
-                val strokeWidth = size.minDimension * checkmarkGlyphScale * .12f
+                val strokeWidth = size.minDimension * checkmarkGlyphScale * .13f
                 val joint = Offset(glyphLeft + glyphWidth * .42f, glyphTop + glyphHeight * .72f)
                 drawLine(colors.text.primary, Offset(glyphLeft + glyphWidth * .16f, glyphTop + glyphHeight * .50f), joint,
                     strokeWidth, cap = StrokeCap.Round)

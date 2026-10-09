@@ -72,6 +72,7 @@ class MenuRenderingContractTest {
         assertTrue(item.indexOf("Box(Modifier.width(iconSize)") < item.indexOf("Text(label,"))
         assertTrue(item.contains("Canvas(Modifier.size(iconSize)"))
         assertTrue(item.contains("checkmarkGlyphScale = .84f"))
+        assertTrue(item.contains("checkmarkGlyphScale * .13f"))
         assertTrue(item.contains("drawLine(colors.text.primary"))
         assertTrue(item.contains("Text(label, color = colors.text.primary"))
         assertTrue(item.contains("clearAndSetSemantics"))
