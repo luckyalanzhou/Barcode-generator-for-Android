@@ -62,7 +62,7 @@ class MenuRenderingContractTest {
         val item = source("MenuChoiceItem.kt")
         assertFalse(item.contains("DropdownMenuItem("))
         assertTrue(item.contains("fontSize = 16.sp, lineHeight = 20.sp"))
-        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 8.dp)"))
+        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = 10.dp)"))
         assertTrue(item.contains("verticalAlignment = Alignment.CenterVertically"))
         assertTrue(item.contains(".clickable("))
     }
@@ -82,7 +82,7 @@ class MenuRenderingContractTest {
         val host = source("TabLongPressActionDialog.kt")
         assertTrue(host.contains("fontSize = 16.sp,"))
         assertTrue(host.contains("lineHeight = 20.sp,"))
-        assertTrue(host.contains("vertical = 8.dp"))
+        assertTrue(host.contains("vertical = 10.dp"))
         assertFalse(host.contains("heightIn(min = ActionMenuMetrics.rowHeight)"))
         assertTrue(host.contains("measuredRowHeightPx * (3f / 4f)"))
         assertTrue(host.contains("menuOptionIconSize(density)"))

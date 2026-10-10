@@ -57,7 +57,7 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
                 role = if (multiple) Role.Checkbox else Role.RadioButton
                 if (multiple) toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
                 else selected = checked
-            }.padding(horizontal = 12.dp, vertical = 8.dp),
+            }.padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
