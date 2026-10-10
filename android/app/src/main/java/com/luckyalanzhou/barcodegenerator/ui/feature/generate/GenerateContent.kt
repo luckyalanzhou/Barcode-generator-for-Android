@@ -281,7 +281,7 @@ internal fun GenerateContent(
                         ),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                     ) {
-                        Text(formatName, color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
+                        Text(formatName, color = themeColors.text.placeholder, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
                         Icon(KeyboardArrowDownIcon, contentDescription = null, tint = themeColors.text.secondary,
                             modifier = Modifier.padding(start = 6.dp).size(16.dp))
                     }
