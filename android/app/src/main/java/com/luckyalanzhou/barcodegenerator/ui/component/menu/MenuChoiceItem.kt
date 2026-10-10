@@ -77,7 +77,7 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
                     strokeWidth, cap = StrokeCap.Round)
             }
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(8.dp))
         Text(label, color = colors.text.primary, fontSize = 16.sp, lineHeight = 20.sp,
             style = MenuLineStyle, maxLines = 2, modifier = Modifier.weight(1f))
     }
