@@ -24,7 +24,7 @@ internal object AppColorTokens {
         val inputBorder = Color(0xffe3e8f0)
         val tabUnselected = Color(0xff64748b)
         val disabled = Color(0xff7d8795)
-        val placeholder = Color(0xff3c3c43).copy(alpha = .60f)
+        val secondaryText = Color(0xff3c3c43).copy(alpha = .60f)
         val progressTrack = Color(0xffe4eaf2)
         val inputPanel = Color(0xfff0f2f5)
         val divider = Color(0xff667085).copy(alpha = .12f)
@@ -35,7 +35,6 @@ internal object AppColorTokens {
         val sliderThumbBorder = Color(0xffc7c7cc).copy(alpha = .30f)
         val sliderThumb = Color.White
         val settingsPrimaryText = Color(0xff000000)
-        val settingsSecondaryText = Color(0xff3c3c43).copy(alpha = .60f)
     }
 
     internal object Dark {
@@ -58,8 +57,7 @@ internal object AppColorTokens {
         val disabled = Color(0xff657388)
         val progressTrack = Color(0xff152938)
         val inputPanel = Color(0xff2c2c2e)
-        val secondaryText = Color(0xff8e8e93)
-        val placeholder = Color(0xffebebf5).copy(alpha = .60f)
+        val secondaryText = Color(0xffebebf5).copy(alpha = .60f)
         val onAccent = Color(0xff10224a)
         val divider = Color.White.copy(alpha = .10f)
         val toggleOn = Color(0xff30d158)
@@ -69,7 +67,6 @@ internal object AppColorTokens {
         val sliderThumbBorder = Color.White.copy(alpha = .18f)
         val sliderThumb = Color(0xfff8f8f8)
         val settingsPrimaryText = Color(0xffffffff)
-        val settingsSecondaryText = Color(0xffebebf5).copy(alpha = .60f)
         val folder = Color(0xff8abcf5)
         val childFolder = Color(0xffA1B6CF)
         val file = Color(0xff9bd8c0)
