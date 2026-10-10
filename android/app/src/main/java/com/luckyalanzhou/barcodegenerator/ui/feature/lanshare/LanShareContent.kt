@@ -275,7 +275,7 @@ private fun LanShareHeader(primary: Color, accent: Color, onQrClick: () -> Unit)
 @Composable
 private fun LanShareConnectionStatus(connected: Boolean) {
     val colors = LocalAppColorScheme.current
-    val statusColor = if (connected) colors.controls.success else colors.text.placeholder
+    val statusColor = if (connected) colors.controls.success else colors.text.secondary
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = if (connected) CircleFilledIcon else CircleIcon,

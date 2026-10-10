@@ -147,7 +147,7 @@ internal fun ComposeGenerateInputPanel(
                                             Text(
                                                 text = "输入一行条码内容",
                                                 style = LocalTextStyle.current.copy(
-                                                    color = themeColors.text.placeholder,
+                                                    color = themeColors.text.secondary,
                                                     fontSize = 14.sp,
                                                     lineHeight = 20.sp,
                                                     background = Color.Transparent,

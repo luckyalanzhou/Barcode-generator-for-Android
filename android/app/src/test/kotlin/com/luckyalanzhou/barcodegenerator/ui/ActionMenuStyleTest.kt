@@ -21,7 +21,7 @@ class ActionMenuStyleTest {
             val colors = appColorScheme(dark)
             val normal = actionMenuColors(colors, dark, false)
             val accessible = actionMenuColors(colors, dark, true)
-            assertEquals(colors.text.placeholder, normal.title)
+            assertEquals(colors.text.secondary, normal.title)
             assertEquals(colors.text.primary, accessible.title)
             assertTrue(accessible.separator.alpha > normal.separator.alpha)
             assertTrue(accessible.outline.alpha > normal.outline.alpha)

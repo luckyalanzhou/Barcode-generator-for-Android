@@ -114,7 +114,7 @@ class ButtonRenderingContractTest {
         val format = source("GenerateContent.kt").substringAfter("onClick = { formatExpanded = true }").substringBefore("AnchoredDropdownMenu(")
         assertFalse(format.contains("globalButtonChrome"))
         assertTrue(format.contains("containerColor = Color.Transparent"))
-        assertTrue(format.contains("Text(formatName, color = themeColors.text.placeholder"))
+        assertTrue(format.contains("Text(formatName, color = themeColors.text.secondary"))
         val editor = source("EditorChoiceField.kt")
         assertTrue(editor.contains("if (compact) Modifier else Modifier.globalButtonChrome"))
         assertTrue(editor.contains("if (compact) LocalAppColorScheme.current.text.secondary"))

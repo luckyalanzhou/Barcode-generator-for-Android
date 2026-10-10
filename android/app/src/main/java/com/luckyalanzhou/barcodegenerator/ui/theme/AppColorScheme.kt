@@ -11,10 +11,7 @@ internal data class AppTextColors(
     val destructive: Color,
     val link: Color,
     val onAccent: Color,
-) {
-    /** 占位文字与次级说明共用颜色，避免两个语义令牌的视觉值分叉。 */
-    val placeholder: Color get() = secondary
-}
+)
 
 @Immutable
 internal data class AppSettingsTextColors(

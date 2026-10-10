@@ -169,7 +169,7 @@ private fun HistoryBatchCard(
         ) {
             Text(historyBatchSummary(batch), color = primary, fontSize = 16.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
-            Text(time, color = colors.text.placeholder, fontSize = 12.sp, maxLines = 1,
+            Text(time, color = colors.text.secondary, fontSize = 12.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
                 modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
             IconButton(onClick = onDelete, interactionSource = deleteInteractions,

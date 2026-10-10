@@ -151,7 +151,7 @@ private fun FavoriteGroupRowContent(
             fontWeight = FontWeight.Normal, modifier = Modifier.weight(1f).onGloballyPositioned { onTitleBounds(it.boundsOnScreen()) },
             style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(time, color = LocalAppColorScheme.current.text.placeholder, fontSize = 11.sp, maxLines = 1,
+        Text(time, color = LocalAppColorScheme.current.text.secondary, fontSize = 11.sp, maxLines = 1,
             style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent))
     }
 }

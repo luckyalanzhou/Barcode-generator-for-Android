@@ -100,7 +100,7 @@ internal fun BoxScope.LanShareInputBar(
                 decorationBox = { field ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
                         if (message.isEmpty()) {
-                            Text(pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = themeColors.text.placeholder, fontSize = 15.sp)
+                            Text(pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = themeColors.text.secondary, fontSize = 15.sp)
                         }
                         field()
                     }
