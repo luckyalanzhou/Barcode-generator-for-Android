@@ -2,30 +2,21 @@ name: Build Android Release APK
 
 on:
   workflow_dispatch:
-    inputs:
-      version_name:
-        description: "正式版版本号，例如 1.0.0"
-        required: true
-        type: string
-      version_code:
-        description: "正式版 versionCode，例如 1"
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-official-${{ github.ref }}
-  # Don't interrupt a signed release between APK creation and publication.
+  group: android-official-release
+  # 正式发布不得并行分配版本，也不能在签名或发布中途被新运行取消。
   cancel-in-progress: false
 
 jobs:
   build:
     if: github.ref_name == 'main'
-    name: Assemble signed release APK
+    name: Assemble and verify official release
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: android
@@ -40,35 +31,82 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Test official version allocator
+        run: python3 -m unittest discover -s tools -p 'test_official_release_version.py' -v
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # Keep the Gradle User Home snapshot limited to dependencies and the
-          # Wrapper; setup-gradle v6 manages task-output and transform caches separately.
+          # 只缓存依赖和 Wrapper；任务输出缓存由 setup-gradle v6 单独管理。
           gradle-home-cache-includes: |
             caches/modules-2
             caches/jars-9
             wrapper/dists
           cache-cleanup: on-success
           add-job-summary: on-failure
+
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Read app version
-        id: app-version
+
+      - name: Reserve or resume official release
+        id: reserve
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
         run: |
           set -euo pipefail
-          version_name="${{ inputs.version_name }}"
-          version_code="${{ inputs.version_code }}"
-          [[ "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::版本号必须是 x.y.z 格式"; exit 1; }
-          [[ "$version_code" =~ ^[1-9][0-9]*$ ]] || { echo "::error::versionCode 必须是正整数"; exit 1; }
-          echo "version=$version_name" >> "$GITHUB_OUTPUT"
+          test -n "$GH_TOKEN" || { echo "::error::缺少 RELEASE_PUBLISH_TOKEN（需仓库 Contents 读写权限）"; exit 1; }
+          release_list="$RUNNER_TEMP/official-releases.json"
+          release_plan="$RUNNER_TEMP/official-release-plan.json"
+          request_file="$RUNNER_TEMP/official-release-reserve.json"
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$release_list"
+          python3 tools/official_release_version.py plan \
+            --releases "$release_list" \
+            --run-id "$GITHUB_RUN_ID" \
+            --output "$release_plan"
+          action="$(jq -r '.action' "$release_plan")"
+          version="$(jq -r '.version' "$release_plan")"
+          version_code="$(jq -r '.version_code' "$release_plan")"
+          tag="$(jq -r '.tag_name' "$release_plan")"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "plan=$release_plan" >> "$GITHUB_OUTPUT"
+          if [[ "$action" == "skip" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "本次运行对应的 Release 已经完整发布，不重复覆盖。"
+            exit 0
+          fi
+          python3 tools/official_release_version.py reserve-request \
+            --plan "$release_plan" \
+            --target-commitish "$GITHUB_SHA" \
+            --output "$request_file"
+          if [[ "$action" == "create" ]]; then
+            response="$RUNNER_TEMP/official-release-response.json"
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/releases" \
+              --input "$request_file" > "$response"
+            release_id="$(jq -er '.id' "$response")"
+          else
+            release_id="$(jq -er '.release_id' "$release_plan")"
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              --input "$request_file" > "$RUNNER_TEMP/official-release-response.json"
+          fi
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "已为正式版 v${version} 保留草稿，versionCode=${version_code}。"
+
       - name: Decode release keystore
+        if: steps.reserve.outputs.skip != 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
@@ -83,41 +121,118 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.jks
           test -s release.jks
           chmod 600 release.jks
+
       - name: Build signed release
+        if: steps.reserve.outputs.skip != 'true'
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        # Tests and Release lint are verified locally; the remote workflow only packages the APK.
-        run: ./gradlew assembleOfficialRelease --no-configuration-cache -x :app:lintVitalOfficialRelease -PversionName="${{ steps.app-version.outputs.version }}" -PversionCode="${{ steps.app-version.outputs.version_code }}"
-      - name: Prepare release APK
+          VERSION_NAME: ${{ steps.reserve.outputs.version }}
+          VERSION_CODE: ${{ steps.reserve.outputs.version_code }}
+        # 正式版只在手动启动时构建；版本从已保留的 Release 状态注入。
+        run: ./gradlew assembleOfficialRelease --no-configuration-cache -x :app:lintVitalOfficialRelease -PversionName="$VERSION_NAME" -PversionCode="$VERSION_CODE"
+
+      - name: Prepare APK and SHA-256 file
+        id: package
+        if: steps.reserve.outputs.skip != 'true'
         env:
-          VERSION_NAME: ${{ steps.app-version.outputs.version }}
+          VERSION_NAME: ${{ steps.reserve.outputs.version }}
         run: |
           set -euo pipefail
           source_apk="app/build/outputs/apk/official/release/app-official-release.apk"
-          target_apk="app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${VERSION_NAME}.apk"
+          apk_path="app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${VERSION_NAME}.apk"
+          checksum_path="${apk_path}.sha256"
           test -f "$source_apk" || { echo "::error::Official APK not found"; exit 1; }
-          mv "$source_apk" "$target_apk"
-          ls -lh "$target_apk"
-      - name: Upload release APK artifact
+          mv "$source_apk" "$apk_path"
+          (cd "$(dirname "$apk_path")" && sha256sum "$(basename "$apk_path")" > "$(basename "$checksum_path")")
+          test -s "$apk_path"
+          test -s "$checksum_path"
+          echo "apk_path=$apk_path" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$checksum_path" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$(basename "$apk_path")" >> "$GITHUB_OUTPUT"
+          echo "checksum_name=$(basename "$checksum_path")" >> "$GITHUB_OUTPUT"
+          ls -lh "$apk_path" "$checksum_path"
+
+      - name: Upload APK and checksum as workflow artifacts
+        if: steps.reserve.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
-          name: BarcodeGeneratorOfficial${{ steps.app-version.outputs.version }}-release-build${{ github.run_number }}
-          path: android/app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${{ steps.app-version.outputs.version }}.apk
+          name: BarcodeGeneratorOfficial${{ steps.reserve.outputs.version }}-release-build${{ github.run_number }}
+          path: |
+            android/${{ steps.package.outputs.apk_path }}
+            android/${{ steps.package.outputs.checksum_path }}
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
-      - name: Publish release GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: android-v${{ steps.app-version.outputs.version }}
-          name: Barcode Generator Release v${{ steps.app-version.outputs.version }}
-          generate_release_notes: true
-          files: android/app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${{ steps.app-version.outputs.version }}.apk
-          fail_on_unmatched_files: true
-          token: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+
+      - name: Upload both files to draft Release
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_TAG: ${{ steps.reserve.outputs.tag }}
+          APK_PATH: ${{ steps.package.outputs.apk_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" "$APK_PATH" "$CHECKSUM_PATH" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Download and verify uploaded Release assets
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_TAG: ${{ steps.reserve.outputs.tag }}
+          RELEASE_ID: ${{ steps.reserve.outputs.release_id }}
+          APK_PATH: ${{ steps.package.outputs.apk_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+          APK_NAME: ${{ steps.package.outputs.apk_name }}
+          CHECKSUM_NAME: ${{ steps.package.outputs.checksum_name }}
+        run: |
+          set -euo pipefail
+          verify_dir="$(mktemp -d "$RUNNER_TEMP/official-release-verify.XXXXXX")"
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$verify_dir" \
+            --pattern "$APK_NAME" \
+            --pattern "$CHECKSUM_NAME"
+          cmp "$APK_PATH" "$verify_dir/$APK_NAME"
+          cmp "$CHECKSUM_PATH" "$verify_dir/$CHECKSUM_NAME"
+          (cd "$verify_dir" && sha256sum --check "$CHECKSUM_NAME")
+          apk_size="$(stat -c '%s' "$APK_PATH")"
+          checksum_size="$(stat -c '%s' "$CHECKSUM_PATH")"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" | jq -e \
+            --arg apk "$APK_NAME" \
+            --arg checksum "$CHECKSUM_NAME" \
+            --argjson apk_size "$apk_size" \
+            --argjson checksum_size "$checksum_size" \
+            '.assets as $assets |
+             any($assets[]; .name == $apk and .size == $apk_size and .state == "uploaded") and
+             any($assets[]; .name == $checksum and .size == $checksum_size and .state == "uploaded")' \
+            > /dev/null
+          echo "Release 中的 APK 与 SHA-256 文件已下载比对，摘要校验通过。"
+
+      - name: Publish verified Release
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_ID: ${{ steps.reserve.outputs.release_id }}
+          RELEASE_PLAN: ${{ steps.reserve.outputs.plan }}
+        run: |
+          set -euo pipefail
+          request_file="$RUNNER_TEMP/official-release-publish.json"
+          response_file="$RUNNER_TEMP/official-release-published.json"
+          python3 tools/official_release_version.py publish-request \
+            --plan "$RELEASE_PLAN" --output "$request_file"
+          gh api --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            --input "$request_file" > "$response_file"
+          jq -e '.draft == false and (.body | contains("status=complete"))' \
+            "$response_file" > /dev/null
+          echo "正式版 v${{ steps.reserve.outputs.version }} 已发布并通过附件校验。"
+
       - name: Remove temporary keystore
         if: always()
+        continue-on-error: true
         run: rm -f release.jks
