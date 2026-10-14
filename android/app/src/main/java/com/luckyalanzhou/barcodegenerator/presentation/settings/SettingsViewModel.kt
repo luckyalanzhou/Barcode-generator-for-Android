@@ -14,6 +14,10 @@ import kotlinx.coroutines.withContext
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
@@ -24,6 +28,7 @@ data class SettingsUiState(
     val barHeight: Float = 55f,
     val barWidth: Float = 220f,
     val margin: Float = 4f,
+    val saveFailed: Boolean = false,
 )
 
 /** 设置页状态与设置持久化之间的边界。 */
@@ -31,36 +36,68 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val legacySettingsMigrator: SettingsMigration,
+    private val logger: AppLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var initialized = false
     private var currentStyle = StyleSettings()
+    private val writeFailureNotices = Channel<Unit>(Channel.BUFFERED)
+    val persistenceFailures = writeFailureNotices.receiveAsFlow()
 
     /** 设置的唯一内存所有者；外部只能读取快照，写入必须经过本 ViewModel。 */
     internal val style: StyleSettings
         get() = currentStyle.copy()
 
     suspend fun loadPersistedState() {
-        val (style, ocrMask) = withContext(Dispatchers.IO) {
-            settingsRepository.load()
-            legacySettingsMigrator.migrateIfNeeded()
-            settingsRepository.loadStyle() to settingsRepository.getOcrConfusionReplacementMask()
+        logger.record("settings", "load start", null)
+        try {
+            val (style, ocrMask) = withContext(Dispatchers.IO) {
+                settingsRepository.load()
+                legacySettingsMigrator.migrateIfNeeded()
+                settingsRepository.loadStyle() to settingsRepository.getOcrConfusionReplacementMask()
+            }
+            // 回到调用方上下文后再发布状态，日志仅记录设置类型、不记录输入内容。
+            initialize(style, ocrMask)
+            logger.record("settings", "load success scheme=${style.colorScheme} reduceMotion=${style.reduceMotion} enhanceContrast=${style.enhanceContrast}", null)
+        } catch (cancelled: CancellationException) {
+            logger.record("settings", "load cancelled", null)
+            throw cancelled
+        } catch (error: Exception) {
+            logger.record("settings", "load failed", error)
+            throw error
         }
-        // Return to the caller context (the Activity's main thread) before publishing ViewModel state.
-        initialize(style, ocrMask)
     }
 
-    fun save(): Job = settingsRepository.saveStyle(style)
+    fun save(): Job = trackWrite("save") { settingsRepository.saveStyle(style) }
 
     fun setOcrMaskPersisted(mask: Int): Job {
         setOcrMask(mask)
-        return settingsRepository.setOcrConfusionReplacementMask(mask)
+        return trackWrite("ocr_mask_save") { settingsRepository.setOcrConfusionReplacementMask(mask) }
     }
 
     fun getOcrMask(): Int = settingsRepository.getOcrConfusionReplacementMask()
 
-    fun recordUpdateError(message: String): Job = settingsRepository.setUpdateError(message)
+    fun recordUpdateError(message: String): Job = trackWrite("update_error_save") { settingsRepository.setUpdateError(message) }
+
+    /** Job 完成才报告持久化结果，不把“开始保存”误记为“保存成功”。 */
+    private fun trackWrite(name: String, write: () -> Job): Job {
+        val operation = System.nanoTime()
+        logger.record("settings", "$name start operation=$operation", null)
+        try {
+            return write().also { job -> job.invokeOnCompletion { error ->
+                val stage = if (error == null) "success" else if (error is CancellationException) "cancelled" else "failed"
+                logger.record("settings", "$name $stage operation=$operation", error.takeUnless { it is CancellationException })
+                if (error !is CancellationException) {
+                    _uiState.update { it.copy(saveFailed = error != null) }
+                    if (error != null) writeFailureNotices.trySend(Unit)
+                }
+            } }
+        } catch (error: Exception) {
+            logger.record("settings", "$name failed operation=$operation", error)
+            throw error
+        }
+    }
 
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return

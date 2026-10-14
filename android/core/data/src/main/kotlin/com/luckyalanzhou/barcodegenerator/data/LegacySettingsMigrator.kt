@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.domain.SettingsMigration
+import com.luckyalanzhou.barcodegenerator.domain.awaitSettingsCommit
 
 import android.content.Context
 import android.util.Log
@@ -25,11 +26,11 @@ class LegacySettingsMigrator(
             showFormat = readBoolean("style_show_format", false),
             colorScheme = readString("style_color_scheme", "system"),
         )
-        settingsStore.saveStyle(style).join()
+        settingsStore.saveStyle(style).awaitSettingsCommit()
         readString("last_update_error", "").takeIf { it.isNotBlank() }?.let {
-            settingsStore.setUpdateError(it).join()
+            settingsStore.setUpdateError(it).awaitSettingsCommit()
         }
-        settingsStore.markMigrated().join()
+        settingsStore.markMigrated().awaitSettingsCommit()
         legacyPrefs.edit()
             .remove("style_bar_color").remove("style_bg_color").remove("style_show_text")
             .remove("style_text_position").remove("style_text_size").remove("style_bar_height")

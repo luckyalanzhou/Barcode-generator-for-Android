@@ -6,6 +6,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ContextMenuGestureSessionTest {
+    @Test fun confirmationSurvivesTouchCleanupAndIsClearedForNextMenu() {
+        val session = longPress()
+        session.move(Offset(100f, 170f), 8f, bounds)
+        assertEquals(ContextMenuRelease.Select(1), session.release(Offset(100f, 170f), bounds))
+        session.close(preserveConfirmation = true)
+        session.cancelTouch()
+        assertEquals(1, session.selection.confirmed)
+        assertNull(session.selection.selected)
+        assertFalse(session.menuOpen)
+        session.open()
+        assertNull(session.selection.confirmed)
+        session.selection.confirmed = 0
+        session.close()
+        assertNull(session.selection.confirmed)
+    }
     private val bounds = mapOf(0 to Rect(10f, 100f, 200f, 148f), 1 to Rect(10f, 149f, 200f, 197f))
 
     @Test fun draggingWithinSourceIconThenReleasingKeepsMenuOpen() {

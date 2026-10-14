@@ -37,8 +37,9 @@ internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
     val dark = background.luminance() < .35f
     return tabGlassMaterial(background, 48f).copy(
         accentTint = .006f,
-        surfaceOpacity = if (dark) .55f else .48f,
+        surfaceOpacity = if (dark) .22f else .18f,
         rimLight = if (dark) .40f else .58f,
+        // 兼容路径的内部暗边不随外部阴影降低，仍负责玻璃厚度。
         innerShadow = if (dark) .15f else .075f,
         outlineOpacity = if (dark) .10f else .09f,
     )

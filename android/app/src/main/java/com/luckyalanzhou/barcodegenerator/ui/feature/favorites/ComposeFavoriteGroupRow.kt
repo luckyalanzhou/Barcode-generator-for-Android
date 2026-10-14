@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,7 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -51,7 +53,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -100,24 +101,27 @@ internal fun FavoriteGroupRow(
                 },
             ), restoreFocus = { if (anchor != Rect.Zero) focus.requestFocus() },
             title = "编辑收藏文件", tabAnchor = false,
-            menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor))
+            menuAnchorBoundsOnScreen = titleAnchor.takeIf { it != Rect.Zero } ?: anchor,
+            sourceContent = { FavoriteGroupRowContent(row, group, fileColor) }))
     }
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy.current.reduceMotion
-    val scale = animateFloatAsState(if (pressed && !reduceMotion) .965f else 1f, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-group-scale")
+    val scale = animateFloatAsState(if (pressed && !reduceMotion) .97f else 1f,
+        if (reduceMotion) androidx.compose.animation.core.snap() else if (pressed) androidx.compose.animation.core.tween(100)
+        else animation.settleSpring(), label = "favorite-group-scale")
     val background = animateColorAsState(if (pressed) fileColor.copy(alpha = .16f) else Color.Transparent, if (reduceMotion) androidx.compose.animation.core.snap() else animation.settleSpring(), label = "favorite-group-background")
 
     Box(Modifier.fillMaxWidth()) {
-        Row(
+        Box(
             Modifier.fillMaxWidth().height(44.dp)
                 .onGloballyPositioned { anchor = it.boundsOnScreen() }
                 .focusRequester(focus)
-                .padding(start = 11.dp + 20.dp * row.level, end = 4.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .drawBehind { drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx())) }
-                .graphicsLayer {
-                    scaleX = scale.value
-                    scaleY = scale.value
+                .drawWithContent {
+                    scale(scale.value) {
+                        drawRoundRect(color = background.value, cornerRadius = CornerRadius(14.dp.toPx()))
+                        this@drawWithContent.drawContent()
+                    }
                 }
                 .combinedClickable(
                     interactionSource,
@@ -127,12 +131,27 @@ internal fun FavoriteGroupRow(
                     onLongClickLabel = "编辑收藏文件",
                     hapticFeedbackEnabled = false,
                 ),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp, fontWeight = FontWeight.Normal, modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsOnScreen() }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)), color = LocalAppColorScheme.current.text.placeholder, fontSize = 11.sp, maxLines = 1)
+            FavoriteGroupRowContent(row, group, fileColor) { titleAnchor = it }
         }
+    }
+}
+
+/** 预览与原收藏行共用文件名、时间及层级缩进，长按不替换文字样式。 */
+@Composable
+private fun FavoriteGroupRowContent(
+    row: ComposeFavoriteRow, group: FavoriteGroup, fileColor: Color, onTitleBounds: (Rect) -> Unit = {},
+) {
+    val time = remember(group.savedAt) { SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)) }
+    Row(Modifier.fillMaxSize().padding(start = 11.dp + 20.dp * row.level, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp,
+            fontWeight = FontWeight.Normal, modifier = Modifier.weight(1f).onGloballyPositioned { onTitleBounds(it.boundsOnScreen()) },
+            style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent),
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(time, color = LocalAppColorScheme.current.text.secondary, fontSize = 11.sp, maxLines = 1,
+            style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent))
     }
 }

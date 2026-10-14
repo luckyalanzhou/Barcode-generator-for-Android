@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.component.menu
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,6 +25,8 @@ internal data class TabLongPressMenuState(
     val title: String = "操作",
     val tabAnchor: Boolean = true,
     val menuAnchorBoundsOnScreen: Rect = anchorBoundsOnScreen,
+    // 来源行与浮层共用内容组件，避免长按后丢失数量、时间、箭头或改变字号。
+    val sourceContent: (@Composable () -> Unit)? = null,
 )
 
 /** File/folder and Tab menus share the window-level host owned by the application shell. */

@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogC
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 import android.content.ContentValues
 import android.content.Intent
@@ -71,11 +72,17 @@ internal fun MainActivity.shareText(text: String) {
                 "分享条码内容",
             ),
         )
-    }.onFailure { toast("分享失败，请重试") }
+    }.onSuccess { DebugLog.record("image_export", "text_share_chooser_opened") }
+        .onFailure {
+            DebugLog.record("image_export", "text_share_failed", it)
+            toast("分享失败，请重试")
+        }
 }
 
 internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String) {
     lifecycleScope.launch {
+        val operation = System.nanoTime()
+        DebugLog.record("image_export", "gallery_save_started operation=$operation")
         var createdUri: Uri? = null
         try {
             withContext(Dispatchers.IO) {
@@ -99,10 +106,13 @@ internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String) {
                 }
             }
             toast("已保存到相册")
+            DebugLog.record("image_export", "gallery_save_succeeded operation=$operation")
         } catch (error: CancellationException) {
+            DebugLog.record("image_export", "gallery_save_cancelled operation=$operation")
             createdUri?.let { runCatching { contentResolver.delete(it, null, null) } }
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            DebugLog.record("image_export", "gallery_save_failed operation=$operation", error)
             createdUri?.let { runCatching { contentResolver.delete(it, null, null) } }
             toast("保存失败，请重试")
         }
@@ -113,11 +123,14 @@ internal fun MainActivity.writeBitmapToUri(bitmap: Bitmap, uri: Uri): Boolean = 
     contentResolver.openOutputStream(uri)?.use { output ->
         check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "图片写入失败" }
     } ?: error("无法打开文件")
-}.isSuccess
+}.onFailure { DebugLog.record("image_export", "document_write_failed", it) }
+    .onSuccess { DebugLog.record("image_export", "document_write_succeeded") }.isSuccess
 
 internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String, onStarted: () -> Unit = {}, onFinished: () -> Unit = {}) {
     // Sharing is not saving: keep the original user's gallery untouched.
     lifecycleScope.launch {
+        val operation = System.nanoTime()
+        DebugLog.record("image_export", "image_share_started operation=$operation")
         onStarted()
         var shareFile: File? = null
         try {
@@ -137,10 +150,13 @@ internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String, onStarted: 
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }, "分享条码图片"))
             // Do not delete now: the selected receiving app may read after the chooser closes.
+            DebugLog.record("image_export", "image_share_chooser_opened operation=$operation")
         } catch (error: CancellationException) {
+            DebugLog.record("image_export", "image_share_cancelled operation=$operation")
             shareFile?.delete()
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            DebugLog.record("image_export", "image_share_failed operation=$operation", error)
             shareFile?.delete()
             toast("分享失败，请重试")
         } finally {

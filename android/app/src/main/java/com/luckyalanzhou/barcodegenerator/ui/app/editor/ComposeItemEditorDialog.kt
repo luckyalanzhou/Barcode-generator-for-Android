@@ -57,8 +57,8 @@ internal fun MainActivity.showItemEditorCompose(
                     unfocusedTextColor = LocalAppColorScheme.current.text.primary,
                     focusedLabelColor = LocalAppColorScheme.current.text.primary,
                     unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
-                    focusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
-                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.placeholder,
+                    focusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
+                    unfocusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
             )

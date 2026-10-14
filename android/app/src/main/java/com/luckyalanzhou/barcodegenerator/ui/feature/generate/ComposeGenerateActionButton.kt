@@ -3,7 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -38,7 +37,6 @@ internal fun ComposeGenerateActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    borderColor: Color? = null,
     iconSize: Dp = 22.dp,
     contentSpacing: Dp = 6.dp,
 ) {
@@ -47,13 +45,12 @@ internal fun ComposeGenerateActionButton(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape, 0.5.dp, borderColor).semantics { role = Role.Button },
+        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape).semantics { role = Role.Button },
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        border = borderColor?.let { BorderStroke(1.dp, it) },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -68,7 +65,8 @@ internal fun ComposeGenerateActionButton(
                 )
                 Spacer(Modifier.width(contentSpacing))
             }
-            Text(label, color = contentColor, fontSize = 15.sp)
+            Text(label, color = contentColor, fontSize = 15.sp,
+                style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent))
         }
     }
 }

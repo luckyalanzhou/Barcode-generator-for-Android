@@ -7,6 +7,32 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TabMenuPlacementTest {
+    @Test fun tabMenusAlignToWholeSlotEdgesNotIconCenters() {
+        for (x in listOf(20f, 120f, 220f, 320f)) {
+            val result = tabMenuPlacement(Rect(x, 700f, x + 60f, 760f), Offset.Zero,
+                IntSize(180, 140), 400f, 24f, 12f, 8f, 10f, alignTabEdge = true)
+            assertEquals(if (x < 200f) x else x + 60f - 180f, result.left, 0f)
+        }
+    }
+
+    @Test fun fourTabsPreferSourceCenterAndRespectScreenEdges() {
+        for (x in listOf(20f, 120f, 220f, 320f)) {
+            val result = tabMenuPlacement(Rect(x, 700f, x + 60f, 760f), Offset.Zero,
+                IntSize(180, 140), 400f, 24f, 12f, 8f, 10f)
+            assertEquals((x + 30f - 90f).coerceIn(12f, 208f), result.left, 0f)
+            assertEquals(552f, result.top, 0f)
+        }
+    }
+
+    @Test fun sourceCenteredAlignmentIncludesOriginAndScreenSafety() {
+        val left = tabMenuPlacement(Rect(15f, 700f, 75f, 760f), Offset(10f, 0f),
+            IntSize(180, 140), 400f, 24f, 12f, 8f, 10f)
+        val right = tabMenuPlacement(Rect(350f, 700f, 410f, 760f), Offset(10f, 0f),
+            IntSize(180, 140), 400f, 24f, 12f, 8f, 10f)
+        assertEquals(12f, left.left, 0f)
+        assertEquals(388f, right.left + 180f, 0f)
+    }
+
     @Test fun rowMenuAlignsToSourceLeftRatherThanTitleCenter() {
         val row = Rect(20f, 200f, 380f, 250f)
         val placement = rowMenuPlacement(row, Offset.Zero, IntSize(200, 160),

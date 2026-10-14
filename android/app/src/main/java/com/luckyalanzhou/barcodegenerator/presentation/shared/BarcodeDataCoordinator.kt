@@ -1,7 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
-
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesBackupRepository
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
@@ -18,10 +16,8 @@ class BarcodeDataCoordinator @Inject constructor(
     suspend fun loadItemsByIds(ids: List<Long>) = repository.loadItemsByIds(ids)
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary = backupRepository.inspectImport(backup)
-    suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int> {
-        val result = backupRepository.import(backup, overwriteConflicts)
-        return result
-    }
+    suspend fun importFavorites(backup: InterchangeBackup, overwriteConflicts: Boolean = false): Pair<Int, Int> =
+        backupRepository.import(backup, overwriteConflicts)
     suspend fun exportFavorites(output: OutputStream) = backupRepository.export(output)
     fun restoreFavorites(bytes: ByteArray) = backupRepository.restore(bytes)
 

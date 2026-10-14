@@ -13,3 +13,4 @@ data class StyleSettings(
     var reduceMotion: Boolean = false,
     var enhanceContrast: Boolean = false,
 )
+

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -71,7 +72,7 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingContent, onCancel:
                 Spacer(Modifier.width(10.dp))
                 Text("${upload.progressPercent}%", color = label, fontSize = 13.sp, maxLines = 1)
                 TextButton(onClick = onCancel, interactionSource = cancelInteraction,
-                    modifier = Modifier.iosPressFeedback(cancelInteraction).widthIn(min = 48.dp).heightIn(min = 48.dp)) {
+                    modifier = Modifier.iosPressFeedback(cancelInteraction).widthIn(min = 48.dp).heightIn(min = 48.dp).globalButtonChrome()) {
                 Text("取消",
                     color = label.copy(alpha = .82f),
                     fontSize = 12.sp,

@@ -7,6 +7,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDecodeGateway
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
+import kotlinx.coroutines.CancellationException
 import com.luckyalanzhou.barcodegenerator.presentation.CameraCaptureState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.CameraOcrFacade
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +25,7 @@ class CameraOcrViewModel @Inject constructor(
     ocrTextGateway: OcrTextGateway,
     barcodeDecodeGateway: BarcodeDecodeGateway,
     savedState: SavedStateHandle,
+    private val logger: AppLogger,
 ) : ViewModel() {
     private val cameraOcr = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway, savedState)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcr.cameraState
@@ -42,14 +45,23 @@ class CameraOcrViewModel @Inject constructor(
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
         val job = viewModelScope.launch {
+            val operation = System.nanoTime()
+            logger.record("ocr", "recognize start operation=$operation width=${bitmap.width} height=${bitmap.height}", null)
             try {
                 val lines = cameraOcr.recognizeText(bitmap, confusionMask)
+                logger.record("ocr", "recognize success operation=$operation lineCount=${lines.size}", null)
                 if (lines.isEmpty()) {
                     _events.send(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
                 } else {
                     _events.send(CameraOcrEvent.RecognizedText(lines))
                     _events.send(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
                 }
+            } catch (cancelled: CancellationException) {
+                logger.record("ocr", "recognize cancelled operation=$operation", null)
+                throw cancelled
+            } catch (error: Exception) {
+                logger.record("ocr", "recognize failed operation=$operation", error)
+                throw error
             } finally {
                 if (!bitmap.isRecycled) bitmap.recycle()
             }

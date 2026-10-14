@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
 
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiff
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeState
@@ -84,6 +85,7 @@ class LanShareViewModel @Inject constructor(
     private val lanShareGateway: LanShareGateway,
     private val previewDecoder: LanShareBitmapPreviewDecoder,
     @ApplicationContext private val appContext: Context,
+    private val logger: AppLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LanShareUiState())
     val uiState: StateFlow<LanShareUiState> = _uiState.asStateFlow()
@@ -111,9 +113,11 @@ class LanShareViewModel @Inject constructor(
     fun isRouterLanHost(host: String?): Boolean = lanShareGateway.isRouterLanHost(host)
 
     fun startHostSession(): LanShareSession {
+        logger.record("lan_ui", "host_start requested", null)
         invalidateRoomRefresh()
         previewFilesById = emptyMap()
         val session = lanShareGateway.start()
+        logger.record("lan_ui", "host_start success", null)
         _uiState.update {
             it.copy(
                 session = session,
@@ -130,6 +134,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun joinSession(session: LanShareSession) {
+        logger.record("lan_ui", "join requested", null)
         invalidateRoomRefresh()
         lanShareGateway.stop()
         previewFilesById = emptyMap()
@@ -159,6 +164,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun closeSession() {
+        logger.record("lan_ui", "close requested", null)
         invalidateRoomRefresh()
         previewFilesById = emptyMap()
         lanShareGateway.stop(clearSharedFiles = true)
@@ -208,7 +214,8 @@ class LanShareViewModel @Inject constructor(
                         it.copy(previewFileIds = previewFilesById.keys)
                     }
                 }
-            }.onFailure {
+            }.onFailure { error ->
+                if (error !is CancellationException) logger.record("lan_ui", "refresh failed generation=$ticket", error)
                 if (showError && refreshGuard.isCurrent(session, ticket)) {
                     _events.trySend(LanShareEvent.Error("无法连接到分享房间"))
                 }
@@ -275,9 +282,12 @@ class LanShareViewModel @Inject constructor(
         val ticket = refreshGuard.currentGeneration()
         val uploadId = UUID.randomUUID().toString()
         val job = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+            val started = System.nanoTime()
+            logger.record("lan_ui", "upload start operation=$uploadId", null)
             try {
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
                 val source = createUploadSource(uri)
+                logger.record("lan_ui", "upload source operation=$uploadId bytes=${source.size} mime=${source.mimeType}", null)
                 val uploading = LanShareUploadingFile(
                     id = uploadId,
                     name = source.name,
@@ -320,9 +330,12 @@ class LanShareViewModel @Inject constructor(
                 }
                 if (!_uiState.value.isHost) refreshFiles(session, showError = false)
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Notice("上传成功"))
+                logger.record("lan_ui", "upload success operation=$uploadId elapsedMs=${(System.nanoTime() - started) / 1_000_000}", null)
             } catch (cancelled: CancellationException) {
+                logger.record("lan_ui", "upload cancelled operation=$uploadId", null)
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                logger.record("lan_ui", "upload failed operation=$uploadId", error)
                 currentCoroutineContext().ensureActive()
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("上传失败"))
             }
@@ -340,6 +353,7 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun cancelUpload(uploadId: String) {
+        logger.record("lan_ui", "upload cancel_requested operation=$uploadId", null)
         lanShareGateway.cancelUpload(uploadId)
         val task = activeUploadTasks.remove(uploadId)
         task?.job?.cancel(CancellationException("用户取消上传"))
@@ -356,6 +370,8 @@ class LanShareViewModel @Inject constructor(
         }
         val ticket = refreshGuard.currentGeneration()
         viewModelScope.launch(Dispatchers.IO) {
+            val operation = UUID.randomUUID().toString()
+            logger.record("lan_ui", "text_send start operation=$operation", null)
             try {
                 if (!refreshGuard.isCurrent(session, ticket)) return@launch
                 val sentMessage = lanShareGateway.sendLocalMessage(text)
@@ -369,7 +385,12 @@ class LanShareViewModel @Inject constructor(
                 if (refreshGuard.isCurrent(session, ticket)) {
                     _events.send(LanShareEvent.Notice("发送成功", clearInput = true))
                 }
-            } catch (_: Exception) {
+                logger.record("lan_ui", "text_send success operation=$operation", null)
+            } catch (cancelled: CancellationException) {
+                logger.record("lan_ui", "text_send cancelled operation=$operation", null)
+                throw cancelled
+            } catch (error: Exception) {
+                logger.record("lan_ui", "text_send failed operation=$operation", error)
                 if (refreshGuard.isCurrent(session, ticket)) _events.send(LanShareEvent.Error("发送失败"))
             }
         }
@@ -377,6 +398,8 @@ class LanShareViewModel @Inject constructor(
 
     fun downloadFile(session: LanShareSession, id: String, destination: android.net.Uri) {
         viewModelScope.launch(Dispatchers.IO) {
+            val operation = UUID.randomUUID().toString()
+            logger.record("lan_ui", "download start operation=$operation", null)
             try {
                 val temporary = java.io.File.createTempFile("lan-download-", ".part", appContext.cacheDir)
                 try {
@@ -388,7 +411,12 @@ class LanShareViewModel @Inject constructor(
                     temporary.delete()
                 }
                 _events.send(LanShareEvent.Notice("下载完成"))
-            } catch (_: Exception) {
+                logger.record("lan_ui", "download success operation=$operation", null)
+            } catch (cancelled: CancellationException) {
+                logger.record("lan_ui", "download cancelled operation=$operation", null)
+                throw cancelled
+            } catch (error: Exception) {
+                logger.record("lan_ui", "download failed operation=$operation", error)
                 _events.send(LanShareEvent.Error("下载失败"))
             }
         }
@@ -410,6 +438,9 @@ class LanShareViewModel @Inject constructor(
                 val maxPreviewBytes = minOf(LAN_SHARE_PREVIEW_MAX_FILE_BYTES, remainingCacheBytes)
                 if (!preview.isFile && maxPreviewBytes > 0L) {
                     runCatching { lanShareGateway.downloadPreview(session, file.id, preview, maxPreviewBytes) }
+                        .onFailure { error ->
+                            if (error !is CancellationException) logger.record("lan_ui", "preview_download failed bytes=${file.size} mime=${file.mimeType}", error)
+                        }
                     if (preview.isFile && preview.length() in 1..maxPreviewBytes) {
                         cachedBytes += preview.length()
                     } else {

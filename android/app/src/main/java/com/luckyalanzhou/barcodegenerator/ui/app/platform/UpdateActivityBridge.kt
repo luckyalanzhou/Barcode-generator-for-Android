@@ -38,3 +38,4 @@ internal fun MainActivity.checkForUpdates(silent: Boolean = false) {
         }
     }
 }
+

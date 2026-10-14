@@ -2,7 +2,6 @@ package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle

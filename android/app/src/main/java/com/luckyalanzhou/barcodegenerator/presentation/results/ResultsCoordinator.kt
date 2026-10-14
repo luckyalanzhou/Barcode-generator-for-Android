@@ -1,7 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.results
 
-import com.luckyalanzhou.barcodegenerator.presentation.*
-import com.luckyalanzhou.barcodegenerator.presentation.*
+import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRoute as AppRoute
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem

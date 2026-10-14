@@ -42,16 +42,3 @@ internal fun Modifier.groupedContentSurface(
         if (dark) Modifier else Modifier.border(0.5.dp, outline.copy(alpha = outline.alpha * .4f), shape),
     )
 }
-
-/** 按钮统一的轻量边缘与浮起效果；按钮本身仍负责颜色、语义和点击反馈。 */
-@Composable
-internal fun Modifier.globalButtonChrome(
-    shape: RoundedCornerShape = RoundedCornerShape(LocalAppDimensions.current.buttonCornerRadius),
-    elevation: Dp = 1.5.dp,
-    borderColor: Color? = null,
-): Modifier {
-    val themeColors = LocalAppColorScheme.current
-    return this
-        .shadow(minOf(elevation, 0.5.dp), shape, clip = false)
-        .border(0.5.dp, borderColor ?: themeColors.borders.button, shape)
-}

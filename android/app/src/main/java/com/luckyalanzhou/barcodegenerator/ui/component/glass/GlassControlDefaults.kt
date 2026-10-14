@@ -11,7 +11,4 @@ internal object GlassControlDefaults {
     // turning the whole selected tab into a moving magnifier.
     const val MaxBackdropRefractionDp = 3.0f
     const val MaxForegroundRefractionDp = 1.6f
-    const val RoundActionBlurDp = .65f
-    const val RoundActionRestRefractionDp = 1.2f
-    const val RoundActionPressRefractionDp = 1.1f
 }

@@ -27,6 +27,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
@@ -51,6 +52,8 @@ internal class LanShareServer(
     private val connectionDisconnectGraceMs: Long = DEFAULT_CONNECTION_DISCONNECT_GRACE_MS,
     private val webSocketHeartbeatIntervalMs: Long = LAN_SHARE_WEBSOCKET_HEARTBEAT_INTERVAL_MS,
     private val webSocketHeartbeatTimeoutMs: Long = LAN_SHARE_WEBSOCKET_HEARTBEAT_TIMEOUT_MS,
+    private val maxConcurrentUploads: Int = 4,
+    private val availableUploadBytes: () -> Long = { folder.usableSpace },
 ) : NanoWSD(host, port) {
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
@@ -60,6 +63,7 @@ internal class LanShareServer(
         const val MAX_CHUNK_TRAILER_BYTES = 16 * 1024
         const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
         const val APP_UPLOAD_CLIENT = "app"
+        const val DISK_RESERVE_BYTES = 16L * 1024L * 1024L
     }
 
     internal data class SessionSnapshot(
@@ -81,9 +85,46 @@ internal class LanShareServer(
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
+    private var activeUploads = 0
+    private enum class UploadRejection { Busy, RoomFull, DiskFull }
+    private val currentClientSocket = ThreadLocal<Socket>()
+
+    // NanoHTTPD 的 WebSocket 不公开底层 Socket；在标准连接处理边界捕获，不用反射。
+    override fun createClientHandler(socket: Socket, inputStream: InputStream): NanoHTTPD.ClientHandler =
+        object : ClientHandler(inputStream, socket) {
+            override fun run() {
+                currentClientSocket.set(socket)
+                try { super.run() } finally { currentClientSocket.remove() }
+            }
+        }
+
+    /** 小请求可限时消费完后返回原因；大请求立即拒绝，不为报错再接收整个大文件。 */
+    private fun drainSmallRejectedUpload(session: IHTTPSession, body: UploadBody): Boolean {
+        if (body.isChunked || body.expectedBytes > 64 * 1024) return false
+        val socket = currentClientSocket.get() ?: return false
+        val previousTimeout = socket.soTimeout
+        try {
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+            val buffer = ByteArray(8 * 1024)
+            var remaining = body.expectedBytes
+            while (remaining > 0) {
+                val timeLeft = deadline - System.nanoTime()
+                if (timeLeft <= 0) return false
+                socket.soTimeout = TimeUnit.NANOSECONDS.toMillis(timeLeft).coerceIn(1, 1_000).toInt()
+                val count = session.inputStream.read(buffer, 0, minOf(remaining, buffer.size.toLong()).toInt())
+                if (count <= 0) break
+                remaining -= count
+            }
+            return remaining == 0L
+        } catch (_: IOException) {
+            // 断开或超时仍关闭连接；不能继续解析未消费完的上传体。
+        } finally { if (!socket.isClosed) socket.soTimeout = previousTimeout }
+        return false
+    }
     private val heartbeatTask: ScheduledFuture<*>
 
     init {
+        require(maxConcurrentUploads > 0)
         require(webSocketHeartbeatIntervalMs > 0L)
         require(webSocketHeartbeatTimeoutMs > webSocketHeartbeatIntervalMs)
         setServerSocketFactory(object : NanoHTTPD.ServerSocketFactory {
@@ -169,17 +210,23 @@ internal class LanShareServer(
         )
     }
 
-    /** 仅在锁内快速预留房间容量；文件和网络 I/O 均在锁外执行。 */
-    private fun reserveUploadCapacity(size: Long): Boolean = synchronized(uploadLock) {
+    /** 在锁内核对并预留容量；上传的网络读取和文件内容写入在锁外执行。 */
+    private fun reserveUploadCapacity(size: Long): UploadRejection? = synchronized(uploadLock) {
+        if (activeUploads >= maxConcurrentUploads) return@synchronized UploadRejection.Busy
         val stored = folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() }
         if (stored > LanShareLimits.MAX_ROOM_BYTES ||
             reservedUploadBytes > LanShareLimits.MAX_ROOM_BYTES - stored ||
             size > LanShareLimits.MAX_ROOM_BYTES - stored - reservedUploadBytes
         ) {
-            false
+            UploadRejection.RoomFull
         } else {
+            val usable = (availableUploadBytes() - DISK_RESERVE_BYTES).coerceAtLeast(0L)
+            if (reservedUploadBytes > usable || size > usable - reservedUploadBytes) {
+                return@synchronized UploadRejection.DiskFull
+            }
             reservedUploadBytes += size
-            true
+            activeUploads++
+            null
         }
     }
 
@@ -275,6 +322,7 @@ internal class LanShareServer(
         } finally {
             temporary?.delete()
             if (reservationHeld) releaseUploadCapacity(reservation)
+            synchronized(uploadLock) { activeUploads = (activeUploads - 1).coerceAtLeast(0) }
         }
     }
 
@@ -435,16 +483,26 @@ internal class LanShareServer(
 
     private inner class BrowserWebSocket(handshake: IHTTPSession) : NanoWSD.WebSocket(handshake) {
         private val browserClientId = handshake.parameters["client"]?.firstOrNull().orEmpty()
+        private val transport = requireNotNull(currentClientSocket.get())
+        private val outbound = WebSocketWriteQueue(connectionStateExecutor) { reason, error ->
+            if (reason != "closed") logger.record("lan-server", "websocket outbound stopped reason=$reason", error)
+            runCatching { transport.close() }
+            removeWebSocket(this)
+        }
+        fun sendQueued(event: String) = outbound.enqueue { send(event) }
+        fun pingQueued(payload: ByteArray) = outbound.enqueue { ping(payload) }
+        fun stopWriting() = outbound.close()
 
         @Volatile var lastPongAtNanos: Long = System.nanoTime()
             private set
 
         override fun onOpen() {
             lastPongAtNanos = System.nanoTime()
-            addWebSocket(this)
+            if (!addWebSocket(this)) stopWriting()
         }
 
         override fun onClose(code: NanoWSD.WebSocketFrame.CloseCode, reason: String, initiatedByRemote: Boolean) {
+            stopWriting()
             removeWebSocket(this)
         }
 
@@ -452,7 +510,8 @@ internal class LanShareServer(
             // 客户端在 onopen 后请求快照；浏览器已安装 onmessage，不会漏掉首批文件和聊天记录。
             val payloadText = message.textPayload ?: return
             if (payloadText == "sync") {
-                runCatching { send(sessionSnapshotEvent()) }
+                runCatching { sendQueued(sessionSnapshotEvent()) }
+                    .onFailure { logger.record("lan-server", "websocket snapshot failed", it) }
                 return
             }
             val payload = runCatching { JSONObject(payloadText) }.getOrNull() ?: return
@@ -462,7 +521,7 @@ internal class LanShareServer(
                 val reason = if (payload.optString("text").toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) {
                     "消息不能超过 64 KB"
                 } else "消息不能为空"
-                runCatching { send(JSONObject().put("type", "error").put("message", reason).toString()) }
+                runCatching { sendQueued(JSONObject().put("type", "error").put("message", reason).toString()) }
             }
         }
 
@@ -470,7 +529,11 @@ internal class LanShareServer(
             lastPongAtNanos = System.nanoTime()
         }
 
-        override fun onException(exception: IOException) { removeWebSocket(this) }
+        override fun onException(exception: IOException) {
+            logger.record("lan-server", "websocket receive failed", exception)
+            stopWriting()
+            removeWebSocket(this)
+        }
     }
 
     private fun sendWebSocketHeartbeats() {
@@ -483,15 +546,15 @@ internal class LanShareServer(
             } else if (nowNanos - socket.lastPongAtNanos >= timeoutNanos) {
                 logger.record("lan-server", "websocket heartbeat timed out", null)
                 runCatching {
-                    socket.close(NanoWSD.WebSocketFrame.CloseCode.GoingAway, "heartbeat timeout", false)
+                    socket.stopWriting()
                 }
                 removeWebSocket(socket)
             } else {
-                runCatching { socket.ping(nowNanos.toString().toByteArray(Charsets.US_ASCII)) }
+                runCatching { socket.pingQueued(nowNanos.toString().toByteArray(Charsets.US_ASCII)) }
                     .onFailure { error ->
                         logger.record("lan-server", "websocket heartbeat failed", error)
                         runCatching {
-                            socket.close(NanoWSD.WebSocketFrame.CloseCode.GoingAway, "heartbeat failed", false)
+                            socket.stopWriting()
                         }
                         removeWebSocket(socket)
                     }
@@ -499,9 +562,9 @@ internal class LanShareServer(
         }
     }
 
-    private fun addWebSocket(socket: BrowserWebSocket) {
+    private fun addWebSocket(socket: BrowserWebSocket): Boolean =
         synchronized(webSocketStateLock) {
-            if (stopped) return
+            if (stopped || webSockets.size >= 16) return@synchronized false
             webSockets.add(socket)
             connectionGeneration++
             pendingDisconnect?.cancel(false)
@@ -510,8 +573,8 @@ internal class LanShareServer(
                 reportedConnected = true
                 emitRealtimeEvent(LanShareRealtimeEvent.ConnectionChanged(true))
             }
+            true
         }
-    }
 
     private fun removeWebSocket(socket: BrowserWebSocket) {
         synchronized(webSocketStateLock) {
@@ -529,14 +592,17 @@ internal class LanShareServer(
     }
 
     override fun stop() {
-        synchronized(webSocketStateLock) {
+        val peers = synchronized(webSocketStateLock) {
             stopped = true
             connectionGeneration++
             pendingDisconnect?.cancel(false)
             pendingDisconnect = null
+            val snapshot = webSockets.toList()
             webSockets.clear()
             reportedConnected = false
+            snapshot
         }
+        peers.forEach { it.stopWriting() }
         heartbeatTask.cancel(false)
         connectionStateExecutor.shutdownNow()
         super.stop()
@@ -570,7 +636,7 @@ internal class LanShareServer(
         } ?: event
         webSockets.toList().forEach { socket ->
             runCatching {
-                if (socket.isOpen) socket.send(eventWithFile) else removeWebSocket(socket)
+                if (socket.isOpen) socket.sendQueued(eventWithFile) else removeWebSocket(socket)
             }
                 .onFailure { removeWebSocket(socket) }
         }
@@ -604,7 +670,7 @@ internal class LanShareServer(
     private fun broadcast(event: String) {
         webSockets.toList().forEach { socket ->
             runCatching {
-                if (socket.isOpen) socket.send(event) else removeWebSocket(socket)
+                if (socket.isOpen) socket.sendQueued(event) else removeWebSocket(socket)
             }
                 .onFailure { removeWebSocket(socket) }
         }
@@ -652,8 +718,19 @@ internal class LanShareServer(
                     } else {
                         File(folder, "web_${targetPrefix}_${safeBrowserClientId(client)}_$name")
                     }
-                    if (!reserveUploadCapacity(body.expectedBytes)) {
-                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "房间文件总大小不能超过 100 GB")
+                    val rejection = reserveUploadCapacity(body.expectedBytes)
+                    if (rejection != null) {
+                        val message = when (rejection) {
+                            UploadRejection.Busy -> "同时上传任务过多，请等待当前传输完成后重试"
+                            UploadRejection.RoomFull -> "房间文件总大小不能超过 100 GB"
+                            UploadRejection.DiskFull -> "设备可用存储空间不足，请清理后重试"
+                        }
+                        logger.record("lan-server", "upload rejected reason=$rejection bytes=${body.expectedBytes}", null)
+                        val bodyConsumed = drainSmallRejectedUpload(session, body)
+                        return newFixedLengthResponse(
+                            if (rejection == UploadRejection.RoomFull) Response.Status.BAD_REQUEST else Response.Status.SERVICE_UNAVAILABLE,
+                            MIME_PLAINTEXT, message,
+                        ).apply { closeConnection(!bodyConsumed) }
                     }
                     receiveUpload(
                         session = session,

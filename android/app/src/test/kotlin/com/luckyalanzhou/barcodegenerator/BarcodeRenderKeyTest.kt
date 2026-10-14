@@ -4,7 +4,7 @@ import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.shared.barcodeRenderKey
-import com.luckyalanzhou.barcodegenerator.presentation.shared.barcodeRenderSize
+import com.luckyalanzhou.barcodegenerator.domain.barcodeRenderSize
 import org.junit.Assert.*
 import org.junit.Test
 

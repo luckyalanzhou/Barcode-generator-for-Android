@@ -7,7 +7,6 @@ internal val DarkAppColorScheme = AppColorScheme(
     text = AppTextColors(
         primary = AppColorTokens.white,
         secondary = AppColorTokens.Dark.secondaryText,
-        placeholder = AppColorTokens.Dark.placeholder,
         disabled = AppColorTokens.Dark.disabled,
         destructive = AppColorTokens.Dark.destructive,
         link = AppColorTokens.Dark.accent,
@@ -15,7 +14,7 @@ internal val DarkAppColorScheme = AppColorScheme(
     ),
     settingsText = AppSettingsTextColors(
         primary = AppColorTokens.Dark.settingsPrimaryText,
-        secondary = AppColorTokens.Dark.settingsSecondaryText,
+        secondary = AppColorTokens.Dark.secondaryText,
     ),
     surfaces = AppSurfaceColors(
         background = AppColorTokens.Dark.background,

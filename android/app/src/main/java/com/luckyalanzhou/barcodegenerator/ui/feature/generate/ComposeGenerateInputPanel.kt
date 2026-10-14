@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.luckyalanzhou.barcodegenerator.ui.component.unframedActionPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.icons.ArrowDownwardIcon
@@ -145,7 +147,7 @@ internal fun ComposeGenerateInputPanel(
                                             Text(
                                                 text = "输入一行条码内容",
                                                 style = LocalTextStyle.current.copy(
-                                                    color = themeColors.text.placeholder,
+                                                    color = themeColors.text.secondary,
                                                     fontSize = 14.sp,
                                                     lineHeight = 20.sp,
                                                     background = Color.Transparent,
@@ -185,12 +187,15 @@ private fun GenerateInputAction(
     onClick: () -> Unit,
 ) {
     val themeColors = LocalAppColorScheme.current
+    val interactions = remember { MutableInteractionSource() }
     val tint = if (enabled) {
         if (description == "删除") themeColors.content.deleteIcon else themeColors.controls.accent
     } else themeColors.text.disabled.copy(alpha = 0.42f)
     Surface(
-        modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).combinedClickable(
+        modifier = Modifier.size(34.dp).unframedActionPressFeedback(interactions).clip(RoundedCornerShape(10.dp)).combinedClickable(
             enabled = enabled,
+            interactionSource = interactions,
+            indication = null,
             onClick = onClick,
             onLongClick = onLongClick,
         ).semantics { role = Role.Button },

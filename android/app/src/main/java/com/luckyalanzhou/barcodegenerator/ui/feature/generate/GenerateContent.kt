@@ -20,7 +20,6 @@ import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -62,7 +61,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
@@ -99,6 +97,8 @@ internal fun GenerateContent(
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
+    var formatButtonHeight by remember { mutableIntStateOf(0) }
+    val formatInteractions = remember { MutableInteractionSource() }
     val themeColors = LocalAppColorScheme.current
     val textColor = themeColors.text.primary
     val secondary = themeColors.text.secondary
@@ -225,7 +225,7 @@ internal fun GenerateContent(
                 icon = AddIcon,
                 iconDescription = "添加一行",
                 label = "添加一行",
-                containerColor = cardColor,
+                containerColor = themeColors.controls.button,
                 contentColor = textColor,
                 modifier = Modifier.weight(1f),
                 iconSize = 20.dp,
@@ -239,10 +239,9 @@ internal fun GenerateContent(
                 icon = PhotoCameraIcon,
                 iconDescription = "拍照填充",
                 label = "拍照填充",
-                // 拍照填充是生成页的主要入口之一：使用柔和强调色突出，
-                // 同时让底部实色“生成”按钮继续承担最高优先级。
-                containerColor = lerp(cardColor, themeColors.controls.accent, if (dark) .24f else .10f),
-                contentColor = if (dark) textColor else themeColors.controls.accent,
+                // 强调色只用于图标和文字，按钮内部透明，外框仍使用统一主题描边。
+                containerColor = Color.Transparent,
+                contentColor = themeColors.controls.accent,
                 modifier = Modifier.weight(1f),
                 onClick = onCaptureText,
             )
@@ -258,14 +257,17 @@ internal fun GenerateContent(
                 Box {
                     Button(
                         onClick = { formatExpanded = true },
-                        modifier = Modifier.onGloballyPositioned { formatButtonWidth = it.size.width }
+                        interactionSource = formatInteractions,
+                        modifier = Modifier.iosPressFeedback(formatInteractions).onGloballyPositioned {
+                            formatButtonWidth = it.size.width
+                            formatButtonHeight = it.size.height
+                        }
                             .heightIn(min = 48.dp)
                             .semantics {
                                 contentDescription = "条码类型"
                                 stateDescription = "$formatName，${if (formatExpanded) "已展开" else "已收起"}"
                             },
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(0.5.dp, themeColors.borders.button),
                         elevation = ButtonDefaults.buttonElevation(
                             defaultElevation = 0.dp,
                             pressedElevation = 0.dp,
@@ -274,12 +276,12 @@ internal fun GenerateContent(
                             disabledElevation = 0.dp,
                         ),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = themeColors.controls.button,
-                            contentColor = textColor,
+                            containerColor = Color.Transparent,
+                            contentColor = themeColors.text.secondary,
                         ),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                     ) {
-                        Text(formatName, color = textColor, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
+                        Text(formatName, color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
                         Icon(KeyboardArrowDownIcon, contentDescription = null, tint = themeColors.text.secondary,
                             modifier = Modifier.padding(start = 6.dp).size(16.dp))
                     }
@@ -293,11 +295,14 @@ internal fun GenerateContent(
                         shadowElevation = 1.dp,
                         menuWidth = (formatAnchorWidth ?: 176.dp).coerceAtLeast(176.dp),
                         anchorWidth = formatAnchorWidth,
+                        anchorHeight = with(density) { formatButtonHeight.toDp() },
                         alignEndWithAnchor = true,
+                        // 与外观/字符纠错一致：整个菜单从按钮边界展开，不走 Material 默认动画。
+                        cornerReveal = true,
                     ) {
                         barcodeFormats.forEachIndexed { index, option ->
                             if (index > 0) ComposeDropdownDivider(dark)
-                            SingleChoiceMenuItem(option.displayName, option.displayName == formatName) {
+                            SingleChoiceMenuItem(option.displayName, option.displayName == formatName, highlightSelection = false) {
                                 formatName = option.displayName
                                 onFormatChanged(option.displayName)
                                 formatExpanded = false
@@ -312,7 +317,7 @@ internal fun GenerateContent(
         val generateInteraction = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier.fillMaxWidth().iosPressFeedback(generateInteraction)
-                .globalButtonChrome(RoundedCornerShape(18.dp), 2.dp).heightIn(min = 52.dp)
+                .globalButtonChrome(RoundedCornerShape(18.dp)).heightIn(min = 52.dp)
                 .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled,
                     interactionSource = generateInteraction, indication = null, role = Role.Button) {
                 onGenerate(values.toList(), formatName)
@@ -326,6 +331,7 @@ internal fun GenerateContent(
                 if (isPreparingResult) "正在准备全部条码…" else "\u751f\u6210 $count \u4e2a\u6761\u7801",
                 color = generateContent,
                 fontSize = 16.sp,
+                style = LocalTextStyle.current.copy(background = Color.Transparent),
             )
             }
         }

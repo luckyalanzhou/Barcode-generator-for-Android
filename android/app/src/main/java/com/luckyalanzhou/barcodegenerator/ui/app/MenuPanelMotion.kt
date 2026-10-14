@@ -2,8 +2,8 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.abs
-import androidx.compose.ui.graphics.TransformOrigin
 
 /** Lower drag gain slows the source without queuing animations for every pointer update. */
 internal object TabMenuSourceMotion {
@@ -20,10 +20,6 @@ internal fun tabMenuIconMotion(motion: Offset): Offset {
     return Offset(resist(motion.x), resist(motion.y))
 }
 
-/** Tab menus stay in place and contract toward their own lower corner. */
-internal fun tabMenuDragOrigin(anchorCenterX: Float, screenWidth: Float): TransformOrigin =
-    TransformOrigin(if (anchorCenterX < screenWidth * .5f) 0f else 1f, 1f)
-
 // HIG: a context-menu title is useful only when it explains the target or effect.
 internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =
     title.isNotBlank() && (!tabAnchor || title != "操作")
@@ -31,12 +27,13 @@ internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =
 /** A single reveal coordinate for geometry, light and thickness; no independent fades. */
 internal data class MenuGlassReveal(val scale: Float, val alpha: Float, val thickness: Float, val shadow: Float)
 
-internal fun menuGlassReveal(progress: Float, tabAnchor: Boolean, reduceMotion: Boolean): MenuGlassReveal {
+internal fun menuGlassReveal(progress: Float, reduceMotion: Boolean): MenuGlassReveal {
     val p = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
-    if (reduceMotion) return MenuGlassReveal(1f, if (p > 0f) 1f else 0f, 1f, 1f)
-    val initialScale = if (tabAnchor) .94f else .86f
-    return MenuGlassReveal(initialScale + (1f - initialScale) * p,
-        (p / .2f).coerceIn(0f, 1f), p * p * (3f - 2f * p), .35f + .65f * p)
+    if (reduceMotion) return MenuGlassReveal(1f, p, 1f, 1f)
+    // 两类菜单都整体展开；仅允许很小的弹簧超调，不通过裁切隐藏菜单行。
+    val elastic = if (progress.isFinite()) progress.coerceIn(0f, 1.08f) else 0f
+    return MenuGlassReveal(.94f + .06f * elastic,
+        p, p * p * (3f - 2f * p), .35f + .65f * p)
 }
 
 /** Normalized, bounded motion: the panel moves as one surface, not individual glyphs. */
@@ -58,7 +55,25 @@ internal fun menuAnchorMotion(point: Offset?, origin: Offset, rangePx: Float): O
 }
 
 internal fun menuDragScale(motion: Offset): Float =
-    1f - .20f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
+    1f - .03f * maxOf(abs(motion.x), abs(motion.y)).coerceIn(0f, 1f)
+
+internal data class TabMenuDragTransform(val scale: Float, val translation: Offset)
+
+/** 弹出围绕来源锚点，拖动围绕菜单自身下角；合成为一次图层变换，避免修改 pivot 时跳动。 */
+internal fun tabMenuDragTransform(
+    motion: Offset, presentationScale: Float, pivotX: Float, pivotY: Float,
+    panel: IntSize, rightSide: Boolean,
+): TabMenuDragTransform {
+    fun finiteMagnitude(value: Float) = if (value.isFinite()) abs(value).coerceIn(0f, 1f) else 0f
+    // 64dp 拖动约缩小 5%，极限 10%；图标仍保持原来的小范围阻尼位移。
+    val scale = 1f - .10f * maxOf(finiteMagnitude(motion.x), finiteMagnitude(motion.y))
+    if (scale == 1f) return TabMenuDragTransform(1f, Offset.Zero)
+    val compensation = presentationScale * (1f - scale)
+    return TabMenuDragTransform(scale, Offset(
+        compensation * ((if (rightSide) 1f else 0f) - pivotX) * panel.width,
+        compensation * (1f - pivotY) * panel.height,
+    ))
+}
 
 /** Sliding toward the menu selects rows, rather than pushing the menu away. */
 internal fun menuSourceInteractionMotion(

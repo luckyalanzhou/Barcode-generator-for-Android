@@ -12,20 +12,19 @@ internal object AppColorTokens {
         val favoriteActive = Color(0xffd97706)
         val folder = Color(0xff5b8def)
         val childFolder = Color(0xff6883A5)
-        // Cool, near-white surface separates secondary controls from both the
-        // page canvas and white cards without competing with primary blue.
-        val button = Color(0xfff3f6fb)
+        // 普通按钮不添加灰色填充，直接透出所在页面或卡片；边框与文字保留辨识度。
+        val button = Color.Transparent
         val selectedContainer = Color(0xffe8f2ff)
-        val disabledContainer = Color(0xffe7e9ef)
+        val disabledContainer = Color.Transparent
         val border = Color(0xffd9e1ec)
-        val buttonBorder = Color(0xffd1d1d6).copy(alpha = .72f)
+        val buttonBorder = Color.Black.copy(alpha = .22f)
         val destructive = Color(0xffc2413b)
         // Apple system blue is shared by the primary action and progress fill.
         val cardBorder = border
         val inputBorder = Color(0xffe3e8f0)
         val tabUnselected = Color(0xff64748b)
         val disabled = Color(0xff7d8795)
-        val placeholder = Color(0xff3c3c43).copy(alpha = .60f)
+        val secondaryText = Color(0xff3c3c43).copy(alpha = .60f)
         val progressTrack = Color(0xffe4eaf2)
         val inputPanel = Color(0xfff0f2f5)
         val divider = Color(0xff667085).copy(alpha = .12f)
@@ -36,7 +35,6 @@ internal object AppColorTokens {
         val sliderThumbBorder = Color(0xffc7c7cc).copy(alpha = .30f)
         val sliderThumb = Color.White
         val settingsPrimaryText = Color(0xff000000)
-        val settingsSecondaryText = Color(0xff3c3c43).copy(alpha = .60f)
     }
 
     internal object Dark {
@@ -45,12 +43,12 @@ internal object AppColorTokens {
         val input = Color(0xff202c3a)
         val accent = Color(0xff0a84ff)
         val favoriteActive = Color(0xffffbb33)
-        // Lifted neutral surface with a restrained cool bias for dark mode.
-        val button = Color(0xff262b33)
+        // 深色模式同样不人为叠加灰色按钮底色，禁用状态由文字和交互表达。
+        val button = Color.Transparent
         val selectedContainer = Color(0xff17334d)
-        val disabledContainer = Color(0xff252529)
+        val disabledContainer = Color.Transparent
         val border = Color.White.copy(alpha = 0.10f)
-        val buttonBorder = Color(0xff3a3a3c).copy(alpha = .82f)
+        val buttonBorder = Color.White.copy(alpha = .26f)
         val destructive = Color(0xffffb0b0)
         // Dark-mode system blue keeps primary actions consistent with tabs and sliders.
         val cardBorder = Color.White.copy(alpha = 0.055f)
@@ -59,8 +57,7 @@ internal object AppColorTokens {
         val disabled = Color(0xff657388)
         val progressTrack = Color(0xff152938)
         val inputPanel = Color(0xff2c2c2e)
-        val secondaryText = Color(0xff8e8e93)
-        val placeholder = Color(0xffebebf5).copy(alpha = .60f)
+        val secondaryText = Color(0xffebebf5).copy(alpha = .60f)
         val onAccent = Color(0xff10224a)
         val divider = Color.White.copy(alpha = .10f)
         val toggleOn = Color(0xff30d158)
@@ -70,7 +67,6 @@ internal object AppColorTokens {
         val sliderThumbBorder = Color.White.copy(alpha = .18f)
         val sliderThumb = Color(0xfff8f8f8)
         val settingsPrimaryText = Color(0xffffffff)
-        val settingsSecondaryText = Color(0xffebebf5).copy(alpha = .60f)
         val folder = Color(0xff8abcf5)
         val childFolder = Color(0xffA1B6CF)
         val file = Color(0xff9bd8c0)

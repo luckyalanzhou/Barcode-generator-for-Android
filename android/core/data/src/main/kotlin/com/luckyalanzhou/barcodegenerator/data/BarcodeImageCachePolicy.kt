@@ -12,12 +12,13 @@ internal object BarcodeImageCachePolicy {
         protectedFile: File,
         maxBytes: Long = MAX_DISK_BYTES,
         maxImageFiles: Int = MAX_IMAGE_FILES,
+        activeTemporaryNames: Set<String> = emptySet(),
     ) {
         val images = directory.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".png") }
         val protected = runCatching { protectedFile.canonicalFile }.getOrNull()
 
         directory.listFiles().orEmpty()
-            .filter { it.isFile && it.name.startsWith(".") && it.name.endsWith(".tmp") }
+            .filter { it.isFile && it.name.startsWith(".") && it.name.endsWith(".tmp") && it.name !in activeTemporaryNames }
             .forEach(File::delete)
 
         var totalBytes = images.sumOf { it.length() }

@@ -19,7 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 private val Context.settingsDataStore by preferencesDataStore(name = "barcode_settings")
 
@@ -46,8 +45,7 @@ class SettingsStore(private val context: Context) : SettingsRepository {
 
     // 所有设置写入串行执行，避免滑块连续拖动时旧快照晚到并覆盖最新值。
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val writeLock = Any()
-    private var writeTail: Job = Job().apply { complete() }
+    private val writeQueue = SettingsWriteQueue(scope)
     @Volatile private var cachedValues: Preferences = emptyPreferences()
     @Volatile private var ocrConfusionReplacementMask = 0
 
@@ -68,7 +66,6 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     override fun getOcrConfusionReplacementMask(): Int = ocrConfusionReplacementMask
 
     override fun setOcrConfusionReplacementMask(mask: Int): Job {
-        ocrConfusionReplacementMask = mask
         return write { it[OCR_CONFUSION_REPLACEMENT_MASK] = mask }
     }
 
@@ -76,14 +73,10 @@ class SettingsStore(private val context: Context) : SettingsRepository {
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }
 
-    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Job = synchronized(writeLock) {
-        val previous = writeTail
-        val next = scope.launch {
-            previous.join()
-            context.settingsDataStore.edit { preferences -> block(preferences) }
-        }
-        writeTail = next
-        next
+    private fun write(block: (MutablePreferences) -> Unit): Job = writeQueue.enqueue {
+        val committed = context.settingsDataStore.edit { preferences -> block(preferences) }
+        cachedValues = committed
+        ocrConfusionReplacementMask = committed[OCR_CONFUSION_REPLACEMENT_MASK] ?: 0
     }
 }
 

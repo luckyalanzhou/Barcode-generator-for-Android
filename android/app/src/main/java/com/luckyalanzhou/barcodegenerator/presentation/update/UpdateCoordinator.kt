@@ -46,26 +46,35 @@ class UpdateCoordinator(
     }
 
     suspend fun checkForUpdates(): UpdateCheckResult {
-        if (!checkMutex.tryLock()) return UpdateCheckResult.InProgress
+        if (!checkMutex.tryLock()) {
+            logger.record("update", "check skipped reason=in_progress", null)
+            return UpdateCheckResult.InProgress
+        }
+        logger.record("update", "check start", null)
         _uiState.update { it.copy(checking = true) }
         try {
         return when (val result = updateCatalogGateway.check()) {
             is UpdateLookupResult.Available -> {
+                logger.record("update", "check available version=${result.version}", null)
                 setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
                 UpdateCheckResult.Available(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
             }
             UpdateLookupResult.UpToDate -> {
+                logger.record("update", "check up_to_date", null)
                 clearAvailableUpdate()
                 UpdateCheckResult.UpToDate
             }
             is UpdateLookupResult.Failed -> {
+                logger.record("update", "check failed reason=${result.reason}", null)
                 clearAvailableUpdate()
                 UpdateCheckResult.Failed(result.reason)
             }
         }
         } catch (error: CancellationException) {
+            logger.record("update", "check cancelled", null)
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            logger.record("update", "check failed exception", error)
             return UpdateCheckResult.Failed("检查更新失败，请重试")
         } finally {
             _uiState.update { it.copy(checking = false) }
@@ -121,6 +130,7 @@ class UpdateCoordinator(
     fun startDownload(scope: CoroutineScope, apkUrl: String, expectedSize: Long?, expectedSha256: String?) {
         if (_uiState.value.downloadRunning) return
         val generation = downloadGeneration.incrementAndGet()
+        logger.record("update", "download start operation=$generation expectedBytes=$expectedSize", null)
         resetDownloadState()
         setDownloadRunning(true)
         downloadJob = scope.launch {
@@ -133,7 +143,9 @@ class UpdateCoordinator(
                     return@launch
                 }
                 _events.send(UpdateEvent.DownloadReady(file.absolutePath))
+                logger.record("update", "download ready operation=$generation bytes=${file.length()}", null)
             } catch (_: CancellationException) {
+                logger.record("update", "download cancelled operation=$generation", null)
                 // 用户取消下载时不显示失败提示。
             } catch (error: Exception) {
                 if (downloadGeneration.get() != generation) return@launch

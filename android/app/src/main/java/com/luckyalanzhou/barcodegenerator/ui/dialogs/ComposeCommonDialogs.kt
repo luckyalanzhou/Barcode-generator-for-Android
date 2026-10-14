@@ -52,7 +52,9 @@ internal fun AnchoredDropdownMenu(
     shadowElevation: Dp = 1.dp,
     menuWidth: Dp? = null,
     anchorWidth: Dp? = null,
+    anchorHeight: Dp? = null,
     alignEndWithAnchor: Boolean = false,
+    cornerReveal: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val containerSize = LocalWindowInfo.current.containerSize
@@ -62,6 +64,13 @@ internal fun AnchoredDropdownMenu(
     val resolvedMenuWidth = menuWidth?.coerceAtMost(maxWidth)
     val widthModifier = if (menuWidth != null) Modifier.width(resolvedMenuWidth ?: maxWidth) else Modifier.widthIn(max = maxWidth)
     val horizontalOffset = if (alignEndWithAnchor && anchorWidth != null && resolvedMenuWidth != null) anchorWidth - resolvedMenuWidth else 0.dp
+    if (cornerReveal) {
+        CornerDropdownMenu(expanded, onDismissRequest,
+            modifier.then(widthModifier).heightIn(max = maxHeight), shape,
+            containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
+            anchorHeight, content)
+        return
+    }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
@@ -100,13 +109,12 @@ internal fun DialogAction(
         destructive -> colors.text.destructive
         else -> colors.text.primary
     }
-    val border = if (primary) foreground.copy(alpha = 0.62f) else colors.borders.border
     val background = if (primary) colors.controls.accent else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .iosPressFeedback(interactionSource)
-            .globalButtonChrome(RoundedCornerShape(12.dp), 0.5.dp, border)
+            .globalButtonChrome(RoundedCornerShape(12.dp))
             .background(background, RoundedCornerShape(12.dp))
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),

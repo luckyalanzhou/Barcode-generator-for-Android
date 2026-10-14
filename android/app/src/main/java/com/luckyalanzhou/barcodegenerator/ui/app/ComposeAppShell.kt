@@ -12,9 +12,11 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewMod
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareQrBitmapFactory
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
+import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
+import com.luckyalanzhou.barcodegenerator.ui.animation.rememberContextMenuMotion
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
@@ -29,7 +31,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,6 +72,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.Flow
 import com.luckyalanzhou.barcodegenerator.ui.component.ContextMenuGestureSession
 import com.luckyalanzhou.barcodegenerator.ui.component.contextMenuGestures
 
@@ -135,6 +138,17 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
     val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }
     val menuGesture = remember { ContextMenuGestureSession() }
+    // 相机识别属于跨页面动作；常驻监听可在生成 Tab 未选中时也更新生成草稿，不触发导航。
+    CameraOcrEventCollector(
+        events = dependencies.cameraOcrViewModel.events,
+        onRecognizedText = dependencies.generateViewModel::updateDraft,
+        onNavigateToGenerate = {
+            if (dependencies.navigationViewModel.uiState.value.page != AppRoute.Generate) {
+                dependencies.actions.selectTab(0, fromSwipe = false)
+            }
+        },
+        onNotice = dependencies.actions::notice,
+    )
     fun showMenu(state: TabLongPressMenuState) {
         if (state.anchorBoundsOnScreen.width <= 0f || state.anchorBoundsOnScreen.height <= 0f || state.actions.isEmpty()) return
         menuGesture.open()
@@ -148,14 +162,14 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             restore?.invoke()
         }
     }
-    val tabMenuProgress = animateFloatAsState(
-        targetValue = if (tabMenu.open && tabMenu.ready) 1f else 0f,
-        animationSpec = tween(if (effects.reduceMotion) 0 else if (tabMenu.menu?.tabAnchor == false) 240 else 190, easing = FastOutSlowInEasing),
-        finishedListener = { if (it == 0f) tabMenu.closed() },
-        label = "tab-menu-presentation",
-    )
+    val menuMotion = rememberContextMenuMotion(tabMenu.menu, tabMenu.open, tabMenu.ready,
+        tabMenu.actionClosing, effects.reduceMotion) { showing ->
+        if (tabMenu.menu === showing) tabMenu.closed()
+    }
+    val tabMenuProgress = menuMotion.reveal
     fun dismissMenu(action: (() -> Unit)? = null) {
-        menuGesture.close()
+        if (!tabMenu.open) return // 退场中的额外触摸不能清除确认高亮或覆盖待执行操作。
+        menuGesture.close(preserveConfirmation = action != null)
         // 若菜单在首帧动画前关闭，不等待尚未开始的退场动画，立即完成关闭。
         tabMenu.dismiss(immediately = tabMenuProgress.value <= 0f, action = action)
     }
@@ -171,6 +185,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     LaunchedEffect(Unit) {
         dependencies.libraryDataViewModel.persistenceFailures.collect {
             dependencies.actions.notice("数据保存失败，请稍后重试")
+        }
+    }
+    LaunchedEffect(dependencies.settingsViewModel) {
+        dependencies.settingsViewModel.persistenceFailures.collect {
+            dependencies.actions.notice("设置未保存，当前调整仍保留，请重试")
         }
     }
     BackHandler(enabled = tabMenu.menu != null) {
@@ -194,7 +213,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             .contextMenuGestures(menuGesture, onDismiss = { dismissMenu() }, onAction = { dismissMenu(it) })) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val blurPx = menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass)
+                    val blurPx = menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass || effects.reduceMotion)
                     renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && blurPx > .1f) {
                         BlurEffect(blurPx, blurPx, TileMode.Clamp)
                     } else null
@@ -286,6 +305,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             selectedIndex = appUiState.selectedTab,
                             dark = dark,
                             onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
+                            onGeneratePhotoFill = dependencies.actions::captureText,
                             onHistoryClear = dependencies.actions::clearHistory,
                             onFavoritesImport = dependencies.actions::restoreFavorites,
                             onFavoritesExport = dependencies.actions::exportFavorites,
@@ -302,6 +322,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 TabLongPressActionOverlay(
                     state = menuState,
                     progress = tabMenuProgress,
+                    sourceProgress = menuMotion.source,
+                    panelProgress = menuMotion.panel,
+                    opacity = menuMotion.opacity,
+                    actionExit = menuMotion.actionExit,
+                    actionClosing = tabMenu.actionClosing,
                     interactive = tabMenu.open,
                     gesture = menuGesture,
                     onMeasured = { menuGesture.ready = true; tabMenu.measured() },
@@ -310,6 +335,30 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 )
             }
         }
+        }
+    }
+}
+
+/** 在应用 Shell 生命周期内消费拍照识别事件，不依赖生成页是否当前显示。 */
+@Composable
+internal fun CameraOcrEventCollector(
+    events: Flow<CameraOcrEvent>,
+    onRecognizedText: (List<String>) -> Unit,
+    onNavigateToGenerate: () -> Unit,
+    onNotice: (String) -> Unit,
+) {
+    val currentOnRecognizedText by rememberUpdatedState(onRecognizedText)
+    val currentOnNavigateToGenerate by rememberUpdatedState(onNavigateToGenerate)
+    val currentOnNotice by rememberUpdatedState(onNotice)
+    LaunchedEffect(events) {
+        events.collect { event ->
+            when (event) {
+                is CameraOcrEvent.RecognizedText -> {
+                    currentOnRecognizedText(event.lines)
+                    currentOnNavigateToGenerate()
+                }
+                is CameraOcrEvent.Notice -> currentOnNotice(event.message)
+            }
         }
     }
 }

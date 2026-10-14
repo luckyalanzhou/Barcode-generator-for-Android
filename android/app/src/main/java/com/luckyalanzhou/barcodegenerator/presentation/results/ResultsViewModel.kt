@@ -55,6 +55,11 @@ class ResultsViewModel @Inject constructor(
     private val _isPreparingResult = MutableStateFlow(false)
     val isPreparingResult: StateFlow<Boolean> = _isPreparingResult.asStateFlow()
 
+    /** 只记录规模和渲染阶段，不写入条码正文；UI 回退也必须留下可排查原因。 */
+    fun recordRowRenderFailure(error: Throwable, count: Int, width: Int) {
+        appLogger.record("results", "row_prepare failed count=$count width=$width", error)
+    }
+
     init {
         pendingRestoration?.let(::restoreSavedResult)
     }

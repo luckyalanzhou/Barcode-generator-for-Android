@@ -52,7 +52,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -62,8 +61,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
-import com.luckyalanzhou.barcodegenerator.icons.CheckBoxIcon
-import com.luckyalanzhou.barcodegenerator.icons.CheckBoxOutlineBlankIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 
 /**
@@ -89,9 +86,13 @@ internal fun SettingsContent(
     val effectsSettings = displayEffectsSettingsState(settings.style, LocalVisualEffectsPolicy.current)
     var schemeButtonWidth by remember { mutableIntStateOf(0) }
     var ocrButtonWidth by remember { mutableIntStateOf(0) }
+    var schemeButtonHeight by remember { mutableIntStateOf(0) }
+    var ocrButtonHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val schemeWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val schemeHeight = schemeButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
+    val ocrHeight = ocrButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val dimensions = LocalAppDimensions.current
     val listState = rememberLazyListState()
     val contentExceedsViewport by remember(listState) {
@@ -121,10 +122,9 @@ internal fun SettingsContent(
                                     "light" -> "浅色"
                                     else -> "跟随系统"
                                 },
-                                color = colors.controls.button,
-                                contentColor = colors.settingsText.primary,
+                                contentColor = colors.settingsText.secondary,
                                 onClick = { schemeMenu = true },
-                                onMeasured = { schemeButtonWidth = it },
+                                onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
                                 pickerLabel = "外观",
                                 expanded = schemeMenu,
                             )
@@ -133,12 +133,13 @@ internal fun SettingsContent(
                                 expanded = schemeMenu,
                                 menuWidth = 160.dp,
                                 anchorWidth = schemeWidth,
+                                anchorHeight = schemeHeight,
                                 onDismiss = { schemeMenu = false },
                             ) {
                                 listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
-                                    SingleChoiceMenuItem(label, value == selectedScheme) {
+                                    SingleChoiceMenuItem(label, value == selectedScheme, highlightSelection = false) {
                                         schemeMenu = false
                                         persist(settings.style.copy(colorScheme = value))
                                     }
@@ -149,7 +150,7 @@ internal fun SettingsContent(
                     SettingsDivider(dark)
                     SettingsRow("显示与动效", colors.settingsText.primary,
                         Modifier.clickable(role = Role.Button) { displayEffectsOpen = true }) {
-                        Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 14.sp)
+                        Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 16.sp)
                         Icon(KeyboardArrowRightIcon, contentDescription = null,
                             tint = colors.settingsText.secondary, modifier = Modifier.padding(start = 6.dp).size(20.dp))
                     }
@@ -191,36 +192,25 @@ internal fun SettingsContent(
                         Box {
                             SettingsDropdownButton(
                                 text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
-                                color = colors.controls.button,
-                                contentColor = colors.settingsText.primary,
+                                contentColor = colors.settingsText.secondary,
                                 onClick = { ocrMenu = true },
-                                onMeasured = { ocrButtonWidth = it },
+                                onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },
                             )
                             SettingsDropdown(
                                 dark = dark,
                                 expanded = ocrMenu,
                                 menuWidth = 140.dp,
                                 anchorWidth = ocrWidth,
+                                anchorHeight = ocrHeight,
                                 onDismiss = { ocrMenu = false },
                             ) {
                                 ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
                                     if (index > 0) ComposeDropdownDivider(dark)
                                     val checked = settings.ocrMask and bit != 0
-                                    androidx.compose.material3.DropdownMenuItem(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(if (checked) colors.controls.selectedContainer else Color.Transparent)
-                                            .height(40.dp),
-                                        contentPadding = PaddingValues(start = 12.dp, end = 0.dp),
-                                        text = { Text(label, color = colors.settingsText.primary, maxLines = 1, softWrap = false) },
-                                        trailingIcon = {
-                                            Icon(
-                                                imageVector = if (checked) CheckBoxIcon else CheckBoxOutlineBlankIcon,
-                                                contentDescription = if (checked) "已选中" else "未选中",
-                                                tint = if (checked) colors.controls.accent else colors.text.secondary,
-                                                modifier = Modifier.padding(end = 12.dp).size(24.dp),
-                                            )
-                                        },
+                                    com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuChoiceItem(
+                                        label = label,
+                                        checked = checked,
+                                        multiple = true,
                                         onClick = {
                                             val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
                                             onOcrMaskChange(mask)
@@ -239,8 +229,9 @@ internal fun SettingsContent(
                     SettingsRow("局域网文件分享", colors.settingsText.primary) {
                         SettingsButton(
                             text = "启动",
-                            color = lerp(colors.surfaces.card, colors.controls.accent, if (dark) .24f else .10f),
-                            contentColor = if (dark) colors.settingsText.primary else colors.controls.accent,
+                            // 强调色只用于“启动”文字，内部不染色，保留统一按钮外框。
+                            color = Color.Transparent,
+                            contentColor = colors.controls.accent,
                             onClick = onEnterLanShare,
                         )
                     }
@@ -276,7 +267,7 @@ internal fun SettingsContent(
                         text = if (checkingForUpdates) "检查中…" else "检查更新",
                         busy = checkingForUpdates,
                         color = colors.controls.button,
-                        contentColor = colors.settingsText.primary,
+                        contentColor = colors.controls.accent,
                         onClick = onCheckForUpdates,
                         modifier = Modifier.width(112.dp),
                     )

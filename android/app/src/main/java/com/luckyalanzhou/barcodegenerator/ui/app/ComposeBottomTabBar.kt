@@ -16,6 +16,7 @@ import com.luckyalanzhou.barcodegenerator.icons.CloudUploadIcon
 import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
 import com.luckyalanzhou.barcodegenerator.icons.FavoriteIcon
 import com.luckyalanzhou.barcodegenerator.icons.HistoryIcon
+import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
 import com.luckyalanzhou.barcodegenerator.icons.SettingsIcon
 import com.luckyalanzhou.barcodegenerator.icons.UpgradeIcon
 
@@ -23,9 +24,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -93,7 +94,7 @@ private data class ComposeTabSpec(
 
 /**
  * 主导航栏：点击切换页面，滑动手势由外层路由协调；重新点击历史/收藏 Tab 可请求回到默认滚动位置。
- * 历史、收藏和设置 Tab 长按分别打开清空历史、收藏导入/导出、检查更新菜单。
+ * 各 Tab 长按打开对应快捷菜单：生成拍照填充、历史清空、收藏导入/导出、设置检查更新。
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -101,6 +102,7 @@ internal fun BarcodeComposeBottomTabBar(
     selectedIndex: Int,
     dark: Boolean,
     onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit,
+    onGeneratePhotoFill: () -> Unit,
     onHistoryClear: () -> Unit,
     onFavoritesImport: () -> Unit,
     onFavoritesExport: () -> Unit,
@@ -241,6 +243,13 @@ internal fun BarcodeComposeBottomTabBar(
                 tabs.forEachIndexed { index, tab ->
                     val selected = selectedIndex == index
                     val interactionSource = remember(index) { MutableInteractionSource() }
+                    val pressed by interactionSource.collectIsPressedAsState()
+                    // 只压缩 Tab 的图标和文字，命中区域保持原尺寸。
+                    val menuPressScale = animateFloatAsState(
+                        if (pressed && !effects.reduceMotion) .97f else 1f,
+                        if (effects.reduceMotion) tween(0) else if (pressed) tween(100)
+                        else ComposeAnimationConfig.pressSpring(), label = "tab-menu-press-$index",
+                    )
                     var tabPlaced by remember { mutableStateOf(false) }
                     DisposableEffect(Unit) { onDispose { tabPlaced = false } }
                     val itemColor = if (!showSelectionIndicator && selected) selectedColor else unselectedColor
@@ -253,6 +262,13 @@ internal fun BarcodeComposeBottomTabBar(
                     val openMenu: () -> Unit = {
                                 hapticView.performLightMenuOpenHaptic()
                                 val actions = when (index) {
+                                    0 -> listOf(
+                                        TabLongPressAction(
+                                            label = "拍照填充",
+                                            icon = PhotoCameraIcon,
+                                            onClick = onGeneratePhotoFill,
+                                        ),
+                                    )
                                     1 -> listOf(
                                         TabLongPressAction(
                                             label = "清空历史记录",
@@ -272,13 +288,14 @@ internal fun BarcodeComposeBottomTabBar(
                                             onClick = onFavoritesExport,
                                         ),
                                     )
-                                    else -> listOf(
+                                    3 -> listOf(
                                         TabLongPressAction(
                                             label = "检查更新",
                                             icon = UpgradeIcon,
                                             onClick = onCheckForUpdates,
                                         ),
                                     )
+                                    else -> emptyList()
                                 }
                                 onLongPressActionMenuRequested(
                                     TabLongPressMenuState(
@@ -292,8 +309,7 @@ internal fun BarcodeComposeBottomTabBar(
                                     ),
                                 )
                     }
-                    val tabClickModifier = if (index in 1..3) {
-                        Modifier.combinedClickable(
+                    val tabClickModifier = Modifier.combinedClickable(
                             interactionSource = interactionSource,
                             indication = null,
                             role = Role.Tab,
@@ -302,21 +318,13 @@ internal fun BarcodeComposeBottomTabBar(
                             onLongClick = openMenu,
                             hapticFeedbackEnabled = false,
                         )
-                    } else {
-                        Modifier.clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = { handleTabClick(index) },
-                        )
-                    }
                     Box(
                         modifier = Modifier.weight(1f).fillMaxHeight()
                             .focusRequester(tabFocus[index])
                             .semantics(mergeDescendants = true) {
                                 this.selected = selected
                                 contentDescription = tab.description
-                                if (index in 1..3) customActions = listOf(
+                                customActions = listOf(
                                     CustomAccessibilityAction("打开${tab.label}操作菜单") { openMenu(); true },
                                 )
                             }
@@ -335,7 +343,10 @@ internal fun BarcodeComposeBottomTabBar(
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 3.dp),
+                            modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
+                                scaleX = menuPressScale.value
+                                scaleY = menuPressScale.value
+                            },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
@@ -378,7 +389,10 @@ internal fun BarcodeComposeBottomTabBar(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(vertical = 3.dp),
+                                    modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
+                                        scaleX = menuPressScale.value
+                                        scaleY = menuPressScale.value
+                                    },
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {

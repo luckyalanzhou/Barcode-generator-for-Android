@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.composeResultRowImage
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.consumeCompleteExportBatch
@@ -106,18 +107,26 @@ private fun MainActivity.withResultPageImage(action: ResultExportAction, onReady
     resultExportAction = action
     lifecycleScope.launch {
         var sharingStarted = false
+        DebugLog.actionStarted("result_image_prepare", "action=$action")
         try {
             val result = createResultPageImage()
-            if (result == null) toast("条码图片准备失败，请重试") else {
+            if (result == null) {
+                DebugLog.record("results", "result_image_prepare failed reason=empty_or_invalid_layout action=$action")
+                toast("条码图片准备失败，请重试")
+            } else {
+                DebugLog.actionSucceeded("result_image_prepare", "width=${result.bitmap.width} height=${result.bitmap.height}")
                 onReady(result)
                 // PNG encoding and chooser launch own the busy state after preparation.
                 sharingStarted = action == ResultExportAction.Share
             }
         } catch (error: CancellationException) {
+            DebugLog.record("results", "result_image_prepare cancelled action=$action")
             throw error
-        } catch (_: OutOfMemoryError) {
+        } catch (error: OutOfMemoryError) {
+            DebugLog.actionFailed("result_image_prepare", error, "action=$action")
             toast("图片占用内存过大，请减少条码数量后重试")
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            DebugLog.actionFailed("result_image_prepare", error, "action=$action")
             toast("条码图片准备失败，请重试")
         } finally {
             if (!sharingStarted) resultExportAction = null
@@ -177,7 +186,8 @@ private fun MainActivity.saveResultImageDocument(result: ResultPageImage) {
             temporary?.delete()
             pendingResultImageFile = null
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            DebugLog.actionFailed("result_image_document_prepare", error)
             temporary?.delete()
             pendingResultImageFile = null
             toast("准备文件失败，请重试")

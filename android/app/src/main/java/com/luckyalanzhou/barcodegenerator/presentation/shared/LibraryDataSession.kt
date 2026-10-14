@@ -20,10 +20,8 @@ class LibraryDataSession @Inject constructor() {
     private val mutableDataState = MutableStateFlow(BarcodeDataState())
     val dataState: StateFlow<BarcodeDataState> = mutableDataState.asStateFlow()
 
-    private val dataStateCoordinator = BarcodeDataStateCoordinator(store, mutableDataState)
-
     fun publishDataState(isReady: Boolean = dataState.value.isReady) {
-        dataStateCoordinator.publish(isReady)
+        mutableDataState.value = store.snapshot(isReady)
     }
 
     internal fun publishLoadedSnapshot(cursor: FavoriteGroupPageCursor?, hasMoreGroups: Boolean) = synchronized(this) {

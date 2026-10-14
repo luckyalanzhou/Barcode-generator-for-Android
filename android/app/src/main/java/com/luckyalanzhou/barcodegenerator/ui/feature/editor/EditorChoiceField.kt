@@ -1,16 +1,18 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.editor
 
+import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
+
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,21 +39,26 @@ internal fun ComposeChoiceField(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var buttonWidth by remember { mutableIntStateOf(0) }
+    var buttonHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
+    val interactions = remember { MutableInteractionSource() }
     Box(modifier) {
         OutlinedButton(
             onClick = { if (enabled) expanded = true },
             enabled = enabled,
+            interactionSource = interactions,
             modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
-                .onGloballyPositioned { buttonWidth = it.size.width },
+                .iosPressFeedback(interactions)
+                .onGloballyPositioned { buttonWidth = it.size.width; buttonHeight = it.size.height }
+                .then(if (compact) Modifier else Modifier.globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            border = BorderStroke(if (compact) 1.dp else 0.5.dp,
-                if (compact) LocalAppColorScheme.current.text.primary.copy(alpha = .28f) else LocalAppColorScheme.current.borders.button),
+            border = null,
             contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary,
-                containerColor = if (compact) LocalAppColorScheme.current.controls.button else androidx.compose.ui.graphics.Color.Transparent),
+            // 条码格式入口使用次级文字色、无框无底色；文件夹选择不改变原外观。
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary,
+                containerColor = androidx.compose.ui.graphics.Color.Transparent),
         ) {
-            Text(value, color = LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, color = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         AnchoredDropdownMenu(
             dark = dark,
@@ -61,6 +68,10 @@ internal fun ComposeChoiceField(
             containerColor = LocalAppColorScheme.current.surfaces.overlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
+            // compact 是编辑条码格式入口；文件夹选择保持现有展开方式。
+            cornerReveal = compact,
+            alignEndWithAnchor = compact,
+            anchorHeight = with(density) { buttonHeight.toDp() },
             menuWidth = buttonWidth.takeIf { it > 0 }?.let {
                 val measured = with(density) { it.toDp() }
                 if (compact) measured.coerceAtLeast(160.dp) else measured
@@ -68,11 +79,11 @@ internal fun ComposeChoiceField(
         ) {
             options.forEachIndexed { index, option ->
                 if (index > 0) ComposeDropdownDivider(dark)
-                DropdownMenuItem(
-                    modifier = Modifier.height(40.dp),
-                    text = { Text(option, color = LocalAppColorScheme.current.text.primary) },
-                    onClick = { onSelected(option); expanded = false },
-                )
+                if (compact) SingleChoiceMenuItem(option, option == value, highlightSelection = false) {
+                    onSelected(option); expanded = false
+                } else SingleChoiceMenuItem(option, option == value, highlightSelection = false) {
+                    onSelected(option); expanded = false
+                }
             }
         }
     }

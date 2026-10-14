@@ -12,7 +12,8 @@ class LocalBarcodeFileStore(context: Context) {
     private val imageDirectory = File(root, "images")
     private val legacyImageDirectory = File(File(context.filesDir, "barcode-data"), "images")
     private val imageLocks = Array(64) { Any() }
-    private val pruneLock = Any()
+    private val maintenance = BarcodeCacheMaintenance()
+    private val activeTemporaryNames = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     init {
         removeLegacyImageCache()
@@ -27,38 +28,40 @@ class LocalBarcodeFileStore(context: Context) {
     fun readImage(key: String): Bitmap? {
         if (!isValidKey(key)) return null
         return synchronized(imageLocks[(key.hashCode() and Int.MAX_VALUE) % imageLocks.size]) {
-        imageMemoryCache.get(key)?.let {
-            touchImage(key)
-            return it
-        }
-        return BitmapFactory.decodeFile(File(imageDirectory, "$key.png").absolutePath)?.also {
-            touchImage(key)
-            imageMemoryCache.put(key, it)
-        }
+            // 内存命中不再做文件存在性检查和时间戳写入。
+            imageMemoryCache.get(key) ?: BitmapFactory.decodeFile(File(imageDirectory, "$key.png").absolutePath)?.also {
+                touchImage(key)
+                imageMemoryCache.put(key, it)
+            }
         }
     }
 
     fun writeImage(key: String, bitmap: Bitmap) {
         if (!isValidKey(key)) return
         synchronized(imageLocks[(key.hashCode() and Int.MAX_VALUE) % imageLocks.size]) {
-        imageMemoryCache.put(key, bitmap)
-        imageDirectory.mkdirs()
-        val target = File(imageDirectory, "$key.png")
-        val temporary = File(imageDirectory, ".$key.tmp")
-        val compressed = runCatching {
-            temporary.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        }.getOrDefault(false)
-        if (!compressed || temporary.length() > BarcodeImageCachePolicy.MAX_DISK_BYTES) {
-            temporary.delete()
-            return
-        }
-        val stored = temporary.renameTo(target) ||
-            (!target.exists() || target.delete()) && temporary.renameTo(target)
-        if (!stored) {
-            temporary.delete()
-            return
-        }
-        synchronized(pruneLock) { BarcodeImageCachePolicy.prune(imageDirectory, target) }
+            imageMemoryCache.put(key, bitmap)
+            imageDirectory.mkdirs()
+            val target = File(imageDirectory, "$key.png")
+            val temporary = File(imageDirectory, ".$key.tmp")
+            activeTemporaryNames.add(temporary.name)
+            try {
+                val compressed = runCatching {
+                    temporary.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                }.getOrDefault(false)
+                if (!compressed || temporary.length() > BarcodeImageCachePolicy.MAX_DISK_BYTES) {
+                    temporary.delete()
+                    return
+                }
+                val stored = temporary.renameTo(target) ||
+                    (!target.exists() || target.delete()) && temporary.renameTo(target)
+                if (!stored) {
+                    temporary.delete()
+                    return
+                }
+                maintenance.onStored(imageDirectory, target, activeTemporaryNames)
+            } finally {
+                activeTemporaryNames.remove(temporary.name)
+            }
         }
     }
 

@@ -7,8 +7,7 @@ import androidx.compose.ui.graphics.Color
 internal val LightAppColorScheme = AppColorScheme(
     text = AppTextColors(
         primary = AppColorTokens.black,
-        secondary = AppColorTokens.black,
-        placeholder = AppColorTokens.Light.placeholder,
+        secondary = AppColorTokens.Light.secondaryText,
         disabled = AppColorTokens.Light.disabled,
         destructive = AppColorTokens.Light.destructive,
         link = AppColorTokens.Light.accent,
@@ -16,7 +15,7 @@ internal val LightAppColorScheme = AppColorScheme(
     ),
     settingsText = AppSettingsTextColors(
         primary = AppColorTokens.Light.settingsPrimaryText,
-        secondary = AppColorTokens.Light.settingsSecondaryText,
+        secondary = AppColorTokens.Light.secondaryText,
     ),
     surfaces = AppSurfaceColors(
         background = AppColorTokens.Light.background,

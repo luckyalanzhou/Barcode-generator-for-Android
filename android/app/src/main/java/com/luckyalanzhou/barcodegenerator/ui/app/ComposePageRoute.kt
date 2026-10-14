@@ -24,7 +24,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareEvent
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import android.os.Handler
@@ -51,14 +50,6 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 LaunchedEffect(routePage, initialFormat) {
                     dependencies.generateViewModel.clearPendingFormat()
                     dependencies.generateViewModel.updateFormat(initialFormat)
-                }
-                LaunchedEffect(dependencies.cameraOcrViewModel) {
-                    dependencies.cameraOcrViewModel.events.collect { event ->
-                        when (event) {
-                            is CameraOcrEvent.RecognizedText -> dependencies.generateViewModel.updateDraft(event.lines)
-                            is CameraOcrEvent.Notice -> dependencies.actions.notice(event.message)
-                        }
-                    }
                 }
                 GenerateContent(
                     inputDraft = editorState.inputDraft,
@@ -225,6 +216,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onShare = dependencies.actions::shareResult,
                     onSave = dependencies.actions::saveResult,
                     onImageWidthChanged = dependencies.actions::updateResultImageWidth,
+                    onRenderFailure = dependencies.resultsViewModel::recordRowRenderFailure,
                     loadBarcodeImage = { item, isDark, density ->
                         dependencies.resultsViewModel.loadOrCreateBarcodeImage(item, settings.style, isDark, density)
                     },

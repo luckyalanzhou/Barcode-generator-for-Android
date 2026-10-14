@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
@@ -77,27 +78,31 @@ internal fun SettingsRow(title: String, color: Color, modifier: Modifier = Modif
 
 @Composable
 internal fun SettingsActionRow(title: String, action: String, color: Color, buttonColor: Color, onClick: () -> Unit) {
-    SettingsRow(title, color) { SettingsButton(action, buttonColor, color, onClick) }
+    // 标题表达设置项，右侧操作表达可执行动作，两者不共用文字颜色。
+    SettingsRow(title, color) { SettingsButton(action, buttonColor, LocalAppColorScheme.current.controls.accent, onClick) }
 }
 
 @Composable
-internal fun SettingsDropdownButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, onMeasured: (Int) -> Unit, pickerLabel: String? = null, expanded: Boolean = false) {
-    val modifier = Modifier.onGloballyPositioned { onMeasured(it.size.width) }
+internal fun SettingsDropdownButton(text: String, contentColor: Color, onClick: () -> Unit, onMeasured: (IntSize) -> Unit, pickerLabel: String? = null, expanded: Boolean = false) {
+    val modifier = Modifier
         .then(if (pickerLabel != null) Modifier.semantics {
             contentDescription = pickerLabel
             stateDescription = "$text，${if (expanded) "已展开" else "已收起"}"
         } else Modifier)
-    SettingsButton(text, color, contentColor, onClick, modifier, showDisclosure = pickerLabel != null)
+    // 值选择入口不画按钮框或底色，保留原点击区域、按压反馈与菜单锚点。
+    SettingsButton(text, Color.Transparent, contentColor, onClick, modifier, showDisclosure = pickerLabel != null,
+        showOutline = false,
+        chromeModifier = Modifier.onGloballyPositioned { onMeasured(it.size) })
 }
 
 /** 设置页通用按钮：忙碌时禁止重复点击；带下拉提示时只负责打开选择菜单。 */
 @Composable
-internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false) {
+internal fun SettingsButton(text: String, color: Color, contentColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier, busy: Boolean = false, showDisclosure: Boolean = false, chromeModifier: Modifier = Modifier, showOutline: Boolean = true) {
     val interactionSource = remember { MutableInteractionSource() }
     Box(modifier.heightIn(min = 48.dp).iosPressFeedback(interactionSource)
         .clickable(enabled = !busy, interactionSource = interactionSource, indication = null,
             role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-      Row(Modifier.globalButtonChrome(RoundedCornerShape(10.dp), 1.dp)
+      Row(chromeModifier.then(if (showOutline) Modifier.globalButtonChrome(RoundedCornerShape(10.dp)) else Modifier)
           .clip(RoundedCornerShape(10.dp)).background(color)
           .heightIn(min = 34.dp).padding(horizontal = 10.dp, vertical = 4.dp),
           verticalAlignment = Alignment.CenterVertically) {
@@ -105,7 +110,7 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
             androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = contentColor, strokeWidth = 2.dp)
             androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
         }
-        Text(text, color = contentColor, fontSize = 14.sp, maxLines = 1,
+        Text(text, color = contentColor, fontSize = 16.sp, maxLines = 1,
             style = settingsButtonTextStyle(LocalTextStyle.current))
         if (showDisclosure) Icon(KeyboardArrowDownIcon, contentDescription = null,
             tint = LocalAppColorScheme.current.settingsText.secondary,
@@ -119,8 +124,8 @@ internal fun settingsButtonTextStyle(inherited: TextStyle): TextStyle =
     inherited.copy(background = Color.Transparent)
 
 @Composable
-internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(16.dp), containerColor = LocalAppColorScheme.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, alignEndWithAnchor = true, content = content)
+internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, anchorHeight: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(16.dp), containerColor = LocalAppColorScheme.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, anchorHeight = anchorHeight, alignEndWithAnchor = true, cornerReveal = true, content = content)
 }
 
 @Composable

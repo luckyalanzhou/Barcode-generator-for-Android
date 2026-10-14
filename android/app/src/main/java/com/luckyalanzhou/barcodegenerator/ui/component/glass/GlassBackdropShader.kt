@@ -8,10 +8,10 @@ uniform float4 bounds;
 uniform float4 shape;
 uniform float4 contact;
 uniform float capsuleMode;
+uniform float menuMaterial;
 uniform float2 capsuleOptics;
 uniform float pixelDensity;
 layout(color) uniform half4 surfaceColor;
-
 half4 main(float2 p) {
     float2 halfSize = bounds.zw;
     float radius = min(shape.x, min(halfSize.x, halfSize.y));
@@ -52,11 +52,14 @@ half4 main(float2 p) {
     float targetLuminance = dot(float3(surfaceColor.rgb), float3(0.2126, 0.7152, 0.0722));
     float detail = smoothstep(0.015, 0.35, length(float3(center - scene)));
     float protection = smoothstep(0.12, 0.75, abs(luminance - targetLuminance)) * 0.24 + detail * 0.10;
+    // 菜单已有较厚底色与模糊：额外保护减半，避免深色面板遇到亮背景直接变成实色。
+    protection *= mix(1.0, 0.5, menuMaterial);
     float opacity = clamp(shape.w + protection, 0.0, 1.0);
     // Menus contain labels: quiet the interior without making the rim an opaque slab.
     // Capsules keep their existing material; this protection must not tint the whole tab bar.
     float interior = smoothstep(1.5, 12.0, depth) * (1.0 - capsuleMode);
-    float interiorOpacity = mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance));
+    // 新菜单采用自己的厚度参数；原有 Tab/结果页控件保持原路径，避免材质迁移影响其他控件。
+    float interiorOpacity = mix(mix(0.92, 0.94, smoothstep(0.15, 0.75, targetLuminance)), shape.w, menuMaterial);
     opacity = max(opacity, mix(shape.w, interiorOpacity, interior));
     half3 materialTint = capsuleMode > 0.5 ? glassAdaptiveTint(surfaceColor.rgb, scene, opacity) : surfaceColor.rgb;
     half3 color = mix(scene, materialTint, half(opacity));
@@ -107,7 +110,7 @@ half4 main(float2 p) {
             half(capsuleEdge * capsuleOptics.y * darkSurface);
     }
     // Tab rim is drawn once by TabGlassSurface; only menu backgrounds own their rim here.
-    float rim = (1.0 - smoothstep(0.0, 1.5, depth)) * (1.0 - capsuleMode);
+    float rim = (1.0 - smoothstep(0.0, 1.5, depth)) * (1.0 - capsuleMode) * (1.0 - menuMaterial);
     float2 lightVector = contact.xy - bounds.xy;
     float2 direction = lightVector / max(length(lightVector), 0.001);
     float contactLight = pow(max(dot(normal, direction), 0.0), mix(14.0, 4.0, clamp(contact.w, 0.0, 1.0))) * contact.z;
