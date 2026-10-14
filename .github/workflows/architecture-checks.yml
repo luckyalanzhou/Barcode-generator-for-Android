@@ -35,11 +35,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          cache-read-only: ${{ github.event.pull_request.head.repo.fork }}
+          # PR 只消费发布工作流已经建立的缓存，不回写临时分支输出。
+          cache-read-only: true
           gradle-home-cache-includes: |
             caches/modules-2
             caches/jars-9
             wrapper/dists
+          add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Check package and Gradle module boundaries

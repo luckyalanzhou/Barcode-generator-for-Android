@@ -15,7 +15,7 @@ jobs:
   build:
     if: github.ref_name == 'main'
     name: Assemble and verify official release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
       run:
@@ -40,20 +40,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          # 只缓存依赖和 Wrapper；任务输出缓存由 setup-gradle v6 单独管理。
-          gradle-home-cache-includes: |
-            caches/modules-2
-            caches/jars-9
-            wrapper/dists
-          cache-cleanup: on-success
-          add-job-summary: on-failure
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
 
       - name: Reserve or resume official release
         id: reserve
@@ -142,6 +128,25 @@ jobs:
             "$check_jar" \
             "$KEY_ALIAS" >/dev/null
           echo "Release keystore, alias, and key password validation passed."
+
+      - name: Set up Gradle
+        if: steps.reserve.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # 正式版负责写入主分支缓存，供正式版和其他分支复用。
+          cache-read-only: false
+          # 只缓存依赖、脚本 JAR 和 Wrapper；任务输出与 transforms 由
+          # setup-gradle v6 的增强缓存分别管理。
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/jars-9
+            wrapper/dists
+          cache-cleanup: on-success
+          add-job-summary: on-failure
+
+      - name: Make Gradle wrapper executable
+        if: steps.reserve.outputs.skip != 'true'
+        run: chmod +x gradlew
 
       - name: Build signed release
         if: steps.reserve.outputs.skip != 'true'

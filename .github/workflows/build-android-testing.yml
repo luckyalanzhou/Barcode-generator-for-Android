@@ -2,6 +2,12 @@ name: Build Android Beta APK
 
 on:
   workflow_dispatch:
+    inputs:
+      refresh_gradle_cache:
+        description: '刷新 Gradle 缓存（首次构建、依赖或 Gradle 配置变化时勾选）'
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 
@@ -32,22 +38,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          # Beta builds run on a non-default branch; explicitly allow the
-          # dependency cache to be saved for the next Beta build.
-          cache-read-only: false
-          # Keep this Gradle User Home snapshot limited to dependencies and the
-          # Wrapper. setup-gradle v6 caches task outputs and transforms separately.
-          gradle-home-cache-includes: |
-            caches/modules-2
-            caches/jars-9
-            wrapper/dists
-          cache-cleanup: on-success
-          add-job-summary: on-failure
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
       - name: Calculate beta version
         id: app-version
         env:
@@ -121,6 +111,22 @@ jobs:
             "$check_jar" \
             "$KEY_ALIAS" >/dev/null
           echo "Release keystore, alias, and key password validation passed."
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # 日常发布复用现有缓存但不重复回写；依赖或构建配置变化时，
+          # 在 workflow_dispatch 页面勾选 refresh_gradle_cache 更新缓存。
+          cache-read-only: ${{ !inputs.refresh_gradle_cache }}
+          # setup-gradle v6 会分别处理任务输出与 transforms；这里只限定
+          # Gradle User Home 中需要长期保留的依赖、脚本 JAR 和 Wrapper。
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/jars-9
+            wrapper/dists
+          cache-cleanup: on-success
+          add-job-summary: on-failure
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
       - name: Build signed beta release
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks

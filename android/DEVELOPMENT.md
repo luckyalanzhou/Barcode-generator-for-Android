@@ -93,7 +93,7 @@ $validationArgs = @(
 
 先完成本地验证，再按需要手动启动远程工作流。Beta 与正式版使用不同应用 ID。
 
-- **Beta APK**：[工作流文件](../.github/workflows/build-android-testing.yml)。从 `beta` 分支手动运行，签名、打包并发布 APK；不运行测试或 lint。
+- **Beta APK**：[工作流文件](../.github/workflows/build-android-testing.yml)。从 `beta` 分支手动运行，签名、打包并发布 APK；不运行测试或 lint。日常保持“刷新 Gradle 缓存”关闭；首次运行、缓存失效，或修改依赖、插件、Gradle 配置后勾选一次。
 - **正式版 APK**：[工作流文件](../.github/workflows/build-android-official.yml)。仅从 `main` 手动启动，不需要填写版本号；普通推送不会触发正式发布。首次版本为 `0.0.1`，之后 Patch 递增，按 `0.0.99 → 0.1.0 → 1.0.0` 规则进位，最高为 `9.9.99`。Android `versionCode` 从 1 起独立递增，不随 Patch 归零。
 - **PR 架构检查**：[工作流文件](../.github/workflows/architecture-checks.yml)。面向 `beta` 或 `main` 的 PR，默认跳过；仓库变量 `ENABLE_ARCHITECTURE_PR_CHECKS=true` 后才运行，也不会自动成为合并必需项。
 
@@ -160,6 +160,6 @@ Beta 的设置页可导出日志，正式版不启用。复现问题后尽快导
 
 条码内存缓存命中不访问磁盘；磁盘缓存按增量预算维护，达到上限再清理。并行编码的活动临时文件不得被缓存清理删除。修改此链路须运行 Data 的缓存测试，性能收益另用实际耗时验证。
 
-GitHub Actions 用 `gradle/actions/setup-gradle@v6` 缓存 Gradle 依赖和可复用任务输出。缓存不代表所有任务都会跳过：输入变化或不可缓存的任务仍需重新运行。本机缓存和 `build` 输出不会传到远程 runner。
+GitHub Actions 用 `gradle/actions/setup-gradle@v6` 缓存 Gradle 依赖和可复用任务输出。Beta 日常构建只读缓存，避免每次发布重复回写；手动勾选“刷新 Gradle 缓存”才更新。正式版负责写入主分支缓存，PR 架构检查只读。缓存不代表所有任务都会跳过：输入变化或不可缓存的任务仍需重新运行。本机缓存和 `build` 输出不会传到远程 runner。
 
 Beta 工作流每次发布都会传入新的 `versionCode`，构建脚本在配置阶段读取它，因此远程 APK 构建使用 `--no-configuration-cache`。这不会关闭依赖或构建缓存。构建耗时取决于任务、缓存命中、runner 启动和发布步骤。
