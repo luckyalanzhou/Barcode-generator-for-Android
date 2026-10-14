@@ -89,8 +89,35 @@ class ButtonRenderingContractTest {
             "LanShareContent.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
             "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt",
             "LanShareImagePreviewDialog.kt")) {
-            assertTrue("$name 必须使用统一静态按钮框", source(name).contains(".globalButtonChrome("))
+            val buttonSource = source(name)
+            assertTrue("$name 必须使用统一静态按钮框", buttonSource.contains(".globalButtonChrome(") || buttonSource.contains(".resultActionEdgeChrome("))
         }
+    }
+
+    @Test fun `requested controls reuse result action rim while unframed pickers stay unframed`() {
+        for (name in listOf("ComposeSettingsComponents.kt", "ComposeCommonDialogs.kt", "EditorChoiceField.kt",
+            "ComposeFavoriteSaveDialog.kt", "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt",
+            "LanShareImagePreviewDialog.kt", "LanShareContent.kt", "LanShareInputBar.kt",
+            "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt")) {
+            assertTrue("$name 的既有外框必须复用结果页边缘高光", source(name).contains(".resultActionEdgeChrome("))
+        }
+        val settings = source("ComposeSettingsComponents.kt")
+        assertTrue(settings.contains("showOutline = false"))
+        assertTrue(settings.contains("if (showOutline) Modifier.resultActionEdgeChrome"))
+        val editor = source("EditorChoiceField.kt")
+        assertTrue(editor.contains("if (compact) Modifier else Modifier.resultActionEdgeChrome"))
+        val edgeChrome = source("ResultActionEdgeChrome.kt")
+        assertTrue(edgeChrome.contains("drawResultActionRim("))
+        for (forbidden in listOf(".background(", ".padding(", ".size(", "graphicsLayer", "shadow(")) {
+            assertFalse("边缘组件不能改变按钮结构或外观填充: $forbidden", edgeChrome.contains(forbidden))
+        }
+        val tabSurface = source("TabGlassSurface.kt")
+        assertTrue(tabSurface.contains("drawResultActionRim("))
+        assertTrue(tabSurface.contains("drawMotionHighlight && frame.motion > .001f"))
+        val shader = source("GlassBackdropShader.kt")
+        assertTrue(shader.contains("capsuleOptics.x > 0.001"))
+        assertTrue(shader.contains("* contact.z"))
+        assertFalse(shader.contains("float bevel ="))
     }
 
     @Test fun `sorting and row deletion remain unframed with explicit press feedback`() {
@@ -107,7 +134,7 @@ class ButtonRenderingContractTest {
         val dropdown = settings.substringAfter("internal fun SettingsDropdownButton(").substringBefore("internal fun SettingsButton(")
         assertTrue(dropdown.contains("SettingsButton(text, Color.Transparent"))
         assertTrue(dropdown.contains("showOutline = false"))
-        assertTrue(settings.contains("if (showOutline) Modifier.globalButtonChrome"))
+        assertTrue(settings.contains("if (showOutline) Modifier.resultActionEdgeChrome"))
         assertTrue(settings.contains("Text(text, color = contentColor, fontSize = 16.sp"))
         assertTrue(source("SettingsContent.kt").contains("Text(effectsSettings.summary, color = colors.settingsText.secondary, fontSize = 16.sp)"))
         assertFalse(source("ComposeSettingsSlider.kt").contains("fontSize = 15.sp"))
@@ -116,7 +143,7 @@ class ButtonRenderingContractTest {
         assertTrue(format.contains("containerColor = Color.Transparent"))
         assertTrue(format.contains("Text(formatName, color = themeColors.text.secondary"))
         val editor = source("EditorChoiceField.kt")
-        assertTrue(editor.contains("if (compact) Modifier else Modifier.globalButtonChrome"))
+        assertTrue(editor.contains("if (compact) Modifier else Modifier.resultActionEdgeChrome"))
         assertTrue(editor.contains("if (compact) LocalAppColorScheme.current.text.secondary"))
     }
 

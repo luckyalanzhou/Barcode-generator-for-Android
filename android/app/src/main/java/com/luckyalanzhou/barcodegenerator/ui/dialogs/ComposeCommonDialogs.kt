@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.dialogs
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
@@ -114,7 +114,7 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .iosPressFeedback(interactionSource)
-            .globalButtonChrome(RoundedCornerShape(12.dp))
+            .resultActionEdgeChrome(RoundedCornerShape(12.dp))
             .background(background, RoundedCornerShape(12.dp))
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),

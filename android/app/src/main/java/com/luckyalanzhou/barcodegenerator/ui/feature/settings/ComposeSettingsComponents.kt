@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.groupedContentSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 
@@ -102,7 +102,7 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
     Box(modifier.heightIn(min = 48.dp).iosPressFeedback(interactionSource)
         .clickable(enabled = !busy, interactionSource = interactionSource, indication = null,
             role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-      Row(chromeModifier.then(if (showOutline) Modifier.globalButtonChrome(RoundedCornerShape(10.dp)) else Modifier)
+      Row(chromeModifier.then(if (showOutline) Modifier.resultActionEdgeChrome(RoundedCornerShape(10.dp)) else Modifier)
           .clip(RoundedCornerShape(10.dp)).background(color)
           .heightIn(min = 34.dp).padding(horizontal = 10.dp, vertical = 4.dp),
           verticalAlignment = Alignment.CenterVertically) {

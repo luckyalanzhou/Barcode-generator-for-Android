@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.editor
 
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
 
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
@@ -50,7 +50,7 @@ internal fun ComposeChoiceField(
             modifier = (if (compact) Modifier.wrapContentWidth() else Modifier.fillMaxWidth())
                 .iosPressFeedback(interactions)
                 .onGloballyPositioned { buttonWidth = it.size.width; buttonHeight = it.size.height }
-                .then(if (compact) Modifier else Modifier.globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))),
+                .then(if (compact) Modifier else Modifier.resultActionEdgeChrome(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
             border = null,
             contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,

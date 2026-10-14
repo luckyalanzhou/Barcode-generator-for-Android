@@ -91,7 +91,7 @@ internal fun TabLiquidGlassScene(
         if (visible) {
             TabGlassSurface(frameProvider, resolvedMaterial.copy(surfaceOpacity =
                 if (backdropAvailable) 0f else resolvedMaterial.surfaceOpacity),
-                accent, background, policy.highContrast, drawBevel = !backdropAvailable)
+                accent, background, policy.highContrast, drawMotionHighlight = !backdropAvailable)
         }
         Box(Modifier.fillMaxSize().onGloballyPositioned {
             foregroundOrigin = it.localToWindow(Offset.Zero)

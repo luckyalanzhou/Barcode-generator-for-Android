@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
@@ -205,7 +205,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                         }
                     },
                     interactionSource = rootInteractions,
-                    modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(rootInteractions).globalButtonChrome(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(rootInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = null,
@@ -224,7 +224,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                         }, onCreateFolder = onCreateFolder)
                     },
                     interactionSource = childInteractions,
-                    modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(childInteractions).globalButtonChrome(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(childInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
                     contentPadding = PaddingValues(horizontal = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = null,

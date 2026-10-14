@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -22,7 +23,7 @@ internal fun TabGlassSurface(
     accent: Color,
     background: Color,
     highContrast: Boolean = false,
-    drawBevel: Boolean = true,
+    drawMotionHighlight: Boolean = true,
 ) {
     Box(Modifier.fillMaxSize().drawBehind {
         val frame = frameProvider()
@@ -35,10 +36,18 @@ internal fun TabGlassSurface(
         val innerTopLeft = topLeft + Offset(stroke * .5f, stroke * .5f)
         val innerBounds = Size((bounds.width - stroke).coerceAtLeast(.1f), (bounds.height - stroke).coerceAtLeast(.1f))
         val innerCorner = CornerRadius((corner.x - stroke * .5f).coerceAtLeast(.1f))
-        if (drawBevel || highContrast) {
-            drawGlassControlBevel(topLeft, bounds, corner.x, material, background, accent, frame.density, highContrast)
-        }
-        if (drawBevel && frame.motion > .001f) {
+        // 选中框沿用结果页按钮的完整轮廓与窄内侧高光；不改变胶囊尺寸或其玻璃填充。
+        drawResultActionRim(
+            shape = CircleShape,
+            layoutDirection = layoutDirection,
+            background = background,
+            accent = accent,
+            density = frame.density,
+            highContrast = highContrast,
+            origin = topLeft,
+            bounds = bounds,
+        )
+        if (drawMotionHighlight && frame.motion > .001f) {
             val dx = frame.touchX - frame.centerX
             val dy = frame.touchY - frame.centerY
             val length = sqrt(dx * dx + dy * dy).coerceAtLeast(.001f)

@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import androidx.compose.foundation.Canvas
@@ -202,7 +202,7 @@ internal fun SettingsSliderRow(
             title = { Text("数值超出范围") },
             text = { Text("$title 请输入 ${range.start.toInt()}～${range.endInclusive.toInt()} 的整数，未保存无效数值。") },
             confirmButton = { TextButton(interactionSource = warningInteractions,
-                modifier = Modifier.iosPressFeedback(warningInteractions).globalButtonChrome(), onClick = {
+                modifier = Modifier.iosPressFeedback(warningInteractions).resultActionEdgeChrome(), onClick = {
                 warning = false; input = TextFieldValue(draft.roundToInt().toString())
             }) { Text("知道了") } },
         )

@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -90,7 +90,7 @@ internal fun ComposeLanShareQrDialog(
                     )
                 }
                 TextButton(onClick = closeSheet, interactionSource = closeInteractions,
-                    modifier = Modifier.iosPressFeedback(closeInteractions).globalButtonChrome()) {
+                    modifier = Modifier.iosPressFeedback(closeInteractions).resultActionEdgeChrome()) {
                     Text("关闭", color = secondary)
                 }
             }

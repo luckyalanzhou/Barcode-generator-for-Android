@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import android.graphics.Bitmap
 import android.os.Build
 import android.view.Window
@@ -138,7 +138,9 @@ internal fun LanShareImagePreviewDialog(
                 Surface(
                     onClick = onDismiss,
                     interactionSource = closeInteractions,
-                    modifier = Modifier.size(48.dp).iosPressFeedback(closeInteractions).globalButtonChrome(RoundedCornerShape(10.dp), borderColor = Color.White.copy(alpha = .22f)).semantics {
+                    modifier = Modifier.size(48.dp).iosPressFeedback(closeInteractions).resultActionEdgeChrome(
+                        RoundedCornerShape(10.dp), rimBackground = Color.Black, rimAccent = Color.White,
+                    ).semantics {
                         contentDescription = "关闭图片预览"
                     },
                     shape = RoundedCornerShape(10.dp),
