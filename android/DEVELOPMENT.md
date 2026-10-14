@@ -100,12 +100,19 @@ $validationArgs = @(
 先完成本地验证，再按需要手动启动远程工作流。Beta 与正式版使用不同应用 ID。
 
 - **Beta APK**：[工作流文件](../.github/workflows/build-android-testing.yml)。从 `beta` 分支手动运行，签名、打包并发布 APK；不运行测试或 lint。
-- **正式版 APK**：[工作流文件](../.github/workflows/build-android-official.yml)。用户确认发布后，从 `main` 手动运行并填写版本信息；不运行测试或 lint。
+- **正式版 APK**：[工作流文件](../.github/workflows/build-android-official.yml)。仅从 `main` 手动启动，不需要填写版本号；普通推送不会触发正式发布。首次版本为 `0.0.1`，之后 Patch 递增，按 `0.0.99 → 0.1.0 → 1.0.0` 规则进位，最高为 `9.9.99`。Android `versionCode` 从 1 起独立递增，不随 Patch 归零。
 - **PR 架构检查**：[工作流文件](../.github/workflows/architecture-checks.yml)。面向 `beta` 或 `main` 的 PR，默认跳过；仓库变量 `ENABLE_ARCHITECTURE_PR_CHECKS=true` 后才运行，也不会自动成为合并必需项。
 
 本地测试通过、远程构建成功和真机验收是三件不同的事。Actions 的具体权限、签名和版本来源以 workflow 文件为准；凭据不要写入文档或提交到仓库。
 
 Actions 运行产物会按工作流设置到期清理；Release 附件是单独的下载入口。同一渠道的发布任务按顺序执行，避免同时更新一个 Release。
+
+正式发布先保存版本分配并创建 Draft Release；中断后重跑或再次手动启动会恢复未完成版本，不重复递增。APK 和 `.sha256` 都上传后，工作流会从 Release 下载回来逐字节比较并校验摘要，只有验证成功才公开 Release。发布完成的版本不会被下一次发布覆盖；新一次手动发布才会分配下一个版本。版本分配器的边界与恢复规则可用固定 Python 环境单独验证：
+
+```powershell
+$pythonExe = 'C:\Users\zhimi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
+& $pythonExe -m unittest discover -s android/tools -p 'test_official_release_version.py' -v
+```
 
 ## 缓存与构建时间
 
