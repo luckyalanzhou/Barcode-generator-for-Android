@@ -122,6 +122,27 @@ jobs:
           test -s release.jks
           chmod 600 release.jks
 
+      - name: Verify release keystore
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          check_dir="$RUNNER_TEMP/release-signing-check"
+          check_jar="$RUNNER_TEMP/release-signing-check.jar"
+          trap 'rm -rf "$check_dir" "$check_jar"' EXIT
+          mkdir -p "$check_dir"
+          jar --create --file "$check_jar" -C "$check_dir" .
+          jarsigner \
+            -keystore release.jks \
+            -storepass:env KEYSTORE_PASSWORD \
+            -keypass:env KEY_PASSWORD \
+            "$check_jar" \
+            "$KEY_ALIAS" >/dev/null
+          echo "Release keystore, alias, and key password validation passed."
+
       - name: Build signed release
         if: steps.reserve.outputs.skip != 'true'
         env:
