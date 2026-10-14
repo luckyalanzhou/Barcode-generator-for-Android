@@ -5,6 +5,7 @@ import java.security.MessageDigest
 /** 更新版本比较、摘要和标准数字条码校验所需的纯 Kotlin 逻辑。 */
 object UpdateSecurity {
     const val MAX_APK_DOWNLOAD_BYTES = 500L * 1024L * 1024L
+    private val VERSION_PART_PATTERN = Regex("(?:0|[1-9][0-9]*)")
 
     fun sha256(value: String): String = sha256(value.toByteArray(Charsets.UTF_8))
 
@@ -26,13 +27,22 @@ object UpdateSecurity {
     fun compareVersions(a: String, b: String): Int {
         val left = parseVersion(a) ?: return 0
         val right = parseVersion(b) ?: return 0
-        return (0 until maxOf(left.size, right.size)).firstOrNull { (left.getOrElse(it) { 0L }) != (right.getOrElse(it) { 0L }) }
-            ?.let { left.getOrElse(it) { 0L }.compareTo(right.getOrElse(it) { 0L }) } ?: 0
+        for (index in 0 until maxOf(left.size, right.size)) {
+            val leftPart = left.getOrElse(index) { "0" }
+            val rightPart = right.getOrElse(index) { "0" }
+            val comparison = compareNumericParts(leftPart, rightPart)
+            if (comparison != 0) return comparison
+        }
+        return 0
     }
 
-    fun parseVersion(value: String): List<Long>? {
+    /** 按十进制字符串比较任意长度的版本段，避免数值转换溢出。 */
+    private fun compareNumericParts(left: String, right: String): Int =
+        left.length.compareTo(right.length).takeIf { it != 0 } ?: left.compareTo(right)
+
+    fun parseVersion(value: String): List<String>? {
         val parts = value.trim().split('.')
-        if (parts.size !in 2..3 || parts.any { it.isEmpty() || it.length > 9 || it.toLongOrNull() == null }) return null
-        return parts.map(String::toLong)
+        if (parts.size !in 2..3 || parts.any { !VERSION_PART_PATTERN.matches(it) }) return null
+        return parts
     }
 }

@@ -12,6 +12,16 @@ import java.net.URL
 import java.util.Comparator
 import java.util.Locale
 
+/** 解析正式版或 Beta 的 Release Tag；主、次、修订号按无上限 SemVer 数字处理。 */
+internal fun parseAppVersionTag(tag: String, updateTagPrefix: String): String? {
+    val normalizedTag = tag.trim()
+    if (!normalizedTag.startsWith(updateTagPrefix)) return null
+    val parts = normalizedTag.removePrefix(updateTagPrefix).removePrefix("v").split('.')
+    if (parts.size !in 3..4 || UpdateSecurity.parseVersion(parts.take(3).joinToString(".")) == null) return null
+    if (parts.size == 4 && (parts[3].isEmpty() || parts[3].length > 12 || parts[3].toLongOrNull() == null)) return null
+    return parts.take(3).joinToString(".")
+}
+
 /** GitHub release metadata adapter; channel/build configuration is supplied by the app. */
 class AndroidUpdateCatalogGateway(
     private val logger: AppLogger,
@@ -41,8 +51,8 @@ class AndroidUpdateCatalogGateway(
                 .filter { it.optString("tag_name").startsWith(updateTagPrefix) }
                 .maxWithOrNull(Comparator { left, right ->
                     UpdateSecurity.compareVersions(
-                        parseAppVersion(left.optString("tag_name")) ?: "0.0.0",
-                        parseAppVersion(right.optString("tag_name")) ?: "0.0.0",
+                        parseAppVersionTag(left.optString("tag_name"), updateTagPrefix) ?: "0.0.0",
+                        parseAppVersionTag(right.optString("tag_name"), updateTagPrefix) ?: "0.0.0",
                     )
                 })
             val releaseTag = release?.optString("tag_name")?.takeIf { it.isNotBlank() }
@@ -59,7 +69,7 @@ class AndroidUpdateCatalogGateway(
             }
             val downloadUrl = apkAsset?.optString("browser_download_url")?.takeIf { it.isNotBlank() }
                 ?: return@withContext UpdateLookupResult.Failed("暂时无法获取更新信息")
-            val latest = parseAppVersion(releaseTag)
+            val latest = parseAppVersionTag(releaseTag, updateTagPrefix)
                 ?: return@withContext UpdateLookupResult.Failed("版本信息格式不正确")
             val expectedSize = apkAsset.optLong("size", 0L).takeIf { it > 0L }
             val releaseSha256 = release.optString("body")
@@ -90,12 +100,5 @@ class AndroidUpdateCatalogGateway(
             logger.record("update", "check failed", error)
             UpdateLookupResult.Failed(error.message ?: "检查更新失败，请稍后重试")
         }
-    }
-
-    private fun parseAppVersion(tag: String): String? {
-        val parts = tag.trim().removePrefix(updateTagPrefix).removePrefix("v").split(".")
-        if (parts.size !in 3..4 || parts.take(3).any { it.isEmpty() || it.length > 9 || it.toLongOrNull() == null }) return null
-        if (parts.size == 4 && (parts[3].isEmpty() || parts[3].length > 12 || parts[3].toLongOrNull() == null)) return null
-        return parts.take(3).joinToString(".")
     }
 }

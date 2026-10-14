@@ -8,6 +8,7 @@ from pathlib import Path
 from official_release_version import (
     MAX_ANDROID_VERSION_CODE,
     ReleaseVersion,
+    RELEASE_TYPES,
     create_release_plan,
     next_version,
     parse_version,
@@ -25,6 +26,7 @@ def make_release(
     status: str = "complete",
     draft: bool = False,
     checksum: bool = True,
+    release_type: str | None = None,
 ) -> dict:
     """构造 GitHub Releases API 的最小测试数据。"""
 
@@ -32,7 +34,7 @@ def make_release(
     assets = [{"name": apk_name, "size": 100, "state": "uploaded"}]
     if checksum:
         assets.append({"name": f"{apk_name}.sha256", "size": 90, "state": "uploaded"})
-    body = write_metadata("正式版说明", parse_version(version), version_code, run_id, status)
+    body = write_metadata("正式版说明", parse_version(version), version_code, run_id, status, release_type)
     return {
         "id": int(version_code),
         "tag_name": f"android-v{version}",
@@ -51,32 +53,54 @@ class OfficialReleaseVersionTest(unittest.TestCase):
         self.assertEqual((plan["version"], plan["version_code"]), ("0.0.1", 1))
         self.assertEqual(plan["action"], "create")
         self.assertIn("status=reserved", plan["body"])
+        self.assertIn("release_type=patch", plan["body"])
 
-    def test_patch_and_minor_major_rollovers(self) -> None:
-        self.assertEqual(str(next_version(ReleaseVersion(0, 0, 98))), "0.0.99")
-        self.assertEqual(str(next_version(ReleaseVersion(0, 0, 99))), "0.1.0")
-        self.assertEqual(str(next_version(ReleaseVersion(0, 9, 99))), "1.0.0")
-        self.assertEqual(str(next_version(ReleaseVersion(8, 9, 99))), "9.0.0")
-        self.assertEqual(str(next_version(ReleaseVersion(9, 8, 99))), "9.9.0")
+    def test_manual_patch_minor_and_major_bumps_do_not_auto_roll_patch(self) -> None:
+        current = ReleaseVersion(1, 9, 99)
+        self.assertEqual(str(next_version(current)), "1.9.100")
+        self.assertEqual(str(next_version(current, "minor")), "1.10.0")
+        self.assertEqual(str(next_version(current, "major")), "2.0.0")
 
-    def test_version_format_rejects_leading_zero_and_out_of_range_values(self) -> None:
-        for value in ("00.0.1", "0.10.0", "0.0.100", "1.2.03", "10.0.0"):
+    def test_version_format_has_unbounded_numeric_parts_and_rejects_leading_zero(self) -> None:
+        self.assertEqual(str(parse_version("10.100.1000")), "10.100.1000")
+        self.assertEqual(
+            str(parse_version("123456789012345678901234567890.8.900000000000000000001")),
+            "123456789012345678901234567890.8.900000000000000000001",
+        )
+        for value in ("00.0.1", "0.01.0", "0.0.03", "1.2.3-rc.1", "1.2"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 parse_version(value)
 
-    def test_next_manual_release_increments_version_and_independent_code(self) -> None:
+    def test_default_patch_release_and_independent_code(self) -> None:
         plan = create_release_plan([make_release("0.0.1", 1)], "102")
         self.assertEqual((plan["version"], plan["version_code"]), ("0.0.2", 2))
+        self.assertEqual(plan["release_type"], "patch")
+
+    def test_manual_minor_and_major_selection_is_applied_to_new_release(self) -> None:
+        releases = [make_release("1.9.99", 12)]
+        minor = create_release_plan(releases, "103", "minor")
+        major = create_release_plan(releases, "104", "major")
+        self.assertEqual((minor["version"], minor["release_type"]), ("1.10.0", "minor"))
+        self.assertEqual((major["version"], major["release_type"]), ("2.0.0", "major"))
+        self.assertIn("release_type=minor", minor["body"])
+
+    def test_invalid_manual_release_type_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "递增类型"):
+            create_release_plan([], "105", "unexpected")
+        self.assertEqual(RELEASE_TYPES, ("patch", "minor", "major"))
 
     def test_failed_draft_is_resumed_with_same_version_and_code(self) -> None:
-        pending = make_release("0.0.8", 27, run_id="101", status="reserved", draft=True)
-        plan = create_release_plan([make_release("0.0.7", 26), pending], "102")
+        pending = make_release(
+            "0.0.8", 27, run_id="101", status="reserved", draft=True, release_type="minor"
+        )
+        plan = create_release_plan([make_release("0.0.7", 26), pending], "102", "major")
         self.assertEqual(plan["action"], "resume")
         self.assertEqual((plan["version"], plan["version_code"]), ("0.0.8", 27))
+        self.assertEqual(plan["release_type"], "minor")
         self.assertEqual(plan["release_id"], pending["id"])
         request = write_reserve_request(plan, "main-sha")
         self.assertTrue(request["draft"])
-        self.assertIn("run_id=102 status=reserved", request["body"])
+        self.assertIn("run_id=102 release_type=minor status=reserved", request["body"])
 
     def test_published_release_missing_checksum_keeps_its_original_visibility(self) -> None:
         incomplete = make_release("0.1.0", 100, status="complete", draft=False, checksum=False)
@@ -118,13 +142,12 @@ class OfficialReleaseVersionTest(unittest.TestCase):
         request = write_publish_request(plan)
         self.assertFalse(request["draft"])
         self.assertIn("status=complete", request["body"])
+        self.assertIn("release_type=patch", request["body"])
         self.assertIn("run_id=456", request["body"])
 
-    def test_latest_version_stops_without_wrapping(self) -> None:
-        with self.assertRaisesRegex(ValueError, "最高版本 9.9.99"):
-            next_version(ReleaseVersion(9, 9, 99))
-        with self.assertRaisesRegex(ValueError, "最高版本 9.9.99"):
-            create_release_plan([make_release("9.9.99", 99)], "999")
+    def test_high_version_numbers_increment_without_overflow_or_wrapping(self) -> None:
+        high = ReleaseVersion(9_999_999_999_999_999, 999_999_999_999_999, 99)
+        self.assertEqual(str(next_version(high)), "9999999999999999.999999999999999.100")
 
     def test_android_version_code_upper_bound_stops(self) -> None:
         with self.assertRaisesRegex(ValueError, "Android"):

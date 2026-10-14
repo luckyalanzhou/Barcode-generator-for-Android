@@ -11,6 +11,13 @@ class UpdateSecurityTest {
         assertTrue(UpdateSecurity.compareVersions("1.10.0", "1.9.99") > 0)
         assertEquals(0, UpdateSecurity.compareVersions("1.2", "1.2.0"))
         assertTrue(UpdateSecurity.compareVersions("1.2.1", "1.2.0") > 0)
+        assertTrue(UpdateSecurity.compareVersions("1.9.100", "1.9.99") > 0)
+        assertTrue(
+            UpdateSecurity.compareVersions(
+                "123456789012345678901234567890.0.0",
+                "99999999999999999999999999999.99.99",
+            ) > 0,
+        )
     }
 
     @Test
@@ -18,6 +25,7 @@ class UpdateSecurityTest {
         assertEquals(null, UpdateSecurity.parseVersion("1"))
         assertEquals(null, UpdateSecurity.parseVersion("1.x.0"))
         assertEquals(null, UpdateSecurity.parseVersion("1.2.3.4"))
+        assertEquals(null, UpdateSecurity.parseVersion("01.2.3"))
     }
 
     @Test

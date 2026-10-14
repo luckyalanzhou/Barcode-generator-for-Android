@@ -17,17 +17,21 @@ MAX_ANDROID_VERSION_CODE = 2_100_000_000
 MARKER_PREFIX = "<!-- barcode-official-release:"
 MARKER_PATTERN = re.compile(
     r"<!-- barcode-official-release: version=(\S+) version_code=(\d+) "
-    r"run_id=(\S+) status=(reserved|complete) -->"
+    r"run_id=(\S+)(?: release_type=(patch|minor|major))? status=(reserved|complete) -->"
 )
 MARKER_LINE_PATTERN = re.compile(
     r"(?m)^<!-- barcode-official-release:.*?-->[ \t]*(?:\r?\n|$)"
 )
-TAG_PATTERN = re.compile(r"^android-v([0-9])\.([0-9])\.(0|[1-9][0-9]?)$")
+VERSION_PART_PATTERN = r"(?:0|[1-9][0-9]*)"
+TAG_PATTERN = re.compile(
+    rf"^{re.escape(TAG_PREFIX)}({VERSION_PART_PATTERN})\.({VERSION_PART_PATTERN})\.({VERSION_PART_PATTERN})$"
+)
+RELEASE_TYPES = ("patch", "minor", "major")
 
 
 @dataclass(frozen=True, order=True)
 class ReleaseVersion:
-    """正式版版本号；主、次版本各一位，Patch 为 0–99。"""
+    """正式版 SemVer 版本；三个数字段均无固定上限。"""
 
     major: int
     minor: int
@@ -38,24 +42,24 @@ class ReleaseVersion:
 
 
 def parse_version(value: str) -> ReleaseVersion:
-    """解析并严格校验正式版版本格式。"""
+    """解析正式版 MAJOR.MINOR.PATCH，并拒绝前导零和预发布后缀。"""
 
     match = TAG_PATTERN.fullmatch(f"{TAG_PREFIX}{value}")
     if not match:
-        raise ValueError(f"无效正式版版本号：{value!r}，必须为 0.0.0 至 9.9.99 格式")
+        raise ValueError(f"无效正式版版本号：{value!r}，必须为无前导零的 MAJOR.MINOR.PATCH")
     return ReleaseVersion(*(int(part) for part in match.groups()))
 
 
-def next_version(current: ReleaseVersion) -> ReleaseVersion:
-    """递增 Patch，并按规则进位；到达最高版本时明确停止。"""
+def next_version(current: ReleaseVersion, release_type: str = "patch") -> ReleaseVersion:
+    """按手动选择的 SemVer 级别递增；Patch 默认，不做自动进位。"""
 
-    if current.patch < 99:
+    if release_type == "patch":
         return ReleaseVersion(current.major, current.minor, current.patch + 1)
-    if current.minor < 9:
+    if release_type == "minor":
         return ReleaseVersion(current.major, current.minor + 1, 0)
-    if current.major < 9:
+    if release_type == "major":
         return ReleaseVersion(current.major + 1, 0, 0)
-    raise ValueError("正式版已达到最高版本 9.9.99，停止发布，不能自动回绕")
+    raise ValueError(f"无效正式版递增类型：{release_type!r}，必须为 patch、minor 或 major")
 
 
 def parse_tag(tag_name: str) -> ReleaseVersion | None:
@@ -75,7 +79,7 @@ def read_metadata(body: str, version: ReleaseVersion) -> dict[str, Any] | None:
     match = MARKER_PATTERN.search(body)
     if not match:
         raise ValueError(f"Release v{version} 的版本状态标记损坏，拒绝猜测版本")
-    marked_version, code_text, run_id, status = match.groups()
+    marked_version, code_text, run_id, release_type, status = match.groups()
     if parse_version(marked_version) != version:
         raise ValueError(f"Release tag 与正文版本标记不一致：v{version} / v{marked_version}")
     version_code = int(code_text)
@@ -85,6 +89,7 @@ def read_metadata(body: str, version: ReleaseVersion) -> dict[str, Any] | None:
         "version": str(version),
         "version_code": version_code,
         "run_id": run_id,
+        "release_type": release_type,
         "status": status,
     }
 
@@ -95,16 +100,15 @@ def write_metadata(
     version_code: int,
     run_id: str,
     status: str,
+    release_type: str | None = None,
 ) -> str:
     """保留可见 Release 说明，只替换隐藏的发布状态标记。"""
 
     content = MARKER_LINE_PATTERN.sub("", body or "").strip()
     if not content:
         content = f"正式版 v{version}。"
-    marker = (
-        f"{MARKER_PREFIX} version={version} version_code={version_code} "
-        f"run_id={run_id} status={status} -->"
-    )
+    type_marker = f" release_type={release_type}" if release_type is not None else ""
+    marker = f"{MARKER_PREFIX} version={version} version_code={version_code} run_id={run_id}{type_marker} status={status} -->"
     return f"{content}\n\n{marker}\n"
 
 
@@ -198,8 +202,15 @@ def _next_version_code(records: list[dict[str, Any]]) -> int:
     return candidate
 
 
-def create_release_plan(releases: Iterable[dict[str, Any]], run_id: str) -> dict[str, Any]:
-    """选择新版本或继续未完成 Release，并为当前运行固化分配结果。"""
+def create_release_plan(
+    releases: Iterable[dict[str, Any]],
+    run_id: str,
+    release_type: str = "patch",
+) -> dict[str, Any]:
+    """按用户选择分配新版本，或恢复已有分配，不重复递增。"""
+
+    if release_type not in RELEASE_TYPES:
+        raise ValueError(f"无效正式版递增类型：{release_type!r}，必须为 patch、minor 或 major")
 
     records = _release_records(releases)
 
@@ -212,6 +223,7 @@ def create_release_plan(releases: Iterable[dict[str, Any]], run_id: str) -> dict
                 "action": "skip",
                 "version": str(version),
                 "version_code": metadata["version_code"],
+                "release_type": metadata["release_type"],
                 "tag_name": f"{TAG_PREFIX}{version}",
                 "release_id": record["id"],
                 "run_id": str(run_id),
@@ -232,14 +244,16 @@ def create_release_plan(releases: Iterable[dict[str, Any]], run_id: str) -> dict
             if metadata is not None
             else _next_version_code(records)
         )
+        assigned_release_type = metadata["release_type"] if metadata is not None else None
         action = "resume"
         release_id = record["id"]
         body = record["body"]
     else:
         completed = [record["version"] for record in records if record["complete"]]
         baseline = max(completed, default=ReleaseVersion(0, 0, 0))
-        version = next_version(baseline)
+        version = next_version(baseline, release_type)
         version_code = _next_version_code(records)
+        assigned_release_type = release_type
         action = "create"
         release_id = None
         body = ""
@@ -248,12 +262,20 @@ def create_release_plan(releases: Iterable[dict[str, Any]], run_id: str) -> dict
         "action": action,
         "version": str(version),
         "version_code": version_code,
+        "release_type": assigned_release_type,
         "tag_name": f"{TAG_PREFIX}{version}",
         "release_id": release_id,
         "run_id": str(run_id),
         "draft": bool(record["draft"]) if action == "resume" else True,
         "name": f"Barcode Generator Release v{version}",
-        "body": write_metadata(body, version, version_code, str(run_id), "reserved"),
+        "body": write_metadata(
+            body,
+            version,
+            version_code,
+            str(run_id),
+            "reserved",
+            assigned_release_type,
+        ),
     }
 
 
@@ -297,6 +319,7 @@ def write_publish_request(plan: dict[str, Any]) -> dict[str, Any]:
             int(plan["version_code"]),
             str(plan["run_id"]),
             "complete",
+            plan.get("release_type"),
         ),
         "draft": False,
         "prerelease": False,
@@ -318,6 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     plan_parser = commands.add_parser("plan", help="分配或恢复正式版版本")
     plan_parser.add_argument("--releases", type=Path, required=True)
     plan_parser.add_argument("--run-id", required=True)
+    plan_parser.add_argument("--release-type", choices=RELEASE_TYPES, default="patch")
     plan_parser.add_argument("--output", type=Path, required=True)
 
     reserve_parser = commands.add_parser("reserve-request", help="生成草稿 Release 请求")
@@ -332,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "plan":
-            plan = create_release_plan(read_release_lines(args.releases), args.run_id)
+            plan = create_release_plan(read_release_lines(args.releases), args.run_id, args.release_type)
             _write_json(args.output, plan)
         elif args.command == "reserve-request":
             plan = _load_plan(args.plan)

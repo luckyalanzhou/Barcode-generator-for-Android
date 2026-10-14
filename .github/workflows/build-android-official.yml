@@ -2,6 +2,16 @@ name: Build Android Release APK
 
 on:
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: Patch 兼容修复、Minor 兼容功能、Major 不兼容变更
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: read
@@ -59,6 +69,7 @@ jobs:
         id: reserve
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_TYPE: ${{ inputs.release_type || 'patch' }}
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN" || { echo "::error::缺少 RELEASE_PUBLISH_TOKEN（需仓库 Contents 读写权限）"; exit 1; }
@@ -70,20 +81,28 @@ jobs:
           python3 tools/official_release_version.py plan \
             --releases "$release_list" \
             --run-id "$GITHUB_RUN_ID" \
+            --release-type "$RELEASE_TYPE" \
             --output "$release_plan"
           action="$(jq -r '.action' "$release_plan")"
           version="$(jq -r '.version' "$release_plan")"
           version_code="$(jq -r '.version_code' "$release_plan")"
           tag="$(jq -r '.tag_name' "$release_plan")"
+          release_type="$(jq -r '.release_type // ""' "$release_plan")"
           echo "action=$action" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
           echo "plan=$release_plan" >> "$GITHUB_OUTPUT"
           if [[ "$action" == "skip" ]]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "本次运行对应的 Release 已经完整发布，不重复覆盖。"
             exit 0
+          fi
+          if [[ "$action" == "resume" ]]; then
+            echo "检测到未完成的正式版 v${version}；继续使用已分配版本和递增类型（${release_type:-历史版本}），忽略本次新选择。"
+          else
+            echo "本次正式版递增类型：${release_type}。"
           fi
           python3 tools/official_release_version.py reserve-request \
             --plan "$release_plan" \

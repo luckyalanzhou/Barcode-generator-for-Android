@@ -54,9 +54,8 @@
 
 ## 正式版
 
-- 当前正式 Release：[`v1.0.0`](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-v1.0.0)
-- APK：`BarcodeGenerator1.0.0.apk`
+- 当前仓库尚无正式版 Release；首次默认 Patch 发布版本为 `0.0.1`。
 - 包名：`com.luckyalanzhou.barcodegenerator`
 - 最低系统：Android 8.0（API 26）
 
-正式版从 `main` 分支手动运行[正式版工作流](.github/workflows/build-android-official.yml)，并填写版本号和 `versionCode`。本地验证要求与工作流步骤见[开发与验证](android/DEVELOPMENT.md)。
+正式版从 `main` 分支手动运行[正式版工作流](.github/workflows/build-android-official.yml)，选择 Patch（默认）、Minor 或 Major；版本号和 Android `versionCode` 由工作流分配。本地验证要求与工作流步骤见[开发与验证](android/DEVELOPMENT.md)。
