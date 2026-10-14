@@ -1,0 +1,81 @@
+package com.luckyalanzhou.barcodegenerator.ui.theme
+
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
+
+internal val LightAppColorScheme = AppColorScheme(
+    text = AppTextColors(
+        primary = AppColorTokens.black,
+        secondary = AppColorTokens.black,
+        placeholder = AppColorTokens.Light.placeholder,
+        disabled = AppColorTokens.Light.disabled,
+        destructive = AppColorTokens.Light.destructive,
+        link = AppColorTokens.Light.accent,
+        onAccent = AppColorTokens.white,
+    ),
+    settingsText = AppSettingsTextColors(
+        primary = AppColorTokens.Light.settingsPrimaryText,
+        secondary = AppColorTokens.Light.settingsSecondaryText,
+    ),
+    surfaces = AppSurfaceColors(
+        background = AppColorTokens.Light.background,
+        surface = AppColorTokens.Light.surface,
+        card = AppColorTokens.Light.surface,
+        panel = AppColorTokens.Light.surface,
+        input = AppColorTokens.Light.input,
+        inputPanel = AppColorTokens.Light.inputPanel,
+        overlay = AppColorTokens.Light.surface.copy(alpha = .98f),
+    ),
+    controls = AppControlColors(
+        accent = AppColorTokens.Light.accent,
+        button = AppColorTokens.Light.button,
+        selectedContainer = AppColorTokens.Light.selectedContainer,
+        disabledContainer = AppColorTokens.Light.disabledContainer,
+        progressTrack = AppColorTokens.Light.progressTrack,
+        thumb = AppColorTokens.white,
+        toggleOn = AppColorTokens.Light.toggleOn,
+        toggleOff = AppColorTokens.Light.toggleOff,
+        success = AppColorTokens.Light.success,
+        progressHighlight = AppColorTokens.progressHighlight,
+    ),
+    borders = AppBorderColors(
+        border = AppColorTokens.Light.border,
+        button = AppColorTokens.Light.buttonBorder,
+        card = AppColorTokens.Light.cardBorder,
+        input = AppColorTokens.Light.inputBorder,
+        focusedInput = AppColorTokens.Light.accent.copy(alpha = .76f),
+        divider = AppColorTokens.Light.divider,
+    ),
+    navigation = AppNavigationColors(
+        tabUnselected = AppColorTokens.Light.tabUnselected,
+    ),
+    content = AppContentColors(
+        deleteIcon = AppColorTokens.deleteIcon,
+        favoriteActive = AppColorTokens.Light.favoriteActive,
+        icon = AppColorTokens.black,
+        folder = AppColorTokens.Light.folder,
+        childFolder = AppColorTokens.Light.childFolder,
+        file = Color(0xff347A65),
+        sentContent = AppColorTokens.white,
+    ),
+    barcode = AppBarcodeColors(
+        qrForeground = AppColorTokens.black,
+        qrBackground = AppColorTokens.white,
+    ),
+    sliders = AppSliderColors(
+        activeTrack = AppColorTokens.Light.accent,
+        inactiveTrack = AppColorTokens.Light.sliderInactiveTrack,
+        thumbBorder = AppColorTokens.Light.sliderThumbBorder,
+        thumb = AppColorTokens.Light.sliderThumb,
+    ),
+)
+
+internal fun appLightMaterialColorScheme(colors: AppColorScheme): ColorScheme = lightColorScheme(
+    primary = colors.controls.accent,
+    onPrimary = colors.text.onAccent,
+    secondary = colors.controls.accent,
+    tertiary = colors.controls.accent,
+    background = colors.surfaces.background,
+    surface = colors.surfaces.surface,
+)

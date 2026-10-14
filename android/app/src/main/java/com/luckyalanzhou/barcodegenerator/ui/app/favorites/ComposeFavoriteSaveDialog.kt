@@ -1,0 +1,278 @@
+package com.luckyalanzhou.barcodegenerator.ui.app.favorites
+
+import com.luckyalanzhou.barcodegenerator.presentation.*
+import com.luckyalanzhou.barcodegenerator.ui.app.*
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeConfirmDialog
+import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+
+import com.luckyalanzhou.barcodegenerator.ui.theme.*
+import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
+
+import com.luckyalanzhou.barcodegenerator.MainActivity
+import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/**
+ * 显示结果收藏对话框：用户选择一级/二级文件夹并输入文件名后提交保存。
+ * 成功时关闭对话框并通知调用方；重名或写入失败时保留对话框，提示用户修正后重试。
+ */
+internal fun MainActivity.saveResultAsFavoriteCompose(
+    resultState: ResultUiState,
+    dataState: BarcodeDataState,
+    onSave: (List<Long>, Long?, Long?, String, String) -> Boolean,
+    onCreateFolder: (String) -> Unit,
+    onSaved: () -> Unit,
+) {
+    showComposeDialog(compact = false) { dismiss ->
+        val dark = isDark()
+        if (resultState.items.isEmpty()) {
+            LaunchedEffect(Unit) { dismiss() }
+            return@showComposeDialog
+        }
+        val editingGroup = resultState.selectedFavoriteGroup?.takeIf { resultState.returnPage == AppRoute.Favorites }
+        var folders by remember {
+            mutableStateOf(
+                (dataState.folders + dataState.groups.map { it.folder })
+                    .filter { it.isNotBlank() }
+                    .distinct(),
+            )
+        }
+        val roots = folders.map { it.substringBefore('/') }.distinct().sorted()
+        var selectedRoot by remember { mutableStateOf(editingGroup?.folder?.substringBefore('/').takeIf { it in roots }.orEmpty()) }
+        var selectedChild by remember { mutableStateOf(editingGroup?.folder.orEmpty().substringAfter('/', "").takeIf { it.isNotBlank() }.orEmpty()) }
+        val childOptions = folders.filter { it.startsWith("$selectedRoot/") }.map { it.removePrefix("$selectedRoot/") }.filter { !it.contains('/') }.distinct().sorted()
+        val selectedFolder = if (selectedRoot.isNotBlank() && selectedChild.isNotBlank()) "$selectedRoot/$selectedChild" else ""
+        var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
+        var saving by remember { mutableStateOf(false) }
+        fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String): Boolean {
+            if (saving) return false
+            saving = true
+            val saved = runCatching {
+                onSave(resultState.items.map { it.id }, editingGroup?.id, target?.id, folder, cleanName)
+            }.getOrElse {
+                DebugLog.record("favorites", "保存收藏点击操作失败", it)
+                saving = false
+                false
+            }
+            if (!saved) {
+                toast("该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
+                saving = false
+            }
+            return saved
+        }
+        fun finishSave(folder: String) {
+            // 先关闭原生 Dialog，再在下一帧切换根路由，避免在 Compose 点击回调
+            // 仍在执行时同时替换宿主组合树。
+            dismiss()
+            window.decorView.post {
+                if (!isFinishing && !isDestroyed) {
+                    toast("已保存到 $folder")
+                    onSaved()
+                }
+            }
+        }
+        ComposeGlassDialogCard(dark) {
+            Text(
+                if (editingGroup == null) "保存到收藏" else "编辑收藏",
+                color = LocalAppColorScheme.current.text.primary,
+                fontSize = 18.sp,
+            )
+            Text("选择收藏保存位置", color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            if (roots.isEmpty()) {
+                Text("暂无一级文件夹，请先新建", color = LocalAppColorScheme.current.text.secondary, fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Icon(FolderIcon, "一级文件夹", tint = LocalAppColorScheme.current.content.folder, modifier = Modifier.size(24.dp))
+                        Text("① 一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
+                    }
+                    ComposeChoiceField(
+                        value = selectedRoot.ifBlank { "选择一级文件夹" },
+                        options = roots,
+                        dark = dark,
+                        modifier = Modifier.padding(start = 32.dp),
+                        onSelected = { selectedRoot = it; selectedChild = "" },
+                    )
+                    Row(
+                        modifier = Modifier.padding(start = 12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.width(20.dp).height(28.dp)) {
+                            Box(
+                                Modifier.padding(start = 7.dp).width(2.dp).height(28.dp)
+                                    .background(LocalAppColorScheme.current.controls.button),
+                            )
+                        }
+                        Icon(FolderIcon, "二级文件夹", tint = LocalAppColorScheme.current.content.childFolder, modifier = Modifier.size(24.dp))
+                        Text("② 二级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp))
+                    }
+                    ComposeChoiceField(
+                        value = selectedChild.ifBlank { "选择二级文件夹" },
+                        options = childOptions,
+                        dark = dark,
+                        modifier = Modifier.padding(start = 52.dp),
+                        enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
+                        onSelected = { selectedChild = it },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        .background(LocalAppColorScheme.current.surfaces.input, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("当前位置", color = LocalAppColorScheme.current.text.secondary, fontSize = 12.sp)
+                        Row(Modifier.padding(top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            if (selectedRoot.isBlank()) {
+                                Text("未选择一级文件夹", color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp)
+                            } else {
+                                Icon(FolderIcon, "当前一级文件夹", tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
+                                Text(selectedRoot, color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (selectedChild.isNotBlank()) {
+                                    Icon(KeyboardArrowRightIcon, "层级", tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
+                                    Icon(FolderIcon, "当前二级文件夹", tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
+                                    Text(selectedChild, color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
+                    Icon(KeyboardArrowDownIcon, "展开层级", tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp))
+                }
+                if (selectedRoot.isNotBlank() && childOptions.isEmpty()) Text("该一级文件夹暂无二级文件夹，请先新建", color = LocalAppColorScheme.current.text.secondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        showFolderEditorCompose(dataState) { folder ->
+                            if (folder !in folders) folders = (folders + folder).distinct()
+                            onCreateFolder(folder)
+                            selectedRoot = folder
+                            selectedChild = ""
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
+                ) {
+                    Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
+                    Text("新建一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                }
+                OutlinedButton(
+                    onClick = {
+                        if (selectedRoot.isBlank()) toast("请先选择一级文件夹")
+                        else showSubfolderEditorCompose(dataState, selectedRoot, onCreated = { child ->
+                            val path = "$selectedRoot/$child"
+                            if (path !in folders) folders = (folders + path).distinct()
+                            selectedChild = child
+                        }, onCreateFolder = onCreateFolder)
+                    },
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(0.5.dp, LocalAppColorScheme.current.borders.button),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
+                ) {
+                    Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
+                    Text("新建二级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                }
+            }
+            Text("收藏文件名", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedTextColor = LocalAppColorScheme.current.text.primary,
+                    focusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    cursorColor = LocalAppColorScheme.current.text.primary,
+                ),
+                label = { Text("收藏文件名", color = LocalAppColorScheme.current.text.primary) },
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                DialogAction("取消", dark, dismiss)
+                DialogAction("保存", dark, {
+                    val cleanName = name.trim()
+                    when {
+                        cleanName.isEmpty() -> toast("请输入收藏文件名")
+                        selectedFolder.isBlank() -> toast("请选择文件夹")
+                        else -> {
+                            val conflict = dataState.groups.firstOrNull {
+                                it.id != editingGroup?.id && it.folder == selectedFolder && it.name == cleanName
+                            }
+                            if (conflict == null) {
+                                if (persistFavorite(editingGroup, selectedFolder, cleanName)) {
+                                    finishSave(selectedFolder)
+                                }
+                            } else {
+                                dismiss()
+                                showComposeConfirmDialog(
+                                    "覆盖收藏",
+                                    "“" + selectedFolder + "/" + cleanName + "”已存在，是否覆盖？",
+                                    "覆盖",
+                                ) {
+                                    if (persistFavorite(conflict, selectedFolder, cleanName)) {
+                                        window.decorView.post {
+                                            if (!isFinishing && !isDestroyed) {
+                                                toast("已保存到 $selectedFolder")
+                                                onSaved()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }, modifier = Modifier.padding(start = 20.dp))
+            }
+        }
+    }
+}
