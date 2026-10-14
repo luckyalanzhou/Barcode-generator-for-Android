@@ -23,11 +23,9 @@ import com.luckyalanzhou.barcodegenerator.icons.EditIcon
 import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.SearchIcon
-import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.material3.IconButton
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -326,15 +324,6 @@ internal fun FavoritesContent(
                             }
                         },
                     )
-                    // 清除按钮只清空查询条件，不会删除收藏数据。
-                    if (query.isNotEmpty()) {
-                        val clearSearchInteractions = remember { MutableInteractionSource() }
-                        IconButton(onClick = { onQueryChange("") }, interactionSource = clearSearchInteractions,
-                            modifier = Modifier.size(48.dp).iosPressFeedback(clearSearchInteractions).globalButtonChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
-                            Icon(CloseSmallIcon, contentDescription = "清除搜索文字",
-                                tint = themeColors.text.secondary, modifier = Modifier.size(20.dp))
-                        }
-                    }
                 }
             }
             // 清空收藏是破坏性操作，确认与数据删除由上层的 Tab 操作流程执行。
