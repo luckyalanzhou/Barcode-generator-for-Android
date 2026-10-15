@@ -100,7 +100,8 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     }
 
     override suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem> =
-        if (ids.isEmpty()) emptyList() else dao.loadItemsByIds(ids).map(CodeItemEntity::toDomain)
+        if (ids.isEmpty()) emptyList()
+        else restoreRequestedItemOrder(ids, dao.loadItemsByIds(ids).map(CodeItemEntity::toDomain))
 
     override suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem> =
         if (query.isBlank() || limit <= 0) emptyList()
@@ -353,3 +354,10 @@ private fun FavoriteGroup.toLinkEntities(): List<FavoriteGroupItemEntity> =
     itemIds.distinct().mapIndexed { position, itemId ->
         FavoriteGroupItemEntity(groupId = id, itemId = itemId, position = position)
     }
+
+/** Room 不保证 IN 查询结果顺序；统一在仓库边界按调用方声明的 ID 顺序恢复。 */
+internal fun restoreRequestedItemOrder(requestedIds: List<Long>, loadedItems: List<CodeItem>): List<CodeItem> {
+    if (requestedIds.isEmpty() || loadedItems.isEmpty()) return emptyList()
+    val itemsById = loadedItems.associateBy(CodeItem::id)
+    return requestedIds.distinct().mapNotNull(itemsById::get)
+}

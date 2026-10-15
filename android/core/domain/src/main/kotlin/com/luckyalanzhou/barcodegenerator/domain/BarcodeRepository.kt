@@ -74,6 +74,10 @@ interface BarcodeRepository {
     suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem>
     suspend fun deleteItem(itemId: Long, modifiedAt: Long)
     suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long)
+    /**
+     * 按 [ids] 的首次出现顺序返回存在的条码，而不是使用数据库的自然返回顺序。
+     * 重复 ID 只返回一次；不存在的 ID 不返回，由调用方决定是否接受不完整结果。
+     */
     suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem>
     suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem>
     suspend fun clearFavoriteFlags(ids: List<Long>)
