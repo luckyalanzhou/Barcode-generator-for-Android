@@ -31,7 +31,7 @@
 2. 下载 `BarcodeGeneratorBeta9.9.9.apk`。
 3. 在 Android 8.0 或更高版本上允许当前文件来源安装 APK，然后完成安装。
 
-APK 的版本、提交和 SHA-256 摘要记录在 Release 说明中。正式版发布后可从同一仓库的 [Releases](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases) 获取。
+Beta Release 说明包含版本号、提交 SHA 和 APK SHA-256；正式版提供 APK 与 `.sha256` 校验文件，发布流程会验证文件，但 Release 说明不保证列出提交 SHA 和摘要。正式版发布后可从同一仓库的 [Releases](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases) 获取。
 
 ## 使用
 
@@ -85,4 +85,4 @@ Windows PowerShell 使用 `./gradlew.bat`。签名 APK、本机固定目录和 G
 
 ## 许可证
 
-本仓库目前未声明开源许可证。未经授权，不应复制、修改、分发或用于其他项目；如需使用，请先联系仓库所有者。
+本仓库未提供开源许可证；如需复用或分发代码，请先联系仓库所有者确认授权。
