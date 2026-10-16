@@ -78,6 +78,7 @@ Windows PowerShell 使用 `./gradlew.bat`。签名 APK、本机固定目录和 G
 
 ## 文档
 
+- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)：项目目录和各部分的主要职责。
 - [ARCHITECTURE.md](android/ARCHITECTURE.md)：架构原则、模块边界和依赖方向。
 - [DEVELOPMENT.md](android/DEVELOPMENT.md)：环境、验证、构建和发布方式。
 - [PROTOCOL.md](android/core/lan-share/PROTOCOL.md)：局域网通信协议与安全模型。
