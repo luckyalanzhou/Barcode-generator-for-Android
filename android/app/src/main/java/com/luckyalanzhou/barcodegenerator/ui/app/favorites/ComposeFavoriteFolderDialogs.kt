@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.favoriteFolderEditorInitialValue
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.favoriteFolderRenameTargetPath
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.isSafeFavoriteFolderRename
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.isValidFavoriteFolderName
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.isValidFavoriteFolderPath
@@ -32,7 +34,7 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.isValidFavoriteFo
 internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Unit) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
-        var value by remember { mutableStateOf(initial) }
+        var value by remember { mutableStateOf(favoriteFolderEditorInitialValue(initial)) }
         ComposeGlassDialogCard(dark) {
             Text(
                 if (initial.isBlank()) "新建文件夹" else "重命名文件夹",
@@ -57,8 +59,7 @@ internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, i
                 DialogAction("取消", dark, dismiss)
                 DialogAction("保存", dark, {
                     val name = value.trim()
-                    val parent = initial.substringBeforeLast('/', "")
-                    val targetPath = listOf(parent, name).filter { it.isNotBlank() }.joinToString("/")
+                    val targetPath = favoriteFolderRenameTargetPath(initial, name)
                     when {
                         name.isBlank() -> toast("请输入文件夹名称")
                         !isValidFavoriteFolderName(name) -> toast("文件夹名称不能包含斜杠")

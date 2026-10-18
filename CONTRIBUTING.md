@@ -1,19 +1,12 @@
 # 贡献与修改指南
 
-[项目入口](README.md) · 当前：贡献指南 · [架构原则](android/ARCHITECTURE.md) · [开发与验证](android/DEVELOPMENT.md) · [通信协议](android/core/lan-share/PROTOCOL.md)
+[项目入口](README.md) · 当前：贡献指南 · [架构原则](android/ARCHITECTURE.md) · [通信协议](android/core/lan-share/PROTOCOL.md)
 
 > 修改顺序：定位代码 → 确认职责层 → 验证改动 → 检查差异。
 
 ## 修改前先确认
 
-在仓库根目录的 PowerShell 中检查分支和已有改动：
-
-```powershell
-$repo = 'D:\GitHub\Barcode-generator-for-Android'
-git -c safe.directory=$repo -C $repo status --short --branch
-```
-
-日常开发使用 `beta`。发现不认识的修改时先停下确认，不要覆盖或删除。正式版只从 `main` 发布，不要把日常修改直接推到 `main`。
+修改前检查分支和已有差异，保留其他未完成的改动。日常开发使用 `beta`，正式版只从 `main` 发布。
 
 ## 代码地图
 
@@ -61,23 +54,14 @@ git -c safe.directory=$repo -C $repo status --short --branch
 
 4. **写清楚代码**：新增或改动的主要功能、按钮、界面和操作应有简明中文注释。注释说明意图和容易误解的行为，不要逐行重复代码本身。
 
-   关键异步操作须记录开始、完成、取消和失败，必要时用操作 ID 关联；捕获异常和渲染回退不可静默丢弃。诊断不记录私人内容、不逐帧写入；导出规则见[调试日志](android/DEVELOPMENT.md#导出调试日志)。
+   关键异步操作须记录开始、完成、取消和失败，必要时用操作 ID 关联；捕获异常和渲染回退不可静默丢弃。诊断不记录私人内容、不逐帧写入。
 
-5. **验证修改**：按改动范围运行相关测试；涉及 Android 系统、相机、触感、GPU、Wi-Fi 或生命周期时，还要在设备上检查。具体命令见[开发与验证](android/DEVELOPMENT.md#本地验证)。
+5. **验证修改**：按改动范围运行相关测试；涉及 Android 系统、相机、触感、GPU、Wi-Fi 或生命周期时，还要在设备上检查。
 
-6. **检查差异**：
-
-   ```powershell
-   $repo = 'D:\GitHub\Barcode-generator-for-Android'
-   git -c safe.directory=$repo -C $repo status --short --branch
-   git -c safe.directory=$repo -C $repo diff --check
-   git -c safe.directory=$repo -C $repo diff
-   ```
-
-   `-` 表示旧内容，`+` 表示新内容。确认每个文件都与本次修改有关；只暂存明确的文件，不要使用 `git add .`。
+6. **检查差异**：确认每个文件都与本次修改有关，只暂存明确的文件。
 
 ## 提交、推送与构建
 
-提交和推送前应先完成相应验证，并复查暂存内容。日常只推送到 `beta`；推送不会自动构建 APK。需要安装包时，按[开发与验证](android/DEVELOPMENT.md#github-actions)手动启动对应工作流。不要提交密钥、令牌或个人机器配置。
+提交和推送前应先完成相应验证，并复查暂存内容。日常只推送到 `beta`；推送不会自动构建 APK。需要安装包时，在 [GitHub Actions](.github/workflows/) 手动启动对应工作流。不要提交密钥、令牌或个人机器配置。
 
-遇到权限错误，不要删除 `.git/index.lock`；记录错误并按[开发与验证](android/DEVELOPMENT.md#构建文件被占用时)中的安全步骤处理。不要运行 `git reset --hard`、`git clean -fd` 或强制推送来“清理”问题。
+遇到权限错误或文件占用，先确认原因；不要删除用途不明的锁文件，也不要通过重置、清理或强制推送丢弃已有改动。

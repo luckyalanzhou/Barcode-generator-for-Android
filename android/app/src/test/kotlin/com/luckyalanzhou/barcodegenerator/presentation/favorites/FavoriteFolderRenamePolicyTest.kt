@@ -6,6 +6,19 @@ import org.junit.Test
 
 class FavoriteFolderRenamePolicyTest {
     @Test
+    fun childRenameEditorShowsOnlyTheFolderNameAndKeepsItsParentPath() {
+        assertTrue(favoriteFolderEditorInitialValue("root/child") == "child")
+        assertTrue(favoriteFolderRenameTargetPath("root/child", "renamed") == "root/renamed")
+    }
+
+    @Test
+    fun rootRenameAndFolderCreationDoNotAddAParentPath() {
+        assertTrue(favoriteFolderEditorInitialValue("old") == "old")
+        assertTrue(favoriteFolderRenameTargetPath("old", "new") == "new")
+        assertTrue(favoriteFolderRenameTargetPath("", "new") == "new")
+    }
+
+    @Test
     fun rootRenameCannotTurnItsNewNameIntoAParentPath() {
         assertFalse(isSafeFavoriteFolderRename("old", "new/sub", listOf("old", "old/child")))
     }

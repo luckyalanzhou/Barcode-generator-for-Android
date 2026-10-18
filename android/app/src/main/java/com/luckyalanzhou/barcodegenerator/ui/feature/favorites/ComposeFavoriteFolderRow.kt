@@ -1,6 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.favoriteFolderRenameTargetPath
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
@@ -85,8 +86,7 @@ internal fun FavoriteFolderRow(
                     when (label) {
                         "新建文件夹" -> onShowSubfolderEditor(row.path)
                         "重命名" -> onShowFolderEditor(row.path) { renamed ->
-                            val parent = row.path.substringBeforeLast('/', "")
-                            onRenameFolder(row.path, listOf(parent, renamed).filter { it.isNotBlank() }.joinToString("/"))
+                            onRenameFolder(row.path, favoriteFolderRenameTargetPath(row.path, renamed))
                         }
                         else -> onConfirm("删除文件夹", "将删除文件夹内的所有收藏，确定继续吗？", "删除") { onDeleteFolder(row.path) }
                     }

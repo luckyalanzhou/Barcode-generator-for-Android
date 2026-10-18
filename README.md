@@ -4,7 +4,7 @@
 
 在 Android 上批量生成、识别和管理条码，并与同一 Wi-Fi 下的浏览器互传文件。
 
-[下载最新 Beta APK](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9) · [使用说明](#使用) · [开发文档](android/DEVELOPMENT.md)
+[下载最新 Beta APK](https://github.com/luckyalanzhou/Barcode-generator-for-Android/releases/tag/android-test-v9.9.9) · [使用说明](#使用) · [MIT 许可证](LICENSE)
 
 [![Beta build](https://img.shields.io/github/actions/workflow/status/luckyalanzhou/Barcode-generator-for-Android/build-android-testing.yml?branch=beta&label=Beta%20build&logo=github)](https://github.com/luckyalanzhou/Barcode-generator-for-Android/actions/workflows/build-android-testing.yml?query=branch%3Abeta)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
@@ -55,16 +55,6 @@ Beta Release 说明包含版本号、提交 SHA 和 APK SHA-256；正式版提�
 
 局域网分享不提供登录、身份认证或端到端加密；同网内能打开地址的设备均可访问。完整边界见 [LAN Share 协议](android/core/lan-share/PROTOCOL.md#安全模型)。
 
-## 从源码验证
-
-准备 JDK 17 和 Android SDK Platform 37，然后在仓库的 `android` 目录运行：
-
-```bash
-./gradlew verifyLocal -PenableAppUnitTests=true --no-configuration-cache
-```
-
-Windows PowerShell 使用 `./gradlew.bat`。签名 APK、本机固定目录和 GitHub Actions 的操作方式见[开发与验证](android/DEVELOPMENT.md)。
-
 ## 版本与维护
 
 | 项目 | 状态 |
@@ -74,16 +64,15 @@ Windows PowerShell 使用 `./gradlew.bat`。签名 APK、本机固定目录和 G
 | 发布渠道 | Beta 与正式版独立安装，均由 GitHub Actions 手动发布 |
 | 更新方式 | App 内检查更新或查看 GitHub Releases |
 
-普通代码推送不会自动发布 APK。Beta 和正式版的构建、签名与版本规则以[开发与验证](android/DEVELOPMENT.md#github-actions)为准。
+普通代码推送不会自动发布 APK；发布配置见 [GitHub Actions 工作流](.github/workflows/)。
 
 ## 文档
 
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)：项目目录和各部分的主要职责。
 - [ARCHITECTURE.md](android/ARCHITECTURE.md)：架构原则、模块边界和依赖方向。
-- [DEVELOPMENT.md](android/DEVELOPMENT.md)：环境、验证、构建和发布方式。
 - [PROTOCOL.md](android/core/lan-share/PROTOCOL.md)：局域网通信协议与安全模型。
 - [CONTRIBUTING.md](CONTRIBUTING.md)：查找代码、修改和提交要求。
 
 ## 许可证
 
-本仓库未提供开源许可证；如需复用或分发代码，请先联系仓库所有者确认授权。
+采用 [MIT 许可证](LICENSE)。

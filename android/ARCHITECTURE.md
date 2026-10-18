@@ -1,6 +1,6 @@
 # 架构原则
 
-[项目入口](../README.md) · [贡献指南](../CONTRIBUTING.md) · 当前：架构 · [开发与验证](DEVELOPMENT.md) · [通信协议](core/lan-share/PROTOCOL.md)
+[项目入口](../README.md) · [贡献指南](../CONTRIBUTING.md) · 当前：架构 · [通信协议](core/lan-share/PROTOCOL.md)
 
 > 本文解释模块与分层设计的原因，并列出需要长期保持的边界。
 
@@ -50,5 +50,5 @@ Gradle 插件和库版本由 Version Catalog 管理。UI 与 Presentation 目前
 ## 如何保持架构一致
 
 - 自动测试覆盖业务规则、数据行为、协议和模块依赖方向。
-- Wi-Fi、Android 生命周期、系统选择器和视觉效果须按[开发与验证指南](DEVELOPMENT.md)在设备上检查；编译或单元测试不能替代真机验收。
-- 模块、依赖、状态或安全边界变化时更新本文；通信接口变化时更新 [LAN Share 协议](core/lan-share/PROTOCOL.md)；开发命令变化时更新[开发与验证](DEVELOPMENT.md)。
+- Wi-Fi、Android 生命周期、系统选择器和视觉效果须在设备上检查；编译或单元测试不能替代真机验收。
+- 模块、依赖、状态或安全边界变化时更新本文；通信接口变化时更新 [LAN Share 协议](core/lan-share/PROTOCOL.md)。
