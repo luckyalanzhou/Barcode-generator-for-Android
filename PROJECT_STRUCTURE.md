@@ -20,7 +20,7 @@
     │   ├── data/              本地数据和平台能力的实现
     │   └── lan-share/         局域网传输及浏览器页面
     ├── architecture-tests/   架构边界和代码约定测试
-    ├── tools/                 版本发布与专项验证工具
+    ├── tools/                 正式版版本分配工具及测试
     ├── gradle/                Gradle Wrapper 和依赖版本目录
     ├── ARCHITECTURE.md        架构原则与模块边界
     ├── settings.gradle.kts    注册 Gradle 模块
@@ -59,7 +59,7 @@
 - `android/core/data/src/`：本地存储和 Android 平台适配；相关测试在模块自己的 `src/test/`。
 - `android/core/lan-share/src/`：传输协议、服务端、客户端、网页资源及预览处理；通信细节见 [`PROTOCOL.md`](android/core/lan-share/PROTOCOL.md)。
 - `android/gradle/libs.versions.toml`：集中管理 Gradle 插件和第三方库版本。
-- `android/tools/`：正式版版本分配器、对应测试和液态玻璃效果验证工具。
+- `android/tools/`：正式版版本分配器及对应测试。
 - [`.github/workflows/`](.github/workflows/)：Beta 构建、正式版发布和可选的 PR 架构检查。
 
 构建缓存、`build/` 输出和本机工具目录不应作为项目文件提交。
