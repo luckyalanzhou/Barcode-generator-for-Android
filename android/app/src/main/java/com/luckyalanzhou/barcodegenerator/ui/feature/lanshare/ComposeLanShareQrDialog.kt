@@ -105,6 +105,10 @@ internal fun ComposeLanShareQrDialog(
                 color = secondary,
                 fontSize = 14.sp,
             )
+            LanShareSecurityNotice(
+                secondary = secondary,
+                modifier = Modifier.padding(top = 10.dp),
+            )
             SelectionContainer(Modifier.fillMaxWidth().padding(top = 14.dp)) {
                 Text(
                     session.baseUrl,

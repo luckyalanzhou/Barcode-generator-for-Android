@@ -168,6 +168,14 @@ internal fun LanShareContent(
             item(key = "connection", contentType = "connection") {
                 LanShareConnectionStatus(lanState.browserConnected)
             }
+            if (lanState.isHost) {
+                item(key = "security-notice", contentType = "security-notice") {
+                    LanShareSecurityNotice(
+                        secondary = secondary,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
+                    )
+                }
+            }
             items(timeline, key = { it.key }, contentType = {
                 when (it) {
                     is LanShareTimelineEntry.FileEntry, is LanShareTimelineEntry.UploadEntry -> "file"

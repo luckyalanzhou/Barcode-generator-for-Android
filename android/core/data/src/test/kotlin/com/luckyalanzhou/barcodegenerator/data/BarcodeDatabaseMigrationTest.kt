@@ -35,17 +35,23 @@ class BarcodeDatabaseMigrationTest {
 
     @Test
     fun migrationFromVersion3PreservesRowsAndBackfillsOrderedLinks() {
-        migrateFrom(3)
+        createLegacyDatabase(3)
+        assertRoomCanOpenAndReadMigratedFixture()
+    }
+
+    @Test
+    fun migrationFromVersion4PreservesRowsAndBackfillsOrderedLinks() {
+        createLegacyDatabase(4)
         assertRoomCanOpenAndReadMigratedFixture()
     }
 
     @Test
     fun migrationFromVersion5BackfillsOrderedLinks() {
-        migrateFrom(5)
+        createLegacyDatabase(5)
         assertRoomCanOpenAndReadMigratedFixture()
     }
 
-    private fun migrateFrom(version: Int) {
+    private fun createLegacyDatabase(version: Int) {
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context)
                 .name(TEST_DATABASE)
@@ -63,22 +69,6 @@ class BarcodeDatabaseMigrationTest {
         try {
             helper.writableDatabase.use { database ->
                 insertFavoriteFixture(database)
-                database.beginTransaction()
-                try {
-                    when (version) {
-                        3 -> {
-                            BarcodeDatabase.MIGRATION_3_4.migrate(database)
-                            BarcodeDatabase.MIGRATION_4_5.migrate(database)
-                        }
-                        5 -> Unit
-                        else -> error("Unsupported migration fixture version: $version")
-                    }
-                    BarcodeDatabase.MIGRATION_5_6.migrate(database)
-                    database.version = 6
-                    database.setTransactionSuccessful()
-                } finally {
-                    database.endTransaction()
-                }
             }
         } finally {
             helper.close()
@@ -146,8 +136,24 @@ class BarcodeDatabaseMigrationTest {
                     ),
                     dao.loadGroupItems(),
                 )
-                assertEquals(2, dao.loadItems().size)
-                assertEquals(2, dao.loadGroups().size)
+                assertEquals(
+                    listOf(
+                        CodeItemEntity(2, "second", "Code 128", 200, true, "Root", false),
+                        CodeItemEntity(1, "first", "Code 128", 100, true, "Root", true),
+                    ),
+                    dao.loadItems(),
+                )
+                assertEquals(
+                    listOf(
+                        FavoriteGroupEntity(20, "Root/Sub", "Group B", 400),
+                        FavoriteGroupEntity(10, "Root", "Group A", 300),
+                    ),
+                    dao.loadGroups(),
+                )
+                assertEquals(
+                    listOf(FavoriteFolderEntity("Root"), FavoriteFolderEntity("Root/Sub")),
+                    dao.loadFolders(),
+                )
             }
             database.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use {
                 assertEquals(0, it.count)

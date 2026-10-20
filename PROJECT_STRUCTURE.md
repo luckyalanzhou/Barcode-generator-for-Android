@@ -60,7 +60,7 @@
 - `android/core/lan-share/src/`：传输协议、服务端、客户端、网页资源及预览处理；通信细节见 [`PROTOCOL.md`](android/core/lan-share/PROTOCOL.md)。
 - `android/gradle/libs.versions.toml`：集中管理 Gradle 插件和第三方库版本。
 - `android/tools/`：正式版版本分配器及对应测试。
-- [`.github/workflows/`](.github/workflows/)：Beta 构建、正式版发布和可选的 PR 架构检查。
+- [`.github/workflows/`](.github/workflows/)：PR 架构与单测检查，以及手动启动的 Beta 构建、正式版发布。
 
 构建缓存、`build/` 输出和本机工具目录不应作为项目文件提交。
 

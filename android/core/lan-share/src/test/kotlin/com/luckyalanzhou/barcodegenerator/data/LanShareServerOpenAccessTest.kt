@@ -142,7 +142,7 @@ class LanShareServerOpenAccessTest {
 
     @Test
     fun httpAndWebSocketEntryPointsWorkWithoutCredentials() {
-        val events = mutableListOf<LanShareRealtimeEvent>()
+        val events = CopyOnWriteArrayList<LanShareRealtimeEvent>()
         val server = LanShareServer(
             "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
             emitRealtimeEvent = { event -> events.add(event) },
@@ -169,7 +169,9 @@ class LanShareServerOpenAccessTest {
                         "Sec-WebSocket-Version: 13\r\n\r\n"
                     ).toByteArray(Charsets.US_ASCII))
                 assertTrue(socket.getInputStream().bufferedReader().readLine().contains(" 101 "))
-                assertTrue(events.contains(LanShareRealtimeEvent.ConnectionChanged(true)))
+                assertTrue(awaitCondition(1_000) {
+                    events.contains(LanShareRealtimeEvent.ConnectionChanged(true))
+                })
             }
         } finally {
             server.stop()

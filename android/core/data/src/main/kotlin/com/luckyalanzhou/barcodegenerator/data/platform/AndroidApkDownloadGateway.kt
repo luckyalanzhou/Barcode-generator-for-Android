@@ -42,21 +42,42 @@ class AndroidApkDownloadGateway(
             require(expectedSha256 != null) { "该版本缺少 SHA-256 校验信息，无法安全更新" }
             require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
             require(apkUrl.toUri().scheme.equals("https", ignoreCase = true)) { "更新包必须使用 HTTPS 下载" }
-            connection = URL(apkUrl).openConnection() as HttpURLConnection
-            activeConnections.add(connection)
-            coroutineContext.ensureActive()
-            connection.apply {
-                connectTimeout = 15000
-                readTimeout = 30000
-                instanceFollowRedirects = true
-                setRequestProperty("User-Agent", userAgent)
+            var currentUrl = URL(apkUrl)
+            var redirectsFollowed = 0
+            while (connection == null) {
+                coroutineContext.ensureActive()
+                val nextConnection = currentUrl.openConnection() as HttpURLConnection
+                connection = nextConnection
+                activeConnections.add(nextConnection)
+                coroutineContext.ensureActive()
+                nextConnection.apply {
+                    connectTimeout = 15000
+                    readTimeout = 30000
+                    instanceFollowRedirects = false
+                    setRequestProperty("User-Agent", userAgent)
+                }
+                val responseCode = nextConnection.responseCode
+                if (HttpsUpdateRedirectPolicy.isRedirect(responseCode)) {
+                    val nextUrl = HttpsUpdateRedirectPolicy.resolve(
+                        currentUrl,
+                        nextConnection.getHeaderField("Location"),
+                        redirectsFollowed,
+                    )
+                    nextConnection.disconnect()
+                    activeConnections.remove(nextConnection)
+                    connection = null
+                    currentUrl = nextUrl
+                    redirectsFollowed++
+                    continue
+                }
+                require(responseCode in 200..299) { "HTTP $responseCode" }
             }
-            require(connection.responseCode in 200..299) { "HTTP ${connection.responseCode}" }
-            logger.record("update", "download response=${connection.responseCode} contentLength=${connection.contentLengthLong}", null)
-            val total = connection.contentLengthLong.takeIf { it > 0L } ?: expectedSize
+            val downloadConnection = checkNotNull(connection)
+            logger.record("update", "download response=${downloadConnection.responseCode} contentLength=${downloadConnection.contentLengthLong}", null)
+            val total = downloadConnection.contentLengthLong.takeIf { it > 0L } ?: expectedSize
             require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
             temp.delete()
-            connection.inputStream.use { input ->
+            downloadConnection.inputStream.use { input ->
                 temp.outputStream().use { output ->
                     val buffer = ByteArray(16 * 1024)
                     var done = 0L

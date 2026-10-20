@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderRenameTargetPath
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

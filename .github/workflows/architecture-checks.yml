@@ -15,11 +15,10 @@ concurrency:
 
 jobs:
   architecture:
-    # Unset/false by default: the PR shows a skipped check until explicitly enabled.
-    if: vars.ENABLE_ARCHITECTURE_PR_CHECKS == 'true'
+    # 保留现有 job/check 名称，避免无必要地改变仓库外部的分支保护检查上下文。
     name: Verify architecture boundaries
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: android
@@ -44,5 +43,15 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Check package and Gradle module boundaries
-        run: ./gradlew :architecture-tests:test verifyArchitectureModuleDependencies --no-configuration-cache
+      - name: Check architecture boundaries and unit tests
+        # 显式启用 Beta Debug 测试变体；只运行检查和单元测试，不打包或签名 APK。
+        run: >-
+          ./gradlew
+          :architecture-tests:test
+          verifyArchitectureModuleDependencies
+          :core:domain:test
+          :core:data:testDebugUnitTest
+          :core:lan-share:testDebugUnitTest
+          :app:testBetaDebugUnitTest
+          --no-configuration-cache
+          -PenableAppUnitTests=true
