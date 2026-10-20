@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
@@ -12,11 +13,15 @@ import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
 import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
 import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
+import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQueryCoordinator
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -24,17 +29,34 @@ class FavoritesQueryCoordinatorTest {
     @Test
     fun querySessionUsesTheSharedSearchStore() = runBlocking {
         val dataSession = LibraryDataSession()
+        val repository = FakeFavoriteRepository(groups = listOf(group(1L, "搜索结果")))
         val querySession = FavoritesQuerySession(
-            repository = FakeFavoriteRepository(groups = listOf(group(1L, "搜索结果"))),
+            repository = repository,
             dataSession = dataSession,
+            persistence = persistence(repository),
         )
 
-        querySession.coordinator.search("搜索")
-        querySession.publishSearchState()
+        querySession.search("搜索")
 
-        assertEquals(listOf(1L), querySession.searchStore.groupsSnapshot().map { it.id })
         assertEquals(listOf(1L), querySession.searchState.value.groups.map { it.id })
-        assertTrue(dataSession.store.groupsSnapshot().isEmpty())
+        assertTrue(dataSession.dataState.value.groups.isEmpty())
+    }
+
+    @Test
+    fun mutationRefreshWaitsForQueuedWriteAndReloadsSearchProjection() = runBlocking {
+        val repository = FakeFavoriteRepository(groups = listOf(group(1L, "收藏旧名")))
+        val dataSession = LibraryDataSession()
+        val persistence = persistence(repository)
+        val querySession = FavoritesQuerySession(repository, dataSession, persistence)
+
+        querySession.search("收藏")
+        assertEquals("收藏旧名", querySession.searchState.value.groups.single().name)
+
+        persistence.updateFavoriteGroupMetadata(1L, "收藏新名", "一级", 2L)
+        querySession.onLibraryMutation()
+        querySession.refreshSearchAfterMutation()
+
+        assertEquals("收藏新名", querySession.searchState.value.groups.single().name)
     }
 
     @Test
@@ -57,6 +79,33 @@ class FavoritesQueryCoordinatorTest {
         assertEquals(100, store.groupsSnapshot().size)
         assertEquals(101L, store.groupsSnapshot().last().id)
         assertEquals(FavoriteGroupPageCursor(100L, 100L), repository.requestedCursors.single())
+    }
+
+    @Test
+    fun regularPageFinishingAfterMutationCannotPolluteUpdatedSnapshot() = runBlocking {
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseRequest = CompletableDeferred<Unit>()
+        val initial = group(1L)
+        val stalePage = group(2L)
+        val repository = FakeFavoriteRepository(
+            firstPage = listOf(stalePage),
+            beforeLoadPage = {
+                requestStarted.complete(Unit)
+                releaseRequest.await()
+            },
+        )
+        val store = LibraryStateStore().apply { edit { groups.add(initial) } }
+        val coordinator = FavoritesQueryCoordinator(repository, store)
+        coordinator.resetPaging(FavoriteGroupPageCursor(initial.savedAt, initial.id), true)
+
+        val request = async { coordinator.loadMore() }
+        requestStarted.await()
+        store.edit { groups += group(3L, "变更后的快照") }
+        coordinator.onMutation()
+        releaseRequest.complete(Unit)
+
+        assertFalse(request.await())
+        assertEquals(listOf(1L, 3L), store.groupsSnapshot().map { it.id })
     }
 
     @Test
@@ -136,17 +185,26 @@ class FavoritesQueryCoordinatorTest {
 
     private fun group(id: Long, name: String = "收藏$id") =
         FavoriteGroup(id, "一级", name, id, mutableListOf())
+
+    private fun persistence(repository: BarcodeRepository) = BarcodePersistenceCoordinator(
+        repository,
+        object : BarcodeDataMigration {
+            override suspend fun migrateIfNeeded() = Unit
+        },
+    )
 }
 
 private class FakeFavoriteRepository(
-    private val groups: List<FavoriteGroup> = emptyList(),
+    var groups: List<FavoriteGroup> = emptyList(),
     private val items: List<CodeItem> = emptyList(),
     private val firstPage: List<FavoriteGroup> = groups,
     private val secondPage: List<FavoriteGroup> = emptyList(),
+    private val beforeLoadPage: suspend () -> Unit = {},
 ) : BarcodeRepository {
     val requestedCursors = mutableListOf<FavoriteGroupPageCursor?>()
 
     override suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup> {
+        beforeLoadPage()
         requestedCursors += cursor
         return when (cursor) {
             FavoriteGroupPageCursor(100L, 100L) -> secondPage
@@ -166,7 +224,11 @@ private class FakeFavoriteRepository(
     override suspend fun upsertItems(items: List<CodeItem>) = Unit
     override suspend fun insertGeneratedItems(items: List<CodeItem>) = error("Generation is not used by these query tests")
     override suspend fun deleteItem(itemId: Long, modifiedAt: Long) = Unit
-    override suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) = Unit
+    override suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) {
+        groups = groups.map { group ->
+            if (group.id == groupId) group.copy(name = name, folder = folder, savedAt = savedAt) else group
+        }
+    }
     override suspend fun loadItemsByIds(ids: List<Long>) = emptyList<CodeItem>()
     override suspend fun clearFavoriteFlags(ids: List<Long>) = Unit
     override suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>) = Unit

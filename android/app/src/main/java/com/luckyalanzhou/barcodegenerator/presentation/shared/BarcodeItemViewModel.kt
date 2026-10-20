@@ -1,9 +1,13 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 /** Owns barcode-item mutations shared by the Favorites and History features. */
 @HiltViewModel
@@ -11,6 +15,7 @@ class BarcodeItemViewModel @Inject constructor(
     private val dataSession: LibraryDataSession,
     querySession: FavoritesQuerySession,
     persistence: BarcodePersistenceCoordinator,
+    private val appLogger: AppLogger,
 ) : ViewModel() {
     private val store = dataSession.store
     private val mutations = BarcodeItemMutationCoordinator(
@@ -26,7 +31,7 @@ class BarcodeItemViewModel @Inject constructor(
         persistItems = { persistence.persistItems(store.itemsSnapshot()) },
         persistDeletion = { id, time -> persistence.deleteItem(id, time) },
     )
-    private val queryCoordinator = querySession.coordinator
+    private val favoritesQuerySession = querySession
 
     fun deleteBarcodeItem(itemId: Long) {
         mutations.deleteItem(itemId)
@@ -39,7 +44,15 @@ class BarcodeItemViewModel @Inject constructor(
     }
 
     private fun publishAfterMutation() {
-        queryCoordinator.onMutation()
-        dataSession.publishDataState()
+        favoritesQuerySession.onLibraryMutation()
+        viewModelScope.launch {
+            try {
+                favoritesQuerySession.refreshSearchAfterMutation()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                appLogger.record("favorites", "search refresh failed after barcode mutation", error)
+            }
+        }
     }
 }

@@ -7,6 +7,8 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -20,37 +22,33 @@ internal class FavoritesQueryCoordinator(
     private val store: LibraryStateStore,
     private val searchStore: LibraryStateStore = store,
 ) {
+    private val regularStateLock = Any()
     private var cursor: FavoriteGroupPageCursor? = null
     private var hasMore = false
     private var loadingRegularPage = false
-    private var loadingSearchPage = false
+    private var regularGeneration = 0L
+    private val searchMutex = Mutex()
     private var activeSearch = ""
     private var searchGroupCursor: FavoriteSearchGroupCursor? = null
     private var searchItemCursor: FavoriteSearchItemCursor? = null
     private var searchGroupsHasMore = false
     private var searchItemsHasMore = false
 
-    fun resetPaging(initialCursor: FavoriteGroupPageCursor?, initialHasMore: Boolean) {
-        cursor = initialCursor
-        hasMore = initialHasMore
-        loadingRegularPage = false
-        loadingSearchPage = false
-        activeSearch = ""
-        searchGroupCursor = null
-        searchItemCursor = null
-        searchGroupsHasMore = false
-        searchItemsHasMore = false
-        clearSearchStore()
-    }
-
-    /** Clears only the query result; the paged regular favorite list remains intact. */
-    fun clearSearch() {
-        activeSearch = ""
-        searchGroupCursor = null
-        searchItemCursor = null
-        searchGroupsHasMore = false
-        searchItemsHasMore = false
-        clearSearchStore()
+    suspend fun resetPaging(initialCursor: FavoriteGroupPageCursor?, initialHasMore: Boolean) {
+        synchronized(regularStateLock) {
+            cursor = initialCursor
+            hasMore = initialHasMore
+            loadingRegularPage = false
+            regularGeneration++
+        }
+        searchMutex.withLock {
+            activeSearch = ""
+            searchGroupCursor = null
+            searchItemCursor = null
+            searchGroupsHasMore = false
+            searchItemsHasMore = false
+            clearSearchStore()
+        }
     }
 
     fun searchSnapshot(isReady: Boolean): BarcodeDataState = searchStore.snapshot(isReady)
@@ -63,74 +61,109 @@ internal class FavoritesQueryCoordinator(
 
     /** Keeps the next-page cursor aligned after an in-memory favorite mutation. */
     fun onMutation() {
-        cursor = store.groupsSnapshot().lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) }
-        loadingRegularPage = false
-        loadingSearchPage = false
+        val latestCursor = store.groupsSnapshot().lastOrNull()?.let { FavoriteGroupPageCursor(it.savedAt, it.id) }
+        synchronized(regularStateLock) {
+            regularGeneration++
+            cursor = latestCursor
+            loadingRegularPage = false
+        }
     }
 
-    suspend fun search(query: String) {
-        if (query.isBlank()) {
-            clearSearch()
-            return
-        }
-        delay(250)
-        if (activeSearch != query) {
-            activeSearch = query
+    /** Reloads the current search projection after queued writes have committed. */
+    suspend fun refreshActiveSearch(): Boolean {
+        return searchMutex.withLock {
+            val query = activeSearch
+            if (query.isBlank()) return@withLock false
+
             searchGroupCursor = null
             searchItemCursor = null
             searchGroupsHasMore = true
             searchItemsHasMore = true
             clearSearchStore()
+            loadSearchPage(query)
+            true
         }
-        loadSearchPage(query)
+    }
+
+    suspend fun search(query: String) {
+        if (query.isBlank()) {
+            searchMutex.withLock {
+                activeSearch = ""
+                searchGroupCursor = null
+                searchItemCursor = null
+                searchGroupsHasMore = false
+                searchItemsHasMore = false
+                clearSearchStore()
+            }
+            return
+        }
+        delay(250)
+        searchMutex.withLock {
+            if (activeSearch != query) {
+                activeSearch = query
+                searchGroupCursor = null
+                searchItemCursor = null
+                searchGroupsHasMore = true
+                searchItemsHasMore = true
+                clearSearchStore()
+            }
+            loadSearchPage(query)
+        }
     }
 
     suspend fun loadMore(query: String = ""): Boolean {
         if (query.isNotBlank()) return loadMoreSearch(query)
-        if (!hasMore || loadingRegularPage) return false
-        loadingRegularPage = true
+        val request = synchronized(regularStateLock) {
+            if (!hasMore || loadingRegularPage) return false
+            loadingRegularPage = true
+            cursor to regularGeneration
+        }
         return try {
             val page = withContext(Dispatchers.IO) {
-                repository.loadFavoriteGroupPage(FAVORITE_GROUP_PAGE_SIZE, cursor)
+                repository.loadFavoriteGroupPage(FAVORITE_GROUP_PAGE_SIZE, request.first)
             }
-            val knownIds = store.groupsSnapshot().mapTo(HashSet()) { it.id }
-            store.edit { groups.addAll(page.filterNot { it.id in knownIds }) }
-            page.lastOrNull()?.let { cursor = FavoriteGroupPageCursor(it.savedAt, it.id) }
-            hasMore = page.size == FAVORITE_GROUP_PAGE_SIZE
-            true
+            synchronized(regularStateLock) {
+                if (request.second != regularGeneration) return@synchronized false
+                store.edit {
+                    val knownIds = groups.mapTo(HashSet()) { it.id }
+                    groups.addAll(page.filterNot { it.id in knownIds })
+                }
+                page.lastOrNull()?.let { cursor = FavoriteGroupPageCursor(it.savedAt, it.id) }
+                hasMore = page.size == FAVORITE_GROUP_PAGE_SIZE
+                loadingRegularPage = false
+                true
+            }
         } finally {
-            loadingRegularPage = false
+            synchronized(regularStateLock) {
+                if (request.second == regularGeneration) loadingRegularPage = false
+            }
         }
     }
 
     private suspend fun loadMoreSearch(query: String): Boolean {
-        if (query != activeSearch || loadingSearchPage || (!searchGroupsHasMore && !searchItemsHasMore)) return false
-        return loadSearchPage(query)
+        return searchMutex.withLock {
+            if (query != activeSearch || (!searchGroupsHasMore && !searchItemsHasMore)) return@withLock false
+            loadSearchPage(query)
+        }
     }
 
     private suspend fun loadSearchPage(query: String): Boolean {
-        if (loadingSearchPage) return false
-        loadingSearchPage = true
-        return try {
-            val groupPage = if (searchGroupsHasMore) withContext(Dispatchers.IO) {
-                repository.searchFavoriteGroups(query, FAVORITE_SEARCH_PAGE_SIZE, searchGroupCursor)
-            } else emptyList()
-            val itemPage = if (searchItemsHasMore) withContext(Dispatchers.IO) {
-                repository.searchFavoriteItems(query, FAVORITE_SEARCH_PAGE_SIZE, searchItemCursor)
-            } else emptyList()
-            val knownGroupIds = searchStore.groupsSnapshot().mapTo(HashSet()) { it.id }
-            val knownItemIds = searchStore.itemsSnapshot().mapTo(HashSet()) { it.id }
-            searchStore.edit {
-                groups.addAll(groupPage.filterNot { it.id in knownGroupIds })
-                items.addAll(itemPage.filterNot { it.id in knownItemIds })
-            }
-            groupPage.lastOrNull()?.let { searchGroupCursor = FavoriteSearchGroupCursor(it.savedAt, it.id) }
-            itemPage.lastOrNull()?.let { searchItemCursor = FavoriteSearchItemCursor(it.createdAt, it.id) }
-            searchGroupsHasMore = groupPage.size == FAVORITE_SEARCH_PAGE_SIZE
-            searchItemsHasMore = itemPage.size == FAVORITE_SEARCH_PAGE_SIZE
-            groupPage.isNotEmpty() || itemPage.isNotEmpty()
-        } finally {
-            loadingSearchPage = false
+        val groupPage = if (searchGroupsHasMore) withContext(Dispatchers.IO) {
+            repository.searchFavoriteGroups(query, FAVORITE_SEARCH_PAGE_SIZE, searchGroupCursor)
+        } else emptyList()
+        val itemPage = if (searchItemsHasMore) withContext(Dispatchers.IO) {
+            repository.searchFavoriteItems(query, FAVORITE_SEARCH_PAGE_SIZE, searchItemCursor)
+        } else emptyList()
+        val knownGroupIds = searchStore.groupsSnapshot().mapTo(HashSet()) { it.id }
+        val knownItemIds = searchStore.itemsSnapshot().mapTo(HashSet()) { it.id }
+        searchStore.edit {
+            groups.addAll(groupPage.filterNot { it.id in knownGroupIds })
+            items.addAll(itemPage.filterNot { it.id in knownItemIds })
         }
+        groupPage.lastOrNull()?.let { searchGroupCursor = FavoriteSearchGroupCursor(it.savedAt, it.id) }
+        itemPage.lastOrNull()?.let { searchItemCursor = FavoriteSearchItemCursor(it.createdAt, it.id) }
+        searchGroupsHasMore = groupPage.size == FAVORITE_SEARCH_PAGE_SIZE
+        searchItemsHasMore = itemPage.size == FAVORITE_SEARCH_PAGE_SIZE
+        return groupPage.isNotEmpty() || itemPage.isNotEmpty()
     }
 }

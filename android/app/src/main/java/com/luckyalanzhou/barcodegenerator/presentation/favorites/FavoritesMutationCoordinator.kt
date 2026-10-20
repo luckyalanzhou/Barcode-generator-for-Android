@@ -12,7 +12,6 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 internal class FavoritesMutationCoordinator(
     private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
-    private val searchStore: LibraryStateStore = store,
     private val onReconciled: () -> Unit = {},
 ) {
     fun renameFolder(path: String, renamedPath: String): Boolean {
@@ -51,7 +50,6 @@ internal class FavoritesMutationCoordinator(
             if (identity.folder !in folders) folders.add(identity.folder)
             true
         }
-        if (searchStore !== store) searchStore.edit { groups.removeAll { it.id == groupId } }
         if (removed) store.removeFavoriteIdentity(groupId)
         return removed
     }
@@ -136,11 +134,11 @@ internal class FavoritesMutationCoordinator(
     }
 
     private fun updateLoadedGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) {
-        listOf(store, searchStore).distinct().forEach { cache -> cache.edit {
+        store.edit {
             val index = groups.indexOfFirst { it.id == groupId }
             if (index >= 0) groups[index] = groups[index].copy(name = name, folder = folder, savedAt = savedAt)
             if (folder.isNotBlank() && folder !in folders) folders.add(folder)
-        } }
+        }
     }
     fun deleteGroupAndPersist(groupId: Long) {
         if (deleteGroup(groupId)) {

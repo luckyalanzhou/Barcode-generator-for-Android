@@ -50,7 +50,7 @@ class FavoritesPartialLoadMutationTest {
     }
 
     @Test
-    fun searchOnlyGroupRenamePersistsByIdAndUpdatesSearchCache() {
+    fun searchOnlyGroupRenamePersistsByIdAndUpdatesCanonicalIdentity() {
         val group = FavoriteGroup(200, "old", "original", 1, mutableListOf(10))
         val store = LibraryStateStore().apply { replace(emptyList(), emptyList(), listOf("old"), listOf(group)) }
         val search = LibraryStateStore().apply { replace(emptyList(), listOf(group), listOf("old")) }
@@ -67,12 +67,13 @@ class FavoritesPartialLoadMutationTest {
         val persistence = BarcodePersistenceCoordinator(repository, object : BarcodeDataMigration {
             override suspend fun migrateIfNeeded() = Unit
         })
-        assertTrue(FavoritesMutationCoordinator(store, persistence, search).renameGroupAndPersist(200, "renamed"))
+        assertTrue(FavoritesMutationCoordinator(store, persistence).renameGroupAndPersist(200, "renamed"))
         assertTrue(written.await(5, TimeUnit.SECONDS))
         assertEquals(200L, editedId)
         assertEquals("renamed", editedName)
-        assertEquals("renamed", search.groupsSnapshot().single().name)
+        assertEquals("renamed", store.favoriteIdentity(200L)?.name)
         assertTrue(store.groupsSnapshot().isEmpty())
+        assertEquals("original", search.groupsSnapshot().single().name)
     }
     @Test
     fun savingNewFavoriteDoesNotClearFavoriteWhoseLinksAreNotLoaded() {

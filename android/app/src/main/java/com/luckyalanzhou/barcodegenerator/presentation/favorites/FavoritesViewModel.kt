@@ -43,17 +43,7 @@ class FavoritesViewModel @Inject constructor(
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
-    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, querySession.searchStore) {
-        dataSession.publishDataState()
-        querySession.publishSearchState()
-    }
-    private val groupContent = FavoriteGroupContentCoordinator(
-        loadContent = barcodeDataCoordinator.repository::loadFavoriteGroupContent,
-        regularStore = dataSession.store,
-        searchStore = querySession.searchStore,
-        publishDataState = dataSession::publishDataState,
-        publishSearchState = querySession::publishSearchState,
-    )
+    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, querySession::onLibraryMutation)
     private var searchJob: Job? = null
     private var groupLoadJob: Job? = null
     private var groupLoadRequest = 0L
@@ -80,8 +70,7 @@ class FavoritesViewModel @Inject constructor(
         mutableSearchStatus.value = FavoriteSearchStatus(normalizedQuery, busy = normalizedQuery.isNotEmpty())
         searchJob = viewModelScope.launch {
             try {
-                querySession.coordinator.search(normalizedQuery)
-                querySession.publishSearchState()
+                querySession.search(normalizedQuery)
                 mutableSearchStatus.value = FavoriteSearchStatus(normalizedQuery)
             } catch (error: CancellationException) {
                 throw error
@@ -94,14 +83,7 @@ class FavoritesViewModel @Inject constructor(
 
     fun loadMoreFavoriteGroups(search: String) {
         viewModelScope.launch {
-            if (search.isNotBlank()) {
-                if (querySession.coordinator.loadMore(search)) {
-                    querySession.publishSearchState()
-                    dataSession.publishDataState()
-                }
-            } else if (querySession.coordinator.loadMore()) {
-                dataSession.publishDataState()
-            }
+            querySession.loadMore(search)
         }
     }
 
@@ -220,11 +202,11 @@ class FavoritesViewModel @Inject constructor(
         groupLoadJob = viewModelScope.launch {
             try {
                 appLogger.record("favorites", "open start groupId=${group.id}", null)
-                val result = withContext(Dispatchers.IO) { groupContent.load(group.id) }
+                val result = withContext(Dispatchers.IO) { querySession.loadGroupContent(group.id) }
                 if (request != groupLoadRequest) return@launch
                 when (result) {
                     is FavoriteGroupContentLoadResult.Loaded -> {
-                        groupContent.cache(result)
+                        querySession.cacheGroupContent(result)
                         onLoaded(result)
                     }
                     is FavoriteGroupContentLoadResult.Rejected -> when (result.failure) {
@@ -268,19 +250,25 @@ class FavoritesViewModel @Inject constructor(
     }
 
     internal fun isFavoriteGroupCurrent(groupId: Long, savedAt: Long): Boolean =
-        groupContent.isCurrent(groupId, savedAt)
+        querySession.isGroupCurrent(groupId, savedAt)
 
     private fun publishAfterMutation() {
-        querySession.coordinator.onMutation()
-        querySession.publishSearchState()
-        dataSession.publishDataState()
+        querySession.onLibraryMutation()
         if (query.value.isNotBlank()) {
             searchJob?.cancel()
             searchJob = viewModelScope.launch {
-                persistence.awaitPendingWrites()
-                querySession.coordinator.clearSearch()
-                querySession.coordinator.search(query.value.trim().lowercase(Locale.ROOT))
-                querySession.publishSearchState()
+                try {
+                    querySession.refreshSearchAfterMutation()
+                    mutableSearchStatus.value = FavoriteSearchStatus(query.value.trim().lowercase(Locale.ROOT))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    appLogger.record("favorites", "search refresh failed after mutation", error)
+                    mutableSearchStatus.value = FavoriteSearchStatus(
+                        query.value.trim().lowercase(Locale.ROOT),
+                        failed = true,
+                    )
+                }
             }
         }
     }
