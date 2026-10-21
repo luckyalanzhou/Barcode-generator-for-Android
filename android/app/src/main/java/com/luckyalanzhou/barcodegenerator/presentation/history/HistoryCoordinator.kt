@@ -23,6 +23,5 @@ internal class HistoryCoordinator(
 
     fun clearHistory() {
         store.edit { items.forEach { it.inHistory = false } }
-        persistItems(store.itemsSnapshot())
     }
 }

@@ -18,6 +18,20 @@ class LanShareWebScriptTest {
     }
 
     @Test
+    fun browserRequiresPairingBeforeShowingTransferUiAndNeverSendsPairCodeInUrl() {
+        val script = LanShareWebScript.render()
+        val page = LanShareWebTemplates.page()
+
+        assertTrue(page.contains("id=\"pairing-gate\""))
+        assertTrue(page.contains("id=\"pairing-code\""))
+        assertTrue(script.contains("function showPairing()"))
+        assertTrue(script.contains("fetch('/api/pair', {"))
+        assertTrue(script.contains("'X-Lan-Pairing-Code': code"))
+        assertTrue(!script.contains("/api/pair?code="))
+        assertTrue(script.contains("validateAccessToken(accessToken).catch(showPairing)"))
+    }
+
+    @Test
     fun browserConnectionIndicatorUsesWebSocketLifecycleWithoutPolling() {
         val script = LanShareWebScript.render()
 
@@ -115,16 +129,16 @@ class LanShareWebScriptTest {
     fun browserUsesCompatiblePreviewsForFullScreenAndOriginalForDownload() {
         val script = LanShareWebScript.render()
 
-        assertTrue(script.contains("return '/api/preview/' + encodeURIComponent(file.id)"))
-        assertTrue(!script.contains("authorizedUrl"))
-        assertTrue(!script.contains("accessToken"))
-        assertTrue(!script.contains("X-Lan-Token"))
-        assertTrue(!script.contains("token="))
+        assertTrue(script.contains("return tokenUrl('/api/preview/' + encodeURIComponent(file.id)"))
+        assertTrue(script.contains("function tokenUrl(path)"))
+        assertTrue(script.contains("sessionStorage.setItem(accessTokenKey, token)"))
+        assertTrue(script.contains("Authorization: 'Bearer ' + token"))
+        assertTrue(script.contains("'&token=' + encodeURIComponent(accessToken)"))
         assertTrue(script.contains("preview.dataset.fullSrc = previewUrl(file)"))
         assertTrue(script.contains("imageViewerImage.src = image.dataset.fullSrc || image.currentSrc || image.src"))
         assertTrue(script.contains("preview.src = previewUrl(file)"))
         assertTrue(script.contains("name.href = url"))
-        assertTrue(script.contains("return '/dl/' + encodeURIComponent(file.id)"))
+        assertTrue(script.contains("return tokenUrl('/dl/' + encodeURIComponent(file.id)"))
         assertTrue(!script.contains("return '/api/download/"))
     }
 
@@ -133,7 +147,7 @@ class LanShareWebScriptTest {
         val script = LanShareWebScript.render()
 
         assertTrue(script.contains("socket.send(JSON.stringify({ type: 'message', text }))"))
-        assertTrue(script.contains("'/ws?client=' + encodeURIComponent(clientId)"))
+        assertTrue(script.contains("'/ws?client=' + encodeURIComponent(clientId) + '&token=' + encodeURIComponent(accessToken)"))
         assertTrue(script.contains("reconcileMessages(payload.messages)"))
         assertTrue(script.contains("appendChatMessage(payload.message)"))
         assertTrue(script.contains("request.send(file)"))
@@ -148,7 +162,7 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("payload.type === 'files' && payload.file) upsertFile(payload.file, payload.transferId)"))
         assertTrue(script.contains("socket.send('sync')"))
         assertTrue(!script.contains("async function refreshFiles()"))
-        assertTrue(!script.contains("/api/files"))
+        assertTrue(script.contains("fetch('/api/files', { headers: { Authorization: 'Bearer ' + token }"))
     }
 
     @Test

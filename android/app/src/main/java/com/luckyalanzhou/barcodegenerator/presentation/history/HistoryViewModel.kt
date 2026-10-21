@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val dataSession: LibraryDataSession,
-    persistence: BarcodePersistenceCoordinator,
+    private val persistence: BarcodePersistenceCoordinator,
 ) : ViewModel() {
     private val coordinator = HistoryCoordinator(dataSession.store) { items ->
         persistence.persistItems(items)
@@ -38,6 +38,7 @@ class HistoryViewModel @Inject constructor(
 
     fun clearHistoryAndPersist() {
         coordinator.clearHistory()
+        persistence.clearHistory()
         dataSession.publishDataState()
     }
 }

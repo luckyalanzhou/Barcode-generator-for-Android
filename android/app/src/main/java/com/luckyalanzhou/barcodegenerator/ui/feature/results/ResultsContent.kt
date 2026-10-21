@@ -208,6 +208,7 @@ private suspend fun prepareResultRows(
     loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
 ): List<Bitmap> {
     val createdRows = java.util.Collections.synchronizedList(mutableListOf<Bitmap>())
+    val previewBitmapConfig = resultPreviewBitmapConfig(items.size)
     return try {
         withContext(Dispatchers.Default.limitedParallelism(8)) {
             items.chunked(8).flatMap { batch ->
@@ -215,7 +216,10 @@ private suspend fun prepareResultRows(
                     batch.map { item ->
                         async {
                             val raw = checkNotNull(loadBarcodeImage(item, dark, density))
-                            composeResultRowImage(raw, item, style, dark, rowWidth, density, fontScale)
+                            composeResultRowImage(
+                                raw, item, style, dark, rowWidth, density, fontScale,
+                                bitmapConfig = previewBitmapConfig,
+                            )
                                 .also(createdRows::add)
                         }
                     }.awaitAll()

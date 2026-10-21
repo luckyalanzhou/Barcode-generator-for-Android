@@ -68,7 +68,7 @@ class ZxingBarcodeImageRenderer(
         withBackground: Boolean = true,
     ): Bitmap? = runCatching {
         val (width, barcodeHeight) = barcodeRenderSize(formatId(format), style, density)
-        val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, mapOf(EncodeHintType.MARGIN to 0))
+        val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, barcodeEncodeHints(format))
         val foreground = BarcodeImageColors.foreground(dark)
         val background = if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT
         val pixels = IntArray(matrix.width * matrix.height) { index ->
@@ -150,4 +150,15 @@ class ZxingBarcodeImageRenderer(
         BarcodeFormat.CODABAR -> BarcodeFormatIds.CODABAR
         else -> BarcodeFormatIds.CODE_128
     }
+}
+
+/** 为 QR 与一维格式保留规范静区；Code 128 在位图裁切后使用本类的像素静区。 */
+internal fun barcodeEncodeHints(format: BarcodeFormat): Map<EncodeHintType, Any> = buildMap {
+    put(EncodeHintType.MARGIN, when (format) {
+        BarcodeFormat.QR_CODE -> 4
+        BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A -> 9
+        BarcodeFormat.CODE_128 -> 0
+        else -> 10
+    })
+    if (format == BarcodeFormat.QR_CODE) put(EncodeHintType.CHARACTER_SET, Charsets.UTF_8.name())
 }

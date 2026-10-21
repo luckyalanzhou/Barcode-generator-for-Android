@@ -221,6 +221,7 @@ private class FakeFavoriteRepository(
     override suspend fun saveAll(snapshot: BarcodeSnapshot) = Unit
     override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) = Unit
     override suspend fun saveItems(items: List<CodeItem>) = Unit
+    override suspend fun clearHistory() = Unit
     override suspend fun upsertItems(items: List<CodeItem>) = Unit
     override suspend fun insertGeneratedItems(items: List<CodeItem>) = error("Generation is not used by these query tests")
     override suspend fun deleteItem(itemId: Long, modifiedAt: Long) = Unit
@@ -249,5 +250,5 @@ private class FakeFavoriteRepository(
     override suspend fun loadStartupSnapshot() = StartupBarcodeSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), false)
     override suspend fun appendSnapshot(snapshot: BarcodeSnapshot) = Unit
     override suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>) = Unit
-    override suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData) = Unit
+    override suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData) = true
 }

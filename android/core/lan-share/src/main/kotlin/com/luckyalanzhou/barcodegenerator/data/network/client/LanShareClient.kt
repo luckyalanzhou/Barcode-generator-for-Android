@@ -106,6 +106,7 @@ internal class LanShareClient(
             requestMethod = "PUT"
             setRequestProperty("X-File-Size", size.toString())
             setRequestProperty("Content-Type", uploadedMimeType(name, mimeType))
+            session.accessToken?.let { setRequestProperty("Authorization", "Bearer $it") }
             doOutput = true
             setFixedLengthStreamingMode(size)
         }
@@ -194,6 +195,7 @@ internal class LanShareClient(
             connectTimeout = 8_000
             readTimeout = readTimeoutMs
             requestMethod = if (output) "POST" else "GET"
+            session.accessToken?.let { setRequestProperty("Authorization", "Bearer $it") }
             doOutput = output
             if (output) setRequestProperty("Content-Type", "application/octet-stream")
         }

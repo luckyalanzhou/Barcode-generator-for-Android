@@ -50,11 +50,7 @@ class AndroidUpdateCatalogGateway(
             val apkAsset = release.optJSONArray("assets")?.let { assets ->
                 (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }.firstOrNull { asset ->
                     val assetName = asset.optString("name")
-                    val official = updateTagPrefix == "android-v" &&
-                        assetName.matches(Regex("""^BarcodeGenerator[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?\.apk$"""))
-                    val channel = updateTagPrefix != "android-v" &&
-                        assetName.startsWith(apkFilePrefix) && assetName.endsWith(".apk", true)
-                    official || channel
+                    isUpdateApkAssetName(assetName, updateTagPrefix, apkFilePrefix)
                 }
             }
             val downloadUrl = apkAsset?.optString("browser_download_url")?.takeIf { it.isNotBlank() }
@@ -98,4 +94,15 @@ class AndroidUpdateCatalogGateway(
         if (parts.size == 4 && (parts[3].isEmpty() || parts[3].length > 12 || parts[3].toLongOrNull() == null)) return null
         return parts.take(3).joinToString(".")
     }
+}
+
+internal fun isUpdateApkAssetName(assetName: String, updateTagPrefix: String, apkFilePrefix: String): Boolean {
+    val officialVersionSuffix = "[0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?\\.apk"
+    val official = updateTagPrefix == "android-v" && (
+        assetName.matches(Regex("^${Regex.escape(apkFilePrefix)}$officialVersionSuffix")) ||
+            assetName.matches(Regex("^BarcodeGenerator$officialVersionSuffix"))
+        )
+    val channel = updateTagPrefix != "android-v" &&
+        assetName.startsWith(apkFilePrefix) && assetName.endsWith(".apk", true)
+    return official || channel
 }

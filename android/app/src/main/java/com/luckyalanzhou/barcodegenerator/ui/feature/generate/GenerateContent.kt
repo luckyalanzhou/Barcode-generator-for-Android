@@ -5,6 +5,9 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
+import com.luckyalanzhou.barcodegenerator.presentation.generate.BatchBarcodeAppendResult
+import com.luckyalanzhou.barcodegenerator.presentation.generate.BatchBarcodeTextParser
+import com.luckyalanzhou.barcodegenerator.presentation.generate.BatchBarcodeTextResult
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -96,6 +99,8 @@ internal fun GenerateContent(
     var formatName by remember(initialFormat) { mutableStateOf(initialFormat) }
     var formatExpanded by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
+    var batchPasteDialog by remember { mutableStateOf(false) }
+    var batchPasteText by remember { mutableStateOf("") }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
     var formatButtonHeight by remember { mutableIntStateOf(0) }
     val formatInteractions = remember { MutableInteractionSource() }
@@ -110,6 +115,78 @@ internal fun GenerateContent(
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
     fun syncDraft() { onDraftChanged(values.toList()) }
+
+    if (batchPasteDialog) {
+        Dialog(onDismissRequest = { batchPasteDialog = false }) {
+            ComposeGlassDialogCard(dark) {
+                Text("批量粘贴", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    "每行一个条码；复制表格时请只选一列。含逗号的条码值可按 CSV 规则用双引号括起。",
+                    modifier = Modifier.padding(top = 6.dp),
+                    color = secondary,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .heightIn(min = 144.dp, max = 240.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(inputColor)
+                        .border(1.dp, inputBorder, RoundedCornerShape(14.dp))
+                        .padding(12.dp),
+                ) {
+                    BasicTextField(
+                        value = batchPasteText,
+                        onValueChange = { batchPasteText = it },
+                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                        textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp),
+                        cursorBrush = SolidColor(textColor),
+                        decorationBox = { field ->
+                            Box {
+                                if (batchPasteText.isEmpty()) {
+                                    Text("在此粘贴多行条码内容", color = secondary, fontSize = 15.sp)
+                                }
+                                field()
+                            }
+                        },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    DialogAction("取消", dark, { batchPasteDialog = false })
+                    DialogAction(
+                        "添加",
+                        dark,
+                        {
+                            when (val parsed = BatchBarcodeTextParser.parse(batchPasteText)) {
+                                is BatchBarcodeTextResult.Failure -> onNotice("第 ${parsed.line} 行：${parsed.reason}")
+                                is BatchBarcodeTextResult.Success -> when (
+                                    val appended = BatchBarcodeTextParser.append(values.toList(), parsed.values)
+                                ) {
+                                    BatchBarcodeAppendResult.CapacityExceeded -> onNotice("最多保留 ${BatchBarcodeTextParser.MAX_INPUT_ROWS} 行输入；本次内容未添加")
+                                    is BatchBarcodeAppendResult.Success -> {
+                                        values.clear()
+                                        values.addAll(appended.values)
+                                        focusedIndex = values.lastIndex
+                                        syncDraft()
+                                        batchPasteText = ""
+                                        batchPasteDialog = false
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.padding(start = 10.dp),
+                        primary = true,
+                    )
+                }
+            }
+        }
+    }
 
     LaunchedEffect(inputDraft) {
         val incoming = inputDraft.ifEmpty { listOf("") }
@@ -219,8 +296,8 @@ internal fun GenerateContent(
         val generateEnabled = count > 0 && isDataReady && !isPreparingResult
         val generateContainer = if (generateEnabled) themeColors.controls.accent else themeColors.controls.disabledContainer
         val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
-        // 次要操作：添加行插入到当前焦点之后；拍照填充把识别文字交给上层处理。
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 次要操作：添加行、一次导入多行，或使用相机识别填充。
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ComposeGenerateActionButton(
                 icon = AddIcon,
                 iconDescription = "添加一行",
@@ -236,6 +313,17 @@ internal fun GenerateContent(
                 },
             )
             ComposeGenerateActionButton(
+                iconDescription = "批量粘贴条码",
+                label = "批量粘贴",
+                containerColor = themeColors.controls.button,
+                contentColor = secondary,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    batchPasteText = ""
+                    batchPasteDialog = true
+                },
+            )
+            ComposeGenerateActionButton(
                 icon = PhotoCameraIcon,
                 iconDescription = "拍照填充",
                 label = "拍照填充",
@@ -243,6 +331,8 @@ internal fun GenerateContent(
                 containerColor = Color.Transparent,
                 contentColor = themeColors.controls.accent,
                 modifier = Modifier.weight(1f),
+                iconSize = 18.dp,
+                contentSpacing = 3.dp,
                 onClick = onCaptureText,
             )
         }

@@ -108,6 +108,7 @@ interface BarcodeDao {
     @Query("DELETE FROM favorite_group_items WHERE itemId NOT IN (:retainedItemIds)") suspend fun deleteGroupItemsForItemsExcept(retainedItemIds: List<Long>)
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (:ids)") suspend fun clearFavoriteFlags(ids: List<Long>)
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE favorite = 1") suspend fun clearAllFavoriteFlags()
+    @Query("UPDATE code_items SET inHistory = 0") suspend fun clearAllHistoryFlags()
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (SELECT itemId FROM favorite_group_items WHERE groupId IN (:groupIds)) AND NOT EXISTS (SELECT 1 FROM favorite_group_items remaining WHERE remaining.itemId = code_items.id AND remaining.groupId NOT IN (:groupIds))") suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
 
     @Query("SELECT * FROM favorite_groups ORDER BY savedAt DESC, id DESC") suspend fun loadGroups(): List<FavoriteGroupEntity>

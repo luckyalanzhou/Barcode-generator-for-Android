@@ -8,14 +8,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.fillMaxWidth
 
-/** 提醒主机端：分享服务使用未加密且无密码保护的 HTTP，仅应在可信网络中开放。 */
+/** 提醒主机端：令牌限制加入权限，但 HTTP 数据本身未加密，仍应只在可信网络使用。 */
 @Composable
 internal fun LanShareSecurityNotice(
     secondary: Color,
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = "HTTP/WebSocket 未加密、无密码保护；能访问此地址的设备可上传或下载文件。请仅在可信 Wi-Fi 下使用。",
+        text = "配对令牌用于限制访问，但 HTTP/WebSocket 仍未加密；请仅在可信 Wi-Fi 下使用。",
         color = secondary,
         fontSize = 12.sp,
         lineHeight = 16.sp,

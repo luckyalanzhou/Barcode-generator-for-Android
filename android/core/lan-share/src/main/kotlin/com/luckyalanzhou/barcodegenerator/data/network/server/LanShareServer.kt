@@ -32,6 +32,9 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
 import java.util.UUID
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -64,6 +67,15 @@ internal class LanShareServer(
         const val MAX_CHAT_MESSAGE_BYTES = 64 * 1024
         const val APP_UPLOAD_CLIENT = "app"
         const val DISK_RESERVE_BYTES = 16L * 1024L * 1024L
+        const val BEARER_PREFIX = "Bearer "
+        const val MAX_PAIRING_FAILURES = 5
+        const val MAX_TRACKED_PAIRING_ADDRESSES = 256
+        const val PAIRING_WINDOW_MS = 60_000L
+
+        fun createSessionToken(): String = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(ByteArray(32).also(SecureRandom()::nextBytes))
+
+        fun createPairingCode(): String = SecureRandom().nextInt(100_000_000).toString().padStart(8, '0')
     }
 
     internal data class SessionSnapshot(
@@ -83,11 +95,20 @@ internal class LanShareServer(
     private val chatMessages = mutableListOf<LanShareMessage>()
     private val uploadedMimeTypes = ConcurrentHashMap<String, String>()
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
+    private data class PairingAttempts(val windowStartedAtMs: Long, val failures: Int)
+    private val pairingAttemptsLock = Any()
+    private val pairingAttemptsByAddress = mutableMapOf<String, PairingAttempts>()
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
     private var activeUploads = 0
     private enum class UploadRejection { Busy, RoomFull, DiskFull }
     private val currentClientSocket = ThreadLocal<Socket>()
+    internal val sessionToken: String = createSessionToken()
+    internal val pairingCode: String = createPairingCode()
+
+    init {
+        require(sessionToken.matches(Regex("[A-Za-z0-9_-]{43}")))
+    }
 
     // NanoHTTPD 的 WebSocket 不公开底层 Socket；在标准连接处理边界捕获，不用反射。
     override fun createClientHandler(socket: Socket, inputStream: InputStream): NanoHTTPD.ClientHandler =
@@ -676,14 +697,23 @@ internal class LanShareServer(
         }
     }
 
-    override fun serve(session: IHTTPSession): Response =
-        super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
+    override fun serve(session: IHTTPSession): Response {
+        if (session.uri.substringBefore('?') == "/ws" && !isAuthorized(session)) {
+            return unauthorizedResponse()
+        }
+        return super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
+    }
 
     /** 根据 HTTP 方法和路径分发网页、文件清单、上传、预览和下载请求。 */
     override fun serveHttp(session: IHTTPSession): Response {
         val requestPath = session.uri.substringBefore('?')
+        if (requestPath !in setOf("/", "/api/pair") && !isAuthorized(session)) {
+            return unauthorizedResponse()
+        }
         return try {
             when {
+                session.method == Method.POST && requestPath == "/api/pair" -> pairBrowser(session)
+
                 session.method == Method.GET && requestPath == "/api/files" -> newFixedLengthResponse(
                     Response.Status.OK,
                     "application/json; charset=utf-8",
@@ -786,6 +816,66 @@ internal class LanShareServer(
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
         }
     }
+
+    private fun isAuthorized(session: IHTTPSession): Boolean {
+        val headerToken = session.headers["authorization"]
+            ?.takeIf { it.startsWith(BEARER_PREFIX) }
+            ?.removePrefix(BEARER_PREFIX)
+        val queryTokens = session.parameters["token"].orEmpty()
+        val queryToken = queryTokens.singleOrNull()
+        val candidate = headerToken ?: queryToken ?: return false
+        return MessageDigest.isEqual(
+            sessionToken.toByteArray(Charsets.US_ASCII),
+            candidate.toByteArray(Charsets.US_ASCII),
+        )
+    }
+
+    private fun unauthorizedResponse(): Response = newFixedLengthResponse(
+        Response.Status.UNAUTHORIZED,
+        MIME_PLAINTEXT,
+        "需要有效的局域网会话凭据",
+    ).apply {
+        addHeader("WWW-Authenticate", "Bearer realm=\"lan-share\"")
+        addHeader("Cache-Control", "no-store")
+    }
+
+    private fun pairBrowser(session: IHTTPSession): Response {
+        val address = currentClientSocket.get()?.inetAddress?.hostAddress ?: "unknown"
+        val now = System.currentTimeMillis()
+        return synchronized(pairingAttemptsLock) {
+            pairingAttemptsByAddress.entries.removeAll { now - it.value.windowStartedAtMs >= PAIRING_WINDOW_MS }
+            val previous = pairingAttemptsByAddress[address]
+            if (previous != null && previous.failures >= MAX_PAIRING_FAILURES) {
+                return@synchronized noStoreResponse(Response.Status.TOO_MANY_REQUESTS, "配对尝试过多，请稍后再试")
+            }
+            if (previous == null && pairingAttemptsByAddress.size >= MAX_TRACKED_PAIRING_ADDRESSES) {
+                return@synchronized noStoreResponse(Response.Status.TOO_MANY_REQUESTS, "当前配对请求过多，请稍后再试")
+            }
+
+            val suppliedCode = session.headers["x-lan-pairing-code"]
+            if (suppliedCode != null && MessageDigest.isEqual(
+                    pairingCode.toByteArray(Charsets.US_ASCII),
+                    suppliedCode.toByteArray(Charsets.US_ASCII),
+                )
+            ) {
+                pairingAttemptsByAddress.remove(address)
+                return@synchronized newFixedLengthResponse(
+                    Response.Status.OK,
+                    "application/json; charset=utf-8",
+                    JSONObject().put("token", sessionToken).toString(),
+                ).apply { addHeader("Cache-Control", "no-store") }
+            }
+
+            pairingAttemptsByAddress[address] = PairingAttempts(
+                previous?.windowStartedAtMs ?: now,
+                (previous?.failures ?: 0) + 1,
+            )
+            noStoreResponse(Response.Status.UNAUTHORIZED, "配对码无效")
+        }
+    }
+
+    private fun noStoreResponse(status: Response.Status, message: String) =
+        newFixedLengthResponse(status, MIME_PLAINTEXT, message).apply { addHeader("Cache-Control", "no-store") }
 
     private fun decodePathSegment(value: String): String = runCatching {
         URLDecoder.decode(value.replace("+", "%2B"), Charsets.UTF_8.name())

@@ -30,6 +30,10 @@ internal fun resultPageBackground(dark: Boolean): Int =
 
 internal data class ResultImageRowSize(val width: Int, val height: Int)
 
+/** 常见批量保持高精度；仅大批量结果页预览以 RGB_565 降低峰值位图内存。 */
+internal fun resultPreviewBitmapConfig(itemCount: Int): Bitmap.Config =
+    if (itemCount > 20) Bitmap.Config.RGB_565 else Bitmap.Config.ARGB_8888
+
 /** Computes the exact row bounds without allocating the barcode or row bitmap. */
 internal fun resultImageRowSize(
     item: CodeItem,
@@ -74,6 +78,7 @@ private fun resultImageRowSize(
 internal fun composeResultRowImage(
     barcode: Bitmap, item: CodeItem, style: StyleSettings, dark: Boolean,
     width: Int, density: Float, fontScale: Float,
+    bitmapConfig: Bitmap.Config = Bitmap.Config.ARGB_8888,
 ): Bitmap {
     val size = resultImageRowSize(item, style, barcode.width, barcode.height, width, density, fontScale)
     val safeWidth = size.width
@@ -83,7 +88,8 @@ internal fun composeResultRowImage(
     val labelPadding = (4 * density).roundToInt()
     val barHeight = if (item.format == "Code 128-B") (style.barHeight.coerceIn(30, 80) * density).roundToInt()
         else (barcode.height.toFloat() * safeWidth / barcode.width.coerceAtLeast(1)).roundToInt()
-    val result = createBitmap(safeWidth, size.height.coerceAtLeast(1))
+    // 结果行背景始终不透明；屏幕预览可用 RGB_565 减半驻留内存，导出默认仍保留 ARGB_8888。
+    val result = createBitmap(safeWidth, size.height.coerceAtLeast(1), bitmapConfig)
     try {
         val canvas = Canvas(result)
         canvas.drawColor(resultPageBackground(dark))

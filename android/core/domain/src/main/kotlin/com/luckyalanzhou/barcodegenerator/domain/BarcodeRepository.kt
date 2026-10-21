@@ -69,6 +69,8 @@ interface BarcodeRepository {
     /** 原子应用当前已加载的收藏状态；不得因分页未加载而删除数据库中的其他收藏页。 */
     suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot)
     suspend fun saveItems(items: List<CodeItem>)
+    /** Clears all persisted history, including rows omitted from the bounded startup snapshot, while preserving favorites. */
+    suspend fun clearHistory()
     suspend fun upsertItems(items: List<CodeItem>)
     /** 根据全部已持久化条目分配新 ID 并插入，不覆盖任何已有条码。 */
     suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem>
@@ -105,5 +107,6 @@ interface BarcodeRepository {
     /** 在同一事务中替换冲突收藏文件并写入导入内容，失败时由数据库回滚。 */
     suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>)
 
-    suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData)
+    /** Returns false when Room already contains data; callers must retain the legacy source in that case. */
+    suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData): Boolean
 }

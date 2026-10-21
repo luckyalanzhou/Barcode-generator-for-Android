@@ -18,6 +18,10 @@ class GenerateEditorStateHolder @Inject constructor() {
     fun updateDraft(values: List<String>) = mutableState.update { it.copy(inputDraft = values.toList()) }
     fun updateFormat(format: String) = mutableState.update { it.copy(formatName = format) }
     fun setPendingFormat(format: String?) = mutableState.update { it.copy(pendingFormat = format) }
+    /** Restores the durable portion of the editor atomically; pending navigation state is never restored. */
+    fun restoreDraft(values: List<String>, format: String) = mutableState.update {
+        it.copy(inputDraft = values.toList(), pendingFormat = null, formatName = format)
+    }
     /** Atomically prepares the generate editor before the results page is replaced. */
     fun beginEditing(values: List<String>, format: String?) = mutableState.update {
         it.copy(

@@ -22,6 +22,9 @@ class GenerateViewModel @Inject constructor(
     /** 保存用户当前选择的条码格式，供页面重建后恢复。 */
     fun updateFormat(format: String) = editor.updateFormat(format)
 
+    /** Activity 进程恢复时一次性恢复输入与格式，不恢复编辑流程中的临时格式。 */
+    fun restoreSavedDraft(values: List<String>, format: String) = editor.restoreDraft(values, format)
+
     /** 消费编辑流程中的临时格式，避免旧值影响下一次新建。 */
     fun clearPendingFormat() = editor.clearPendingFormat()
 

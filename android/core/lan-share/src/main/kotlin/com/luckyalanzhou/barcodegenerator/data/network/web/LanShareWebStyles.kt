@@ -81,5 +81,15 @@ li.upload-progress .upload-percent{grid-area:percent;color:var(--upload-label);w
 li.upload-progress .upload-cancel{position:relative;z-index:2;grid-area:cancel;align-self:center;min-width:42px;min-height:30px;padding:0 8px;border:1px solid rgba(90,105,125,.35);border-radius:999px;background:rgba(255,255,255,.38);color:var(--upload-label);font:inherit;font-size:12px;cursor:pointer;touch-action:manipulation}
 li.upload-progress .upload-cancel:active{background:rgba(90,105,125,.16)}
 li.mine.upload-progress small{color:var(--upload-sub)}
+.pairing-gate{position:fixed;z-index:20;inset:0;display:grid;place-items:center;padding:24px;background:var(--bg)}
+.pairing-gate[hidden]{display:none}
+.pairing-gate form{display:grid;gap:12px;width:min(100%,360px);padding:24px;border:1px solid var(--bubble-border);border-radius:22px;background:var(--panel);color:var(--text)}
+.pairing-gate h1,.pairing-gate p{margin:0}
+.pairing-gate p{color:var(--sub);font-size:14px;line-height:1.45}
+.pairing-gate input,.pairing-gate button{min-height:48px;border:1px solid var(--bubble-border);border-radius:12px;padding:0 14px;background:transparent;color:var(--text);font:inherit}
+.pairing-gate input{text-align:center;letter-spacing:.28em;font-size:20px}
+.pairing-gate button{background:var(--accent);border-color:var(--accent);color:#fff;cursor:pointer}
+.pairing-gate #pairing-error{color:#c62828}
+body.unpaired>.bar,body.unpaired>main,body.unpaired>.bottom,body.unpaired>#attachment-sheet{visibility:hidden}
 </style></head>"""
 }

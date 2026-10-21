@@ -15,6 +15,7 @@ import android.net.Uri
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
+import com.luckyalanzhou.barcodegenerator.ui.app.GenerateEditorInstanceState
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareQrBitmapFactory
 import com.luckyalanzhou.barcodegenerator.presentation.update.UpdateViewModel
@@ -157,6 +158,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        GenerateEditorInstanceState.restore(state, generateViewModel::restoreSavedDraft)
         pendingResultImageFile = state?.getString("pending_result_image_file")?.let(::File)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = handleAppBackPressed()
@@ -259,6 +261,12 @@ class MainActivity : AppCompatActivity() {
         outState.putString("page", navigationViewModel.uiState.value.page.pageName)
         outState.putString("settings_return_page", navigationViewModel.uiState.value.settingsReturnPage.pageName)
         outState.putBoolean("startup_update_check_started", updateViewModel.uiState.value.startupCheckStarted)
+        if (!GenerateEditorInstanceState.save(generateViewModel.uiState.value, outState)) {
+            DebugLog.record(
+                "lifecycle",
+                "generate draft omitted from instance state rows=${generateViewModel.uiState.value.inputDraft.size} reason=size_limit",
+            )
+        }
         pendingResultImageFile?.let { outState.putString("pending_result_image_file", it.absolutePath) }
         super.onSaveInstanceState(outState)
     }

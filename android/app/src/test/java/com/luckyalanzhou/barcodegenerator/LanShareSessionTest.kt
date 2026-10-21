@@ -26,4 +26,16 @@ class LanShareSessionTest {
         assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080/#fragment"))
         assertNull(LanShareSession.fromShareUrl("https://192.168.1.23:18080"))
     }
+
+    @Test
+    fun shareUrlCarriesOnlyAWellFormedSessionToken() {
+        val token = "A".repeat(43)
+        val session = LanShareSession("http://192.168.1.23:18080", token)
+
+        assertEquals("http://192.168.1.23:18080?token=$token", session.shareUrl)
+        assertEquals(session, LanShareSession.fromShareUrl(session.shareUrl))
+        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080?token=short"))
+        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080?token=$token&token=$token"))
+        assertNull(LanShareSession.fromShareUrl("http://192.168.1.23:18080?other=value"))
+    }
 }

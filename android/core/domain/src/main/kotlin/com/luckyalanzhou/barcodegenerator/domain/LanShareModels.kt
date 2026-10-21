@@ -55,9 +55,11 @@ data class LanShareRealtimeState(
 
 data class LanShareSession(
     val baseUrl: String,
+    val accessToken: String? = null,
+    val pairingCode: String? = null,
 ) {
-    /** 用于二维码展示和复制的局域网直连地址。 */
-    val shareUrl: String get() = baseUrl
+    /** 用于二维码展示和复制的会话地址；没有令牌时保留手动输入的旧式地址。 */
+    val shareUrl: String get() = accessToken?.let { "$baseUrl?token=$it" } ?: baseUrl
 
     companion object {
         fun fromShareUrl(value: String): LanShareSession? = runCatching {
@@ -66,11 +68,17 @@ data class LanShareSession(
             val isIpv4 = host.split('.').let { parts ->
                 parts.size == 4 && parts.all { part -> part.toIntOrNull()?.let { it in 0..255 } == true }
             }
+            val token = when (val query = uri.rawQuery) {
+                null -> null
+                else -> Regex("token=([A-Za-z0-9_-]{43})")
+                    .matchEntire(query)?.groupValues?.get(1)
+                    ?: return@runCatching null
+            }
             if (!uri.scheme.equals("http", ignoreCase = true) || !isIpv4 ||
                 uri.port !in 1..65535 || uri.userInfo != null || uri.fragment != null ||
-                uri.rawPath !in listOf("", "/") || uri.rawQuery != null
+                uri.rawPath !in listOf("", "/")
             ) return@runCatching null
-            LanShareSession("http://$host:${uri.port}")
+            LanShareSession("http://$host:${uri.port}", token)
         }.getOrNull()
     }
 }

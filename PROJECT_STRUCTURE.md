@@ -23,6 +23,7 @@
     ├── tools/                 正式版版本分配工具及测试
     ├── gradle/                Gradle Wrapper 和依赖版本目录
     ├── ARCHITECTURE.md        架构原则与模块边界
+    ├── PERFORMANCE_BASELINE.md 本地渲染与内存基线记录
     ├── settings.gradle.kts    注册 Gradle 模块
     └── build.gradle.kts       工程级 Gradle 配置与架构验证
 ```
@@ -59,6 +60,7 @@
 - `android/core/data/src/`：本地存储和 Android 平台适配；相关测试在模块自己的 `src/test/`。
 - `android/core/lan-share/src/`：传输协议、服务端、客户端、网页资源及预览处理；通信细节见 [`PROTOCOL.md`](android/core/lan-share/PROTOCOL.md)。
 - `android/gradle/libs.versions.toml`：集中管理 Gradle 插件和第三方库版本。
+- `android/PERFORMANCE_BASELINE.md`：记录可复跑的条码渲染时间与结果位图内存基线；真机滚动帧率仍需连接设备测量。
 - `android/tools/`：正式版版本分配器及对应测试。
 - [`.github/workflows/`](.github/workflows/)：PR 架构与单测检查，以及手动启动的 Beta 构建、正式版发布。
 

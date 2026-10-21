@@ -46,35 +46,22 @@ jobs:
           set -euo pipefail
           version_file="beta-version.properties"
           test -f "$version_file" || { echo "::error::${version_file} not found"; exit 1; }
-          base_version="$(sed -nE 's/^versionName=([^[:space:]]+)$/\1/p' "$version_file")"
-          base_code="$(sed -nE 's/^versionCode=([0-9]+)$/\1/p' "$version_file")"
-          test -n "$base_version" || { echo "::error::versionName not found"; exit 1; }
-          test -n "$base_code" || { echo "::error::versionCode not found"; exit 1; }
-          [[ "$base_version" == "9.9.9" ]] || { echo "::error::Beta versionName must remain 9.9.9"; exit 1; }
-          [[ "$base_code" =~ ^[0-9]+$ ]] || { echo "::error::versionCode format is invalid"; exit 1; }
-
-          # Beta 固定使用 9.9.9；versionCode 以当前 Beta Release 中记录的值为准递增。
-          # Release 不存在或没有有效 versionCode 时，使用 beta-version.properties 作为初始值。
-          version_name="$base_version"
-          release_body=""
-          release_found=false
-          if release_body="$(gh release view android-test-v9.9.9 --repo "$GITHUB_REPOSITORY" --json body --jq '.body' 2>/dev/null)"; then
-            release_found=true
-            release_code="$(printf '%s\n' "$release_body" | sed -nE 's/^versionCode: ([0-9]+)$/\1/p' | head -n 1)"
+          release_json="$RUNNER_TEMP/beta-release.json"
+          release_error="$RUNNER_TEMP/beta-release-error.txt"
+          version_plan="$RUNNER_TEMP/beta-version-plan.json"
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/android-test-v9.9.9" > "$release_json" 2> "$release_error"; then
+            python3 tools/beta_release_version.py --properties "$version_file" --release-json "$release_json" --output "$version_plan"
+          elif grep -Eq 'HTTP 404([^0-9]|$)' "$release_error"; then
+            python3 tools/beta_release_version.py --properties "$version_file" --release-not-found --output "$version_plan"
           else
-            release_code=""
+            echo "::error::Could not query Beta Release metadata; refusing to reuse the initial versionCode."
+            exit 1
           fi
+          version_name="$(jq -r '.version_name' "$version_plan")"
+          version_code="$(jq -er '.version_code' "$version_plan")"
+          version_source="$(jq -r '.source' "$version_plan")"
 
-          if [[ "$release_found" == true ]]; then
-            [[ "$release_code" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Beta Release versionCode is missing or invalid"; exit 1; }
-            version_code=$((release_code + 1))
-            version_source="beta Release"
-          else
-            version_code="$base_code"
-            version_source="beta-version.properties fallback"
-          fi
-
-          echo "base=$base_version; version=$version_name; versionCode=$version_code; source=$version_source"
+          echo "base=9.9.9; version=$version_name; versionCode=$version_code; source=$version_source"
           echo "version=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
       - name: Decode release keystore
@@ -127,6 +114,8 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+      - name: Verify the exact beta release commit
+        run: ./gradlew verifyLocal --no-configuration-cache -PenableAppUnitTests=true
       - name: Build signed beta release
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks

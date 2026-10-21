@@ -105,6 +105,16 @@ internal fun ComposeLanShareQrDialog(
                 color = secondary,
                 fontSize = 14.sp,
             )
+            session.pairingCode?.let { code ->
+                Text(
+                    "手动连接配对码：$code",
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = primary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 2.sp,
+                )
+            }
             LanShareSecurityNotice(
                 secondary = secondary,
                 modifier = Modifier.padding(top = 10.dp),

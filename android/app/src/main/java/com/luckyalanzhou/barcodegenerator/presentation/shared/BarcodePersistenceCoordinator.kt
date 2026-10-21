@@ -66,6 +66,8 @@ class BarcodePersistenceCoordinator @Inject constructor(
         return enqueue { barcodeRepository.saveItems(snapshot) }
     }
 
+    fun clearHistory(): Deferred<Result<Unit>> = enqueue { barcodeRepository.clearHistory() }
+
     suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> {
         val drafts = items.map { it.copy() }
         var inserted = emptyList<CodeItem>()

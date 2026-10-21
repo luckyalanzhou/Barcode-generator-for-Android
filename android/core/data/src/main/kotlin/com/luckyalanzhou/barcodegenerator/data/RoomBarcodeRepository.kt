@@ -76,6 +76,14 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         }
     }
 
+    override suspend fun clearHistory() {
+        database.withTransaction {
+            dao.reconcileFavoriteFlags()
+            dao.clearNonFavoriteItems()
+            dao.clearAllHistoryFlags()
+        }
+    }
+
     override suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> =
         database.withTransaction { insertGeneratedItemsWithAllocatedIds(dao, items) }
 
@@ -299,54 +307,73 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
         }
     }
 
-    override suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData) {
-        if (legacy.itemsJson == null && legacy.groupsJson == null && legacy.folders.isEmpty()) return
-        database.withTransaction {
-            if (dao.loadItems().isEmpty()) {
-                val items = runCatching { JSONArray(legacy.itemsJson ?: "[]") }.getOrDefault(JSONArray())
-                    .let { array ->
-                        (0 until array.length()).mapNotNull { index ->
-                            runCatching {
-                                array.getJSONObject(index).let { item ->
-                                    CodeItemEntity(
-                                        item.getLong("id"), item.getString("text"), item.getString("format"),
-                                        item.optLong("createdAt", item.getLong("id")), item.optBoolean("favorite"),
-                                        item.optString("folder", "默认"), item.optBoolean("inHistory", true),
-                                    )
-                                }
-                            }.getOrNull()
-                        }
-                    }
-                dao.upsertItems(items)
+    override suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData): Boolean {
+        val items = parseLegacyItems(legacy.itemsJson)
+        val (groups, links) = parseLegacyGroups(legacy.groupsJson, items.map { it.id }.toSet())
+        if (legacy.itemsJson == null && legacy.groupsJson == null && legacy.folders.isEmpty()) return true
+
+        return database.withTransaction {
+            if (dao.loadItems().isNotEmpty() || dao.loadGroups().isNotEmpty() || dao.loadFolders().isNotEmpty()) {
+                return@withTransaction false
             }
-            if (dao.loadGroups().isEmpty()) {
-                val groups = mutableListOf<FavoriteGroupEntity>()
-                val links = mutableListOf<FavoriteGroupItemEntity>()
-                val array = runCatching { JSONArray(legacy.groupsJson ?: "[]") }.getOrDefault(JSONArray())
-                for (index in 0 until array.length()) {
-                    runCatching {
-                        array.getJSONObject(index).let { group ->
-                            val groupId = group.getLong("id")
-                            groups += FavoriteGroupEntity(groupId, group.optString("folder", "默认"), group.optString("name", "未命名收藏"), group.optLong("savedAt", groupId))
-                            val itemIds = group.optJSONArray("itemIds") ?: JSONArray()
-                            for (itemIndex in 0 until itemIds.length()) {
-                                runCatching { itemIds.getLong(itemIndex) }
-                                    .getOrNull()
-                                    ?.takeIf { id -> links.none { it.groupId == groupId && it.itemId == id } }
-                                    ?.let { itemId ->
-                                        val position = links.count { it.groupId == groupId }
-                                        links += FavoriteGroupItemEntity(groupId, itemId, position)
-                                    }
-                            }
-                        }
-                    }
-                }
-                dao.upsertGroups(groups)
-                dao.saveGroupItems(links)
-            }
-            if (dao.loadFolders().isEmpty()) dao.saveFolders(legacy.folders.filter { it.isNotBlank() && it != "默认" }.map(::FavoriteFolderEntity))
+            dao.upsertItems(items)
+            dao.upsertGroups(groups)
+            if (links.isNotEmpty()) dao.saveGroupItems(links)
+            dao.saveFolders(legacy.folders.filter { it.isNotBlank() && it != "默认" }.map(::FavoriteFolderEntity))
+            true
         }
     }
+}
+
+private fun parseLegacyItems(json: String?): List<CodeItemEntity> {
+    if (json == null) return emptyList()
+    val array = JSONArray(json)
+    val items = (0 until array.length()).map { index ->
+        val item = array.getJSONObject(index)
+        val id = item.getLong("id")
+        require(id > 0L) { "Invalid legacy item ID at index $index" }
+        CodeItemEntity(
+            id = id,
+            text = item.getString("text"),
+            format = item.getString("format"),
+            createdAt = item.optLong("createdAt", id),
+            favorite = item.optBoolean("favorite"),
+            folder = item.optString("folder", "默认"),
+            inHistory = item.optBoolean("inHistory", true),
+        )
+    }
+    require(items.map(CodeItemEntity::id).distinct().size == items.size) { "Duplicate legacy item IDs" }
+    return items
+}
+
+private fun parseLegacyGroups(json: String?, itemIds: Set<Long>): Pair<List<FavoriteGroupEntity>, List<FavoriteGroupItemEntity>> {
+    if (json == null) return emptyList<FavoriteGroupEntity>() to emptyList()
+    val array = JSONArray(json)
+    val groups = mutableListOf<FavoriteGroupEntity>()
+    val links = mutableListOf<FavoriteGroupItemEntity>()
+    for (index in 0 until array.length()) {
+        val group = array.getJSONObject(index)
+        val groupId = group.getLong("id")
+        require(groupId > 0L) { "Invalid legacy group ID at index $index" }
+        groups += FavoriteGroupEntity(
+            groupId,
+            group.optString("folder", "默认"),
+            group.optString("name", "未命名收藏"),
+            group.optLong("savedAt", groupId),
+        )
+        val itemIdsArray = group.optJSONArray("itemIds")
+        if (group.has("itemIds") && !group.isNull("itemIds")) {
+            require(itemIdsArray != null) { "Invalid legacy group item list at index $index" }
+        }
+        val linkedIds = mutableSetOf<Long>()
+        for (itemIndex in 0 until (itemIdsArray?.length() ?: 0)) {
+            val itemId = itemIdsArray!!.getLong(itemIndex)
+            require(itemId in itemIds) { "Missing legacy item $itemId in group $groupId" }
+            if (linkedIds.add(itemId)) links += FavoriteGroupItemEntity(groupId, itemId, linkedIds.size - 1)
+        }
+    }
+    require(groups.map(FavoriteGroupEntity::id).distinct().size == groups.size) { "Duplicate legacy group IDs" }
+    return groups to links
 }
 
 /** Store each favorite file's declared item order as contiguous, zero-based positions. */

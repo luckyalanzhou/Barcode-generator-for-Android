@@ -34,14 +34,14 @@ class LanShareServerOpenAccessTest {
         var second: Socket? = null
         try {
             server.start(5_000, false)
-            first = openWebSocket(server.listeningPort)
+            first = openWebSocket(server.listeningPort, server.sessionToken)
             assertTrue(awaitCondition(1_000) { server.browserConnected() })
 
             first.close()
             assertTrue(awaitCondition(1_000) { !server.browserConnected() })
             Thread.sleep(100)
 
-            second = openWebSocket(server.listeningPort)
+            second = openWebSocket(server.listeningPort, server.sessionToken)
             assertTrue(awaitCondition(1_000) { server.browserConnected() })
             Thread.sleep(1_600)
 
@@ -80,7 +80,7 @@ class LanShareServerOpenAccessTest {
         val pongCount = AtomicInteger()
         try {
             server.start(2_000, false)
-            val browser = openWebSocket(server.listeningPort)
+            val browser = openWebSocket(server.listeningPort, server.sessionToken)
             socket = browser
             val heartbeatReader = Thread({
                 val input = DataInputStream(browser.getInputStream())
@@ -141,7 +141,7 @@ class LanShareServerOpenAccessTest {
     }
 
     @Test
-    fun httpAndWebSocketEntryPointsWorkWithoutCredentials() {
+    fun publicPairingPageDoesNotGrantFileOrWebSocketAccess() {
         val events = CopyOnWriteArrayList<LanShareRealtimeEvent>()
         val server = LanShareServer(
             "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
@@ -152,27 +152,72 @@ class LanShareServerOpenAccessTest {
             val port = server.listeningPort
             val base = "http://127.0.0.1:$port"
 
-            assertEquals(404, request("$base/api/presence").first)
-            assertEquals(404, request("$base/api/events").first)
+            assertEquals(401, request("$base/api/presence").first)
+            assertEquals(401, request("$base/api/events").first)
             assertEquals(200, request(base).first)
             assertTrue(request(base).second.contains("id=\"files\""))
-            assertEquals(404, request("$base/join").first)
-            assertEquals(404, request("$base/dl/missing").first)
-            assertEquals(404, request("$base/api/download/missing").first)
-            assertEquals(404, request("$base/api/preview/missing").first)
+            assertEquals(401, request("$base/join").first)
+            assertEquals(401, request("$base/dl/missing").first)
+            assertEquals(401, request("$base/api/download/missing").first)
+            assertEquals(401, request("$base/api/preview/missing").first)
+            assertTrue(webSocketStatus(port, null).contains(" 401 "))
+            assertTrue(events.none { it is LanShareRealtimeEvent.ConnectionChanged })
+        } finally {
+            server.stop()
+        }
+    }
 
-            Socket("127.0.0.1", port).use { socket ->
-                socket.soTimeout = 5_000
-                socket.getOutputStream().write((
-                    "GET /ws HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nUpgrade: websocket\r\n" +
-                        "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
-                        "Sec-WebSocket-Version: 13\r\n\r\n"
-                    ).toByteArray(Charsets.US_ASCII))
-                assertTrue(socket.getInputStream().bufferedReader().readLine().contains(" 101 "))
-                assertTrue(awaitCondition(1_000) {
-                    events.contains(LanShareRealtimeEvent.ConnectionChanged(true))
-                })
-            }
+    @Test
+    fun sessionTokenProtectsFileApiAndWebSocketWhileKeepingPairingPageReachable() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+        )
+        try {
+            server.start(5_000, false)
+            val base = "http://127.0.0.1:${server.listeningPort}"
+            assertEquals(200, request(base).first)
+            assertEquals(401, request("$base/api/files").first)
+            assertEquals(401, request("$base/api/files", "invalid").first)
+            assertEquals(401, request("$base/upload", method = "PUT").first)
+            assertEquals(404, request("$base/api/preview/missing", server.sessionToken).first)
+            assertEquals(200, request("$base/api/files", server.sessionToken).first)
+
+            assertTrue(webSocketStatus(server.listeningPort, null).contains(" 401 "))
+            assertTrue(webSocketStatus(server.listeningPort, server.sessionToken).contains(" 101 "))
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun browserCanExchangeTheDisplayedPairingCodeForTheSessionToken() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+        )
+        try {
+            server.start(5_000, false)
+            val base = "http://127.0.0.1:${server.listeningPort}"
+
+            assertEquals(401, request("$base/api/pair", method = "POST", pairingCode = "x").first)
+            val paired = request("$base/api/pair", method = "POST", pairingCode = server.pairingCode)
+            assertEquals(200, paired.first)
+            assertTrue(paired.second.contains(server.sessionToken))
+            assertEquals(200, request("$base/api/files", server.sessionToken).first)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun pairingCodeAttemptsAreRateLimitedPerClientAddress() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+        )
+        try {
+            server.start(5_000, false)
+            val url = "http://127.0.0.1:${server.listeningPort}/api/pair"
+            repeat(5) { assertEquals(401, request(url, method = "POST", pairingCode = "x").first) }
+            assertEquals(429, request(url, method = "POST", pairingCode = "x").first)
         } finally {
             server.stop()
         }
@@ -242,11 +287,19 @@ class LanShareServerOpenAccessTest {
         }
     }
 
-    private fun request(url: String): Pair<Int, String> {
+    private fun request(
+        url: String,
+        token: String? = null,
+        method: String = "GET",
+        pairingCode: String? = null,
+    ): Pair<Int, String> {
         val connection = URL(url).openConnection() as HttpURLConnection
         return try {
             connection.connectTimeout = 5_000
             connection.readTimeout = 5_000
+            connection.requestMethod = method
+            token?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
+            pairingCode?.let { connection.setRequestProperty("X-Lan-Pairing-Code", it) }
             val status = connection.responseCode
             val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
@@ -256,16 +309,29 @@ class LanShareServerOpenAccessTest {
         }
     }
 
-    private fun openWebSocket(port: Int): Socket {
+    private fun openWebSocket(port: Int, token: String): Socket {
         val socket = Socket("127.0.0.1", port).apply { soTimeout = 5_000 }
         socket.getOutputStream().write((
-            "GET /ws HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nUpgrade: websocket\r\n" +
+            "GET /ws?token=$token HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nUpgrade: websocket\r\n" +
                 "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
                 "Sec-WebSocket-Version: 13\r\n\r\n"
             ).toByteArray(Charsets.US_ASCII))
         val statusLine = socket.getInputStream().bufferedReader().readLine()
         assertTrue("WebSocket upgrade failed: $statusLine", statusLine.contains(" 101 "))
         return socket
+    }
+
+    private fun webSocketStatus(port: Int, token: String?): String {
+        val socket = Socket("127.0.0.1", port).apply { soTimeout = 5_000 }
+        return socket.use {
+            val query = token?.let { "?token=$it" }.orEmpty()
+            it.getOutputStream().write((
+                "GET /ws$query HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nUpgrade: websocket\r\n" +
+                    "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+                    "Sec-WebSocket-Version: 13\r\n\r\n"
+                ).toByteArray(Charsets.US_ASCII))
+            it.getInputStream().bufferedReader().readLine()
+        }
     }
 
     @Test
@@ -277,7 +343,7 @@ class LanShareServerOpenAccessTest {
             Socket("127.0.0.1", server.listeningPort).use { socket ->
                 socket.soTimeout = 5_000
                 val output = socket.getOutputStream()
-                output.write(("GET /ws HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\n" +
+                output.write(("GET /ws?token=${server.sessionToken} HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\n" +
                     "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
                     "Sec-WebSocket-Version: 13\r\n\r\n").toByteArray(Charsets.US_ASCII))
                 output.flush()

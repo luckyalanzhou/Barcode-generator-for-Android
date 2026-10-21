@@ -128,7 +128,11 @@ class LanShareManager(
         }
         server = running
         lastPort = running.listeningPort
-        val session = LanShareSession("http://$address:${running.listeningPort}")
+        val session = LanShareSession(
+            baseUrl = "http://$address:${running.listeningPort}",
+            accessToken = running.sessionToken,
+            pairingCode = running.pairingCode,
+        )
         logger.record("lan", "server started address=${session.baseUrl}", null)
         return session
     }

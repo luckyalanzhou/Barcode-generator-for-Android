@@ -10,6 +10,10 @@ const fileList = document.getElementById('files');
 const uploadForm = document.getElementById('upload-form');
 const messageInput = document.getElementById('message');
 const connectionStatus = document.getElementById('connection-status');
+const pairingGate = document.getElementById('pairing-gate');
+const pairingForm = document.getElementById('pairing-form');
+const pairingCodeInput = document.getElementById('pairing-code');
+const pairingError = document.getElementById('pairing-error');
 const attachmentSheet = document.getElementById('attachment-sheet');
 const attachmentButton = document.getElementById('attachment-button');
 const imageViewer = document.getElementById('image-viewer');
@@ -25,6 +29,52 @@ const cancelledUploads = new Set();
 const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
+const accessTokenKey = 'lanShareAccessToken:' + location.origin;
+let accessToken = new URLSearchParams(location.search).get('token') || sessionStorage.getItem(accessTokenKey) || '';
+
+function tokenUrl(path) {
+    const separator = path.includes('?') ? '&' : '?';
+    return path + separator + 'token=' + encodeURIComponent(accessToken);
+}
+
+function showPairing() {
+    document.body.classList.add('unpaired');
+    pairingGate.hidden = false;
+    setConnectionState(false);
+}
+
+async function validateAccessToken(token) {
+    const response = await fetch('/api/files', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+    if (!response.ok) throw new Error('会话令牌无效，请重新配对');
+    accessToken = token;
+    sessionStorage.setItem(accessTokenKey, token);
+    document.body.classList.remove('unpaired');
+    pairingGate.hidden = true;
+    if (new URLSearchParams(location.search).has('token')) history.replaceState(null, '', location.pathname + location.hash);
+    connectSocket();
+}
+
+pairingForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    pairingError.textContent = '';
+    const code = pairingCodeInput.value.trim();
+    if (!/^[0-9]{8}$/.test(code)) {
+        pairingError.textContent = '请输入 8 位数字配对码';
+        return;
+    }
+    try {
+        const response = await fetch('/api/pair', {
+            method: 'POST',
+            headers: { 'X-Lan-Pairing-Code': code },
+            cache: 'no-store'
+        });
+        if (!response.ok) throw new Error(response.status === 429 ? '尝试次数过多，请稍后再试' : '配对码错误');
+        const result = await response.json();
+        await validateAccessToken(result.token);
+    } catch (error) {
+        pairingError.textContent = error.message || '配对失败，请重试';
+    }
+});
 
 function readClientIdCookie() {
     const cookiePrefix = encodeURIComponent(clientIdKey) + '=';
@@ -119,11 +169,11 @@ function scheduleConnectionLost() {
 }
 
 function fileUrl(file) {
-    return '/dl/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
+    return tokenUrl('/dl/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
 }
 
 function previewUrl(file) {
-    return '/api/preview/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || '');
+    return tokenUrl('/api/preview/' + encodeURIComponent(file.id) + '?v=' + encodeURIComponent(file.modifiedAt || ''));
 }
 
 function createFileItem(file) {
@@ -493,6 +543,7 @@ async function uploadFile(file) {
             const url = '/upload?name=' + encodeURIComponent(file.name || '附件') +
                 '&client=' + encodeURIComponent(clientId) + '&transfer=' + encodeURIComponent(transferId);
             request.open('PUT', url, true);
+            request.setRequestHeader('authorization', 'Bearer ' + accessToken);
             request.setRequestHeader('content-type', file.type || 'application/octet-stream');
             // Safari/部分移动浏览器使用 chunked PUT，无法由网页设置 Content-Length。
             request.setRequestHeader('x-file-size', String(file.size));
@@ -613,7 +664,7 @@ document.addEventListener('click', event => {
 let socket;
 function connectSocket() {
     try {
-        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?client=' + encodeURIComponent(clientId));
+        socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?client=' + encodeURIComponent(clientId) + '&token=' + encodeURIComponent(accessToken));
         socket.onopen = () => {
             markConnectionRestored();
             socket.send('sync');
@@ -639,6 +690,10 @@ function connectSocket() {
     }
 }
 
-connectSocket();
+if (accessToken) {
+    validateAccessToken(accessToken).catch(showPairing);
+} else {
+    showPairing();
+}
 </script>"""
 }

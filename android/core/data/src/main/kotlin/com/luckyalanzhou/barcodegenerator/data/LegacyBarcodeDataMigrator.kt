@@ -19,32 +19,44 @@ class LegacyBarcodeDataMigrator(
     override suspend fun migrateIfNeeded() {
         if (runCatching { legacyPrefs.getBoolean(MIGRATION_KEY, false) }.getOrDefault(false)) return
 
-        // 旧版本同一个 SharedPreferences 文件中混用了多种类型；单个坏键不能阻断启动。
-        val legacy = LegacyBarcodeData(
-            itemsJson = readString("items"),
-            groupsJson = readString("favorite_groups"),
-            folders = readStringSet("favorite_folders"),
-        )
-        // Room 写入失败时保留旧键，下一次启动仍可重试，避免静默丢失旧数据。
-        barcodeRepository.migrateLegacyDataIfNeeded(legacy)
-        legacyPrefs.edit()
+        val legacy = runCatching {
+            LegacyBarcodeData(
+                itemsJson = readString("items"),
+                groupsJson = readString("favorite_groups"),
+                folders = readStringSet("favorite_folders"),
+            )
+        }.onFailure { Log.e(TAG, "Unable to read legacy barcode data; keeping the original preferences", it) }
+            .getOrNull() ?: return
+
+        val migrated = runCatching { barcodeRepository.migrateLegacyDataIfNeeded(legacy) }
+            .onFailure { Log.e(TAG, "Legacy barcode migration failed; keeping the original preferences", it) }
+            .getOrDefault(false)
+        if (!migrated) return
+
+        val committed = legacyPrefs.edit()
             .putBoolean(MIGRATION_KEY, true)
             .remove("items")
             .remove("favorite_groups")
             .remove("favorite_folders")
             .remove("next_item_id")
             .remove("next_group_id")
-            .apply()
+            .commit()
+        if (!committed) Log.e(TAG, "Could not commit legacy barcode preference cleanup")
     }
 
-    private fun readString(key: String): String? = runCatching { legacyPrefs.getString(key, null) }
-        .onFailure { Log.w(TAG, "Ignoring invalid legacy string: $key", it) }
-        .getOrNull()
+    private fun readString(key: String): String? {
+        if (!legacyPrefs.contains(key)) return null
+        return runCatching { legacyPrefs.getString(key, null) }
+            .onFailure { Log.w(TAG, "Invalid legacy string: $key", it) }
+            .getOrElse { throw IllegalStateException("Invalid legacy preference: $key", it) }
+    }
 
-    private fun readStringSet(key: String): Set<String> = runCatching {
-        legacyPrefs.getStringSet(key, emptySet()).orEmpty()
-    }.onFailure { Log.w(TAG, "Ignoring invalid legacy string set: $key", it) }
-        .getOrDefault(emptySet())
+    private fun readStringSet(key: String): Set<String> {
+        if (!legacyPrefs.contains(key)) return emptySet()
+        return runCatching { legacyPrefs.getStringSet(key, emptySet()).orEmpty() }
+            .onFailure { Log.w(TAG, "Invalid legacy string set: $key", it) }
+            .getOrElse { throw IllegalStateException("Invalid legacy preference: $key", it) }
+    }
 
     private companion object {
         const val TAG = "LegacyBarcodeDataMigrator"

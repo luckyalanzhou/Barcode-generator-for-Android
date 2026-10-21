@@ -26,7 +26,7 @@ class LanShareServerUploadTest {
         val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> }, availableUploadBytes = { 0L })
         try {
             server.start(5_000, false)
-            val response = upload(server.listeningPort, byteArrayOf(1, 2, 3), "small.bin", "app", false)
+            val response = upload(server.listeningPort, server.sessionToken, byteArrayOf(1, 2, 3), "small.bin", "app", false)
             assertEquals(503, response.first)
             assertTrue(response.second.contains("存储空间不足"))
             assertTrue(folder.listFiles().orEmpty().isEmpty())
@@ -42,20 +42,20 @@ class LanShareServerUploadTest {
             server.start(5_000, false)
             pending = Socket("127.0.0.1", server.listeningPort)
             pending.getOutputStream().apply {
-                write("PUT /upload?name=slow.bin&client=app HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1048576\r\nConnection: close\r\n\r\n".toByteArray(StandardCharsets.US_ASCII))
+                write("PUT /upload?name=slow.bin&client=app HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer ${server.sessionToken}\r\nContent-Length: 1048576\r\nConnection: close\r\n\r\n".toByteArray(StandardCharsets.US_ASCII))
                 write(ByteArray(32 * 1024))
                 flush()
             }
             val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
             while (folder.listFiles().orEmpty().none { it.name.endsWith(".part") } && System.nanoTime() < deadline) Thread.sleep(10)
             assertTrue(folder.listFiles().orEmpty().any { it.name.endsWith(".part") })
-            assertEquals(503, upload(server.listeningPort, byteArrayOf(1, 2), "busy.bin", "app", false).first)
+            assertEquals(503, upload(server.listeningPort, server.sessionToken, byteArrayOf(1, 2), "busy.bin", "app", false).first)
             pending.close()
             val retryDeadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
             var retry = 503
             while (retry == 503 && System.nanoTime() < retryDeadline) {
                 Thread.sleep(10)
-                retry = upload(server.listeningPort, byteArrayOf(1, 2), "retry.bin", "app", false).first
+                retry = upload(server.listeningPort, server.sessionToken, byteArrayOf(1, 2), "retry.bin", "app", false).first
             }
             assertEquals(200, retry)
             assertTrue(folder.listFiles().orEmpty().none { it.name.endsWith(".part") })
@@ -70,7 +70,7 @@ class LanShareServerUploadTest {
         val server = newServer(folder, diagnostics)
         try {
             server.start(5_000, false)
-            val result = upload(server.listeningPort, payload, "原图 % sample.jpg", "app", chunked = false)
+            val result = upload(server.listeningPort, server.sessionToken, payload, "原图 % sample.jpg", "app", chunked = false)
 
             assertEquals(200, result.first)
             assertTrue(result.second.startsWith("app_"))
@@ -96,7 +96,7 @@ class LanShareServerUploadTest {
         val server = newServer(folder, diagnostics)
         try {
             server.start(5_000, false)
-            val result = upload(server.listeningPort, payload, "browser.bin", "cbrowser123", chunked = true)
+            val result = upload(server.listeningPort, server.sessionToken, payload, "browser.bin", "cbrowser123", chunked = true)
 
             assertEquals(200, result.first)
             assertTrue(result.second.startsWith("web_"))
@@ -125,6 +125,7 @@ class LanShareServerUploadTest {
             uploadConnection.connectTimeout = 5_000
             uploadConnection.readTimeout = 20_000
             uploadConnection.requestMethod = "PUT"
+            uploadConnection.setRequestProperty("Authorization", "Bearer ${server.sessionToken}")
             uploadConnection.setRequestProperty("X-File-Size", (firstPart.size + secondPart.size).toString())
             uploadConnection.setRequestProperty("Content-Type", "application/octet-stream")
             uploadConnection.doOutput = true
@@ -175,6 +176,7 @@ class LanShareServerUploadTest {
                     "Host: 127.0.0.1:${server.listeningPort}\r\n" +
                     "Content-Type: application/octet-stream\r\n" +
                     "Content-Length: ${2 * 1024 * 1024}\r\n" +
+                    "Authorization: Bearer ${server.sessionToken}\r\n" +
                     "X-File-Size: ${2 * 1024 * 1024}\r\n\r\n"
                 ).toByteArray(StandardCharsets.US_ASCII))
             output.write(partialPayload)
@@ -209,7 +211,7 @@ class LanShareServerUploadTest {
         val server = newServer(folder)
         try {
             server.start(5_000, false)
-            val uploaded = upload(server.listeningPort, payload, "source.yaml", "cbrowser123", chunked = false)
+            val uploaded = upload(server.listeningPort, server.sessionToken, payload, "source.yaml", "cbrowser123", chunked = false)
             assertEquals(200, uploaded.first)
 
             val encodedId = URLEncoder.encode(uploaded.second, StandardCharsets.UTF_8.name())
@@ -218,6 +220,7 @@ class LanShareServerUploadTest {
             try {
                 connection.connectTimeout = 5_000
                 connection.readTimeout = 5_000
+                connection.setRequestProperty("Authorization", "Bearer ${server.sessionToken}")
                 assertEquals(200, connection.responseCode)
                 assertArrayEquals(payload, connection.inputStream.use { it.readBytes() })
             } finally {
@@ -240,6 +243,7 @@ class LanShareServerUploadTest {
             server.start(5_000, false)
             val uploaded = upload(
                 server.listeningPort,
+                server.sessionToken,
                 byteArrayOf(1, 2, 3),
                 "camera-photo",
                 "cbrowser123",
@@ -266,6 +270,7 @@ class LanShareServerUploadTest {
             server.start(5_000, false)
             val result = upload(
                 server.listeningPort,
+                server.sessionToken,
                 payload,
                 "mismatch.bin",
                 "cbrowser123",
@@ -292,6 +297,7 @@ class LanShareServerUploadTest {
 
     private fun upload(
         port: Int,
+        token: String,
         payload: ByteArray,
         fileName: String,
         clientId: String,
@@ -305,6 +311,7 @@ class LanShareServerUploadTest {
             connection.connectTimeout = 5_000
             connection.readTimeout = 10_000
             connection.requestMethod = "PUT"
+            connection.setRequestProperty("Authorization", "Bearer $token")
             connection.setRequestProperty("X-File-Size", declaredSize.toString())
             connection.setRequestProperty("Content-Type", contentType)
             connection.doOutput = true

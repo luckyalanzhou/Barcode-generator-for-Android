@@ -7,6 +7,8 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import android.content.Context
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -26,11 +28,13 @@ class BarcodeDatabaseMigrationTest {
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
         context.deleteDatabase(TEST_DATABASE)
+        context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
     @After
     fun tearDown() {
         context.deleteDatabase(TEST_DATABASE)
+        context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE).edit().clear().commit()
     }
 
     @Test
@@ -50,6 +54,100 @@ class BarcodeDatabaseMigrationTest {
         createLegacyDatabase(5)
         assertRoomCanOpenAndReadMigratedFixture()
     }
+
+    @Test
+    fun clearHistoryIncludesRowsBeyondStartupLimitAndPreservesFavoriteLinks() = runBlocking {
+        val database = Room.databaseBuilder(context, BarcodeDatabase::class.java, TEST_DATABASE)
+            .allowMainThreadQueries()
+            .addMigrations(
+                BarcodeDatabase.MIGRATION_1_2,
+                BarcodeDatabase.MIGRATION_2_3,
+                BarcodeDatabase.MIGRATION_3_4,
+                BarcodeDatabase.MIGRATION_4_5,
+                BarcodeDatabase.MIGRATION_5_6,
+            )
+            .build()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            val items = (1L..600L).map { id ->
+                val favorite = id > 500L
+                com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    id = id,
+                    text = "item-$id",
+                    format = "Code 128-B",
+                    createdAt = id,
+                    favorite = favorite,
+                    folder = if (favorite) "Saved" else "",
+                    inHistory = true,
+                )
+            }
+            val group = com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(1L, "", "Saved", 1L, (501L..600L).toMutableList())
+            val links = group.itemIds.mapIndexed { position, itemId ->
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(group.id, itemId, position)
+            }
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(items, listOf(group), links, emptyList()),
+            )
+
+            assertEquals(500, repository.loadStartupSnapshot().items.size)
+            repository.clearHistory()
+
+            assertEquals(emptyList<com.luckyalanzhou.barcodegenerator.domain.CodeItem>(), repository.loadStartupSnapshot().items)
+            assertEquals((501L..600L).toList(), repository.loadGroupItemIds(group.id))
+            assertEquals((501L..600L).toList().reversed(), repository.loadItems().map { it.id })
+            assertEquals(false, repository.loadItems().any { it.inHistory })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun invalidLegacyRowKeepsOriginalPreferencesAndDoesNotPartiallyWriteRoom() = runBlocking {
+        val preferences = context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE)
+        val legacyItems = """[{"id":1,"text":"valid","format":"Code 128-B"},{"id":2,"text":"invalid"}]"""
+        preferences.edit().clear().putString("items", legacyItems).commit()
+        val database = currentRoomDatabase()
+        try {
+            LegacyBarcodeDataMigrator(context, RoomBarcodeRepository(database)).migrateIfNeeded()
+
+            assertTrue(preferences.contains("items"))
+            assertEquals(legacyItems, preferences.getString("items", null))
+            assertFalse(preferences.getBoolean("room_data_migrated", false))
+            assertTrue(RoomBarcodeRepository(database).loadItems().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun successfulLegacyMigrationCommitsRoomDataBeforeRemovingPreferences() = runBlocking {
+        val preferences = context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE)
+        preferences.edit().clear()
+            .putString("items", """[{"id":1,"text":"legacy","format":"Code 128-B","inHistory":true}]""")
+            .putString("favorite_groups", "[]")
+            .commit()
+        val database = currentRoomDatabase()
+        try {
+            LegacyBarcodeDataMigrator(context, RoomBarcodeRepository(database)).migrateIfNeeded()
+
+            assertEquals(true, preferences.getBoolean("room_data_migrated", false))
+            assertFalse(preferences.contains("items"))
+            assertEquals("legacy", RoomBarcodeRepository(database).loadItems().single().text)
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun currentRoomDatabase() = Room.databaseBuilder(context, BarcodeDatabase::class.java, TEST_DATABASE)
+        .allowMainThreadQueries()
+        .addMigrations(
+            BarcodeDatabase.MIGRATION_1_2,
+            BarcodeDatabase.MIGRATION_2_3,
+            BarcodeDatabase.MIGRATION_3_4,
+            BarcodeDatabase.MIGRATION_4_5,
+            BarcodeDatabase.MIGRATION_5_6,
+        )
+        .build()
 
     private fun createLegacyDatabase(version: Int) {
         val helper = FrameworkSQLiteOpenHelperFactory().create(

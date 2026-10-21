@@ -25,7 +25,7 @@ class HistoryCoordinatorTest {
     }
 
     @Test
-    fun clearHistoryPersistsAllItems() {
+    fun clearHistoryClearsLoadedHistoryState() {
         val store = LibraryStateStore()
         store.replace(
             listOf(
@@ -35,10 +35,8 @@ class HistoryCoordinatorTest {
             emptyList(),
             emptyList(),
         )
-        val persisted = mutableListOf<List<CodeItem>>()
+        HistoryCoordinator(store) {}.clearHistory()
 
-        HistoryCoordinator(store) { persisted += it }.clearHistory()
-
-        assertEquals(listOf(false, false), persisted.single().map { it.inHistory })
+        assertEquals(listOf(false, false), store.itemsSnapshot().map { it.inHistory })
     }
 }

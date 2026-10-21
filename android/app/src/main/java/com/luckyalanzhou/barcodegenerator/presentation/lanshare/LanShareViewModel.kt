@@ -158,6 +158,10 @@ class LanShareViewModel @Inject constructor(
             _events.trySend(LanShareEvent.Error("分享地址无效，请检查地址或扫描二维码"))
             return false
         }
+        if (session.accessToken.isNullOrBlank()) {
+            _events.trySend(LanShareEvent.Error("此地址缺少配对令牌，请扫描新版二维码或粘贴完整连接地址"))
+            return false
+        }
         joinSession(session)
         refreshFiles(session)
         return true

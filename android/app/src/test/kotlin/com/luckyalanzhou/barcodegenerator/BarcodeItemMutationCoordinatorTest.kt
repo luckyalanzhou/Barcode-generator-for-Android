@@ -55,7 +55,7 @@ class BarcodeItemMutationCoordinatorTest {
     @Test
     fun updatesFavoriteAndHistoryItemsThroughTheirCorrectPersistencePaths() {
         val favorite = CodeItem(1, "favorite", "CODE_128", 1L, favorite = true, inHistory = true)
-        val history = CodeItem(2, "history", "CODE_128", 2L, favorite = false, inHistory = true)
+        val history = CodeItem(2, "5901234123457", "CODE_128", 2L, favorite = false, inHistory = true)
         val store = LibraryStateStore().apply {
             replace(
                 listOf(favorite, history),
@@ -73,13 +73,13 @@ class BarcodeItemMutationCoordinatorTest {
         )
 
         coordinator.updateItem(favorite.id, "favorite updated", "QR_CODE")
-        coordinator.updateItem(history.id, "history updated", "EAN_13")
+        coordinator.updateItem(history.id, "036000291452", "UPC_A")
         coordinator.updateItem(999L, "missing", "CODE_128")
 
         val updatedItems = store.itemsSnapshot().associateBy { it.id }
         assertEquals("favorite updated", updatedItems.getValue(favorite.id).text)
         assertTrue(updatedItems.getValue(favorite.id).favorite)
-        assertEquals("history updated", updatedItems.getValue(history.id).text)
+        assertEquals("036000291452", updatedItems.getValue(history.id).text)
         assertFalse(updatedItems.getValue(history.id).favorite)
         assertEquals(1, favoriteWrites)
         assertEquals(1, itemWrites)
