@@ -5,9 +5,6 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
-import com.luckyalanzhou.barcodegenerator.presentation.generate.BatchBarcodeAppendResult
-import com.luckyalanzhou.barcodegenerator.presentation.generate.BatchBarcodeTextParser
-import com.luckyalanzhou.barcodegenerator.presentation.generate.BatchBarcodeTextResult
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription

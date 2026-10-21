@@ -1,4 +1,4 @@
-package com.luckyalanzhou.barcodegenerator.presentation.generate
+package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
 /** 批量粘贴解析结果；失败时提供原始文本行号，调用方不得应用部分结果。 */
 internal sealed interface BatchBarcodeTextResult {
