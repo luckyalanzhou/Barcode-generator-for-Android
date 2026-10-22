@@ -248,27 +248,41 @@ object FavoritesTransferManager {
             "收藏文件存在空内容，无法导入"
         }
         require(backup.favorites.all { it.formats.isEmpty() || it.formats.size == it.texts.size }) { "收藏条码格式与内容数量不一致" }
-        var nextItemId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L
-        var nextGroupId = (existingGroups.maxOfOrNull { it.id } ?: 0L) + 1L
-        val itemsById = existingItems.associateBy { it.id }
-        val existingLinksByGroup = existingLinks.groupBy { it.groupId }
         // 收藏文件的身份只由文件夹路径和文件名决定；条码正文、格式和正文数量
         // 只用于确认文件有内容，绝不能参与判重。
         val existingKeys = existingGroups.map { FavoriteImportKey(normalizeFolder(it.folder), it.name.trim()) }.toSet()
+        val favoritesToAppend = backup.favorites.filter { favorite ->
+            FavoriteImportKey(normalizeFolder(favorite.folder), favorite.name.trim()) !in existingKeys
+        }
+        val maxItemId = existingItems.maxOfOrNull { it.id } ?: 0L
+        val maxGroupId = existingGroups.maxOfOrNull { it.id } ?: 0L
+        val itemCount = favoritesToAppend.sumOf { it.texts.size.toLong() }
+        requireIdCapacity(maxItemId, itemCount, "条码")
+        requireIdCapacity(maxGroupId, favoritesToAppend.size.toLong(), "收藏文件")
+
         val items = mutableListOf<CodeItemEntity>(); val groups = mutableListOf<FavoriteGroupEntity>(); val links = mutableListOf<FavoriteGroupItemEntity>()
-        backup.favorites.forEach { favorite ->
-            val key = FavoriteImportKey(normalizeFolder(favorite.folder), favorite.name.trim())
-            // 只与导入前已经存在的数据去重；备份内部即使存在同内容但不同 ID 的收藏，也必须全部保留。
-            // 这样不会因为文件名/正文相同而静默丢失合法收藏。
-            if (existingKeys.contains(key)) return@forEach
-            val group = FavoriteGroupEntity(nextGroupId++, favorite.folder, favorite.name, favorite.time)
-            val groupItems = favorite.texts.mapIndexed { index, text -> CodeItemEntity(nextItemId++, text, toAndroidFormat(favorite.formats.getOrNull(index) ?: favorite.type), favorite.time, true, favorite.folder, false) }
+        var nextItemOffset = 0L
+        favoritesToAppend.forEachIndexed { groupIndex, favorite ->
+            val groupId = maxGroupId + groupIndex + 1L
+            val group = FavoriteGroupEntity(groupId, favorite.folder, favorite.name, favorite.time)
+            val groupItems = favorite.texts.mapIndexed { index, text ->
+                val itemId = maxItemId + nextItemOffset + index + 1L
+                CodeItemEntity(itemId, text, toAndroidFormat(favorite.formats.getOrNull(index) ?: favorite.type), favorite.time, true, favorite.folder, false)
+            }
+            nextItemOffset += favorite.texts.size
             groups += group
             items += groupItems
             links += groupItems.mapIndexed { position, item -> FavoriteGroupItemEntity(group.id, item.id, position) }
         }
         val folderNames = (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.distinct()
         return TransferEntities(items, groups, links, folderNames.map(::FavoriteFolderEntity))
+    }
+
+    private fun requireIdCapacity(maxExistingId: Long, allocationCount: Long, label: String) {
+        if (allocationCount == 0L) return
+        require(maxExistingId >= 0L && maxExistingId <= Long.MAX_VALUE - allocationCount) {
+            "$label ID 已达到存储上限"
+        }
     }
 
     private data class FavoriteImportKey(

@@ -16,15 +16,15 @@ class FavoritesImportPlanner {
         existingGroups: List<FavoriteGroup>,
         incomingFavorites: List<InterchangeFavorite>,
     ): FavoritesImportConflictSummary {
-        val existingFileKeys = existingGroups.map { fileKey(it.folder, it.name) }.toSet()
-        val incomingKeys = incomingFavorites.map { fileKey(it.folder, it.name) }
+        val existingFileKeys = existingGroups.map { identity(it.folder, it.name) }.toSet()
+        val incomingKeys = incomingFavorites.map { identity(it.folder, it.name) }
         val existingConflicts = incomingKeys
             .filter { it in existingFileKeys }
             .distinct()
         val duplicateBackupKeys = incomingKeys.groupingBy { it }.eachCount()
             .filterValues { it > 1 }.keys.toList()
         val allConflicts = existingConflicts + duplicateBackupKeys.filterNot { it in existingConflicts }
-        return FavoritesImportConflictSummary(allConflicts, duplicateBackupKeys)
+        return FavoritesImportConflictSummary(allConflicts.map(::displayKey), duplicateBackupKeys.map(::displayKey))
     }
 
     /** 根据是否覆盖冲突生成最终导入清单，同时给出需要替换的既有收藏 ID。 */
@@ -33,28 +33,31 @@ class FavoritesImportPlanner {
         incomingFavorites: List<InterchangeFavorite>,
         overwriteConflicts: Boolean,
     ): Plan {
-        val existingFileKeys = existingGroups.map { fileKey(it.folder, it.name) }.toSet()
-        val incomingKeys = incomingFavorites.map { fileKey(it.folder, it.name) }
+        val existingFileKeys = existingGroups.map { identity(it.folder, it.name) }.toSet()
+        val incomingKeys = incomingFavorites.map { identity(it.folder, it.name) }
         val incomingFileKeys = incomingKeys.toSet()
         val duplicateBackupKeys = incomingKeys.groupingBy { it }.eachCount()
             .filterValues { it > 1 }.keys
-        val conflictingGroups = existingGroups.filter { fileKey(it.folder, it.name) in incomingFileKeys }
+        val conflictingGroups = existingGroups.filter { identity(it.folder, it.name) in incomingFileKeys }
         val replacedGroupIds = if (overwriteConflicts) conflictingGroups.map { it.id }.toSet() else emptySet()
         val deduplicatedFavorites = incomingFavorites.asReversed()
-            .distinctBy { fileKey(it.folder, it.name) }
+            .distinctBy { identity(it.folder, it.name) }
             .asReversed()
         val favoritesToImport = if (overwriteConflicts) deduplicatedFavorites else deduplicatedFavorites.filterNot {
-            val key = fileKey(it.folder, it.name)
+            val key = identity(it.folder, it.name)
             key in existingFileKeys || key in duplicateBackupKeys
         }
 
         return Plan(
-            conflictingFileKeys = (incomingKeys.filter { it in existingFileKeys } + duplicateBackupKeys).distinct(),
+            conflictingFileKeys = (incomingKeys.filter { it in existingFileKeys } + duplicateBackupKeys)
+                .distinct().map(::displayKey),
             replacedGroupIds = replacedGroupIds,
             favoritesToImport = favoritesToImport,
         )
     }
 
-    private fun fileKey(folder: String, name: String): String =
-        FavoriteFileIdentity.of(folder, name).let { "${it.folder}\u0000${it.name}" }
+    private fun identity(folder: String, name: String): FavoriteFileIdentity = FavoriteFileIdentity.of(folder, name)
+
+    /** 展示字段保留原格式；身份比较始终使用字段元组，避免分隔符碰撞。 */
+    private fun displayKey(identity: FavoriteFileIdentity): String = "${identity.folder}\u0000${identity.name}"
 }

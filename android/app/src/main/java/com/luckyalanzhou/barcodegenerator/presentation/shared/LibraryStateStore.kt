@@ -18,7 +18,12 @@ internal class LibraryStateStore {
         val items: MutableList<CodeItem>,
         val groups: MutableList<FavoriteGroup>,
         val folders: MutableList<String>,
-    )
+    ) {
+        /** Keep the in-memory snapshot aligned with Room's savedAt DESC, id DESC ordering. */
+        fun sortGroupsByRecency() {
+            groups.sortWith(compareByDescending<FavoriteGroup> { it.savedAt }.thenByDescending { it.id })
+        }
+    }
 
     fun <T> edit(block: Editor.() -> T): T = synchronized(lock) {
         Editor(items, groups, folders).block()

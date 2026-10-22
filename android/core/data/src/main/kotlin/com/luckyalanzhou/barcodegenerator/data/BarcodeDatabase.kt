@@ -103,7 +103,8 @@ interface BarcodeDao {
     }
     @Query("DELETE FROM code_items") suspend fun clearItems()
     @Query("DELETE FROM code_items WHERE favorite = 0 AND NOT EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id)") suspend fun clearNonFavoriteItems()
-    @Query("DELETE FROM code_items WHERE favorite = 0 AND id NOT IN (:retainedIds) AND NOT EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id)") suspend fun deleteNonFavoriteItemsExcept(retainedIds: List<Long>)
+    // 不在历史中且不再关联任何收藏文件的条码已不可从应用内访问，避免删除收藏后残留正文数据。
+    @Query("DELETE FROM code_items WHERE inHistory = 0 AND NOT EXISTS (SELECT 1 FROM favorite_group_items gi WHERE gi.itemId = code_items.id)") suspend fun deleteUnreferencedItemsNotInHistory()
     @Query("DELETE FROM code_items WHERE id NOT IN (:retainedIds)") suspend fun deleteItemsExcept(retainedIds: List<Long>)
     @Query("DELETE FROM favorite_group_items WHERE itemId NOT IN (:retainedItemIds)") suspend fun deleteGroupItemsForItemsExcept(retainedItemIds: List<Long>)
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (:ids)") suspend fun clearFavoriteFlags(ids: List<Long>)
@@ -241,8 +242,8 @@ abstract class BarcodeDatabase : RoomDatabase() {
         }
 
         /**
-         * Persist barcode order explicitly. Version 5 did not store an ordinal, so backfill
-         * using the exact itemId order the app displayed before this migration.
+         * 版本 5 未保存条码顺序；迁移按 itemId 确定性编号，使后续读取稳定。
+         * 仅凭数据库结构无法还原旧版界面的展示顺序。
          */
         internal val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {

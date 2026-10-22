@@ -66,20 +66,23 @@ class ZxingBarcodeImageRenderer(
         dark: Boolean,
         density: Float,
         withBackground: Boolean = true,
-    ): Bitmap? = runCatching {
-        val (width, barcodeHeight) = barcodeRenderSize(formatId(format), style, density)
-        val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, barcodeEncodeHints(format))
-        val foreground = BarcodeImageColors.foreground(dark)
-        val background = if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT
-        val pixels = IntArray(matrix.width * matrix.height) { index ->
-            if (matrix[index % matrix.width, index / matrix.width]) foreground else background
-        }
-        createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { bitmap ->
-            bitmap.setPixels(pixels, 0, matrix.width, 0, 0, matrix.width, matrix.height)
-        }
-    }.onFailure { error ->
-        logger.record("barcode_render", "encode failed format=$format textLength=${text.length} density=$density", error)
-    }.getOrNull()
+    ): Bitmap? = captureRecoverableBarcodeEncoding(
+        operation = {
+            val (width, barcodeHeight) = barcodeRenderSize(formatId(format), style, density)
+            val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, barcodeEncodeHints(format))
+            val foreground = BarcodeImageColors.foreground(dark)
+            val background = if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT
+            val pixels = IntArray(matrix.width * matrix.height) { index ->
+                if (matrix[index % matrix.width, index / matrix.width]) foreground else background
+            }
+            createBitmap(matrix.width, matrix.height, Bitmap.Config.ARGB_8888).also { bitmap ->
+                bitmap.setPixels(pixels, 0, matrix.width, 0, 0, matrix.width, matrix.height)
+            }
+        },
+        onFailure = { error ->
+            logger.record("barcode_render", "encode failed format=$format textLength=${text.length} density=$density", error)
+        },
+    )
 
     private fun trim(source: Bitmap, foreground: Int): Bitmap {
         var completed = false

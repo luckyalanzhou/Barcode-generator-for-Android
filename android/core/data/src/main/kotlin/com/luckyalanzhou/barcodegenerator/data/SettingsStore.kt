@@ -3,6 +3,8 @@ package com.luckyalanzhou.barcodegenerator.data
 import com.luckyalanzhou.barcodegenerator.domain.OcrCorrectionMask
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
+import com.luckyalanzhou.barcodegenerator.domain.UPDATE_FAILURE_SUMMARY
+import com.luckyalanzhou.barcodegenerator.domain.awaitSettingsCommit
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
@@ -20,7 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 
-private val Context.settingsDataStore by preferencesDataStore(name = "barcode_settings")
+internal val Context.settingsDataStore by preferencesDataStore(name = "barcode_settings")
 
 /**
  * DataStore 设置实现：统一读取和保存条码样式、外观选项、OCR 与更新状态。
@@ -28,19 +30,19 @@ private val Context.settingsDataStore by preferencesDataStore(name = "barcode_se
  */
 class SettingsStore(private val context: Context) : SettingsRepository {
     companion object {
-        val SHOW_TEXT = booleanPreferencesKey("style_show_text")
-        val TEXT_POSITION = stringPreferencesKey("style_text_position")
-        val TEXT_SIZE = floatPreferencesKey("style_text_size")
-        val BAR_HEIGHT = intPreferencesKey("style_bar_height")
-        val BAR_WIDTH = floatPreferencesKey("style_bar_width")
-        val MARGIN = intPreferencesKey("style_margin")
-        val SHOW_FORMAT = booleanPreferencesKey("style_show_format")
-        val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
-        val REDUCE_MOTION = booleanPreferencesKey("appearance_reduce_motion")
-        val ENHANCE_CONTRAST = booleanPreferencesKey("appearance_enhance_contrast")
-        val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
-        val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
-        val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
+        internal val SHOW_TEXT = booleanPreferencesKey("style_show_text")
+        internal val TEXT_POSITION = stringPreferencesKey("style_text_position")
+        internal val TEXT_SIZE = floatPreferencesKey("style_text_size")
+        internal val BAR_HEIGHT = intPreferencesKey("style_bar_height")
+        internal val BAR_WIDTH = floatPreferencesKey("style_bar_width")
+        internal val MARGIN = intPreferencesKey("style_margin")
+        internal val SHOW_FORMAT = booleanPreferencesKey("style_show_format")
+        internal val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
+        internal val REDUCE_MOTION = booleanPreferencesKey("appearance_reduce_motion")
+        internal val ENHANCE_CONTRAST = booleanPreferencesKey("appearance_enhance_contrast")
+        internal val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
+        internal val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
+        internal val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
     }
 
     // 所有设置写入串行执行，避免滑块连续拖动时旧快照晚到并覆盖最新值。
@@ -50,18 +52,24 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     @Volatile private var ocrConfusionReplacementMask = 0
 
     override suspend fun load() {
-        cachedValues = context.settingsDataStore.data.first()
+        val loadedValues = context.settingsDataStore.data.first()
+        val persistedError = loadedValues[LAST_UPDATE_ERROR]
+        if (!persistedError.isNullOrBlank() && persistedError != UPDATE_FAILURE_SUMMARY) {
+            write { it[LAST_UPDATE_ERROR] = UPDATE_FAILURE_SUMMARY }.awaitSettingsCommit()
+        } else {
+            cachedValues = loadedValues
+        }
         ocrConfusionReplacementMask = cachedValues[OCR_CONFUSION_REPLACEMENT_MASK] ?: 0
     }
 
-    fun <T> get(key: Preferences.Key<T>, default: T): T = cachedValues[key] ?: default
+    internal fun <T> get(key: Preferences.Key<T>, default: T): T = cachedValues[key] ?: default
 
     /**
      * 读取完整条码样式快照。样式字段必须与 [saveStyle] 对称，避免应用重启后只恢复尺寸类设置。
      */
     override fun loadStyle(): StyleSettings = decodeStyleSettings(cachedValues)
 
-    override fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = error }
+    override fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = UPDATE_FAILURE_SUMMARY }
 
     override fun getOcrConfusionReplacementMask(): Int = ocrConfusionReplacementMask
 

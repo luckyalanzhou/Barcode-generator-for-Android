@@ -17,6 +17,7 @@ internal class BarcodeItemMutationCoordinator(
                 group.itemIds.removeAll { it == itemId }
                 groups[index] = group.copy(savedAt = modifiedAt)
             }
+            sortGroupsByRecency()
         }
         persistDeletion(itemId, modifiedAt)
     }
@@ -31,6 +32,7 @@ internal class BarcodeItemMutationCoordinator(
             groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
                 groups[index] = groups[index].copy(savedAt = modifiedAt)
             }
+            sortGroupsByRecency()
             item.favorite
         } ?: return
         if (favorite) persistAllFavorites() else persistItems()

@@ -12,6 +12,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -126,6 +127,51 @@ class FavoritesTransferManagerTest {
     }
 
     @Test
+    fun importRejectsItemIdOverflow() {
+        val backup = InterchangeBackup(
+            favorites = listOf(InterchangeFavorite(null, "新文件", "", "", "code128", 2L, listOf("NEW"))),
+            folders = emptyList(),
+        )
+        val existingItems = listOf(CodeItemEntity(Long.MAX_VALUE, "OLD", "Code 128-B", 1L, true, "", false))
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            FavoritesTransferManager.appendEntities(backup, existingItems, emptyList(), emptyList())
+        }
+
+        assertTrue(error.message.orEmpty().contains("条码 ID"))
+    }
+
+    @Test
+    fun importRejectsGroupIdOverflow() {
+        val backup = InterchangeBackup(
+            favorites = listOf(InterchangeFavorite(null, "新文件", "", "", "code128", 2L, listOf("NEW"))),
+            folders = emptyList(),
+        )
+        val existingGroups = listOf(FavoriteGroupEntity(Long.MAX_VALUE, "", "已有文件", 1L))
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            FavoritesTransferManager.appendEntities(backup, emptyList(), existingGroups, emptyList())
+        }
+
+        assertTrue(error.message.orEmpty().contains("收藏文件 ID"))
+    }
+
+    @Test
+    fun importCanUseLastAvailableItemAndGroupIds() {
+        val backup = InterchangeBackup(
+            favorites = listOf(InterchangeFavorite(null, "新文件", "", "", "code128", 2L, listOf("NEW"))),
+            folders = emptyList(),
+        )
+        val existingItems = listOf(CodeItemEntity(Long.MAX_VALUE - 1, "OLD", "Code 128-B", 1L, true, "", false))
+        val existingGroups = listOf(FavoriteGroupEntity(Long.MAX_VALUE - 1, "", "已有文件", 1L))
+
+        val entities = FavoritesTransferManager.appendEntities(backup, existingItems, existingGroups, emptyList())
+
+        assertEquals(Long.MAX_VALUE, entities.items.single().id)
+        assertEquals(Long.MAX_VALUE, entities.groups.single().id)
+    }
+
+    @Test
     fun importDoesNotCollapseSameContentWhenBarcodeTypeDiffers() {
         val backup = InterchangeBackup(
             favorites = listOf(
@@ -149,6 +195,28 @@ class FavoritesTransferManagerTest {
         } catch (expected: IllegalArgumentException) {
             assertTrue(expected.message.orEmpty().contains("ZIP"))
         }
+    }
+
+    @Test
+    fun restoreRejectsArchiveTruncatedBeforeCentralDirectory() {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            listOf("one", "two").forEach { name ->
+                zip.putNextEntry(ZipEntry("favorites/$name.json"))
+                zip.write("""{"name":"$name","texts":["$name"]}""".toByteArray())
+                zip.closeEntry()
+            }
+        }
+        val completeZip = output.toByteArray()
+        val centralDirectoryStart = (0 until completeZip.size - 4).first { index ->
+            completeZip[index] == 0x50.toByte() && completeZip[index + 1] == 0x4b.toByte() &&
+                completeZip[index + 2] == 0x01.toByte() && completeZip[index + 3] == 0x02.toByte()
+        }
+        val truncatedZip = completeZip.copyOf(centralDirectoryStart)
+
+        val result = runCatching { FavoritesTransferManager.restore(truncatedZip) }
+
+        assertTrue("a ZIP missing its central directory must not be accepted as a valid partial backup", result.isFailure)
     }
 
     @Test

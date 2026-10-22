@@ -31,7 +31,7 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderRen
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.isValidFavoriteFolderPath
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
-internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Unit) {
+internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: (String) -> Boolean) {
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(favoriteFolderEditorInitialValue(initial)) }
@@ -60,14 +60,15 @@ internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, i
                 DialogAction("保存", dark, {
                     val name = value.trim()
                     val targetPath = favoriteFolderRenameTargetPath(initial, name)
+                    val knownFolderPaths = dataState.folders + dataState.groups.map { it.folder }
                     when {
                         name.isBlank() -> toast("请输入文件夹名称")
                         !isValidFavoriteFolderName(name) -> toast("文件夹名称不能包含斜杠")
                         !isValidFavoriteFolderPath(targetPath) -> toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
-                        initial.isNotBlank() && !isSafeFavoriteFolderRename(initial, targetPath, dataState.folders) ->
-                            toast("重命名后文件夹层级不合法")
-                        dataState.folders.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
-                        else -> { onSaved(name); dismiss() }
+                        knownFolderPaths.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
+                        initial.isNotBlank() && !isSafeFavoriteFolderRename(initial, targetPath, knownFolderPaths) ->
+                            toast("目标文件夹已存在或层级不合法")
+                        else -> if (onSaved(name)) dismiss() else toast("重命名失败，目标文件夹已存在")
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }

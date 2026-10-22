@@ -74,6 +74,34 @@ internal fun LanShareUiState.withoutPendingTransfers() = copy(
     pendingUploadUri = null, pendingUploadTempFile = null, pendingUploadName = null,
 )
 
+/** 读取分享刷新所需的数据；这里只把可恢复的网络异常转换为 Result。 */
+internal suspend fun loadLanShareRefreshData(
+    gateway: LanShareGateway,
+    session: LanShareSession,
+): Result<Pair<List<LanShareFile>, List<LanShareMessage>>> = try {
+    Result.success(gateway.list(session) to gateway.localMessages())
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    Result.failure(error)
+}
+
+/** 预览缩略图失败可降级，但取消和致命错误必须保留原有语义。 */
+internal fun downloadLanSharePreviewResult(
+    gateway: LanShareGateway,
+    session: LanShareSession,
+    fileId: String,
+    destination: java.io.File,
+    maxBytes: Long,
+): Result<Unit> = try {
+    gateway.downloadPreview(session, fileId, destination, maxBytes)
+    Result.success(Unit)
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    Result.failure(error)
+}
+
 sealed interface LanShareEvent {
     data class Error(val message: String) : LanShareEvent
     data class Notice(val message: String, val clearInput: Boolean = false) : LanShareEvent
@@ -195,7 +223,7 @@ class LanShareViewModel @Inject constructor(
         if (refreshJob?.isActive == true) return
         val ticket = refreshGuard.currentGeneration()
         refreshJob = viewModelScope.launch(Dispatchers.IO) {
-            val result = runCatching { lanShareGateway.list(session) to lanShareGateway.localMessages() }
+            val result = loadLanShareRefreshData(lanShareGateway, session)
             currentCoroutineContext().ensureActive()
             if (!refreshGuard.isCurrent(session, ticket)) return@launch
             result.onSuccess { (files, messages) ->
@@ -235,6 +263,7 @@ class LanShareViewModel @Inject constructor(
         activeUploadTasks.entries.toList().forEach { (id, task) ->
             task.job.cancel()
             lanShareGateway.cancelUpload(id)
+            task.temporaryFile?.delete()
         }
         _uiState.value.pendingUploadTempFile?.delete()
         _uiState.update { it.withoutPendingTransfers() }
@@ -405,14 +434,23 @@ class LanShareViewModel @Inject constructor(
             val operation = UUID.randomUUID().toString()
             logger.record("lan_ui", "download start operation=$operation", null)
             try {
-                val temporary = java.io.File.createTempFile("lan-download-", ".part", appContext.cacheDir)
-                try {
-                    lanShareGateway.downloadToFile(session, id, temporary)
-                    appContext.contentResolver.openOutputStream(destination)?.use { output ->
-                        temporary.inputStream().use { it.copyTo(output, DOWNLOAD_DESTINATION_COPY_BUFFER_SIZE) }
-                    } ?: error("无法写入文件")
-                } finally {
-                    temporary.delete()
+                withLanShareDownloadRollback(
+                    rollback = {
+                        val deleted = appContext.contentResolver.delete(destination, null, null)
+                        if (deleted <= 0) {
+                            logger.record("lan_ui", "download destination cleanup not confirmed operation=$operation", null)
+                        }
+                    },
+                ) {
+                    val temporary = java.io.File.createTempFile("lan-download-", ".part", appContext.cacheDir)
+                    try {
+                        lanShareGateway.downloadToFile(session, id, temporary)
+                        appContext.contentResolver.openOutputStream(destination)?.use { output ->
+                            temporary.inputStream().use { it.copyTo(output, DOWNLOAD_DESTINATION_COPY_BUFFER_SIZE) }
+                        } ?: error("无法写入文件")
+                    } finally {
+                        temporary.delete()
+                    }
                 }
                 _events.send(LanShareEvent.Notice("下载完成"))
                 logger.record("lan_ui", "download success operation=$operation", null)
@@ -441,7 +479,7 @@ class LanShareViewModel @Inject constructor(
                 val remainingCacheBytes = (LAN_SHARE_PREVIEW_CACHE_MAX_BYTES - cachedBytes).coerceAtLeast(0L)
                 val maxPreviewBytes = minOf(LAN_SHARE_PREVIEW_MAX_FILE_BYTES, remainingCacheBytes)
                 if (!preview.isFile && maxPreviewBytes > 0L) {
-                    runCatching { lanShareGateway.downloadPreview(session, file.id, preview, maxPreviewBytes) }
+                    downloadLanSharePreviewResult(lanShareGateway, session, file.id, preview, maxPreviewBytes)
                         .onFailure { error ->
                             if (error !is CancellationException) logger.record("lan_ui", "preview_download failed bytes=${file.size} mime=${file.mimeType}", error)
                         }

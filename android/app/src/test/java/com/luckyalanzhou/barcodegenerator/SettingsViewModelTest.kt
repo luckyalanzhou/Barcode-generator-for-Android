@@ -145,4 +145,31 @@ class SettingsViewModelTest {
         pending.complete()
         assertEquals(false, model.uiState.value.saveFailed)
     }
+
+    @Test
+    fun ocrMaskReadUsesLatestSelectionWhilePersistenceIsPending() {
+        var storedMask = 0
+        val pendingWrite = Job()
+        val repository = object : SettingsRepository {
+            override suspend fun load() = Unit
+            override fun loadStyle() = StyleSettings()
+            override fun saveStyle(style: StyleSettings) = completedJob()
+            override fun getOcrConfusionReplacementMask() = storedMask
+            override fun setOcrConfusionReplacementMask(mask: Int) = pendingWrite
+            override fun setUpdateError(error: String) = completedJob()
+        }
+        val migration = object : SettingsMigration {
+            override suspend fun migrateIfNeeded(): StyleSettings? = null
+        }
+        val model = SettingsViewModel(repository, migration, AppLogger { _, _, _ -> })
+        model.initialize(StyleSettings(), storedMask)
+
+        model.setOcrMaskPersisted(7)
+
+        assertEquals("recognition should use the latest UI selection before DataStore finishes", 7, model.getOcrMask())
+        assertEquals("the persisted cache must remain unchanged until the write completes", 0, repository.getOcrConfusionReplacementMask())
+        pendingWrite.complete()
+        storedMask = 7
+        assertEquals(7, model.getOcrMask())
+    }
 }

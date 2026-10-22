@@ -28,4 +28,17 @@ class NavigationStateCoordinatorTest {
 
         assertEquals(0, state.value.selectedTab)
     }
+
+    @Test
+    fun returningFromLanShareThenSettingsBackUsesTheOriginalSettingsReturnPage() {
+        val state = MutableStateFlow(AppUiState())
+        val coordinator = NavigationStateCoordinator(state)
+
+        coordinator.updateSettingsReturnPage(AppRoute.Generate)
+        coordinator.navigateTo(AppRoute.LanShare)
+        coordinator.navigateTo(AppRoute.Settings)
+        coordinator.navigateTo(state.value.settingsReturnPage)
+
+        assertEquals(AppRoute.Generate, state.value.page)
+    }
 }

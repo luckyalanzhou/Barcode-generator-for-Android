@@ -60,6 +60,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             }
             // 已加载页面不代表条码没有其他收藏关联，因此重新汇总其收藏标记。
             dao.reconcileFavoriteFlags()
+            dao.deleteUnreferencedItemsNotInHistory()
             dao.clearFolders()
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
         }
@@ -68,11 +69,10 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun saveItems(items: List<CodeItem>) {
         database.withTransaction {
             dao.reconcileFavoriteFlags()
-            val retainedHistoryIds = items.filter { !it.favorite }.map { it.id }
-            if (retainedHistoryIds.isEmpty()) dao.clearNonFavoriteItems()
-            else dao.deleteNonFavoriteItemsExcept(retainedHistoryIds)
+            // 调用方只持有最近的有限历史窗口；缺席的旧记录不是删除指令。
             dao.upsertItems(items.map(CodeItem::toEntity))
             dao.reconcileFavoriteFlags()
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 
@@ -138,6 +138,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             }
             dao.upsertGroups(groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
             dao.saveGroupItems(links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 
@@ -147,6 +148,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.clearFavoriteFlagsForGroups(ids)
             dao.deleteGroupItems(ids)
             dao.deleteGroups(ids)
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 
@@ -155,6 +157,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.clearAllFavoriteFlags()
             dao.clearGroupItems()
             dao.clearGroups()
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 
@@ -174,6 +177,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             }
             dao.deleteGroupsByFolder(path)
             dao.deleteFoldersByPath(path)
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 
@@ -283,6 +287,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.clearGroupItemsForGroups(snapshot.groups.map { it.id })
             dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 
@@ -304,6 +309,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             dao.reconcileFavoriteFlags()
             // 导入只补充文件夹，不删除用户原有的空文件夹。
             dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+            dao.deleteUnreferencedItemsNotInHistory()
         }
     }
 

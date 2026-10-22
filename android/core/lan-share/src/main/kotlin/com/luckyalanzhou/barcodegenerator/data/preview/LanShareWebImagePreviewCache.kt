@@ -5,9 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
-import android.graphics.Matrix
 import android.os.Build
-import androidx.exifinterface.media.ExifInterface
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareTiff
 import java.io.File
@@ -108,33 +106,6 @@ internal class LanShareWebImagePreviewCache(private val cacheFolder: File) {
         ) ?: return@runCatching null
         applyExifOrientation(source, decoded)
     }.getOrNull()
-
-    /** ImageDecoder auto-orients on API 28+; apply the EXIF transform for older devices. */
-    private fun applyExifOrientation(source: File, bitmap: Bitmap): Bitmap {
-        val orientation = runCatching {
-            ExifInterface(source).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
-        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-        val transform = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> transform.setScale(-1f, 1f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> transform.setRotate(180f)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> transform.setScale(1f, -1f)
-            ExifInterface.ORIENTATION_TRANSPOSE -> {
-                transform.setRotate(90f)
-                transform.postScale(-1f, 1f)
-            }
-            ExifInterface.ORIENTATION_ROTATE_90 -> transform.setRotate(90f)
-            ExifInterface.ORIENTATION_TRANSVERSE -> {
-                transform.setRotate(270f)
-                transform.postScale(-1f, 1f)
-            }
-            ExifInterface.ORIENTATION_ROTATE_270 -> transform.setRotate(270f)
-            else -> return bitmap
-        }
-        val oriented = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, transform, true)
-        if (oriented !== bitmap) bitmap.recycle()
-        return oriented
-    }
 
     private fun writeJpegPreview(bitmap: Bitmap, destination: File): Boolean {
         val flattened = if (bitmap.hasAlpha()) {

@@ -18,6 +18,23 @@ import android.graphics.drawable.GradientDrawable
 import androidx.core.content.FileProvider
 import java.io.File
 
+internal fun handoffCapturedLanPhotoUpload(
+    session: com.luckyalanzhou.barcodegenerator.domain.LanShareSession?,
+    temporaryFile: File?,
+    upload: (com.luckyalanzhou.barcodegenerator.domain.LanShareSession) -> Unit,
+    sessionUnavailable: () -> Unit,
+    temporaryFileCleanupFailed: () -> Unit,
+) {
+    if (session == null) {
+        if (temporaryFile?.let { it.exists() && !it.delete() } == true) {
+            temporaryFileCleanupFailed()
+        }
+        sessionUnavailable()
+        return
+    }
+    upload(session)
+}
+
 /**
  * 局域网分享的业务和系统桥接。
  *
@@ -30,17 +47,19 @@ internal fun MainActivity.enterLanShare() {
         showLanShareNetworkErrorDialog()
         return
     }
-    navigationViewModel.updateSettingsReturnPage(AppRoute.Settings)
     composeAppShellActions().navigateTo(AppRoute.LanShare)
-    runCatching {
-        lanShareViewModel.startHostSession()
-    }.onFailure {
-        DebugLog.record("lan_share", "host_start_failed", it)
-        lanShareViewModel.closeSession()
-        composeAppShellActions().navigateTo(AppRoute.Settings)
-        if (it.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
-        else toast(it.message ?: "无法创建房间")
-    }
+    captureRecoverableLanShareHostStart(
+        startHost = { lanShareViewModel.startHostSession() },
+        rollback = {
+            lanShareViewModel.closeSession()
+            composeAppShellActions().navigateTo(AppRoute.Settings)
+        },
+        onFailure = { error ->
+            DebugLog.record("lan_share", "host_start_failed", error)
+            if (error.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
+            else toast(error.message ?: "无法创建房间")
+        },
+    )
 }
 
 internal fun MainActivity.showLanShareNetworkErrorDialog() {
@@ -95,12 +114,11 @@ internal fun MainActivity.findRecentLanCameraMedia(): Uri? {
 }
 
 internal fun MainActivity.openLanShareGallery() {
-    if (Build.VERSION.SDK_INT >= 33) {
-        openLanShareGalleryPicker()
-        return
-    }
-    val permission = Manifest.permission.READ_EXTERNAL_STORAGE
-    if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+    val permission = LanSharePickerPermissionPolicy.requiredReadPermission(
+        LanSharePickerType.GALLERY,
+        Build.VERSION.SDK_INT,
+    )
+    if (permission != null && checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
         requestAppPermissions(arrayOf(permission), MainActivity.REQUEST_LAN_SHARE_GALLERY_PERMISSION)
     } else openLanShareGalleryPicker()
 }
@@ -115,10 +133,12 @@ internal fun MainActivity.openLanShareGalleryPicker() {
 }
 
 internal fun MainActivity.openLanShareFiles() {
-    if (Build.VERSION.SDK_INT <= 32 &&
-        checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED
-    ) {
-        requestAppPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), MainActivity.REQUEST_LAN_SHARE_FILE_PERMISSION)
+    val permission = LanSharePickerPermissionPolicy.requiredReadPermission(
+        LanSharePickerType.DOCUMENTS,
+        Build.VERSION.SDK_INT,
+    )
+    if (permission != null && checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        requestAppPermissions(arrayOf(permission), MainActivity.REQUEST_LAN_SHARE_FILE_PERMISSION)
     } else openLanShareFilePicker()
 }
 
@@ -127,7 +147,7 @@ internal fun MainActivity.openLanShareFilePicker() {
         Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "*/*"
             addCategory(Intent.CATEGORY_OPENABLE)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         },
         MainActivity.REQUEST_LAN_SHARE_UPLOAD,
     )
@@ -142,12 +162,17 @@ internal fun MainActivity.selectLanShareAttachment(uri: Uri, temporaryFile: File
         }
     }.getOrNull() ?: "附件"
     lanShareViewModel.setPendingUpload(uri, temporaryFile, displayName)
-    runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
     if (autoUpload) {
         lanShareViewModel.takePendingUpload()?.let { (selectedUri, selectedFile) ->
-            lanShareViewModel.uiState.value.session?.let { session ->
-                lanShareViewModel.uploadFile(session, selectedUri, selectedFile)
-            }
+            handoffCapturedLanPhotoUpload(
+                session = lanShareViewModel.uiState.value.session,
+                temporaryFile = selectedFile,
+                upload = { session -> lanShareViewModel.uploadFile(session, selectedUri, selectedFile) },
+                sessionUnavailable = { toast("分享连接已结束，请重新连接后重试") },
+                temporaryFileCleanupFailed = {
+                    DebugLog.record("lan_share", "capture_temp_cleanup_failed")
+                },
+            )
         }
     }
     else {

@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.domain.awaitSettingsCommit
 
 import android.content.Context
 import android.util.Log
+import java.util.concurrent.CancellationException
 
 /** 旧版 SharedPreferences 到 DataStore 的一次性迁移器，属于 Data 层兼容职责。 */
 class LegacySettingsMigrator(
@@ -40,18 +41,31 @@ class LegacySettingsMigrator(
         return style
     }
 
-    private fun readInt(key: String, default: Int): Int = runCatching { legacyPrefs.getInt(key, default) }
-        .onFailure { Log.w(TAG, "Ignoring invalid legacy int: $key", it) }.getOrDefault(default)
+    private fun readInt(key: String, default: Int): Int =
+        readLegacyValue(key, "int", default) { legacyPrefs.getInt(key, default) }
 
-    private fun readFloat(key: String, default: Float): Float = runCatching { legacyPrefs.getFloat(key, default) }
-        .onFailure { Log.w(TAG, "Ignoring invalid legacy float: $key", it) }.getOrDefault(default)
+    private fun readFloat(key: String, default: Float): Float =
+        readLegacyValue(key, "float", default) { legacyPrefs.getFloat(key, default) }
 
-    private fun readBoolean(key: String, default: Boolean): Boolean = runCatching { legacyPrefs.getBoolean(key, default) }
-        .onFailure { Log.w(TAG, "Ignoring invalid legacy boolean: $key", it) }.getOrDefault(default)
+    private fun readBoolean(key: String, default: Boolean): Boolean =
+        readLegacyValue(key, "boolean", default) { legacyPrefs.getBoolean(key, default) }
 
-    private fun readString(key: String, default: String): String = runCatching {
-        legacyPrefs.getString(key, default) ?: default
-    }.onFailure { Log.w(TAG, "Ignoring invalid legacy string: $key", it) }.getOrDefault(default)
+    private fun readString(key: String, default: String): String =
+        readLegacyValue(key, "string", default) { legacyPrefs.getString(key, default) ?: default }
+
+    private inline fun <T> readLegacyValue(
+        key: String,
+        type: String,
+        default: T,
+        read: () -> T,
+    ): T = try {
+        read()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (exception: Exception) {
+        Log.w(TAG, "Ignoring invalid legacy $type: $key", exception)
+        default
+    }
 
     private companion object { const val TAG = "LegacySettingsMigrator" }
 }

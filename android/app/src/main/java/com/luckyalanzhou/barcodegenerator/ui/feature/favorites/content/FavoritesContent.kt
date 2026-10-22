@@ -114,12 +114,12 @@ internal fun FavoritesContent(
     onLoadMoreGroups: (String) -> Unit,
     onToggleFolder: (String, Set<String>) -> Unit,
     onOpenGroup: (FavoriteGroup, StyleSettings, Boolean, Float) -> Unit,
-    onRenameFolder: (String, String) -> Unit,
+    onRenameFolder: (String, String) -> Boolean,
     onDeleteFolder: (String) -> Unit,
     onDeleteGroup: (FavoriteGroup) -> Unit,
     onClearAll: () -> Unit,
     onShowSubfolderEditor: (String) -> Unit,
-    onShowFolderEditor: (String, (String) -> Unit) -> Unit,
+    onShowFolderEditor: (String, (String) -> Boolean) -> Unit,
     onEdit: (FavoriteGroup) -> Unit,
     onShowMoveDialog: (FavoriteGroup) -> Unit,
     onShowRenameDialog: (FavoriteGroup) -> Unit,
@@ -447,6 +447,16 @@ internal fun FavoritesContent(
                         }
                     }
                   }
+                }
+            }
+        }
+        if (searchStatus.paginationFailed) {
+            item(key = "favorite-pagination-retry") {
+                TextButton(
+                    onClick = { onLoadMoreGroups(normalizedQuery) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                ) {
+                    Text("加载失败，点击重试", color = secondary, fontSize = 14.sp)
                 }
             }
         }

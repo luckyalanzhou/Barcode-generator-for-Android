@@ -59,6 +59,7 @@ class FavoritesQuerySession @Inject constructor(
 
     /** Updates the shared page cursor and publishes snapshots after an in-memory library mutation. */
     internal fun onLibraryMutation() {
+        groupContent.onLibraryMutation()
         coordinator.onMutation()
         dataSession.publishDataState()
         publishSearchState()
@@ -72,9 +73,12 @@ class FavoritesQuerySession @Inject constructor(
 
     internal suspend fun loadGroupContent(groupId: Long): FavoriteGroupContentLoadResult = groupContent.load(groupId)
 
-    internal fun cacheGroupContent(loaded: FavoriteGroupContentLoadResult.Loaded) = groupContent.cache(loaded)
+    internal fun cacheGroupContent(loaded: FavoriteGroupContentLoadResult.Loaded): Boolean = groupContent.cache(loaded)
 
-    internal fun isGroupCurrent(groupId: Long, savedAt: Long): Boolean = groupContent.isCurrent(groupId, savedAt)
+    internal fun invalidateGroupContentLoads() = groupContent.onLibraryMutation()
+
+    internal fun isGroupCurrent(groupId: Long, savedAt: Long, mutationGeneration: Long): Boolean =
+        groupContent.isCurrent(groupId, savedAt, mutationGeneration)
 
     internal suspend fun onLibrarySnapshotLoaded(metadata: LibraryLoadMetadata) {
         coordinator.resetPaging(metadata.lastFavoriteGroupCursor, metadata.hasMoreFavoriteGroups)

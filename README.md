@@ -53,7 +53,7 @@ Beta Release 说明包含版本号、提交 SHA 和 APK SHA-256；正式版提�
 2. 让另一台设备连接同一 Wi-Fi，并扫描二维码或在浏览器打开 App 显示的 `http://IP:端口`。
 3. 在网页与 App 之间发送文字或上传、下载文件；离开文件传输页会关闭服务并清理本次会话文件。
 
-局域网分享使用未加密的 HTTP/WebSocket，不提供身份认证或密码保护；能访问地址的设备均可上传、下载文件。仅在可信 Wi-Fi 使用。完整边界见 [LAN Share 协议](android/core/lan-share/PROTOCOL.md#安全模型)。
+局域网分享使用配对码和会话令牌保护文件接口，但 HTTP/WebSocket 流量未加密，同一网络中的监听者可能截获令牌和文件内容。仅在可信 Wi-Fi 使用。完整边界见 [LAN Share 协议](android/core/lan-share/PROTOCOL.md#安全模型)。
 
 ## 版本与维护
 

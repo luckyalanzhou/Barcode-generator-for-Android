@@ -54,9 +54,9 @@ internal fun composeFavoriteRows(
     val roots = foldersByParent[""].orEmpty().sorted()
     val itemsById = state.items.associateBy { it.id }
     fun matches(group: FavoriteGroup): Boolean = query.isEmpty() ||
-        group.folder.lowercase(Locale.getDefault()).contains(query) ||
-        group.name.lowercase(Locale.getDefault()).contains(query) ||
-        group.itemIds.any { id -> itemsById[id]?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
+        group.folder.lowercase(Locale.ROOT).contains(query) ||
+        group.name.lowercase(Locale.ROOT).contains(query) ||
+        group.itemIds.any { id -> itemsById[id]?.text?.lowercase(Locale.ROOT)?.contains(query) == true }
     val groupsByFolder = state.groups.groupBy { it.folder }
     val matchingGroupsByFolder = groupsByFolder.mapValues { (_, groups) -> groups.filter(::matches) }
     val matchingFolders = if (query.isEmpty()) emptySet() else matchingGroupsByFolder
@@ -87,9 +87,9 @@ internal fun favoriteSearchExpandedPaths(state: FavoritesTreeData, query: String
     if (query.isEmpty()) return emptySet()
     val itemsById = state.items.associateBy { it.id }
     fun matches(group: FavoriteGroup): Boolean =
-        group.folder.lowercase(Locale.getDefault()).contains(query) ||
-            group.name.lowercase(Locale.getDefault()).contains(query) ||
-            group.itemIds.any { id -> itemsById[id]?.text?.lowercase(Locale.getDefault())?.contains(query) == true }
+        group.folder.lowercase(Locale.ROOT).contains(query) ||
+            group.name.lowercase(Locale.ROOT).contains(query) ||
+            group.itemIds.any { id -> itemsById[id]?.text?.lowercase(Locale.ROOT)?.contains(query) == true }
     return state.groups.filter(::matches).flatMap { group ->
         val parts = group.folder.split('/')
         parts.indices.map { parts.take(it + 1).joinToString("/") }

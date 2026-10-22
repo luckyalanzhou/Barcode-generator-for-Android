@@ -3,6 +3,8 @@ package com.luckyalanzhou.barcodegenerator.data.network.client
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
+import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -29,6 +31,28 @@ class LanShareClientAuthTest {
             assertTrue(client.list(LanShareSession(baseUrl, server.sessionToken)).isEmpty())
             val unauthorized = runCatching { client.list(LanShareSession(baseUrl)) }.exceptionOrNull()
             assertTrue("tokenless Android client must be denied", unauthorized != null)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun downloadReplacesExistingDestinationAfterCompleteResponse() {
+        val sharedFolder = temporaryFolder.newFolder("shared")
+        File(sharedFolder, "remote.bin").writeText("downloaded bytes")
+        val destination = temporaryFolder.newFile("destination.bin").apply { writeText("previous bytes") }
+        val server = LanShareServer("127.0.0.1", 0, sharedFolder, AppLogger { _, _, _ -> })
+        val client = LanShareClient(isRouterLanHost = { true }, logger = AppLogger { _, _, _ -> })
+
+        try {
+            server.start(5_000, false)
+            client.downloadToFile(
+                LanShareSession("http://127.0.0.1:${server.listeningPort}", server.sessionToken),
+                "remote.bin",
+                destination,
+            )
+
+            assertEquals("downloaded bytes", destination.readText())
         } finally {
             server.stop()
         }

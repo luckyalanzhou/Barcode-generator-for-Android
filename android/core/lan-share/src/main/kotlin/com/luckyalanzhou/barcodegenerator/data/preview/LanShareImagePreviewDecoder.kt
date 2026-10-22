@@ -3,9 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data.preview
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
-import android.graphics.Matrix
 import android.os.Build
-import androidx.exifinterface.media.ExifInterface
 import java.io.File
 
 /** Decodes a bounded raster preview without changing the shared source file. */
@@ -60,31 +58,4 @@ object LanShareImagePreviewDecoder {
         ) ?: return@runCatching null
         applyExifOrientation(file, bitmap)
     }.getOrNull()
-
-    /** ImageDecoder auto-orients on API 28+; correct EXIF rotation on older Android versions. */
-    private fun applyExifOrientation(file: File, bitmap: Bitmap): Bitmap {
-        val orientation = runCatching {
-            ExifInterface(file.absolutePath).getAttributeInt(
-                ExifInterface.TAG_ORIENTATION,
-                ExifInterface.ORIENTATION_NORMAL,
-            )
-        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-        val rotation = when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 270f
-            else -> 0f
-        }
-        return if (rotation == 0f) bitmap else runCatching {
-            Bitmap.createBitmap(
-                bitmap,
-                0,
-                0,
-                bitmap.width,
-                bitmap.height,
-                Matrix().apply { postRotate(rotation) },
-                true,
-            )
-        }.getOrDefault(bitmap)
-    }
 }

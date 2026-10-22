@@ -102,6 +102,262 @@ class BarcodeDatabaseMigrationTest {
     }
 
     @Test
+    fun deletingVisibleHistoryDoesNotDeleteOlderRowsOutsideStartupWindow() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    items = (1L..501L).map { id ->
+                        com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                            id, "item-$id", "Code 128-B", createdAt = id,
+                        )
+                    },
+                    groups = emptyList(),
+                    links = emptyList(),
+                    folders = emptyList(),
+                ),
+            )
+            val loaded = repository.loadStartupSnapshot().items
+            assertEquals(500, loaded.size)
+            assertFalse(loaded.any { it.id == 1L })
+            val deletedId = 501L
+            val changedWindow = loaded.map { item ->
+                if (item.id == deletedId) item.copy(inHistory = false) else item
+            }
+
+            repository.saveItems(changedWindow)
+
+            val remaining = repository.loadItems().map { it.id }.toSet()
+            assertTrue("unloaded older history must remain in storage", 1L in remaining)
+            assertFalse("the explicitly removed history row must be pruned", deletedId in remaining)
+            assertEquals((1L..500L).toSet(), remaining)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun deleteFavoritePrunesUnusedItems() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            val items = listOf(
+                com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    1L, "history", "Code 128-B", favorite = true, folder = "Root", inHistory = true,
+                ),
+                com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    2L, "favorite-only", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                ),
+                com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    3L, "shared", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                ),
+                com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    4L, "folder-only", "Code 128-B", favorite = true, folder = "Other", inHistory = false,
+                ),
+                com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    5L, "clear-only", "Code 128-B", favorite = true, folder = "Clear", inHistory = false,
+                ),
+            )
+            val groups = listOf(
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(10L, "Root", "Deleted", 1L, mutableListOf(1L, 2L, 3L)),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(11L, "Other", "Folder", 2L, mutableListOf(3L, 4L)),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(12L, "Clear", "All", 3L, mutableListOf(5L)),
+            )
+            val links = listOf(
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 2L, 1),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 3L, 2),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(11L, 3L, 0),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(11L, 4L, 1),
+                com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(12L, 5L, 0),
+            )
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(items, groups, links, listOf("Root", "Other", "Clear")),
+            )
+
+            repository.deleteFavoriteGroups(listOf(10L))
+
+            val remaining = repository.loadItems().associateBy { it.id }
+            assertFalse("A removed favorite-only item must not remain orphaned", remaining.containsKey(2L))
+            assertEquals(true, remaining[1L]?.inHistory)
+            assertEquals(false, remaining[1L]?.favorite)
+            assertEquals(true, remaining[3L]?.favorite)
+            assertEquals(listOf(3L, 4L), repository.loadGroupItemIds(11L))
+
+            repository.deleteFavoriteFolder("Other")
+            assertFalse(repository.loadItems().any { it.id == 3L || it.id == 4L })
+            assertTrue(repository.loadItems().any { it.id == 5L })
+
+            repository.clearAllFavoriteGroups()
+            assertEquals(listOf(1L), repository.loadItems().map { it.id })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun replacingFavoritePrunesRemovedItemsWithoutHistory() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        1L, "old", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                    )),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(10L, "Root", "File", 1L, mutableListOf(1L))),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)),
+                    listOf("Root"),
+                ),
+            )
+            val imported = com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    1L, "new", "QR Code", favorite = true, folder = "Root", inHistory = false,
+                )),
+                listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(10L, "Root", "File", 2L, mutableListOf(1L))),
+                listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)),
+                listOf("Root"),
+            )
+
+            repository.commitFavoriteImport(imported, setOf(10L))
+
+            assertEquals(listOf("new"), repository.loadItems().map { it.text })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun favoriteImportRebasesStaleDraftIdsAgainstDatabaseInsideCommitTransaction() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        1L, "existing", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                    )),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(
+                        10L, "Root", "Existing file", 1L, mutableListOf(1L),
+                    )),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)),
+                    listOf("Root"),
+                ),
+            )
+            // 模拟导入规划后数据库已有其他写入：导入快照仍带着与现存行相同的草稿 ID。
+            val staleDraft = com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                items = listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                    1L, "imported", "QR Code", favorite = true, folder = "Root", inHistory = false,
+                )),
+                groups = listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(
+                    10L, "Root", "Imported file", 2L, mutableListOf(1L),
+                )),
+                links = listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)),
+                folders = listOf("Root"),
+            )
+
+            repository.commitFavoriteImport(staleDraft, emptySet())
+
+            val committed = repository.loadSnapshot()
+            assertEquals(listOf(1L, 2L), committed.items.map { it.id }.sorted())
+            assertEquals(listOf("existing", "imported"), committed.items.map { it.text }.sorted())
+            assertEquals(listOf(10L, 11L), committed.groups.map { it.id }.sorted())
+            assertEquals(
+                listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0),
+                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(11L, 2L, 0)),
+                committed.links.sortedWith(compareBy({ it.groupId }, { it.position })),
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun failedFavoriteImportRollsBackReplacementAndKeepsOriginalData() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        1L, "original", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                    )),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(
+                        10L, "Root", "File", 1L, mutableListOf(1L),
+                    )),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)),
+                    listOf("Root"),
+                ),
+            )
+            val invalidImport = com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                items = listOf(
+                    com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        1L, "replacement-one", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                    ),
+                    com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        2L, "replacement-two", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                    ),
+                ),
+                groups = listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(
+                    10L, "Root", "File", 2L, mutableListOf(1L, 2L),
+                )),
+                links = listOf(
+                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0),
+                    com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 2L, 0),
+                ),
+                folders = listOf("Root"),
+            )
+
+            val failure = runCatching { repository.commitFavoriteImport(invalidImport, setOf(10L)) }.exceptionOrNull()
+
+            assertTrue("duplicate sort positions should fail the import", failure != null)
+            val snapshot = repository.loadSnapshot()
+            assertEquals(listOf("original"), snapshot.items.map { it.text })
+            assertEquals(listOf("File"), snapshot.groups.map { it.name })
+            assertEquals(listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)), snapshot.links)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun favoriteMutationPrunesRemovedItemsWithoutHistory() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val repository = RoomBarcodeRepository(database)
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        1L, "removed", "Code 128-B", favorite = true, folder = "Root", inHistory = false,
+                    )),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(10L, "Root", "File", 1L, mutableListOf(1L))),
+                    listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem(10L, 1L, 0)),
+                    listOf("Root"),
+                ),
+            )
+
+            repository.applyFavoritesMutation(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    items = listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                        1L, "removed", "Code 128-B", favorite = false, folder = "", inHistory = false,
+                    )),
+                    groups = listOf(com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup(
+                        10L, "Root", "File", 2L, mutableListOf(),
+                    )),
+                    links = emptyList(),
+                    folders = listOf("Root"),
+                    replaceGroupLinkIds = setOf(10L),
+                ),
+            )
+
+            assertTrue(repository.loadItems().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun invalidLegacyRowKeepsOriginalPreferencesAndDoesNotPartiallyWriteRoom() = runBlocking {
         val preferences = context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE)
         val legacyItems = """[{"id":1,"text":"valid","format":"Code 128-B"},{"id":2,"text":"invalid"}]"""
@@ -138,7 +394,7 @@ class BarcodeDatabaseMigrationTest {
         }
     }
 
-    private fun currentRoomDatabase() = Room.databaseBuilder(context, BarcodeDatabase::class.java, TEST_DATABASE)
+    private fun currentRoomDatabase(name: String = TEST_DATABASE) = Room.databaseBuilder(context, BarcodeDatabase::class.java, name)
         .allowMainThreadQueries()
         .addMigrations(
             BarcodeDatabase.MIGRATION_1_2,

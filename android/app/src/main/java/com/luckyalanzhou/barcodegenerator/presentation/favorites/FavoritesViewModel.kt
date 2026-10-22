@@ -43,7 +43,12 @@ class FavoritesViewModel @Inject constructor(
     private val appLogger: AppLogger,
 ) : ViewModel() {
     private val pageState = FavoritesPageStateCoordinator()
-    private val mutations = FavoritesMutationCoordinator(dataSession.store, persistence, querySession::onLibraryMutation)
+    private val mutations = FavoritesMutationCoordinator(
+        store = dataSession.store,
+        persistence = persistence,
+        onReconciled = querySession::onLibraryMutation,
+        onMutationStarted = querySession::invalidateGroupContentLoads,
+    )
     private var searchJob: Job? = null
     private var groupLoadJob: Job? = null
     private var groupLoadRequest = 0L
@@ -83,7 +88,19 @@ class FavoritesViewModel @Inject constructor(
 
     fun loadMoreFavoriteGroups(search: String) {
         viewModelScope.launch {
-            querySession.loadMore(search)
+            try {
+                querySession.loadMore(search)
+                mutableSearchStatus.value = mutableSearchStatus.value.let { status ->
+                    if (status.query == search) status.copy(paginationFailed = false) else status
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                appLogger.record("favorites", "pagination_load_failed search=${search.isNotBlank()}", error)
+                mutableSearchStatus.value = mutableSearchStatus.value.let { status ->
+                    if (status.query == search) status.copy(paginationFailed = true) else status
+                }
+            }
         }
     }
 
@@ -118,8 +135,10 @@ class FavoritesViewModel @Inject constructor(
         return true
     }
 
-    fun renameFavoriteFolder(path: String, renamedPath: String) {
-        if (mutations.renameFolderAndPersist(path, renamedPath)) publishAfterMutation()
+    fun renameFavoriteFolder(path: String, renamedPath: String): Boolean {
+        if (!mutations.renameFolderAndPersist(path, renamedPath)) return false
+        publishAfterMutation()
+        return true
     }
 
     fun deleteFavoriteFolder(path: String) {
@@ -158,9 +177,17 @@ class FavoritesViewModel @Inject constructor(
         backup: InterchangeBackup,
         overwriteConflicts: Boolean = false,
     ): Pair<Int, Int> {
+        querySession.invalidateGroupContentLoads()
         val counts = barcodeDataCoordinator.importFavorites(backup, overwriteConflicts)
-        // 导入后复用启动时的分页快照加载流程，避免界面继续显示旧分页数据。
-        libraryDataCoordinator.loadPersistedData()
+        // 导入事务已提交；共享数据协调器只重试快照读取，不会再次执行导入事务。
+        try {
+            libraryDataCoordinator.loadPersistedData()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            throw FavoritesImportRefreshException(counts.first, counts.second, error)
+        }
+        querySession.invalidateGroupContentLoads()
         return counts
     }
 
@@ -206,7 +233,10 @@ class FavoritesViewModel @Inject constructor(
                 if (request != groupLoadRequest) return@launch
                 when (result) {
                     is FavoriteGroupContentLoadResult.Loaded -> {
-                        querySession.cacheGroupContent(result)
+                        if (!querySession.cacheGroupContent(result)) {
+                            appLogger.record("favorites", "open discarded groupId=${group.id} reason=stale_before_cache", null)
+                            return@launch
+                        }
                         onLoaded(result)
                     }
                     is FavoriteGroupContentLoadResult.Rejected -> when (result.failure) {
@@ -249,8 +279,8 @@ class FavoritesViewModel @Inject constructor(
         groupLoadJob = null
     }
 
-    internal fun isFavoriteGroupCurrent(groupId: Long, savedAt: Long): Boolean =
-        querySession.isGroupCurrent(groupId, savedAt)
+    internal fun isFavoriteGroupCurrent(groupId: Long, savedAt: Long, mutationGeneration: Long): Boolean =
+        querySession.isGroupCurrent(groupId, savedAt, mutationGeneration)
 
     private fun publishAfterMutation() {
         querySession.onLibraryMutation()

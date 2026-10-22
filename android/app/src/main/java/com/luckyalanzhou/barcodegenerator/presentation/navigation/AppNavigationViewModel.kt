@@ -13,18 +13,18 @@ import com.luckyalanzhou.barcodegenerator.presentation.AppUiState
 class AppNavigationViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
-    private val routeFacade = AppRouteStateFacade(_uiState)
+    private val navigationStateCoordinator = NavigationStateCoordinator(_uiState)
 
     fun navigateTo(route: NavigationRoute, fromTabSwipe: Boolean = false) {
-        routeFacade.navigateTo(route, fromTabSwipe)
+        navigationStateCoordinator.navigateTo(route, fromTabSwipe)
     }
 
     /** Keeps Activity-restored route state in sync with the shell's route source. */
     fun syncNavigationStateFromUi(route: NavigationRoute, fromTabSwipe: Boolean = false) {
-        routeFacade.navigateTo(route, fromTabSwipe)
+        navigationStateCoordinator.navigateTo(route, fromTabSwipe)
     }
 
     fun updateSettingsReturnPage(route: NavigationRoute) {
-        routeFacade.updateSettingsReturnPage(route)
+        navigationStateCoordinator.updateSettingsReturnPage(route)
     }
 }

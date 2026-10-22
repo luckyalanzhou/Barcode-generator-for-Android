@@ -266,7 +266,8 @@ def create_release_plan(
         "tag_name": f"{TAG_PREFIX}{version}",
         "release_id": release_id,
         "run_id": str(run_id),
-        "draft": bool(record["draft"]) if action == "resume" else True,
+        # 不完整的公开 Release 也先退回草稿，只有远端附件重新校验后才可公开。
+        "draft": True,
         "name": f"Barcode Generator Release v{version}",
         "body": write_metadata(
             body, version, version_code, str(run_id), "reserved", assigned_release_type
@@ -297,7 +298,7 @@ def write_reserve_request(plan: dict[str, Any], target_commitish: str) -> dict[s
         request["target_commitish"] = target_commitish
     elif plan["action"] != "resume":
         raise ValueError(f"不能为 action={plan['action']!r} 生成草稿请求")
-    # 恢复时沿用原有公开状态，避免尝试撤回无法改回草稿的已发布 Release。
+    # 新建和恢复都必须先保持草稿，publish-request 只在附件校验后生成公开请求。
     return request
 
 

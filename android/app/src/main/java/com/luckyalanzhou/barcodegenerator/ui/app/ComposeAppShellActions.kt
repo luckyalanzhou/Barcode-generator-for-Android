@@ -40,7 +40,7 @@ internal interface ComposeAppShellActions {
     fun editHistory(batch: List<CodeItem>)
     fun editFavorite(group: FavoriteGroup)
     fun showSubfolderEditor(parent: String)
-    fun showFolderEditor(initial: String, onSaved: (String) -> Unit)
+    fun showFolderEditor(initial: String, onSaved: (String) -> Boolean)
     fun showMoveDialog(group: FavoriteGroup)
     fun showRenameDialog(group: FavoriteGroup)
     fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit)
@@ -172,7 +172,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         parent = parent,
         onCreateFolder = { favoritesViewModel.createFavoriteFolder(it) },
     )
-    override fun showFolderEditor(initial: String, onSaved: (String) -> Unit) =
+    override fun showFolderEditor(initial: String, onSaved: (String) -> Boolean) =
         this@composeAppShellActions.showFolderEditorCompose(favoritesViewModel.dataState.value, initial, onSaved = onSaved)
     override fun showMoveDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteMoveDialogCompose(
         group = group,

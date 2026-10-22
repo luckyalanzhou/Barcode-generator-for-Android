@@ -6,6 +6,7 @@ import com.google.zxing.MultiFormatReader
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeValidator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +39,17 @@ class BarcodeEncodingRoundTripTest {
         examples.forEach { (format, text) ->
             val matrix = MultiFormatWriter().encode(text, format, 500, 200, barcodeEncodeHints(format))
             assertEquals("往返解码 $format", text, decode(matrix, format))
+        }
+    }
+
+    @Test
+    fun codabarValidationMatchesEncoderForLowercaseGuards() {
+        listOf("a123b", "T123e", "a123B").forEach { text ->
+            val canEncode = runCatching {
+                MultiFormatWriter().encode(text, BarcodeFormat.CODABAR, 200, 80, barcodeEncodeHints(BarcodeFormat.CODABAR))
+            }.isSuccess
+            assertEquals("Codabar validator and ZXing must agree for '$text'", canEncode,
+                BarcodeValidator.validate(text, "Codabar").valid)
         }
     }
 

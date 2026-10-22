@@ -33,6 +33,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.platform.cancelUpdateDownload
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.closeLanShare
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.findRecentLanCameraMedia
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.installApkCompose
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.StartupFailureNoticeCoordinator
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.openLanShareCamera
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.openLanShareFilePicker
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.openLanShareGalleryPicker
@@ -116,6 +117,8 @@ class MainActivity : AppCompatActivity() {
         barcodePreviousBrightness = -1f
     }
     internal var composeShellReady: Boolean = false
+    /** 权限提示窗口只在当前 Activity 生命周期内去重；恢复后根据待安装路径重新展示。 */
+    internal var installPermissionDialogShowing: Boolean = false
     internal var pendingResultImageFile: File? = null
     internal var resultExportAction by mutableStateOf<ResultExportAction?>(null)
     internal var resultImageContentWidthPx: Int = 0
@@ -141,7 +144,8 @@ class MainActivity : AppCompatActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
-        handlePermissionResult(cameraOcrViewModel.consumePermissionRequest(), result.values.all { it })
+        val permissionResult = cameraOcrViewModel.consumePermissionRequest(result)
+        handlePermissionResult(permissionResult.requestCode, permissionResult.granted)
     }
     companion object {
         const val REQUEST_CAMERA_PERMISSION = 42
@@ -192,6 +196,7 @@ class MainActivity : AppCompatActivity() {
         // Capture these Activity-scoped instances here before dispatching any startup work.
         val startupSettingsViewModel = settingsViewModel
         val startupLibraryDataViewModel = libraryDataViewModel
+        val startupFailureNotices = StartupFailureNoticeCoordinator()
 
         lifecycleScope.launch {
             var settingsError: Throwable? = null
@@ -212,21 +217,24 @@ class MainActivity : AppCompatActivity() {
                 Log.e("BarcodeGenerator", "Startup UI initialization failed", error)
                 DebugLog.record("startup", "UI initialization failed", error)
             }
-            if (settingsError != null) {
-                window.decorView.post { showStartupFallbackNoticeOnce() }
+            startupFailureNotices.reportSettingsLoad(failed = settingsError != null)?.let {
+                if (!isFinishing && !isDestroyed) showIos26NoticeDialog(it)
             }
             // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
             lifecycleScope.launch(Dispatchers.IO) {
+                var libraryLoadFailed = false
                 try {
                     startupLibraryDataViewModel.loadPersistedData()
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
+                    libraryLoadFailed = true
                     Log.e("BarcodeGenerator", "Background data initialization failed", error)
                     DebugLog.record("startup", "background data initialization failed", error)
-                    withContext(Dispatchers.Main) {
-                        showStartupFallbackNoticeOnce()
-                    }
+                }
+                val fallbackNotice = startupFailureNotices.reportLibraryLoad(failed = libraryLoadFailed)
+                if (fallbackNotice != null) withContext(Dispatchers.Main) {
+                    if (!isFinishing && !isDestroyed) showIos26NoticeDialog(fallbackNotice)
                 }
             }
             window.decorView.post {
@@ -238,11 +246,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showStartupFallbackNoticeOnce() {
-        if (isFinishing || isDestroyed || !libraryDataViewModel.consumeStartupFallbackNotice()) return
-        showIos26NoticeDialog("数据加载失败，已使用默认页面启动")
-    }
-
     override fun onPostResume() {
         super.onPostResume()
         // AppCompat 切换浅/深色会重建 Activity；在新窗口完成恢复后再校准一次系统栏。
@@ -251,9 +254,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (updateViewModel.uiState.value.pendingInstallPath == null) return
+        val pendingInstallPath = updateViewModel.uiState.value.pendingInstallPath ?: return
         if (packageManager.canRequestPackageInstalls()) {
-            updateViewModel.takePendingInstallPath()?.let { installApkCompose(File(it)) }
+            updateViewModel.takePendingInstallPath()?.let {
+                installPermissionDialogShowing = false
+                installApkCompose(File(it))
+            }
+        } else if (!installPermissionDialogShowing) {
+            installApkCompose(File(pendingInstallPath))
         }
     }
 
@@ -295,7 +303,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun requestAppPermissions(permissions: Array<String>, requestCode: Int) {
-        cameraOcrViewModel.beginPermissionRequest(requestCode)
+        cameraOcrViewModel.beginPermissionRequest(requestCode, permissions)
         permissionLauncher.launch(permissions)
     }
 
@@ -319,10 +327,14 @@ class MainActivity : AppCompatActivity() {
 
     internal fun launchExternalActivity(intent: Intent, requestCode: Int): Boolean {
         cameraOcrViewModel.beginExternalActivityRequest(requestCode)
-        return runCatching {
+        return try {
             externalActivityLauncher.launch(intent)
             true
-        }.getOrElse {
+        } catch (error: Exception) {
+            DebugLog.record(
+                "external_activity",
+                "launch_failed requestCode=$requestCode exception=${error.javaClass.simpleName}",
+            )
             cameraOcrViewModel.consumeExternalActivityRequest()
             toast("无法打开系统选择器")
             false
@@ -333,36 +345,91 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_RESULT_IMAGE_FILE) {
             val imageFile = pendingResultImageFile
             pendingResultImageFile = null
-            if (resultCode == RESULT_OK && imageFile?.isFile == true && data?.data != null) {
-                val targetUri = data.data!!
-                lifecycleScope.launch {
-                    try {
-                        val written = withContext(Dispatchers.IO) {
-                            runCatching {
-                                contentResolver.openOutputStream(targetUri)?.use { output ->
-                                    imageFile.inputStream().use { input -> input.copyTo(output) }
-                                } ?: error("无法打开目标文件")
-                            }.isSuccess
+            if (resultCode == RESULT_OK) {
+                if (imageFile == null || !imageFile.isFile) {
+                    DebugLog.record("results", "result_image_save_source_missing")
+                    toast("待保存图片已失效，请重新生成后重试")
+                } else {
+                    val targetUri = data?.data
+                    if (targetUri == null) {
+                        DebugLog.record("results", "result_image_save_returned_without_uri")
+                        toast("未能获取保存位置，请重试")
+                    } else {
+                        lifecycleScope.launch {
+                            val operation = System.nanoTime()
+                            DebugLog.record("results", "result_image_save_started operation=$operation")
+                            try {
+                                val writeErrorClass = withContext(Dispatchers.IO) {
+                                    try {
+                                        contentResolver.openOutputStream(targetUri)?.use { output ->
+                                            imageFile.inputStream().use { input -> input.copyTo(output) }
+                                        } ?: error("无法打开目标文件")
+                                        null
+                                    } catch (cancel: CancellationException) {
+                                        throw cancel
+                                    } catch (error: Exception) {
+                                        error.javaClass.simpleName
+                                    }
+                                }
+                                val written = writeErrorClass == null
+                                if (writeErrorClass != null) {
+                                    DebugLog.record(
+                                        "results",
+                                        "result_image_save_failed operation=$operation exception=$writeErrorClass",
+                                    )
+                                } else {
+                                    DebugLog.record("results", "result_image_save_completed operation=$operation")
+                                }
+                                toast(if (written) "已保存到文件" else "保存到文件失败")
+                            } catch (cancelled: CancellationException) {
+                                DebugLog.record("results", "result_image_save_cancelled operation=$operation")
+                                throw cancelled
+                            } finally {
+                                imageFile.delete()
+                            }
                         }
-                        toast(if (written) "已保存到文件" else "保存到文件失败")
-                    } finally {
-                        imageFile.delete()
+                        return
                     }
                 }
-                return
             }
             imageFile?.delete()
             return
         }
         if (requestCode == REQUEST_LAN_SHARE_UPLOAD || requestCode == REQUEST_LAN_SHARE_DOWNLOAD) {
-            if (resultCode == RESULT_OK) data?.data?.let { uri ->
-                if (requestCode == REQUEST_LAN_SHARE_UPLOAD) selectLanShareAttachment(uri, autoUpload = true)
-                else lanShareViewModel.uiState.value.pendingDownloadId?.let { id ->
-                    lanShareViewModel.setPendingDownloadId(null)
-                    lanShareViewModel.uiState.value.session?.let { session -> lanShareViewModel.downloadFile(session, id, uri) }
+            if (requestCode == REQUEST_LAN_SHARE_UPLOAD) {
+                if (resultCode == RESULT_OK) {
+                    val uri = data?.data
+                    if (uri != null) selectLanShareAttachment(uri, autoUpload = true)
+                    else {
+                        DebugLog.record("lan_share", "upload_picker_returned_without_uri")
+                        toast("未能读取所选文件，请重新选择")
+                    }
                 }
+                return
             }
-            if (resultCode != RESULT_OK && requestCode == REQUEST_LAN_SHARE_DOWNLOAD) lanShareViewModel.setPendingDownloadId(null)
+
+            val downloadId = lanShareViewModel.uiState.value.pendingDownloadId
+            lanShareViewModel.setPendingDownloadId(null)
+            if (resultCode == RESULT_OK) {
+                val uri = data?.data
+                if (uri == null) {
+                    DebugLog.record("lan_share", "download_picker_returned_without_uri")
+                    toast("未能获取保存位置，请重试")
+                    return
+                }
+                val session = lanShareViewModel.uiState.value.session
+                if (downloadId == null || session == null) {
+                    val cleanup = runCatching { contentResolver.delete(uri, null, null) }
+                    if ((cleanup.getOrNull() ?: 0) <= 0) {
+                        val failureType = cleanup.exceptionOrNull()?.javaClass?.simpleName ?: "no_document_deleted"
+                        DebugLog.record("lan_share", "download target cleanup not confirmed type=$failureType")
+                    }
+                    DebugLog.record("lan_share", "download_picker_returned_without_active_transfer")
+                    toast("分享连接已结束，请重新连接后重试")
+                    return
+                }
+                lanShareViewModel.downloadFile(session, downloadId, uri)
+            }
             return
         }
         if (requestCode == REQUEST_LAN_SHARE_CAPTURE) {
@@ -419,7 +486,11 @@ class MainActivity : AppCompatActivity() {
                         if (!cameraThumbnail.isRecycled) cameraThumbnail.recycle()
                     }
                     selectedBitmap?.also(pendingBitmap::set)
-                } ?: return@launch
+                } ?: run {
+                    DebugLog.record("image_decode", "recognition bitmap unavailable requestCode=$requestCode")
+                    toast("无法读取所选图片，请选择其他图片后重试")
+                    return@launch
+                }
                 when (requestCode) {
                     43, 44 -> {
                         val decoded = try {

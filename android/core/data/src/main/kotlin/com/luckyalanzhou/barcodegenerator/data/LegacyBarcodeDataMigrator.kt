@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import java.util.concurrent.CancellationException
 
 /** 把旧版条码数据从 SharedPreferences 迁移到 Room，并清理已消费的旧键。 */
 class LegacyBarcodeDataMigrator(
@@ -17,20 +18,37 @@ class LegacyBarcodeDataMigrator(
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     override suspend fun migrateIfNeeded() {
-        if (runCatching { legacyPrefs.getBoolean(MIGRATION_KEY, false) }.getOrDefault(false)) return
+        val migrationComplete = try {
+            legacyPrefs.getBoolean(MIGRATION_KEY, false)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to read legacy barcode migration state", error)
+            false
+        }
+        if (migrationComplete) return
 
-        val legacy = runCatching {
+        val legacy = try {
             LegacyBarcodeData(
                 itemsJson = readString("items"),
                 groupsJson = readString("favorite_groups"),
                 folders = readStringSet("favorite_folders"),
             )
-        }.onFailure { Log.e(TAG, "Unable to read legacy barcode data; keeping the original preferences", it) }
-            .getOrNull() ?: return
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to read legacy barcode data; keeping the original preferences", error)
+            return
+        }
 
-        val migrated = runCatching { barcodeRepository.migrateLegacyDataIfNeeded(legacy) }
-            .onFailure { Log.e(TAG, "Legacy barcode migration failed; keeping the original preferences", it) }
-            .getOrDefault(false)
+        val migrated = try {
+            barcodeRepository.migrateLegacyDataIfNeeded(legacy)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.e(TAG, "Legacy barcode migration failed; keeping the original preferences", error)
+            false
+        }
         if (!migrated) return
 
         val committed = legacyPrefs.edit()
@@ -46,16 +64,26 @@ class LegacyBarcodeDataMigrator(
 
     private fun readString(key: String): String? {
         if (!legacyPrefs.contains(key)) return null
-        return runCatching { legacyPrefs.getString(key, null) }
-            .onFailure { Log.w(TAG, "Invalid legacy string: $key", it) }
-            .getOrElse { throw IllegalStateException("Invalid legacy preference: $key", it) }
+        return try {
+            legacyPrefs.getString(key, null)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "Invalid legacy string: $key", error)
+            throw IllegalStateException("Invalid legacy preference: $key", error)
+        }
     }
 
     private fun readStringSet(key: String): Set<String> {
         if (!legacyPrefs.contains(key)) return emptySet()
-        return runCatching { legacyPrefs.getStringSet(key, emptySet()).orEmpty() }
-            .onFailure { Log.w(TAG, "Invalid legacy string set: $key", it) }
-            .getOrElse { throw IllegalStateException("Invalid legacy preference: $key", it) }
+        return try {
+            legacyPrefs.getStringSet(key, emptySet()).orEmpty()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "Invalid legacy string set: $key", error)
+            throw IllegalStateException("Invalid legacy preference: $key", error)
+        }
     }
 
     private companion object {

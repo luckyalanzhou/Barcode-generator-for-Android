@@ -14,6 +14,12 @@ internal fun isSafeFavoriteFolderRename(
     if (!isValidPath(path) || !isValidPath(renamedPath)) return false
     if (parentPath(path) != parentPath(renamedPath)) return false
 
+    val destinationOccupied = knownFolderPaths.any { knownPath ->
+        knownPath != path && !knownPath.startsWith("$path/") &&
+            (knownPath == renamedPath || knownPath.startsWith("$renamedPath/"))
+    }
+    if (destinationOccupied) return false
+
     val affectedPaths = (knownFolderPaths + path)
         .filter { it == path || it.startsWith("$path/") }
     return affectedPaths.all { currentPath ->

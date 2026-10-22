@@ -99,12 +99,16 @@ class OfficialReleaseVersionTest(unittest.TestCase):
         self.assertTrue(request["draft"])
         self.assertIn("run_id=102 release_type=minor status=reserved", request["body"])
 
-    def test_published_release_missing_checksum_keeps_its_original_visibility(self) -> None:
+    def test_published_release_missing_checksum_is_hidden_until_reverified(self) -> None:
         incomplete = make_release("0.1.0", 100, status="complete", draft=False, checksum=False)
         plan = create_release_plan([incomplete], "200")
         self.assertEqual(plan["action"], "resume")
         self.assertEqual((plan["version"], plan["version_code"]), ("0.1.0", 100))
-        self.assertFalse(write_reserve_request(plan, "main-sha")["draft"])
+        self.assertTrue(plan["draft"])
+        self.assertTrue(write_reserve_request(plan, "main-sha")["draft"])
+        publish_request = write_publish_request(plan)
+        self.assertFalse(publish_request["draft"])
+        self.assertIn("status=complete", publish_request["body"])
 
     def test_legacy_draft_without_metadata_gets_code_once_and_marker(self) -> None:
         pending = {

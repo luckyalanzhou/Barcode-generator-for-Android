@@ -13,6 +13,10 @@ import com.luckyalanzhou.barcodegenerator.ui.support.logging.selectRecentLogReco
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.buildLogExport
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DiagnosticWriteQueue
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DailyLogCleanupSchedule
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.formatDiagnosticThrowable
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.sanitizeDiagnosticLogText
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.createUniqueLogExportFile
 
 /** Beta 专用应用内诊断日志；正式版不包含此实现。 */
 private object BetaDebugLogBackend {
@@ -24,6 +28,7 @@ private object BetaDebugLogBackend {
     private const val MAX_EXPORT_BYTES = 8L * 1024L * 1024L
     private val lock = Any()
     private val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+    private val cleanupSchedule = DailyLogCleanupSchedule()
     @Volatile private var directory: File? = null
     private val writer = DiagnosticWriteQueue(
         onFailure = { DebugLog.recordBackendFailure("diagnostics", "async write failed", null, it) },
@@ -32,11 +37,18 @@ private object BetaDebugLogBackend {
 
     fun initialize(context: Context) {
         val target = File(context.applicationContext.filesDir, DIRECTORY_NAME)
-        synchronized(lock) {
-            directory = target
-            target.mkdirs()
-            migrateLegacyFile(context.applicationContext, target)
-            cleanup(target)
+        val applicationContext = context.applicationContext
+        synchronized(lock) { directory = target }
+        // MainActivity 在首屏创建前调用日志初始化；文件迁移和清理由同一串行队列执行，
+        // 后续日志自然排在准备任务之后，不阻塞首帧，也不改变记录顺序。
+        writer.submit {
+            synchronized(lock) {
+                target.mkdirs()
+                migrateLegacyFile(applicationContext, target)
+                val cleanupDay = today()
+                cleanup(target, cleanupDay)
+                cleanupSchedule.markCleaned(cleanupDay)
+            }
         }
     }
 
@@ -55,17 +67,23 @@ private object BetaDebugLogBackend {
     private fun writeNow(tag: String, message: String, error: Throwable?, recordedAt: Long = System.currentTimeMillis()) {
         synchronized(lock) {
             val targetDirectory = directory ?: error("Beta log backend not initialized")
-            val target = dailyFile(targetDirectory)
+            val currentDay = today()
+            if (cleanupSchedule.needsCleanup(currentDay)) {
+                cleanup(targetDirectory, currentDay)
+                cleanupSchedule.markCleaned(currentDay)
+            }
+            val target = dailyFile(targetDirectory, currentDay)
             val line = buildString {
                 // SimpleDateFormat 非线程安全，格式化必须与写入共用锁。
                 append(formatter.format(Date(recordedAt))).append(" [").append(tag).append("] ")
                 append(message.replace('\n', ' '))
-                error?.let { append(" | ").append(Log.getStackTraceString(it)) }
+                error?.let { append(" | ").append(formatDiagnosticThrowable(it)) }
                 append("\n")
             }
             target.parentFile?.mkdirs()
             if (target.length() + line.toByteArray(Charsets.UTF_8).size > MAX_BYTES) {
-                val recent = selectRecentLogRecords((if (target.exists()) target.readText(Charsets.UTF_8) else "") + line, (MAX_BYTES - 256).toInt())
+                val previous = if (target.exists()) sanitizeDiagnosticLogText(target.readText(Charsets.UTF_8)) else ""
+                val recent = selectRecentLogRecords(previous + line, (MAX_BYTES - 256).toInt())
                 replaceLog(target, "${formatter.format(Date())} [diagnostics] rotation omittedRecords=${recent.omittedRecords}\n" + recent.text)
             } else {
                 target.appendText(line, Charsets.UTF_8)
@@ -81,37 +99,44 @@ private object BetaDebugLogBackend {
             directory = it
         }
         synchronized(lock) {
-            cleanup(targetDirectory)
+            val cleanupDay = today()
+            cleanup(targetDirectory, cleanupDay)
+            cleanupSchedule.markCleaned(cleanupDay)
             // 最新日志优先，避免导出大小达到上限时丢掉最近一次崩溃上下文。
             val fallback = File(context.applicationContext.filesDir, "debug.log")
             val sources = (listOf(fallback).filter { it.isFile && it.length() > 0 } + dailyFiles(targetDirectory))
                 .sortedByDescending { it.lastModified() }
-            val export = File(context.cacheDir, "barcode-generator-debug-${exportTimestamp()}.log")
+            val export = createUniqueLogExportFile(context.cacheDir, "barcode-generator-debug-${exportTimestamp()}.log")
             val readable = sources.map { file ->
                 file.name to try {
-                    file.readText(Charsets.UTF_8)
+                    sanitizeDiagnosticLogText(file.readText(Charsets.UTF_8))
                 } catch (error: Exception) {
                     // 单个日志损坏不能导致其余日期全部丢失，导出中保留失败说明。
-                    "${formatter.format(Date())} [diagnostics] source_read_failed file=${file.name} | ${Log.getStackTraceString(error)}\n"
+                    "${formatter.format(Date())} [diagnostics] source_read_failed file=${file.name} | ${formatDiagnosticThrowable(error)}\n"
                 }
             }
-            export.writeText(buildLogExport(readable, MAX_EXPORT_BYTES.toInt()), Charsets.UTF_8)
-            if (!fullyFlushed) export.appendText("\n[diagnostics] export_flush_timeout pending records may be omitted\n", Charsets.UTF_8)
-            return export
+            try {
+                export.writeText(buildLogExport(readable, MAX_EXPORT_BYTES.toInt()), Charsets.UTF_8)
+                if (!fullyFlushed) export.appendText("\n[diagnostics] export_flush_timeout pending records may be omitted\n", Charsets.UTF_8)
+                return export
+            } catch (error: Throwable) {
+                export.delete()
+                throw error
+            }
         }
     }
 
-    private fun dailyFile(targetDirectory: File): File =
-        File(targetDirectory, "$FILE_PREFIX${today()}$FILE_SUFFIX")
+    private fun dailyFile(targetDirectory: File, date: LocalDate = today()): File =
+        File(targetDirectory, "$FILE_PREFIX$date$FILE_SUFFIX")
 
     private fun dailyFiles(targetDirectory: File): List<File> = targetDirectory.listFiles()
         .orEmpty()
         .filter { it.isFile && it.name.startsWith(FILE_PREFIX) && it.name.endsWith(FILE_SUFFIX) }
         .sortedBy { it.name }
 
-    private fun cleanup(targetDirectory: File) {
+    private fun cleanup(targetDirectory: File, today: LocalDate) {
         // “超过 7 天”按自然日计算：今天往前第 7 天仍保留，更早的才清理。
-        val cutoff = LocalDate.now(ZoneId.systemDefault()).minusDays(RETENTION_DAYS)
+        val cutoff = today.minusDays(RETENTION_DAYS)
         dailyFiles(targetDirectory).forEach { file ->
             val date = file.name.removePrefix(FILE_PREFIX).removeSuffix(FILE_SUFFIX)
             runCatching { LocalDate.parse(date) }.getOrNull()?.takeIf { it.isBefore(cutoff) }?.let {
@@ -126,14 +151,18 @@ private object BetaDebugLogBackend {
         val current = dailyFile(targetDirectory)
         runCatching {
             // 当当天日志已存在时也合并旧文件，不能直接删除未迁移的异常。
-            val merged = legacy.readText(Charsets.UTF_8) + (if (current.exists()) current.readText(Charsets.UTF_8) else "")
+            val migrated = sanitizeDiagnosticLogText(legacy.readText(Charsets.UTF_8))
+            val existing = if (current.exists()) sanitizeDiagnosticLogText(current.readText(Charsets.UTF_8)) else ""
+            val merged = migrated + existing
             val recent = selectRecentLogRecords(merged, (MAX_BYTES - 256).toInt())
             replaceLog(current, "${formatter.format(Date())} [diagnostics] legacy_migration omittedRecords=${recent.omittedRecords}\n" + recent.text)
             check(legacy.delete()) { "Could not delete migrated legacy log" }
-        }.onFailure { Log.w("BarcodeGenerator.DebugLog", "Could not migrate legacy debug log", it) }
+        }.onFailure {
+            Log.w("BarcodeGenerator.DebugLog", "Could not migrate legacy debug log | ${formatDiagnosticThrowable(it)}")
+        }
     }
 
-    private fun today(): String = LocalDate.now(ZoneId.systemDefault()).toString()
+    private fun today(): LocalDate = LocalDate.now(ZoneId.systemDefault())
 
     /** 轮转或迁移失败时恢复旧文件，不能先清空再写导致整天日志丢失。 */
     private fun replaceLog(file: File, text: String) {

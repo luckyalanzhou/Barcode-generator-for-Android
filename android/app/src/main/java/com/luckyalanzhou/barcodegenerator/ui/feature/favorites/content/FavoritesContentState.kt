@@ -17,6 +17,7 @@ internal data class FavoritesSearchContentState(
     val query: String = "",
     val busy: Boolean = false,
     val failed: Boolean = false,
+    val paginationFailed: Boolean = false,
 ) {
     fun isPending(currentQuery: String): Boolean =
         currentQuery.isNotEmpty() && (query != currentQuery || busy)

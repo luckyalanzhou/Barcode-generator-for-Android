@@ -54,6 +54,16 @@ class BatchBarcodeTextParserTest {
     }
 
     @Test
+    fun stopsReadingLargeInputAsSoonAsRowCapacityIsExceeded() {
+        val input = CountingCharSequence("code\n", repetitions = 100_000)
+
+        val result = BatchBarcodeTextParser.parse(input, maxRows = 2)
+
+        assertEquals(BatchBarcodeTextResult.Failure(3, "最多导入 2 行条码"), result)
+        assertTrue("容量检查后不应继续扫描剩余文本: ${input.charactersRead}", input.charactersRead < 64)
+    }
+
+    @Test
     fun rejectsEmptyInputAndDoesNotSilentlyCreateAnEmptyRow() {
         assertTrue(BatchBarcodeTextParser.parse("\r\n \n") is BatchBarcodeTextResult.Failure)
     }
@@ -76,5 +86,24 @@ class BatchBarcodeTextParserTest {
             BatchBarcodeAppendResult.CapacityExceeded,
             BatchBarcodeTextParser.append(listOf("old"), listOf("new", "extra"), maxRows = 2),
         )
+    }
+
+    private class CountingCharSequence(
+        private val pattern: String,
+        repetitions: Int,
+    ) : CharSequence {
+        override val length: Int = pattern.length * repetitions
+        var charactersRead: Int = 0
+            private set
+
+        override fun get(index: Int): Char {
+            require(index in indices)
+            charactersRead++
+            return pattern[index % pattern.length]
+        }
+
+        override fun subSequence(startIndex: Int, endIndex: Int): CharSequence = buildString(endIndex - startIndex) {
+            for (index in startIndex until endIndex) append(this@CountingCharSequence[index])
+        }
     }
 }

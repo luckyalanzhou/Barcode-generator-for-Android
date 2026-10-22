@@ -1,8 +1,9 @@
 package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.presentation.shared.PersistenceWriteQueue
-import kotlinx.coroutines.CoroutineScope
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -51,6 +52,92 @@ class PersistenceWriteQueueTest {
             assertTrue(succeeded.await().isSuccess)
             assertEquals(listOf(2), order)
             scope.coroutineContext[Job]?.cancel()
+        }
+    }
+
+    @Test
+    fun cancellationFromWriteRemainsCancellation() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val queue = PersistenceWriteQueue(scope)
+        val cancellation = CancellationException("write cancelled")
+
+        try {
+            val thrown = try {
+                queue.enqueue { throw cancellation }.await()
+                null
+            } catch (error: Throwable) {
+                error
+            }
+
+            assertTrue(thrown is CancellationException)
+            assertEquals(cancellation.message, thrown?.message)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun independentlyCancelledWriteDoesNotPreventNextSnapshot() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val queue = PersistenceWriteQueue(scope)
+        val cancellation = CancellationException("write cancelled")
+        var nextSnapshotAttempted = false
+
+        try {
+            val cancelled = queue.enqueue { throw cancellation }
+            val next = queue.enqueue { nextSnapshotAttempted = true }
+
+            val thrown = runCatching { cancelled.await() }.exceptionOrNull()
+            assertTrue(thrown is CancellationException)
+            assertEquals(cancellation.message, thrown?.message)
+            assertTrue(next.await().isSuccess)
+            assertTrue(nextSnapshotAttempted)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun cancellingWriteScopeStopsQueuedWritesAndReleasesIdleWaiters() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val queue = PersistenceWriteQueue(scope)
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var nextSnapshotAttempted = false
+
+        val active = queue.enqueue {
+            started.complete(Unit)
+            release.await()
+        }
+        val queued = queue.enqueue { nextSnapshotAttempted = true }
+        started.await()
+        scope.cancel()
+
+        queue.awaitIdle()
+
+        assertTrue(active.isCancelled)
+        assertTrue(queued.isCancelled)
+        assertTrue(!nextSnapshotAttempted)
+    }
+
+    @Test
+    fun fatalWriteErrorIsNotReportedAsRecoverableFailure() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val queue = PersistenceWriteQueue(scope)
+        val fatalError = AssertionError("fatal write error")
+
+        try {
+            val thrown = try {
+                queue.enqueue { throw fatalError }.await()
+                null
+            } catch (error: Throwable) {
+                error
+            }
+
+            assertTrue(thrown is AssertionError)
+            assertEquals(fatalError.message, thrown?.message)
+        } finally {
+            scope.cancel()
         }
     }
 

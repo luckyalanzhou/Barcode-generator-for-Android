@@ -15,16 +15,23 @@ dependencies {
 
 tasks.test {
     useJUnit()
-    // Konsist's project scope must start at the Android Gradle root so it sees every production module.
+    // Konsist 从 Android Gradle 根目录启动，才能扫描全部生产模块。
     workingDir(rootProject.projectDir)
-    // Konsist reads production source directly from the repository; declare those files as inputs
-    // so Gradle reruns architecture checks after app or core source changes instead of reusing stale results.
+    // 静态契约会读取主源码及渠道专属源码；全部声明为输入，避免变体源码变化时复用旧结果。
     inputs.files(rootProject.fileTree(rootProject.projectDir) {
         include(
             "app/src/main/**/*.kt",
+            "app/src/beta/**/*.kt",
+            "app/src/official/**/*.kt",
             "core/domain/src/main/**/*.kt",
             "core/data/src/main/**/*.kt",
             "core/lan-share/src/main/**/*.kt",
         )
     })
+    inputs.files(
+        rootProject.file("../.github/workflows/build-android-official.yml"),
+        rootProject.file("../.github/workflows/build-android-testing.yml"),
+        rootProject.file("gradle/wrapper/gradle-wrapper.jar"),
+        rootProject.file("gradle/wrapper/gradle-wrapper.properties"),
+    )
 }

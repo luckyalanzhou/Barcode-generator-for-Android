@@ -13,8 +13,25 @@ class LanShareWebScriptTest {
         val script = LanShareWebScript.render()
 
         assertTrue(script.contains("function readClientIdCookie()"))
-        assertTrue(script.contains("readClientIdCookie() || localStorage.getItem(clientIdKey)"))
+        assertTrue(script.contains("readClientIdCookie() || readBrowserStorage('localStorage', clientIdKey)"))
         assertTrue(script.contains("Max-Age=31536000; SameSite=Lax"))
+    }
+
+    @Test
+    fun browserStorageFailuresDoNotAbortPageInitialization() {
+        val script = LanShareWebScript.render()
+
+        assertTrue(script.contains("function readBrowserStorage(storage, key)"))
+        assertTrue(script.contains("function writeBrowserStorage(storage, key, value)"))
+        assertTrue(script.contains("readBrowserStorage('sessionStorage', accessTokenKey)"))
+        assertTrue(script.contains("readBrowserStorage('localStorage', clientIdKey)"))
+        assertTrue(script.contains("writeBrowserStorage('sessionStorage', accessTokenKey, token)"))
+        assertTrue(script.contains("try { return window[storage].getItem(key); } catch (_) { return null; }"))
+        assertTrue(script.contains("try { window[storage].setItem(key, value); return true; } catch (_) { return false; }"))
+        assertTrue(!script.contains("localStorage.getItem("))
+        assertTrue(!script.contains("sessionStorage.getItem("))
+        assertTrue(!script.contains("localStorage.setItem("))
+        assertTrue(!script.contains("sessionStorage.setItem("))
     }
 
     @Test
@@ -131,7 +148,7 @@ class LanShareWebScriptTest {
 
         assertTrue(script.contains("return tokenUrl('/api/preview/' + encodeURIComponent(file.id)"))
         assertTrue(script.contains("function tokenUrl(path)"))
-        assertTrue(script.contains("sessionStorage.setItem(accessTokenKey, token)"))
+        assertTrue(script.contains("writeBrowserStorage('sessionStorage', accessTokenKey, token)"))
         assertTrue(script.contains("Authorization: 'Bearer ' + token"))
         assertTrue(script.contains("'&token=' + encodeURIComponent(accessToken)"))
         assertTrue(script.contains("preview.dataset.fullSrc = previewUrl(file)"))

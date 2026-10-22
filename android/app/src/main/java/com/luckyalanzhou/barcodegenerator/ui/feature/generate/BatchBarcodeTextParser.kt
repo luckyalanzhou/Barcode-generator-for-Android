@@ -19,22 +19,36 @@ internal sealed interface BatchBarcodeAppendResult {
 internal object BatchBarcodeTextParser {
     const val MAX_INPUT_ROWS = 100
 
-    fun parse(text: String, maxRows: Int = MAX_INPUT_ROWS): BatchBarcodeTextResult {
+    fun parse(text: CharSequence, maxRows: Int = MAX_INPUT_ROWS): BatchBarcodeTextResult {
         if (maxRows <= 0) return BatchBarcodeTextResult.Failure(1, "没有可用的输入行")
         val values = ArrayList<String>()
-        val lines = text.removePrefix("\uFEFF").split(Regex("\\r\\n|\\n|\\r"))
-        lines.forEachIndexed { index, line ->
-            if (line.isBlank()) return@forEachIndexed
-            val value = parseSingleCsvField(line)
-                ?: return BatchBarcodeTextResult.Failure(
-                    line = index + 1,
-                    reason = "每行只能有一个条码值；含逗号或双引号的值请用双引号括起",
-                )
-            if (value.isBlank()) return@forEachIndexed
-            if (values.size == maxRows) {
-                return BatchBarcodeTextResult.Failure(index + 1, "最多导入 $maxRows 行条码")
+        var lineStart = if (text.isNotEmpty() && text[0] == '\uFEFF') 1 else 0
+        var lineNumber = 1
+        while (lineStart <= text.length) {
+            var lineEnd = lineStart
+            while (lineEnd < text.length && text[lineEnd] != '\r' && text[lineEnd] != '\n') lineEnd++
+            val line = text.subSequence(lineStart, lineEnd).toString()
+            if (!line.isBlank()) {
+                val value = parseSingleCsvField(line)
+                    ?: return BatchBarcodeTextResult.Failure(
+                        line = lineNumber,
+                        reason = "每行只能有一个条码值；含逗号或双引号的值请用双引号括起",
+                    )
+                if (value.isNotBlank()) {
+                    if (values.size == maxRows) {
+                        return BatchBarcodeTextResult.Failure(lineNumber, "最多导入 $maxRows 行条码")
+                    }
+                    values += value
+                }
             }
-            values += value
+
+            if (lineEnd == text.length) break
+            lineStart = if (text[lineEnd] == '\r' && lineEnd + 1 < text.length && text[lineEnd + 1] == '\n') {
+                lineEnd + 2
+            } else {
+                lineEnd + 1
+            }
+            lineNumber++
         }
         return if (values.isEmpty()) {
             BatchBarcodeTextResult.Failure(1, "请粘贴至少一行非空条码内容")
@@ -76,4 +90,5 @@ internal object BatchBarcodeTextParser {
         }
         return null
     }
+
 }

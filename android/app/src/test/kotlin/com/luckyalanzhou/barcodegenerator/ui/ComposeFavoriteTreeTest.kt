@@ -6,8 +6,10 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTre
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.effectiveCollapsedFavoriteFolders
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.composeFavoriteRows
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.favoriteSearchExpandedPaths
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.util.Locale
 
 class ComposeFavoriteTreeTest {
     @Test
@@ -63,5 +65,23 @@ class ComposeFavoriteTreeTest {
         val rows = composeFavoriteRows(state, "", setOf("a"))
 
         assertEquals(listOf("a"), rows.map { it.label })
+    }
+
+    @Test
+    fun searchMatchingDoesNotDependOnSystemLocale() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            val state = FavoritesTreeData(
+                items = emptyList(),
+                groups = listOf(FavoriteGroup(1, "ITEMS", "ITEM", 1L, mutableListOf())),
+                folders = listOf("ITEMS"),
+            )
+
+            assertEquals(listOf("ITEMS", "ITEM"), composeFavoriteRows(state, "i", emptySet()).map { it.label })
+            assertEquals(setOf("ITEMS"), favoriteSearchExpandedPaths(state, "i"))
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
     }
 }

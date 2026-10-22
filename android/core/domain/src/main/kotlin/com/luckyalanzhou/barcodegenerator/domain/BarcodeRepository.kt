@@ -68,6 +68,7 @@ interface BarcodeRepository {
     suspend fun saveAll(snapshot: BarcodeSnapshot)
     /** 原子应用当前已加载的收藏状态；不得因分页未加载而删除数据库中的其他收藏页。 */
     suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot)
+    /** 只更新传入的条码快照；未包含的记录可能位于有限加载窗口之外，不能视为删除。 */
     suspend fun saveItems(items: List<CodeItem>)
     /** Clears all persisted history, including rows omitted from the bounded startup snapshot, while preserving favorites. */
     suspend fun clearHistory()

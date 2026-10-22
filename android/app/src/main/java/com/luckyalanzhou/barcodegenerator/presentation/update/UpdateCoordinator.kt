@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
@@ -27,8 +28,11 @@ class UpdateCoordinator(
     private val updateCatalogGateway: UpdateCatalogGateway,
     private val apkValidationGateway: ApkValidationGateway,
     private val logger: AppLogger,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) {
-    private val _uiState = MutableStateFlow(UpdateUiState())
+    private val _uiState = MutableStateFlow(
+        UpdateUiState(pendingInstallPath = savedStateHandle[PENDING_INSTALL_PATH]),
+    )
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
 
     private val _downloadUiState = MutableStateFlow(UpdateDownloadUiState())
@@ -176,12 +180,22 @@ class UpdateCoordinator(
     }
 
     fun setPendingInstallPath(path: String?) {
+        if (path == null) {
+            savedStateHandle.remove<String>(PENDING_INSTALL_PATH)
+        } else {
+            savedStateHandle[PENDING_INSTALL_PATH] = path
+        }
         _uiState.update { it.copy(pendingInstallPath = path) }
     }
 
     fun takePendingInstallPath(): String? {
         val path = _uiState.value.pendingInstallPath
+        savedStateHandle.remove<String>(PENDING_INSTALL_PATH)
         _uiState.update { it.copy(pendingInstallPath = null) }
         return path
+    }
+
+    private companion object {
+        const val PENDING_INSTALL_PATH = "update.pendingInstallPath"
     }
 }

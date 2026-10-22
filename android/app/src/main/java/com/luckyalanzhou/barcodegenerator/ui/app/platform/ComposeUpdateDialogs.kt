@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UPDATE_FAILURE_SUMMARY
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
@@ -13,6 +14,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.UpdateAvailableDialogConten
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDownloadProgressDialog
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
+import kotlinx.coroutines.CancellationException
 
 import androidx.core.net.toUri
 import java.io.File
@@ -30,17 +32,36 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** 安装权限提示使用 Compose；系统设置页和 APK 安装 Intent 仍使用 Android 系统能力。 */
+internal fun reportApkInstallFailure(
+    error: Exception,
+    recordUpdateError: (String) -> Unit,
+    showToast: (String) -> Unit,
+) {
+    val reason = error.message ?: "未知安装错误"
+    recordUpdateError(UPDATE_FAILURE_SUMMARY)
+    showToast("安装失败：$reason")
+}
+
 internal fun MainActivity.installApkCompose(file: File) {
     try {
         if (!file.isFile || file.length() == 0L) {
+            if (updateViewModel.uiState.value.pendingInstallPath == file.absolutePath) {
+                updateViewModel.setPendingInstallPath(null)
+            }
+            installPermissionDialogShowing = false
             toast("更新文件不存在，请重新下载")
             return
         }
         if (!packageManager.canRequestPackageInstalls()) {
             updateViewModel.setPendingInstallPath(file.absolutePath)
+            if (installPermissionDialogShowing) return
+            installPermissionDialogShowing = true
             showComposeDialog(
                 compact = true,
-                onCancel = { updateViewModel.setPendingInstallPath(null) },
+                onCancel = {
+                    installPermissionDialogShowing = false
+                    updateViewModel.setPendingInstallPath(null)
+                },
             ) { dismiss ->
                 val dark = isDark()
                 ComposeGlassDialogCard(dark) {
@@ -60,6 +81,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                         horizontalArrangement = Arrangement.End,
                     ) {
                         DialogAction("取消", dark, {
+                            installPermissionDialogShowing = false
                             updateViewModel.setPendingInstallPath(null)
                             dismiss()
                         })
@@ -67,15 +89,19 @@ internal fun MainActivity.installApkCompose(file: File) {
                             "去设置",
                             dark,
                             {
+                                installPermissionDialogShowing = false
                                 dismiss()
-                                runCatching {
+                                try {
                                     startActivity(
                                         android.content.Intent(
                                             android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                                             "package:$packageName".toUri(),
                                         ),
                                     )
-                                }.onFailure { toast("无法打开安装设置") }
+                                } catch (_: Exception) {
+                                    toast("无法打开安装设置")
+                                    installApkCompose(file)
+                                }
                             },
                             modifier = Modifier.padding(start = 20.dp),
                             primary = true,
@@ -93,9 +119,12 @@ internal fun MainActivity.installApkCompose(file: File) {
         }
         startActivity(intent)
     } catch (error: Exception) {
-        val reason = error.message ?: "未知安装错误"
-        settingsViewModel.recordUpdateError(reason)
-        toast("安装失败：$reason")
+        installPermissionDialogShowing = false
+        reportApkInstallFailure(
+            error = error,
+            recordUpdateError = { settingsViewModel.recordUpdateError(it) },
+            showToast = { toast(it) },
+        )
     }
 }
 
@@ -161,8 +190,10 @@ internal fun MainActivity.downloadAndInstallCompose(
                         dismiss()
                         try {
                             val file = File(event.filePath)
-                            updateViewModel.validateDownloadedApk(file)
+                            validateDownloadedApkForInstall(file, updateViewModel::validateDownloadedApk)
                             installApkCompose(file)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
                         } catch (error: Exception) {
                             showDownloadFailedCompose(
                                 apkUrl,
@@ -186,7 +217,7 @@ internal fun MainActivity.downloadAndInstallCompose(
         }
         ComposeDownloadProgressDialog(downloadState, isDark(), cancelDownload)
     }
-    DebugLog.record("update", "download dialog shown url=" + apkUrl + " expectedSize=" + expectedSize + " shaPresent=" + (expectedSha256 != null))
+    DebugLog.record("update", "download dialog shown expectedSize=$expectedSize shaPresent=${expectedSha256 != null}")
     updateViewModel.startDownload(apkUrl, expectedSize, expectedSha256)
 }
 

@@ -8,66 +8,59 @@ plugins {
     alias(libs.plugins.hilt) apply false
 }
 
-val expectedArchitectureModuleDependencies = mapOf(
-    ":app" to setOf(":core:domain", ":core:data", ":core:lan-share"),
-    ":core:domain" to emptySet(),
-    ":core:data" to setOf(":core:domain"),
-    ":core:lan-share" to setOf(":core:domain"),
-)
-
-val forbiddenDomainDependencyPrefixes = listOf(
-    "androidx.",
-    "com.android.",
-    "com.google.zxing",
-    "com.google.dagger",
-)
-
 tasks.register("verifyArchitectureModuleDependencies") {
     group = "verification"
     description = "Verifies production Gradle module dependencies against ARCHITECTURE.md."
 
-    doLast {
-        val actualProductionModules = subprojects
-            .filter { it.buildFile.isFile && it.path != ":architecture-tests" }
-            .map { it.path }
+    // 在任务配置阶段读取 Gradle 模型；任务动作只捕获不可变数据，兼容 configuration cache。
+    val expectedDependencies = mapOf(
+        ":app" to setOf(":core:domain", ":core:data", ":core:lan-share"),
+        ":core:domain" to emptySet(),
+        ":core:data" to setOf(":core:domain"),
+        ":core:lan-share" to setOf(":core:domain"),
+    )
+    val actualModules = subprojects
+        .filter { it.buildFile.isFile && it.path != ":architecture-tests" }
+        .map { it.path }
+        .toSet()
+    val actualDependencies = expectedDependencies.keys.associateWith { modulePath ->
+        project(modulePath).configurations
+            .flatMap { configuration ->
+                configuration.dependencies.withType(org.gradle.api.artifacts.ProjectDependency::class.java)
+                    .map { dependency -> dependency.path }
+            }
+            .filterNot { it == modulePath }
             .toSet()
-        check(actualProductionModules == expectedArchitectureModuleDependencies.keys) {
+    }
+    val forbiddenPrefixes = listOf("androidx.", "com.android.", "com.google.zxing", "com.google.dagger")
+    val domainProductionConfigurations = listOf("api", "implementation", "compileOnly", "runtimeOnly")
+    val forbiddenDependencies = domainProductionConfigurations
+        .flatMap { configurationName ->
+            project(":core:domain").configurations.getByName(configurationName).dependencies
+                .withType(org.gradle.api.artifacts.ExternalModuleDependency::class.java)
+        }
+        .mapNotNull { dependency ->
+            dependency.group?.takeIf { group -> forbiddenPrefixes.any(group::startsWith) }
+                ?.let { group -> "$group:${dependency.name}" }
+        }
+        .distinct()
+
+    doLast {
+        check(actualModules == expectedDependencies.keys) {
             "Production modules changed. Update ARCHITECTURE.md and the expected module list. " +
-                "Expected=${expectedArchitectureModuleDependencies.keys}, actual=$actualProductionModules"
+                "Expected=${expectedDependencies.keys}, actual=$actualModules"
         }
 
-        expectedArchitectureModuleDependencies.forEach { (modulePath, expectedDependencies) ->
-            val actualDependencies = project(modulePath)
-                .configurations
-                .flatMap { configuration ->
-                    configuration.dependencies.withType(org.gradle.api.artifacts.ProjectDependency::class.java)
-                        .map { dependency -> dependency.path }
-                }
-                .filterNot { it == modulePath }
-                .toSet()
-
-            check(actualDependencies == expectedDependencies) {
+        expectedDependencies.forEach { (modulePath, expectedModuleDependencies) ->
+            check(actualDependencies[modulePath] == expectedModuleDependencies) {
                 "$modulePath has unexpected project dependencies. " +
-                    "Expected=$expectedDependencies, actual=$actualDependencies"
+                    "Expected=$expectedModuleDependencies, actual=${actualDependencies[modulePath]}"
             }
         }
 
-        val domain = project(":core:domain")
-        val domainProductionConfigurations = listOf("api", "implementation", "compileOnly", "runtimeOnly")
-        val forbiddenDomainDependencies = domainProductionConfigurations
-            .flatMap { configurationName ->
-                domain.configurations.getByName(configurationName).dependencies
-                    .withType(org.gradle.api.artifacts.ExternalModuleDependency::class.java)
-            }
-            .mapNotNull { dependency ->
-                dependency.group?.takeIf { group -> forbiddenDomainDependencyPrefixes.any(group::startsWith) }
-                    ?.let { group -> "$group:${dependency.name}" }
-            }
-            .distinct()
-
-        check(forbiddenDomainDependencies.isEmpty()) {
+        check(forbiddenDependencies.isEmpty()) {
             ":core:domain must not depend on Android, Compose, ZXing, or DI implementations. " +
-                "Found=$forbiddenDomainDependencies"
+                "Found=$forbiddenDependencies"
         }
     }
 }

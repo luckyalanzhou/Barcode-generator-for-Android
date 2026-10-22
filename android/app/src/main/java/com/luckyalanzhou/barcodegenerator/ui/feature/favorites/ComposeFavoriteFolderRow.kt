@@ -59,9 +59,9 @@ internal fun FavoriteFolderRow(
     animation: ComposeAnimationConfig,
     onClick: () -> Unit,
     onShowSubfolderEditor: (String) -> Unit,
-    onShowFolderEditor: (String, (String) -> Unit) -> Unit,
+    onShowFolderEditor: (String, (String) -> Boolean) -> Unit,
     onConfirm: (String, String, String, () -> Unit) -> Unit,
-    onRenameFolder: (String, String) -> Unit,
+    onRenameFolder: (String, String) -> Boolean,
     onDeleteFolder: (String) -> Unit,
 ) {
     val interactionSource = remember(row.path) { MutableInteractionSource() }

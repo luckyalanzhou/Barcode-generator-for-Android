@@ -1,35 +1,44 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 
-/**
- * Serializes persistence writes while keeping one failed write from cancelling
- * unrelated ViewModel work. Every queued operation returns an observable result.
- */
+/** 串行执行持久化写入，并将普通写入失败作为可观察结果返回。 */
 internal class PersistenceWriteQueue(
     private val writeScope: CoroutineScope,
 ) {
     private val lock = Any()
-    private var tail: Deferred<Result<Unit>>? = null
+    private var tail: CompletableDeferred<Unit>? = null
 
     fun enqueue(write: suspend () -> Unit): Deferred<Result<Unit>> {
         val next: Deferred<Result<Unit>>
+        val completion: CompletableDeferred<Unit>
         synchronized(lock) {
             val previous = tail
+            completion = CompletableDeferred()
             next = writeScope.async(Dispatchers.IO) {
-                // A failed write must not prevent later snapshots from being attempted.
+                // 串行等待完成信号，不依赖上次的结果或异常，避免单次写入阻断后续快照。
                 previous?.await()
-                runCatching { write() }
+                try {
+                    write()
+                    Result.success(Unit)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Result.failure(error)
+                }
             }
-            tail = next
+            tail = completion
         }
         next.invokeOnCompletion {
+            completion.complete(Unit)
             synchronized(lock) {
-                if (tail === next) tail = null
+                if (tail === completion) tail = null
             }
         }
         return next

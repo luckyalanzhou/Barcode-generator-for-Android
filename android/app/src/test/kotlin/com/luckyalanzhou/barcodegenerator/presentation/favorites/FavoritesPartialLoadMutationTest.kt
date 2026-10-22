@@ -38,10 +38,16 @@ class FavoritesPartialLoadMutationTest {
         val persistence = BarcodePersistenceCoordinator(repository, object : BarcodeDataMigration {
             override suspend fun migrateIfNeeded() = Unit
         })
-        val save = async { runCatching { FavoritesMutationCoordinator(store, persistence)
+        var mutationStarted = false
+        val save = async { runCatching { FavoritesMutationCoordinator(
+            store = store,
+            persistence = persistence,
+            onMutationStarted = { mutationStarted = true },
+        )
             .saveResultAsFavorite(listOf(20), null, null, "new", "new file") } }
         try {
             withTimeout(5000) { while (entered.count > 0) delay(5) }
+            assertTrue(mutationStarted)
             assertFalse(save.isCompleted)
         } finally { release.countDown() }
         assertNotNull(save.await().exceptionOrNull())

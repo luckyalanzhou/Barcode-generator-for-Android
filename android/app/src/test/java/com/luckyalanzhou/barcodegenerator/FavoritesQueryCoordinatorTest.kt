@@ -15,6 +15,7 @@ import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesMutationCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQuerySession
 import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesQueryCoordinator
 import kotlinx.coroutines.CompletableDeferred
@@ -60,6 +61,36 @@ class FavoritesQueryCoordinatorTest {
     }
 
     @Test
+    fun libraryMutationInvalidatesGroupContentReadInFlight() = runBlocking {
+        val group = group(1L)
+        val enteredRead = CompletableDeferred<Unit>()
+        val continueRead = CompletableDeferred<FavoriteGroupContent?>()
+        val repository = FakeFavoriteRepository(
+            groups = listOf(group),
+            beforeLoadGroupContent = {
+                enteredRead.complete(Unit)
+                continueRead.await()
+            },
+        )
+        val dataSession = LibraryDataSession().apply {
+            store.edit { groups += group }
+        }
+        val querySession = FavoritesQuerySession(repository, dataSession, persistence(repository))
+        val load = async { querySession.loadGroupContent(group.id) }
+
+        enteredRead.await()
+        querySession.invalidateGroupContentLoads()
+        continueRead.complete(FavoriteGroupContent(group, listOf(CodeItem(12L, "stale", "Code 128-B")), emptyList()))
+
+        val result = load.await() as com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoriteGroupContentLoadResult.Rejected
+        assertEquals(
+            com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoriteGroupContentLoadFailure.GROUP_CHANGED,
+            result.failure,
+        )
+        assertTrue(dataSession.store.itemsSnapshot().isEmpty())
+    }
+
+    @Test
     fun paginationUsesStableCursorAfterLoadedGroupIsDeleted() = runBlocking {
         val firstPage = (1L..100L).map { group(it) }
         val secondPage = (101L..101L).map { group(it) }
@@ -79,6 +110,32 @@ class FavoritesQueryCoordinatorTest {
         assertEquals(100, store.groupsSnapshot().size)
         assertEquals(101L, store.groupsSnapshot().last().id)
         assertEquals(FavoriteGroupPageCursor(100L, 100L), repository.requestedCursors.single())
+    }
+
+    @Test
+    fun paginationCursorStaysAtOldestLoadedGroupAfterRenameMovesItToFront() = runBlocking {
+        val firstPage = (100L downTo 1L).map(::group)
+        val secondPage = listOf(group(0L))
+        val repository = FakeFavoriteRepository(
+            groups = firstPage + secondPage,
+            firstPage = firstPage,
+            secondPage = secondPage,
+            secondPageCursor = FavoriteGroupPageCursor(2L, 2L),
+        )
+        val store = LibraryStateStore().apply { replace(emptyList(), firstPage, listOf("一级")) }
+        val persistence = persistence(repository)
+        val mutations = FavoritesMutationCoordinator(store, persistence)
+        val coordinator = FavoritesQueryCoordinator(repository, store)
+        coordinator.resetPaging(FavoriteGroupPageCursor(1L, 1L), initialHasMore = true)
+
+        assertTrue(mutations.renameGroupAndPersist(1L, "已重命名"))
+        coordinator.onMutation()
+        assertTrue(coordinator.loadMore())
+        persistence.awaitPendingWrites()
+
+        assertEquals(FavoriteGroupPageCursor(2L, 2L), repository.requestedCursors.single())
+        assertEquals(101, store.groupsSnapshot().size)
+        assertEquals(0L, store.groupsSnapshot().last().id)
     }
 
     @Test
@@ -199,7 +256,9 @@ private class FakeFavoriteRepository(
     private val items: List<CodeItem> = emptyList(),
     private val firstPage: List<FavoriteGroup> = groups,
     private val secondPage: List<FavoriteGroup> = emptyList(),
+    private val secondPageCursor: FavoriteGroupPageCursor = FavoriteGroupPageCursor(100L, 100L),
     private val beforeLoadPage: suspend () -> Unit = {},
+    private val beforeLoadGroupContent: suspend (Long) -> FavoriteGroupContent? = { null },
 ) : BarcodeRepository {
     val requestedCursors = mutableListOf<FavoriteGroupPageCursor?>()
 
@@ -207,7 +266,7 @@ private class FakeFavoriteRepository(
         beforeLoadPage()
         requestedCursors += cursor
         return when (cursor) {
-            FavoriteGroupPageCursor(100L, 100L) -> secondPage
+            secondPageCursor -> secondPage
             else -> firstPage.take(limit)
         }
     }
@@ -244,7 +303,7 @@ private class FakeFavoriteRepository(
     override suspend fun loadGroups() = emptyList<FavoriteGroup>()
     override suspend fun loadGroupItems() = emptyList<FavoriteGroupItem>()
     override suspend fun loadGroupItemIds(groupId: Long) = emptyList<Long>()
-    override suspend fun loadFavoriteGroupContent(groupId: Long): FavoriteGroupContent? = null
+    override suspend fun loadFavoriteGroupContent(groupId: Long): FavoriteGroupContent? = beforeLoadGroupContent(groupId)
     override suspend fun loadFolders() = emptyList<String>()
     override suspend fun loadSnapshot() = BarcodeSnapshot(emptyList(), emptyList(), emptyList(), emptyList())
     override suspend fun loadStartupSnapshot() = StartupBarcodeSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), false)

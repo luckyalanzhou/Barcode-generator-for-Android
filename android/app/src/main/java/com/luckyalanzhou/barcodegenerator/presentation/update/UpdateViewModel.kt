@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -23,12 +24,14 @@ class UpdateViewModel @Inject constructor(
     updateCatalogGateway: UpdateCatalogGateway,
     apkValidationGateway: ApkValidationGateway,
     logger: AppLogger,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val updateFacade = UpdateFacade(
         updateDownloadGateway,
         updateCatalogGateway,
         apkValidationGateway,
         logger,
+        savedStateHandle,
     )
 
     val uiState: StateFlow<UpdateUiState> = updateFacade.uiState

@@ -25,14 +25,14 @@ jobs:
         shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '17'
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           # PR 只消费发布工作流已经建立的缓存，不回写临时分支输出。
           cache-read-only: true
@@ -43,15 +43,10 @@ jobs:
           add-job-summary: on-failure
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Check architecture boundaries and unit tests
-        # 显式启用 Beta Debug 测试变体；只运行检查和单元测试，不打包或签名 APK。
+      - name: Run complete local verification without packaging APK
+        # 统一门禁包含架构/单元测试、Beta/Official Release 编译和 Lint；不打包或签名 APK。
         run: >-
           ./gradlew
-          :architecture-tests:test
-          verifyArchitectureModuleDependencies
-          :core:domain:test
-          :core:data:testDebugUnitTest
-          :core:lan-share:testDebugUnitTest
-          :app:testBetaDebugUnitTest
+          verifyLocal
           --no-configuration-cache
           -PenableAppUnitTests=true

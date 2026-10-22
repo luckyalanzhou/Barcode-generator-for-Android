@@ -16,7 +16,7 @@ internal fun sharedFile(folder: File, id: String): File? {
 }
 
 /** 隐藏临时文件只在提交完成前存在，不能出现在列表、下载接口或容量统计中。 */
-internal fun isCommittedSharedFile(file: File) = file.isFile && !file.name.startsWith(".") && !file.name.endsWith(".part")
+internal fun isCommittedSharedFile(file: File) = file.isFile && !file.name.startsWith(".")
 
 internal fun mimeTypeForName(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
     "jpg", "jpeg" -> "image/jpeg"

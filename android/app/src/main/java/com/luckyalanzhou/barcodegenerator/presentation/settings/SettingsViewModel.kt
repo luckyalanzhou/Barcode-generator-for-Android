@@ -76,7 +76,8 @@ class SettingsViewModel @Inject constructor(
         return trackWrite("ocr_mask_save") { settingsRepository.setOcrConfusionReplacementMask(mask) }
     }
 
-    fun getOcrMask(): Int = settingsRepository.getOcrConfusionReplacementMask()
+    /** OCR 立即使用用户刚选择的值，不等待后台 DataStore 写入完成。 */
+    fun getOcrMask(): Int = _uiState.value.ocrMask
 
     fun recordUpdateError(message: String): Job = trackWrite("update_error_save") { settingsRepository.setUpdateError(message) }
 

@@ -13,6 +13,7 @@ internal class FavoritesMutationCoordinator(
     private val store: LibraryStateStore,
     private val persistence: BarcodePersistenceCoordinator,
     private val onReconciled: () -> Unit = {},
+    private val onMutationStarted: () -> Unit = {},
 ) {
     fun renameFolder(path: String, renamedPath: String): Boolean {
         val knownPaths = store.foldersSnapshot() + store.favoriteIdentityFolderPathsSnapshot()
@@ -26,6 +27,7 @@ internal class FavoritesMutationCoordinator(
                     val newPath = if (group.folder == path) renamedPath else renamedPath + group.folder.removePrefix(path)
                     groups[index] = group.copy(folder = newPath, savedAt = modifiedAt)
                 }
+            sortGroupsByRecency()
             folders.filter { it == path || it.startsWith("$path/") }.toList().forEach { old ->
                 folders.remove(old)
                 folders.add(if (old == path) renamedPath else renamedPath + old.removePrefix(path))
@@ -58,6 +60,7 @@ internal class FavoritesMutationCoordinator(
         if (orderedFavoriteItems(store.itemsSnapshot(), resultItemIds).isNullOrEmpty() || folder.isBlank() || name.isBlank()) return false
         val excludedIds = setOfNotNull(editingGroupId, targetGroupId).toSet()
         if (store.hasFavoriteIdentity(folder, name, excludedIds)) return false
+        onMutationStarted()
         val allocatedGroupId = targetGroupId ?: (store.maxFavoriteGroupId() + 1L)
         val savedGroupId = store.edit {
             val selectedItems = orderedFavoriteItems(items, resultItemIds) ?: return@edit null
@@ -69,6 +72,7 @@ internal class FavoritesMutationCoordinator(
             val updatedGroup = FavoriteGroup(groupId, folder, name, System.currentTimeMillis(), selectedItems.map { it.id }.toMutableList())
             val targetIndex = groups.indexOfFirst { it.id == groupId }
             if (targetIndex >= 0) groups[targetIndex] = updatedGroup else groups.add(0, updatedGroup)
+            sortGroupsByRecency()
             // Missing links in a paged store mean unknown, not un-favorited.
             // The repository reconciles flags against all persisted links inside the write transaction.
             groupId
@@ -94,6 +98,7 @@ internal class FavoritesMutationCoordinator(
                 folder = folder,
                 savedAt = System.currentTimeMillis(),
             )
+            sortGroupsByRecency()
             if (folder !in folders) folders.add(folder)
             true
         }
@@ -137,6 +142,7 @@ internal class FavoritesMutationCoordinator(
         store.edit {
             val index = groups.indexOfFirst { it.id == groupId }
             if (index >= 0) groups[index] = groups[index].copy(name = name, folder = folder, savedAt = savedAt)
+            sortGroupsByRecency()
             if (folder.isNotBlank() && folder !in folders) folders.add(folder)
         }
     }

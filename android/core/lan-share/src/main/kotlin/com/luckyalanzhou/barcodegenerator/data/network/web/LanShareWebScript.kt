@@ -30,7 +30,13 @@ const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const clientIdKey = 'lanShareClientId';
 const accessTokenKey = 'lanShareAccessToken:' + location.origin;
-let accessToken = new URLSearchParams(location.search).get('token') || sessionStorage.getItem(accessTokenKey) || '';
+function readBrowserStorage(storage, key) {
+    try { return window[storage].getItem(key); } catch (_) { return null; }
+}
+function writeBrowserStorage(storage, key, value) {
+    try { window[storage].setItem(key, value); return true; } catch (_) { return false; }
+}
+let accessToken = new URLSearchParams(location.search).get('token') || readBrowserStorage('sessionStorage', accessTokenKey) || '';
 
 function tokenUrl(path) {
     const separator = path.includes('?') ? '&' : '?';
@@ -47,7 +53,7 @@ async function validateAccessToken(token) {
     const response = await fetch('/api/files', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
     if (!response.ok) throw new Error('会话令牌无效，请重新配对');
     accessToken = token;
-    sessionStorage.setItem(accessTokenKey, token);
+    writeBrowserStorage('sessionStorage', accessTokenKey, token);
     document.body.classList.remove('unpaired');
     pairingGate.hidden = true;
     if (new URLSearchParams(location.search).has('token')) history.replaceState(null, '', location.pathname + location.hash);
@@ -87,11 +93,11 @@ function readClientIdCookie() {
     }
 }
 
-let clientId = readClientIdCookie() || localStorage.getItem(clientIdKey);
+let clientId = readClientIdCookie() || readBrowserStorage('localStorage', clientIdKey);
 if (!/^c[a-zA-Z0-9_-]{8,63}$/.test(clientId || '')) {
     clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
-localStorage.setItem(clientIdKey, clientId);
+writeBrowserStorage('localStorage', clientIdKey, clientId);
 // Cookies are shared across ports for the same host, unlike localStorage. Keep sender identity
 // stable when the app restarts its LAN server on a different port and retains previous files.
 document.cookie = encodeURIComponent(clientIdKey) + '=' + encodeURIComponent(clientId) + '; Path=/; Max-Age=31536000; SameSite=Lax';
@@ -99,7 +105,7 @@ document.cookie = encodeURIComponent(clientIdKey) + '=' + encodeURIComponent(cli
 const ownFileIdsKey = 'lanShareOwnFileIds:' + clientId;
 const ownFileIds = new Set();
 try {
-    const storedOwnFileIds = JSON.parse(localStorage.getItem(ownFileIdsKey) || '[]');
+    const storedOwnFileIds = JSON.parse(readBrowserStorage('localStorage', ownFileIdsKey) || '[]');
     if (Array.isArray(storedOwnFileIds)) {
         storedOwnFileIds.filter(id => typeof id === 'string').slice(-256).forEach(id => ownFileIds.add(id));
     }
@@ -109,9 +115,7 @@ function rememberOwnFile(id) {
     if (!id) return;
     ownFileIds.add(id);
     while (ownFileIds.size > 256) ownFileIds.delete(ownFileIds.values().next().value);
-    try {
-        localStorage.setItem(ownFileIdsKey, JSON.stringify(Array.from(ownFileIds)));
-    } catch (_) {}
+    writeBrowserStorage('localStorage', ownFileIdsKey, JSON.stringify(Array.from(ownFileIds)));
 }
 
 function isImageName(name) {

@@ -10,6 +10,20 @@ android/local.properties
 .idea/
 *.iml
 
+# Local AI instructions and session state
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+/.codex/
+/.claude/
+/.cursor/
+/.gemini/
+
+# Local Python test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 # Local packages and signing material
 *.apk
 *.aab

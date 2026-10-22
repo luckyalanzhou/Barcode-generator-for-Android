@@ -37,6 +37,13 @@ class FavoriteFolderRenamePolicyTest {
     }
 
     @Test
+    fun renameCannotMergeIntoAnExistingFolderOrItsImplicitParent() {
+        assertFalse(isSafeFavoriteFolderRename("old", "new", listOf("old", "new")))
+        assertFalse(isSafeFavoriteFolderRename("root/old", "root/new", listOf("root/old", "root/new/child")))
+        assertTrue(isSafeFavoriteFolderRename("old", "old", listOf("old", "old/child")))
+    }
+
+    @Test
     fun folderNameMustBeOneValidSegment() {
         assertTrue(isValidFavoriteFolderName("project_1"))
         assertFalse(isValidFavoriteFolderName("new/sub"))

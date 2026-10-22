@@ -23,6 +23,7 @@ class AndroidApkDownloadGateway(
     private val userAgent: String,
 ) : ApkDownloadGateway {
     private val activeConnections = ConcurrentHashMap.newKeySet<HttpURLConnection>()
+    private val activePartialFiles = ConcurrentHashMap.newKeySet<File>()
 
     override fun cancel() {
         activeConnections.toList().forEach { it.disconnect() }
@@ -34,10 +35,15 @@ class AndroidApkDownloadGateway(
         onProgress: (progress: Int, indeterminate: Boolean, status: String) -> Unit,
     ): File = withContext(Dispatchers.IO) {
         val requestId = UUID.randomUUID().toString()
-        val temp = File(context.cacheDir, "barcode-generator-update-$requestId.apk.part")
-        val official = File(context.cacheDir, "barcode-generator-update-$requestId.apk")
+        val temp = File(context.cacheDir, "$UPDATE_APK_DOWNLOAD_FILE_PREFIX$requestId$UPDATE_APK_PARTIAL_FILE_SUFFIX")
+        val official = File(context.cacheDir, "$UPDATE_APK_DOWNLOAD_FILE_PREFIX$requestId.apk")
         var connection: HttpURLConnection? = null
+        activePartialFiles.add(temp)
         try {
+            val removedPartials = cleanupOrphanedApkPartFiles(context.cacheDir, activePartialFiles)
+            if (removedPartials > 0) {
+                logger.record("update", "removed orphaned APK partial files count=$removedPartials", null)
+            }
             val limit = UpdateSecurity.MAX_APK_DOWNLOAD_BYTES
             require(expectedSha256 != null) { "该版本缺少 SHA-256 校验信息，无法安全更新" }
             require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
@@ -118,6 +124,7 @@ class AndroidApkDownloadGateway(
             connection?.disconnect()
             connection?.let(activeConnections::remove)
             temp.delete()
+            activePartialFiles.remove(temp)
         }
     }
 }

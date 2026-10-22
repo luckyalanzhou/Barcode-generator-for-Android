@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+internal data class PermissionRequestResult(val requestCode: Int, val granted: Boolean)
+
 /** Owns one-shot ActivityResult and camera output state without UI knowledge. */
 class CameraRequestCoordinator(private val savedState: SavedStateHandle) {
     private val _state = MutableStateFlow(CameraCaptureState(
@@ -23,6 +25,7 @@ class CameraRequestCoordinator(private val savedState: SavedStateHandle) {
 
     private var pendingExternalActivityRequest: Int? = savedState[EXTERNAL_REQUEST]
     private var pendingPermissionRequest: Int? = savedState[PERMISSION_REQUEST]
+    private var pendingPermissionNames: Array<String>? = savedState[PERMISSION_NAMES]
 
     fun prepare(requestCode: Int) {
         savedState[REQUEST_CODE] = requestCode
@@ -59,15 +62,25 @@ class CameraRequestCoordinator(private val savedState: SavedStateHandle) {
         savedState.remove<Int>(EXTERNAL_REQUEST)
     } ?: 0
 
-    fun beginPermission(requestCode: Int) {
+    internal fun beginPermission(requestCode: Int, permissions: Array<String>) {
         pendingPermissionRequest = requestCode
         savedState[PERMISSION_REQUEST] = requestCode
+        pendingPermissionNames = permissions.copyOf()
+        savedState[PERMISSION_NAMES] = pendingPermissionNames
     }
 
-    fun consumePermission(): Int = pendingPermissionRequest.also {
+    internal fun consumePermission(result: Map<String, Boolean>): PermissionRequestResult {
+        val requestCode = pendingPermissionRequest ?: 0
+        val granted = pendingPermissionNames
+            ?.takeIf { it.isNotEmpty() }
+            ?.all { result[it] == true }
+            ?: false
         pendingPermissionRequest = null
+        pendingPermissionNames = null
         savedState.remove<Int>(PERMISSION_REQUEST)
-    } ?: 0
+        savedState.remove<Array<String>>(PERMISSION_NAMES)
+        return PermissionRequestResult(requestCode, granted)
+    }
 
     private companion object {
         const val REQUEST_CODE = "camera.requestCode"
@@ -76,5 +89,6 @@ class CameraRequestCoordinator(private val savedState: SavedStateHandle) {
         const val STARTED_AT = "camera.startedAt"
         const val EXTERNAL_REQUEST = "camera.externalRequest"
         const val PERMISSION_REQUEST = "camera.permissionRequest"
+        const val PERMISSION_NAMES = "camera.permissionNames"
     }
 }

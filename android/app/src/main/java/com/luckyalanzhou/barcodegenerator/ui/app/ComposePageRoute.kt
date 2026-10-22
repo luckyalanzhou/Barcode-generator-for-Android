@@ -133,6 +133,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                             query = favoriteSearchStatus.query,
                             busy = favoriteSearchStatus.busy,
                             failed = favoriteSearchStatus.failed,
+                            paginationFailed = favoriteSearchStatus.paginationFailed,
                         ),
                         tree = FavoritesTreeState(
                             collapsedFolders = favoriteTree.collapsedFolders,

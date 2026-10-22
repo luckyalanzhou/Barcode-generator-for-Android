@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
+import java.util.concurrent.atomic.AtomicLong
 
 /** Reads authoritative group contents and keeps regular/search snapshots in sync. */
 internal class FavoriteGroupContentCoordinator(
@@ -13,7 +14,10 @@ internal class FavoriteGroupContentCoordinator(
     private val publishDataState: () -> Unit,
     private val publishSearchState: () -> Unit,
 ) {
+    private val libraryMutationGeneration = AtomicLong(0L)
+
     suspend fun load(groupId: Long): FavoriteGroupContentLoadResult {
+        val expectedMutationGeneration = libraryMutationGeneration.get()
         val cachedGroup = findCachedGroup(groupId)
             ?: return FavoriteGroupContentLoadResult.Rejected(FavoriteGroupContentLoadFailure.GROUP_NOT_CACHED)
         val expectedSavedAt = cachedGroup.savedAt
@@ -21,7 +25,11 @@ internal class FavoriteGroupContentCoordinator(
             ?: return FavoriteGroupContentLoadResult.Rejected(FavoriteGroupContentLoadFailure.GROUP_NOT_FOUND)
 
         val latestCachedGroup = findCachedGroup(groupId)
-        if (latestCachedGroup == null || latestCachedGroup.savedAt != expectedSavedAt) {
+        if (
+            libraryMutationGeneration.get() != expectedMutationGeneration ||
+            latestCachedGroup == null ||
+            latestCachedGroup.savedAt != expectedSavedAt
+        ) {
             return FavoriteGroupContentLoadResult.Rejected(FavoriteGroupContentLoadFailure.GROUP_CHANGED)
         }
         if (content.invalidItemIds.isNotEmpty()) {
@@ -42,10 +50,13 @@ internal class FavoriteGroupContentCoordinator(
             group = content.group,
             items = content.items,
             expectedSavedAt = expectedSavedAt,
+            expectedMutationGeneration = expectedMutationGeneration,
         )
     }
 
-    fun cache(loaded: FavoriteGroupContentLoadResult.Loaded) {
+    fun cache(loaded: FavoriteGroupContentLoadResult.Loaded): Boolean {
+        if (!isCurrent(loaded.group.id, loaded.expectedSavedAt, loaded.expectedMutationGeneration)) return false
+
         fun LibraryStateStore.updateIfPresent() {
             edit {
                 val groupIndex = groups.indexOfFirst { it.id == loaded.group.id }
@@ -63,10 +74,19 @@ internal class FavoriteGroupContentCoordinator(
         searchStore.updateIfPresent()
         publishDataState()
         publishSearchState()
+        return true
     }
 
-    fun isCurrent(groupId: Long, savedAt: Long): Boolean =
-        findCachedGroup(groupId)?.savedAt == savedAt
+    fun onLibraryMutation() {
+        libraryMutationGeneration.incrementAndGet()
+    }
+
+    fun isCurrent(groupId: Long, savedAt: Long, mutationGeneration: Long): Boolean {
+        if (mutationGeneration != libraryMutationGeneration.get()) return false
+        val cachedGroups = listOf(regularStore, searchStore)
+            .flatMap { store -> store.groupsSnapshot().filter { it.id == groupId } }
+        return cachedGroups.isNotEmpty() && cachedGroups.all { it.savedAt == savedAt }
+    }
 
     private fun findCachedGroup(groupId: Long): FavoriteGroup? =
         regularStore.groupsSnapshot().firstOrNull { it.id == groupId }
@@ -86,6 +106,7 @@ internal sealed interface FavoriteGroupContentLoadResult {
         val group: FavoriteGroup,
         val items: List<CodeItem>,
         val expectedSavedAt: Long,
+        val expectedMutationGeneration: Long,
     ) : FavoriteGroupContentLoadResult
 
     data class Rejected(

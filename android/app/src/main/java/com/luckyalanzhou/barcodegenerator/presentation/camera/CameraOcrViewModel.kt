@@ -11,6 +11,7 @@ import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import kotlinx.coroutines.CancellationException
 import com.luckyalanzhou.barcodegenerator.presentation.CameraCaptureState
 import com.luckyalanzhou.barcodegenerator.presentation.shared.CameraOcrFacade
+import com.luckyalanzhou.barcodegenerator.presentation.shared.PermissionRequestResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -40,36 +41,52 @@ class CameraOcrViewModel @Inject constructor(
     fun clearCameraOutput(): CameraCaptureState = cameraOcr.clearCameraOutput()
     fun beginExternalActivityRequest(requestCode: Int) = cameraOcr.beginExternalActivityRequest(requestCode)
     fun consumeExternalActivityRequest(): Int = cameraOcr.consumeExternalActivityRequest()
-    fun beginPermissionRequest(requestCode: Int) = cameraOcr.beginPermissionRequest(requestCode)
-    fun consumePermissionRequest(): Int = cameraOcr.consumePermissionRequest()
+    internal fun beginPermissionRequest(requestCode: Int, permissions: Array<String>) = cameraOcr.beginPermissionRequest(requestCode, permissions)
+    internal fun consumePermissionRequest(result: Map<String, Boolean>): PermissionRequestResult = cameraOcr.consumePermissionRequest(result)
 
     fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
-        val job = viewModelScope.launch {
-            val operation = System.nanoTime()
-            logger.record("ocr", "recognize start operation=$operation width=${bitmap.width} height=${bitmap.height}", null)
-            try {
-                val lines = cameraOcr.recognizeText(bitmap, confusionMask)
-                logger.record("ocr", "recognize success operation=$operation lineCount=${lines.size}", null)
-                if (lines.isEmpty()) {
-                    _events.send(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
-                } else {
-                    _events.send(CameraOcrEvent.RecognizedText(lines))
-                    _events.send(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
-                }
-            } catch (cancelled: CancellationException) {
-                logger.record("ocr", "recognize cancelled operation=$operation", null)
-                throw cancelled
-            } catch (error: Exception) {
-                logger.record("ocr", "recognize failed operation=$operation", error)
-                throw error
-            } finally {
-                if (!bitmap.isRecycled) bitmap.recycle()
-            }
-        }
+        val job = viewModelScope.launch { performTextRecognition(bitmap, confusionMask) }
         job.invokeOnCompletion { if (!bitmap.isRecycled) bitmap.recycle() }
     }
 
-    suspend fun decodeBarcode(bitmap: Bitmap): String? = cameraOcr.decodeBarcode(bitmap)
+    internal suspend fun performTextRecognition(bitmap: Bitmap, confusionMask: Int) {
+        val operation = System.nanoTime()
+        logger.record("ocr", "recognize start operation=$operation width=${bitmap.width} height=${bitmap.height}", null)
+        try {
+            val lines = cameraOcr.recognizeText(bitmap, confusionMask)
+            logger.record("ocr", "recognize success operation=$operation lineCount=${lines.size}", null)
+            if (lines.isEmpty()) {
+                _events.send(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
+            } else {
+                _events.send(CameraOcrEvent.RecognizedText(lines))
+                _events.send(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
+            }
+        } catch (cancelled: CancellationException) {
+            logger.record("ocr", "recognize cancelled operation=$operation", null)
+            throw cancelled
+        } catch (error: Exception) {
+            logger.record("ocr", "recognize failed operation=$operation", error)
+            _events.send(CameraOcrEvent.Notice("文字识别失败，请重试"))
+        } finally {
+            if (!bitmap.isRecycled) bitmap.recycle()
+        }
+    }
+
+    suspend fun decodeBarcode(bitmap: Bitmap): String? {
+        val operation = System.nanoTime()
+        logger.record("barcode", "decode start operation=$operation", null)
+        return try {
+            val decoded = cameraOcr.decodeBarcode(bitmap)
+            logger.record("barcode", "decode success operation=$operation resultPresent=${decoded != null}", null)
+            decoded
+        } catch (cancelled: CancellationException) {
+            logger.record("barcode", "decode cancelled operation=$operation", null)
+            throw cancelled
+        } catch (error: Exception) {
+            logger.record("barcode", "decode failed operation=$operation", error)
+            null
+        }
+    }
 }
 
 sealed interface CameraOcrEvent {

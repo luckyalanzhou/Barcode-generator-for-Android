@@ -30,7 +30,7 @@ dependencies {
     implementation(libs.mlkit.text.recognition.chinese)
     api(libs.room.runtime)
     implementation(libs.room.ktx)
-    api(libs.datastore.preferences)
+    implementation(libs.datastore.preferences)
     ksp(libs.room.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

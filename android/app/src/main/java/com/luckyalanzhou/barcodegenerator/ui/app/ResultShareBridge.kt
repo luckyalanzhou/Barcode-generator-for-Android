@@ -41,6 +41,25 @@ import androidx.compose.ui.layout.ContentScale
 
 private data class ResultPageImage(val bitmap: Bitmap, val label: String)
 
+/** Android 无法启动系统文件选择器时，回滚待处理文件状态。 */
+internal fun launchPendingDocumentFile(
+    file: File,
+    setPendingFile: (File?) -> Unit,
+    launch: () -> Boolean,
+): Boolean {
+    setPendingFile(file)
+    var launched = false
+    try {
+        launched = launch()
+        return launched
+    } finally {
+        if (!launched) {
+            setPendingFile(null)
+            file.delete()
+        }
+    }
+}
+
 /** 为当前结果批次生成统一的合成图片。 */
 private suspend fun MainActivity.createResultPageImage(): ResultPageImage? {
     val resultItems = resultsViewModel.resultUiState.value.items.toList()
@@ -176,12 +195,14 @@ private fun MainActivity.saveResultImageDocument(result: ResultPageImage) {
                     }
                 }
             }
-            pendingResultImageFile = file
-            launchExternalActivity(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                type = "image/png"
-                putExtra(Intent.EXTRA_TITLE, shareImageFileName(result.label))
-                addCategory(Intent.CATEGORY_OPENABLE)
-            }, MainActivity.REQUEST_RESULT_IMAGE_FILE)
+            val launched = launchPendingDocumentFile(file, { pendingResultImageFile = it }) {
+                launchExternalActivity(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_TITLE, shareImageFileName(result.label))
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                }, MainActivity.REQUEST_RESULT_IMAGE_FILE)
+            }
+            if (!launched) DebugLog.record("results", "result_image_document launch failed")
         } catch (error: CancellationException) {
             temporary?.delete()
             pendingResultImageFile = null

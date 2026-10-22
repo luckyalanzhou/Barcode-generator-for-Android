@@ -20,6 +20,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -52,6 +53,7 @@ class ResultsViewModel @Inject constructor(
     private var favoriteRenderRequest = 0L
     private var resultPreparationJob: Job? = null
     private var resultPreparationRequest = 0L
+    private var generatedCommitInProgress = false
     private val _isPreparingResult = MutableStateFlow(false)
     val isPreparingResult: StateFlow<Boolean> = _isPreparingResult.asStateFlow()
 
@@ -62,6 +64,11 @@ class ResultsViewModel @Inject constructor(
 
     init {
         pendingRestoration?.let(::restoreSavedResult)
+    }
+
+    override fun onCleared() {
+        resultPreparationRequest++
+        super.onCleared()
     }
 
     fun prepareMainGenerateTab() {
@@ -117,7 +124,7 @@ class ResultsViewModel @Inject constructor(
         resultPreparationRequest++
         resultPreparationJob?.cancel()
         resultPreparationJob = null
-        _isPreparingResult.value = false
+        if (!generatedCommitInProgress) _isPreparingResult.value = false
         cancelFavoriteGroupRendering()
     }
 
@@ -126,7 +133,7 @@ class ResultsViewModel @Inject constructor(
         style: StyleSettings,
         dark: Boolean,
         density: Float,
-        isCurrent: (Long, Long) -> Boolean,
+        isCurrent: (Long, Long, Long) -> Boolean,
         onNavigateToResults: () -> Unit,
         onNotice: (String) -> Unit,
     ) {
@@ -138,7 +145,10 @@ class ResultsViewModel @Inject constructor(
                     onNotice("部分收藏条码生成失败，请重试")
                     return@launch
                 }
-                if (request != favoriteRenderRequest || !isCurrent(content.group.id, content.expectedSavedAt)) {
+                if (
+                    request != favoriteRenderRequest ||
+                    !isCurrent(content.group.id, content.expectedSavedAt, content.expectedMutationGeneration)
+                ) {
                     appLogger.record("favorites", "open discarded groupId=${content.group.id} reason=stale_after_render", null)
                     return@launch
                 }
@@ -213,11 +223,20 @@ class ResultsViewModel @Inject constructor(
             return
         }
         if (items.isEmpty()) return
-        prepareResultImages(items, style, dark, density, onNotice) {
-            val inserted = persistence.insertGeneratedItems(items)
-            val nextResult = generation.commit(inserted, results.current())
-            rememberResult(nextResult)
-            onNavigateToResults()
+        prepareResultImages(items, style, dark, density, onNotice) { request ->
+            generatedCommitInProgress = true
+            try {
+                // Room 写入进入队列后可能晚于此 ViewModel 协程完成；写入一旦开始，仍需将同一提交同步到内存，切换 Tab 只取消导航。
+                withContext(NonCancellable) {
+                    val inserted = persistence.insertGeneratedItems(items)
+                    val nextResult = generation.commit(inserted, results.current())
+                    rememberResult(nextResult)
+                    if (request == resultPreparationRequest) onNavigateToResults()
+                }
+            } finally {
+                generatedCommitInProgress = false
+                _isPreparingResult.value = false
+            }
         }
     }
 
@@ -227,7 +246,7 @@ class ResultsViewModel @Inject constructor(
         dark: Boolean,
         density: Float,
         onNotice: (String) -> Unit,
-        onReady: suspend () -> Unit,
+        onReady: suspend (request: Long) -> Unit,
     ) {
         if (items.isEmpty() || _isPreparingResult.value) return
         resultPreparationJob?.cancel()
@@ -239,7 +258,7 @@ class ResultsViewModel @Inject constructor(
                     if (request == resultPreparationRequest) onNotice("条码图片生成失败，结果尚未打开；请重试")
                     return@launch
                 }
-                if (request == resultPreparationRequest) onReady()
+                if (request == resultPreparationRequest) onReady(request)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

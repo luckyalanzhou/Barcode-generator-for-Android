@@ -18,7 +18,9 @@ class LibraryDataCoordinator @Inject constructor(
 
     suspend fun loadPersistedData() = loadMutex.withLock {
         session.publishDataState(isReady = false)
-        val loaded = persistence.load()
+        val loaded = persistence.loadWithSnapshotRetry { error ->
+            logger.record("library", "snapshot read failed; retrying once", error)
+        }
         logger.record(
             "library",
             "snapshot loaded groups=${loaded.groups.size} items=${loaded.items.size} folders=${loaded.folders.size} hasMore=${loaded.hasMoreGroups}",

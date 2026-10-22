@@ -23,6 +23,7 @@
     ├── tools/                 正式版版本分配工具及测试
     ├── gradle/                Gradle Wrapper 和依赖版本目录
     ├── ARCHITECTURE.md        架构原则与模块边界
+    ├── IMPROVEMENT_PROGRESS.md 持续改进模块清单与验证进度
     ├── PERFORMANCE_BASELINE.md 本地渲染与内存基线记录
     ├── settings.gradle.kts    注册 Gradle 模块
     └── build.gradle.kts       工程级 Gradle 配置与架构验证

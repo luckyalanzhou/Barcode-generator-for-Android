@@ -232,6 +232,53 @@ class LanShareServerUploadTest {
     }
 
     @Test
+    fun uploadedFileWithPartExtensionRemainsVisibleAndDownloadable() {
+        val folder = temporaryFolder.newFolder()
+        val payload = byteArrayOf(3, 1, 4, 1, 5)
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            val uploaded = upload(server.listeningPort, server.sessionToken, payload, "report.part", "cbrowser123", false)
+            assertEquals(200, uploaded.first)
+            assertTrue(
+                "committed .part files must be present in the shared file snapshot",
+                server.filesSnapshot("peer").any { it.id == uploaded.second },
+            )
+
+            val encodedId = URLEncoder.encode(uploaded.second, StandardCharsets.UTF_8.name())
+            val downloadConnection = URL("http://127.0.0.1:${server.listeningPort}/dl/$encodedId")
+                .openConnection() as HttpURLConnection
+            try {
+                downloadConnection.setRequestProperty("Authorization", "Bearer ${server.sessionToken}")
+                assertEquals(200, downloadConnection.responseCode)
+                assertArrayEquals(payload, downloadConnection.inputStream.use { it.readBytes() })
+            } finally {
+                downloadConnection.disconnect()
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun uploadedPathSeparatorsCannotEscapeSharedFolder() {
+        val folder = temporaryFolder.newFolder()
+        val payload = byteArrayOf(8, 6, 7, 5, 3, 0, 9)
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            val uploaded = upload(server.listeningPort, server.sessionToken, payload, "../../outside.bin", "cbrowser123", false)
+
+            assertEquals(200, uploaded.first)
+            val storedFile = File(folder, uploaded.second)
+            assertEquals(folder.canonicalFile, storedFile.canonicalFile.parentFile)
+            assertArrayEquals(payload, storedFile.readBytes())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun committedBrowserUploadPreservesDeclaredMimeTypeInRealtimeEvent() {
         val folder = temporaryFolder.newFolder()
         val events = mutableListOf<LanShareRealtimeEvent>()

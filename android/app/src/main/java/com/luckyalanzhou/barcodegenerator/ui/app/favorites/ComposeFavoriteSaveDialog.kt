@@ -202,6 +202,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                             onCreateFolder(folder)
                             selectedRoot = folder
                             selectedChild = ""
+                            true
                         }
                     },
                     interactionSource = rootInteractions,

@@ -15,6 +15,7 @@ import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import android.net.Uri
 import org.json.JSONArray
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.CancellationException
@@ -71,7 +72,7 @@ internal class LanShareClient(
             return uploadRaw(session, transferId, activeUpload, name, size, source.mimeType, onProgress) {
                 source.openStream()
             }.also {
-                logger.record("lan", "file uploaded name=$name size=$size", null)
+                logger.record("lan", "file uploaded size=$size", null)
             }
         } finally {
             synchronized(uploadLock) {
@@ -148,14 +149,16 @@ internal class LanShareClient(
     /** 下载原文件到同目录临时文件，完成后替换目标文件，避免留下不完整下载结果。 */
     fun downloadToFile(session: LanShareSession, id: String, destination: File) =
         request(session, "/dl/${Uri.encode(id)}") { connection ->
-            destination.parentFile?.mkdirs()
-            val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
+            val temporary = createDownloadTempFile(destination)
             try {
                 temporary.outputStream().use { output ->
                     connection.inputStream.use { it.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE) }
                 }
-                if (destination.exists()) destination.delete()
-                require(temporary.renameTo(destination)) { "无法保存下载文件" }
+                try {
+                    replaceDownloadedFile(temporary, destination)
+                } catch (error: IOException) {
+                    throw IOException("无法保存下载文件", error)
+                }
                 logger.record("lan", "file downloaded id=$id bytes=${destination.length()}", null)
             } finally {
                 temporary.delete()
@@ -170,14 +173,16 @@ internal class LanShareClient(
             require(declaredSize < 0L || declaredSize <= maxBytes) {
                 "图片预览超过 ${maxBytes / (1024L * 1024L)} MB 限制"
             }
-            destination.parentFile?.mkdirs()
-            val temporary = File.createTempFile(".${destination.name}.", ".part", destination.parentFile)
+            val temporary = createDownloadTempFile(destination)
             try {
                 temporary.outputStream().buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
                     connection.inputStream.use { copyLanSharePreview(it, output, maxBytes) }
                 }
-                if (destination.exists()) destination.delete()
-                require(temporary.renameTo(destination)) { "无法保存图片预览" }
+                try {
+                    replaceDownloadedFile(temporary, destination)
+                } catch (error: IOException) {
+                    throw IOException("无法保存图片预览", error)
+                }
             } finally {
                 temporary.delete()
             }

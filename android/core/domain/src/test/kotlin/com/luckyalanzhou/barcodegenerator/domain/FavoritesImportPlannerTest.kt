@@ -71,6 +71,19 @@ class FavoritesImportPlannerTest {
         assertEquals(listOf("一级\u0000文件"), plan.conflictingFileKeys)
     }
 
+    @Test
+    fun folderAndNameBoundariesDoNotCollideWhenFieldsContainNullCharacters() {
+        val existing = listOf(FavoriteGroup(7L, "A\u0000B", "C", 1L, mutableListOf()))
+        val incoming = listOf(favorite("new", "A", "B\u0000C"))
+
+        val conflicts = planner.inspectConflicts(existing, incoming)
+        val plan = planner.plan(existing, incoming, overwriteConflicts = false)
+
+        assertTrue(conflicts.fileKeys.isEmpty())
+        assertEquals(incoming, plan.favoritesToImport)
+        assertTrue(plan.replacedGroupIds.isEmpty())
+    }
+
     private fun favorite(text: String, root: String, name: String) =
         InterchangeFavorite(null, name, root, "", "code128", 1L, listOf(text))
 }

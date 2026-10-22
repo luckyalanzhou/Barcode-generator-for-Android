@@ -28,8 +28,8 @@ internal class CameraOcrFacade(
     fun clearCameraOutput(): CameraCaptureState = camera.clearOutput()
     fun beginExternalActivityRequest(requestCode: Int) = camera.beginExternalActivity(requestCode)
     fun consumeExternalActivityRequest(): Int = camera.consumeExternalActivity()
-    fun beginPermissionRequest(requestCode: Int) = camera.beginPermission(requestCode)
-    fun consumePermissionRequest(): Int = camera.consumePermission()
+    fun beginPermissionRequest(requestCode: Int, permissions: Array<String>) = camera.beginPermission(requestCode, permissions)
+    fun consumePermissionRequest(result: Map<String, Boolean>): PermissionRequestResult = camera.consumePermission(result)
 
     suspend fun recognizeText(bitmap: Bitmap, confusionMask: Int): List<String> =
         ocrTextGateway.recognize(bitmap.toImagePayload(), confusionMask)

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.*
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
 import kotlinx.coroutines.*
@@ -51,4 +52,33 @@ class UpdateCheckStateTest {
         assertFalse(coordinator.uiState.value.checking)
         assertTrue(coordinator.checkForUpdates() is UpdateCheckResult.Failed)
     }
+
+    @Test fun pendingInstallPathSurvivesCoordinatorRecreationAndIsConsumedOnce() {
+        val savedState = SavedStateHandle()
+        val original = coordinatorWithState(savedState)
+        val expectedPath = File("update.apk").absolutePath
+
+        original.setPendingInstallPath(expectedPath)
+        val recreatedState = SavedStateHandle(savedState.keys().associateWith { key ->
+            savedState.get<Any>(key)
+        })
+        val recreated = coordinatorWithState(recreatedState)
+
+        assertEquals(expectedPath, recreated.uiState.value.pendingInstallPath)
+        assertEquals(expectedPath, recreated.takePendingInstallPath())
+        assertNull(recreated.uiState.value.pendingInstallPath)
+        assertNull(recreated.takePendingInstallPath())
+    }
+
+    private fun coordinatorWithState(savedState: SavedStateHandle) = UpdateCoordinator(
+        object : ApkDownloadGateway {
+            override fun cancel() = Unit
+            override suspend fun download(apkUrl: String, expectedSize: Long?, expectedSha256: String?,
+                onProgress: (Int, Boolean, String) -> Unit): File = error("not used")
+        },
+        object : UpdateCatalogGateway { override suspend fun check() = UpdateLookupResult.UpToDate },
+        object : ApkValidationGateway { override fun validate(file: File) = Unit },
+        AppLogger { _, _, _ -> },
+        savedState,
+    )
 }

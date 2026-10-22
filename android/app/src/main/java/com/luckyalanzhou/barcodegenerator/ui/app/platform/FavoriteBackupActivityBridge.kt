@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.BuildConfig
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
+import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesImportRefreshException
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.readFavoritesBackupBounded
 import com.luckyalanzhou.barcodegenerator.ui.app.composeAppShellActions
 import com.luckyalanzhou.barcodegenerator.ui.app.showComposeDialog
@@ -19,6 +20,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -38,13 +40,12 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
     val name = timestampedBackupFileName()
     toast("正在准备收藏备份…")
     lifecycleScope.launch(Dispatchers.IO) {
-        val exportFile = File(cacheDir, name)
-        val result = runCatching {
-            exportFile.outputStream().use { output -> favoritesViewModel.exportFavorites(output) }
-            FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", exportFile)
+        val result = prepareFavoriteBackupShareArtifact(cacheDir, name) { artifact ->
+            artifact.outputStream().use { output -> favoritesViewModel.exportFavorites(output) }
+            FileProvider.getUriForFile(this@shareFavoritesExportForCompose, "$packageName.fileprovider", artifact)
         }
         withContext(Dispatchers.Main) {
-            result.onSuccess { exportUri ->
+            result.onSuccess { (exportFile, exportUri) ->
                 DebugLog.actionSucceeded("favorites_backup_prepare", "bytes=${exportFile.length()}")
                 val share = Intent(Intent.ACTION_SEND).apply {
                     type = "application/zip"
@@ -53,18 +54,58 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     clipData = ClipData.newRawUri("收藏备份", exportUri)
                 }
-                runCatching { startActivity(Intent.createChooser(share, "分享收藏备份")) }
-                    .onFailure {
-                        DebugLog.actionFailed("favorites_backup_share", it)
-                        exportFile.delete()
+                launchFavoriteBackupChooser(
+                    launch = { startActivity(Intent.createChooser(share, "分享收藏备份")) },
+                    cleanupArtifact = { exportFile.delete() },
+                    onFailure = { error ->
+                        DebugLog.actionFailed("favorites_backup_share", error)
                         toast("无法打开分享面板，请使用保存备份")
-                    }
+                    },
+                )
             }.onFailure {
                 DebugLog.actionFailed("favorites_backup_prepare", it)
-                exportFile.delete()
                 toast(formatFavoritesExportError(it))
             }
         }
+    }
+}
+
+/** 失败或取消分享备份生成时删除部分 ZIP；只将普通异常作为可恢复结果返回。 */
+internal suspend fun <T> prepareFavoriteBackupShareArtifact(
+    directory: File,
+    requestedName: String,
+    prepare: suspend (File) -> T,
+): Result<Pair<File, T>> {
+    var artifact: File? = null
+    return try {
+        check(directory.isDirectory || directory.mkdirs()) { "无法创建备份缓存目录" }
+        val createdArtifact = createUniqueFavoriteBackupShareFile(directory, requestedName)
+        artifact = createdArtifact
+        Result.success(createdArtifact to prepare(createdArtifact))
+    } catch (cancelled: CancellationException) {
+        artifact?.delete()
+        throw cancelled
+    } catch (error: Throwable) {
+        artifact?.delete()
+        if (error !is Exception) throw error
+        Result.failure(error)
+    }
+}
+
+/** 文件名秒级时间戳可能重复；原子预留同名候选或带序号的新文件，绝不截断已有 ZIP。 */
+internal fun createUniqueFavoriteBackupShareFile(directory: File, requestedName: String): File {
+    require(requestedName.isNotBlank() && File(requestedName).name == requestedName) {
+        "备份文件名无效"
+    }
+    val extension = requestedName.substringAfterLast('.', "")
+    val stem = if (extension.isEmpty()) requestedName else requestedName.removeSuffix(".$extension")
+    val extensionSuffix = if (extension.isEmpty()) "" else ".$extension"
+    var suffix = 0L
+    while (true) {
+        val candidateName = if (suffix == 0L) requestedName else "$stem-$suffix$extensionSuffix"
+        val candidate = File(directory, candidateName)
+        if (candidate.createNewFile()) return candidate
+        suffix++
     }
 }
 
@@ -101,7 +142,7 @@ internal fun MainActivity.restoreFavoritesImport() {
 internal fun MainActivity.exportFavorites(uri: Uri) {
     DebugLog.actionStarted("favorites_backup_export")
     lifecycleScope.launch(Dispatchers.IO) {
-        val result = runCatching {
+        val result = captureRecoverableFavoriteBackupOperation {
             val temporary = File.createTempFile("favorites-export-", ".zip", cacheDir)
             try {
                 temporary.outputStream().use { output -> favoritesViewModel.exportFavorites(output) }
@@ -134,10 +175,14 @@ private fun formatFavoritesExportError(error: Throwable): String {
 internal fun MainActivity.confirmImportFavorites(uri: Uri) {
     DebugLog.actionStarted("favorites_backup_parse")
     lifecycleScope.launch(Dispatchers.IO) {
-        val parsed = runCatching {
-            val declaredSize = runCatching {
+        val parsed = captureRecoverableFavoriteBackupOperation {
+            val declaredSize = try {
                 contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
-            }.getOrNull() ?: -1L
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            } ?: -1L
             require(declaredSize < 0L || declaredSize <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong()) {
                 "备份文件超过 64 MB 限制"
             }
@@ -156,7 +201,7 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
 internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, overwriteConflicts: Boolean = false) {
     DebugLog.actionStarted("favorites_backup_import", "overwrite=$overwriteConflicts")
     lifecycleScope.launch(Dispatchers.IO) {
-        val result = runCatching {
+        val result = captureRecoverableFavoriteBackupOperation {
             val counts = favoritesViewModel.importFavorites(backup, overwriteConflicts)
             favoritesViewModel.addCollapsed(
                 (backup.folders + backup.favorites.map { it.folder }).filter { it.isNotBlank() }.toSet(),
@@ -170,7 +215,26 @@ internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, o
                     composeAppShellActions().navigateTo(AppRoute.Favorites)
                     toast("已导入 $groupCount 个收藏，$itemCount 条码")
                 }
-                .onFailure { DebugLog.actionFailed("favorites_backup_import", it); toast("收藏导入失败：${it.message ?: "无法写入数据"}") }
+                .onFailure { error ->
+                    DebugLog.actionFailed("favorites_backup_import", error)
+                    toast(favoritesImportFailureMessage(error))
+                }
         }
     }
 }
+
+/** 仅把普通备份操作异常转为界面结果；协程取消和 JVM 致命错误继续向上传播。 */
+internal suspend fun <T> captureRecoverableFavoriteBackupOperation(
+    operation: suspend () -> T,
+): Result<T> = try {
+    Result.success(operation())
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    Result.failure(error)
+}
+
+internal fun favoritesImportFailureMessage(error: Throwable): String =
+    (error as? FavoritesImportRefreshException)?.let {
+        "数据库已写入 ${it.importedGroupCount} 个收藏、${it.importedItemCount} 条码，但列表刷新失败；请重启应用后查看"
+    } ?: "收藏导入失败：${error.message ?: "无法写入数据"}"

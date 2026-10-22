@@ -46,7 +46,8 @@ class BarcodeItemMutationCoordinatorTest {
         coordinator.deleteItem(removed.id)
 
         assertEquals(listOf(retained.id), store.itemsSnapshot().map { it.id })
-        assertEquals(listOf(listOf(retained.id), emptyList<Long>()), store.groupsSnapshot().map { it.itemIds })
+        assertEquals(listOf(11L, 10L), store.groupsSnapshot().map { it.id })
+        assertEquals(listOf(emptyList<Long>(), listOf(retained.id)), store.groupsSnapshot().map { it.itemIds })
         assertEquals(0, favoriteWrites)
         assertEquals(listOf(removed.id), deletedIds)
         assertEquals(0, itemWrites)
@@ -83,5 +84,26 @@ class BarcodeItemMutationCoordinatorTest {
         assertFalse(updatedItems.getValue(history.id).favorite)
         assertEquals(1, favoriteWrites)
         assertEquals(1, itemWrites)
+    }
+
+    @Test
+    fun editingFavoriteItemMovesItsGroupIntoPersistedRecencyOrder() {
+        val favorite = CodeItem(1, "favorite", "CODE_128", 1L, favorite = true)
+        val otherFavorite = CodeItem(2, "other", "CODE_128", 2L, favorite = true)
+        val store = LibraryStateStore().apply {
+            replace(
+                listOf(favorite, otherFavorite),
+                listOf(
+                    FavoriteGroup(2, "", "Second", 20L, mutableListOf(2L)),
+                    FavoriteGroup(1, "", "First", 10L, mutableListOf(1L)),
+                ),
+                emptyList(),
+            )
+        }
+        val coordinator = BarcodeItemMutationCoordinator(store, {}, {}, { _, _ -> })
+
+        coordinator.updateItem(favorite.id, "favorite updated", "QR_CODE")
+
+        assertEquals(listOf(1L, 2L), store.groupsSnapshot().map { it.id })
     }
 }

@@ -27,7 +27,7 @@ object DebugLog {
         try {
             debugLogInitializeImpl(context)
         } catch (error: Throwable) {
-            Log.e(TAG, "Beta log backend initialization failed", error)
+            Log.e(TAG, "Beta log backend initialization failed | ${formatDiagnosticThrowable(error)}")
             writeFallback("diagnostics", "日志后端初始化失败", error)
         }
     }
@@ -80,7 +80,7 @@ object DebugLog {
 
     /** 异步后端也走同一兜底路径，不能把写入线程的异常吞掉。 */
     internal fun recordBackendFailure(tag: String, message: String, error: Throwable?, backendError: Throwable) {
-        Log.e(TAG, "Beta log backend record failed: [$tag] $message", backendError)
+        Log.e(TAG, "Beta log backend record failed: [$tag] $message | ${formatDiagnosticThrowable(backendError)}")
         writeFallback(tag, message, error ?: backendError)
     }
 
@@ -97,12 +97,18 @@ object DebugLog {
             if (exported.isFile && exported.length() > 0L) return exported
             throw IllegalStateException("日志后端返回了空文件")
         } catch (error: Throwable) {
-            Log.e(TAG, "Beta log backend snapshot failed", error)
+            Log.e(TAG, "Beta log backend snapshot failed | ${formatDiagnosticThrowable(error)}")
             val source = fallbackTarget ?: File(context.applicationContext.filesDir, FALLBACK_FILE_NAME)
             writeFallback("diagnostics", "日志导出后端不可用，已使用兜底日志文件", error, source)
             val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
-            return File(context.cacheDir, "barcode-generator-debug-$timestamp.log").also { export ->
-                export.writeText(buildLogExport(listOf("fallback-debug.log" to source.readText(Charsets.UTF_8)), 8 * 1024 * 1024), Charsets.UTF_8)
+            val export = createUniqueLogExportFile(context.cacheDir, "barcode-generator-debug-$timestamp.log")
+            try {
+                val fallbackText = sanitizeDiagnosticLogText(source.readText(Charsets.UTF_8))
+                export.writeText(buildLogExport(listOf("fallback-debug.log" to fallbackText), 8 * 1024 * 1024), Charsets.UTF_8)
+                return export
+            } catch (exportError: Throwable) {
+                export.delete()
+                throw exportError
             }
         }
     }
@@ -117,7 +123,7 @@ private fun writeFallback(tag: String, message: String, error: Throwable? = null
         append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date()))
             .append(" [").append(tag).append("] ")
             .append(message.replace('\n', ' '))
-        error?.let { append(" | ").append(Log.getStackTraceString(it)) }
+        error?.let { append(" | ").append(formatDiagnosticThrowable(it)) }
         append('\n')
     }
     synchronized(fallbackLock) {
@@ -127,6 +133,8 @@ private fun writeFallback(tag: String, message: String, error: Throwable? = null
                 val recent = selectRecentLogRecords((if (target.exists()) target.readText(Charsets.UTF_8) else "") + line, 2 * 1024 * 1024 - 256)
                 target.writeText("[diagnostics] fallback_rotation omittedRecords=${recent.omittedRecords}\n" + recent.text, Charsets.UTF_8)
             } else target.appendText(line, Charsets.UTF_8)
-        }.onFailure { Log.e("BarcodeGenerator.DebugLog", "Fallback log write failed", it) }
+        }.onFailure {
+            Log.e("BarcodeGenerator.DebugLog", "Fallback log write failed | ${formatDiagnosticThrowable(it)}")
+        }
     }
 }

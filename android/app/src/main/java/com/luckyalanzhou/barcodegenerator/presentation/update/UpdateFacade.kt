@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
@@ -16,12 +17,14 @@ internal class UpdateFacade(
     updateCatalogGateway: UpdateCatalogGateway,
     apkValidationGateway: ApkValidationGateway,
     logger: AppLogger,
+    savedStateHandle: SavedStateHandle,
 ) {
     private val coordinator = UpdateCoordinator(
         updateDownloadGateway,
         updateCatalogGateway,
         apkValidationGateway,
         logger,
+        savedStateHandle,
     )
 
     val uiState: StateFlow<UpdateUiState> = coordinator.uiState

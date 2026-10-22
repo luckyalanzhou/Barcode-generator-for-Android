@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -132,8 +133,36 @@ class BarcodePersistenceCoordinator @Inject constructor(
     }
 
     suspend fun load(): LoadedData {
+        prepareForLoad()
+        return loadSnapshot()
+    }
+
+    /** 只重试持久化快照读取；排队写入和旧版数据迁移都只执行一次。 */
+    internal suspend fun loadWithSnapshotRetry(onReadRetry: (Throwable) -> Unit): LoadedData {
+        prepareForLoad()
+        return try {
+            loadSnapshot()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (firstError: Exception) {
+            runCatching { onReadRetry(firstError) }
+            try {
+                loadSnapshot()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (retryError: Exception) {
+                if (retryError !== firstError) firstError.addSuppressed(retryError)
+                throw firstError
+            }
+        }
+    }
+
+    private suspend fun prepareForLoad() {
         writeQueue.awaitIdle()
         legacyBarcodeDataMigrator.migrateIfNeeded()
+    }
+
+    private suspend fun loadSnapshot(): LoadedData {
         val snapshot = barcodeRepository.loadStartupSnapshot()
         val loadedGroups = snapshot.groups.map { group ->
             FavoriteGroup(
@@ -155,9 +184,9 @@ class BarcodePersistenceCoordinator @Inject constructor(
     private fun enqueue(write: suspend () -> Unit): Deferred<Result<Unit>> {
         val deferred = writeQueue.enqueue(write)
         persistenceScope.launch {
-            runCatching { deferred.await() }
-                .getOrNull()
-                ?.exceptionOrNull()
+            // 普通失败经 Result 进入恢复通道；取消与致命错误保持协程异常语义。
+            deferred.await()
+                .exceptionOrNull()
                 ?.let { _writeFailures.send(it) }
         }
         return deferred
