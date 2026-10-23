@@ -188,10 +188,10 @@
 
 - **检查范围**：Beta/正式版 GitHub Actions 触发条件、权限/签名边界、草稿恢复、产物与校验文件验证，以及 Python 版本分配脚本。
 - **问题依据/优先级**：确认并修复一个 P3 版本边界 off-by-one：Beta 脚本原先拒绝分配 `2,100,000,000`，而该值是 Android Developers 文档注明的 Google Play 最大合法 `versionCode`，正式版分配器也按含上界处理。Beta 与正式版/官方约束对最大值的理解不一致，会让 Beta 少使用最后一个合法编号。参考：[Android Developers — Version your app](https://developer.android.com/studio/publish/versioning)。其余手动触发、分支、签名 Secrets 与发布校验静态检查未发现新缺陷。
-- **状态和依赖**：本地脚本修复及回归测试已验证；远端 Beta 在当前 HEAD 上曾成功发布 `versionCode=4`，但该运行不覆盖本轮尚未推送的最大值边界修复。未读取或更改凭据。
+- **状态和依赖**：已修复，待远端验证；最大值边界修复及回归测试已包含在 `origin/beta` 的 `bea226bb4af1eff2fcf7631844aaf1085ed926f4` 中。远端已有的 `versionCode=4` 成功运行早于该修复，不能证明上界场景。
 - **修改摘要**：Beta 版本分配现在允许基准值或下一版本恰好等于 `2,100,000,000`，并仍拒绝超出上限的值；新增上界回归测试。未修改工作流或正式版发布逻辑。
-- **验证及结果**：Beta 版本脚本单测 5/5 通过；正式版版本脚本单测 15/15 通过；目标文件 `git diff --check` 通过。远端成功运行 `39564048987` 的 Release 元数据为固定版本名 `9.9.9`、`versionCode=4`；未下载 APK，也未触发新的 Actions 或构建。
-- **阻碍/恢复条件/下一步**：当前最大值边界修复仍仅在本地工作树；后续经授权推送并运行 Beta workflow 后可确认远端采用新脚本。未授权前不推送。继续 `:app` 系统 Activity 结果、权限与导航回调检查。
+- **验证及结果**：当前 Beta 版本脚本单测 7/7 通过，正式版版本脚本单测 15/15 通过；已确认修复提交是 `origin/beta` 的祖先。正式版测试首次因系统临时目录 ACL 不可写而失败，将本次进程的 `TEMP/TMP` 指向 `D:\Barcode_build` 后重跑通过；未修改产品代码或正式版发布逻辑。未触发新的远端 Actions 或 APK 构建。
+- **阻碍/恢复条件/下一步**：仍需一次包含上界修复的手动 Beta workflow 运行来确认远端执行；本轮 `D:\gh.exe auth status` 报告 GitHub CLI token 无效，因此未能发起运行。重新认证后可运行 Beta workflow，并同时验证 CI-163 的 Node 24 Artifact Action。继续不依赖远端的模块审查。
 
 ### CI-016 — `:app` 权限 ActivityResult 判定
 
