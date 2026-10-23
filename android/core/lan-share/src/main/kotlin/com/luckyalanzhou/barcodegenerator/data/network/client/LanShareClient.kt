@@ -200,11 +200,14 @@ internal class LanShareClient(
     /** 下载原文件到同目录临时文件，完成后替换目标文件，避免留下不完整下载结果。 */
     fun downloadToFile(session: LanShareSession, id: String, destination: File) =
         request(session, "/dl/${Uri.encode(id)}") { connection ->
-            val declaredSize = connection.getHeaderFieldLong("Content-Length", -1L)
+            val declaredSize = connection.getHeaderField("Content-Length")?.trim()?.toLongOrNull() ?: -1L
+            if (declaredSize > LanShareLimits.MAX_FILE_BYTES) {
+                throw IOException("下载文件超过 10 GiB 限制")
+            }
             val temporary = createDownloadTempFile(destination)
             try {
                 val downloadedSize = temporary.outputStream().use { output ->
-                    connection.inputStream.use { it.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE) }
+                    connection.inputStream.use { copyLanShareDownload(it, output) }
                 }
                 if (declaredSize >= 0L && downloadedSize != declaredSize) {
                     throw IOException("下载文件不完整：$downloadedSize/$declaredSize 字节")

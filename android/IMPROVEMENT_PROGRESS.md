@@ -1732,3 +1732,12 @@
 - **修改摘要**：提取 `requireRouterLanHost(session)` 并同时用于上传和普通 HTTP 请求；增加回归测试验证非本子网会话被拒绝、文件输入流未打开。未更改地址解析规则、协议或正常子网内传输行为。
 - **验证及结果**：新增拒绝路径测试通过；完整 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 共 74 项通过、0 失败/错误/跳过；项目 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，30 执行、161 up-to-date）；`git diff --check` 通过。未组装 APK、未做真机网络验证。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续检查 LAN 客户端其它请求/文件边界。现有 UI 子网校验仍保留，底层校验作为独立防线。
+
+### CI-187 — LAN 原始文件下载缺少协议大小上限
+
+- **检查范围**：`:core:lan-share` App 原始文件下载的 `Content-Length` 预检、流式落盘上限、临时文件清理及目标文件替换顺序。
+- **问题依据/优先级**：确认 P2 本机存储耗尽风险。服务端和协议限制单文件为 10 GiB，但客户端原先只在下载结束后比较声明长度，正文直接 `copyTo()`；缺失或虚报长度的异常对端可让临时文件超过协议上限。模拟 10 GiB+1 的声明长度还发现当前 HTTP API 的长整型便捷读取路径未能在该边界可靠拦截，改由原始头字段解析十进制长整型。
+- **状态和依赖**：已验证，完成；大于 10 GiB 的声明长度在创建临时文件前拒绝；无长度或虚报长度时，逐块限制实际写入量，不会写入越界块。
+- **修改摘要**：新增 `copyLanShareDownload()` 流式硬上限；原始下载先解析 `Content-Length` 并拒绝超限，再对实际数据执行同一 10 GiB 上限。合法大小、完整性校验、旧目标保留和同目录临时文件提交流程不变。
+- **验证及结果**：新增精确上限/超限流测试和 10 GiB+1 HTTP 响应头 loopback 测试；完整 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 共 78 项通过、0 失败/错误/跳过；项目 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，32 执行、159 up-to-date）；`git diff --check` 通过。未组装 APK、未做真机传输验证。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续审查 LAN 客户端剩余响应与落盘边界。协议允许的 10 GiB 合法文件仍需依赖目标设备本身具备足够可用存储空间。

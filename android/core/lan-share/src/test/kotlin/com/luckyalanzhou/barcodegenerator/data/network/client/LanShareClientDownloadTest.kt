@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data.network.client
 
+import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import java.io.File
@@ -125,6 +126,60 @@ class LanShareClientDownloadTest {
             assertFalse(
                 temporaryFolder.root.listFiles().orEmpty().any { it.name.endsWith(".part") },
             )
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun declaredDownloadAboveProtocolLimitIsRejectedBeforeCreatingTemporaryFile() {
+        val destination = temporaryFolder.newFile("destination.bin").apply { writeText("previous bytes") }
+        val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).apply { soTimeout = 5_000 }
+        var serverFailure: Throwable? = null
+        val serverThread = Thread({
+            try {
+                server.accept().use { socket ->
+                    val request = socket.getInputStream().bufferedReader(StandardCharsets.US_ASCII)
+                    while (true) {
+                        val line = request.readLine() ?: break
+                        if (line.isEmpty()) break
+                    }
+                    socket.getOutputStream().use { response ->
+                        response.write(
+                            (
+                                "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Length: ${LanShareLimits.MAX_FILE_BYTES + 1L}\r\n" +
+                                    "Connection: close\r\n\r\n"
+                                ).toByteArray(StandardCharsets.US_ASCII),
+                        )
+                        response.flush()
+                    }
+                }
+            } catch (failure: Throwable) {
+                serverFailure = failure
+            }
+        }, "oversized-lan-download-server").apply {
+            isDaemon = true
+            start()
+        }
+        val client = LanShareClient(isRouterLanHost = { true }, logger = AppLogger { _, _, _ -> })
+
+        try {
+            val failure = runCatching {
+                client.downloadToFile(
+                    LanShareSession("http://127.0.0.1:${server.localPort}"),
+                    "oversized.bin",
+                    destination,
+                )
+            }.exceptionOrNull()
+            serverThread.join(5_000)
+
+            assertFalse("loopback response server must finish", serverThread.isAlive)
+            assertNull("loopback response server must not fail", serverFailure)
+            assertTrue("oversized declared download must fail", failure is IOException)
+            assertEquals("下载文件超过 10 GiB 限制", failure?.message)
+            assertEquals("previous bytes", destination.readText())
+            assertFalse(temporaryFolder.root.listFiles().orEmpty().any { it.name.endsWith(".part") })
         } finally {
             server.close()
         }
