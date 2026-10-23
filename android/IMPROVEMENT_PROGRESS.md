@@ -1184,14 +1184,14 @@
 - **验证及结果**：新增回归验证异常不逃逸、诊断被记录、失败态可见、重试可再读且成功清除失败态；定向测试通过。无筛选 Beta App 单测 436 项、架构测试 72 项均 0 失败/错误。完整 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline verifyLocal` 成功，191 项任务（15 执行、176 up-to-date），覆盖架构/核心/App 单测、Beta/Official Release Kotlin 编译与双通道 Lint，不组装 APK。
 - **阻碍/恢复条件/下一步**：代码与本地验证无阻碍；未运行设备界面验证。继续检查 `:app` 直接相邻的收藏搜索/分页状态切换及其他高影响模块；不提交、不推送、不构建 APK。
 
-### CI-126 — 收藏搜索与持久化快照重载交接（待确认）
+### CI-126 — 收藏搜索与持久化快照重载交接
 
 - **检查范围**：收藏备份导入后的共享快照重载、`FavoritesQueryCoordinator.resetPaging()` 对活动搜索的清理，以及 `FavoritesContent` 重新发起搜索的条件。
-- **问题依据/优先级**：观察到快照重载会清空查询协调器的 `activeSearch` 和搜索结果；恢复依赖 Compose `LaunchedEffect(normalizedQuery, favoritesState)` 再次调用搜索。若 Compose 未观察到不同的 `favoritesState`，理论上可能留下空结果，但尚未证实实际 UI 会漏掉该重查，因此不按产品缺陷处理。
-- **状态和依赖**：待确认；没有产品代码改动。定向 Compose/Robolectric 探针受主线程 250ms 搜索防抖与测试时钟调度影响，多次未能稳定跑完完整交互，失败不足以证明产品回归。
-- **修改摘要**：无。试验性测试夹具已撤回，未留下失败测试或调试代码。
-- **验证及结果**：静态追踪了导入→加载快照→发布元数据→分页重置→Compose 搜索副作用路径；搜索分页本身由既有协调器测试覆盖。补充确认 `LibraryLoadMetadata.generation` 每次快照递增并触发查询协调器重置，而 UI 的搜索副作用以结构相等的 `favoritesState` 为键；同内容快速重载存在状态流合并后不重搜的可能，但当前没有能稳定复现最终空结果的端到端测试，因此不能据此定为产品缺陷。重新运行现有 `FavoritesImportRefreshTest`，4 项全通过，验证导入已提交后快照读取失败时重试并发布恢复数据；该测试没有先执行搜索，也不覆盖相同收藏快照重载时 UI 是否重新搜索。
-- **阻碍/恢复条件/下一步**：尚无满足诊断要求的快速、确定性红灯测试；之前的 Compose 探针受搜索防抖/测试时钟影响不稳定。若要推进，先建立覆盖快照代次重置与 UI 重搜的确定性 Compose/协调器集成测试；该待确认项不阻塞其他模块，继续审查 `:app` 独立路径。
+- **问题依据/优先级**：确认 P2 可见状态错误。快照加载递增 `LibraryLoadMetadata.generation`；`FavoritesViewModel` 收到后调用 `resetPaging()`，清空 `activeSearch` 和搜索结果并发布空搜索状态。页面确实会重组，但搜索副作用只以查询和结构相等的收藏快照为键；若刷新前后收藏内容相同，effect 不重启，搜索结果会停留为空。
+- **状态和依赖**：已验证，完成（本地）；不依赖设备或产品决策。
+- **修改摘要**：通过 `FavoritesViewModel.snapshotMetadata` 将已有快照代次传给 `FavoritesContentState.searchRefreshGeneration`，并加入搜索 `LaunchedEffect` 的 key。相同收藏数据再次加载时也会重新发起当前查询；未改搜索协议、分页行为或持久化数据。
+- **验证及结果**：新增实际 `FavoritesContent` Robolectric 回归测试。修复前连续 3 次得到同一红灯：预期第 2 次查询、实际仍只有 1 次；修复后定向测试通过。`FavoritesImportRefreshTest` 另断言实际导入刷新暴露递增代次；两项定向测试均通过。完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，17 执行、174 up-to-date），包含 Beta/Official Release 编译与 Lint、架构检查和模块测试。未组装 APK、未做真机验证。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续审查 `:app` 独立路径。
 
 ### CI-127 — 旧版条码迁移吞掉协程取消和 JVM 致命错误
 

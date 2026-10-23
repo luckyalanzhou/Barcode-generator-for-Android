@@ -31,6 +31,7 @@ internal data class FavoritesContentState(
     val tree: FavoritesTreeState = FavoritesTreeState(),
     val query: String = "",
     val savedListPosition: Pair<Int, Int> = 0 to 0,
+    val searchRefreshGeneration: Long = 0L,
 )
 
 internal fun favoriteEmptyMessage(query: String): String =

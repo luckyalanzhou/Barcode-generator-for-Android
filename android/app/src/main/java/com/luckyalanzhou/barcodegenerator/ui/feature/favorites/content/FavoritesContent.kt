@@ -131,6 +131,7 @@ internal fun FavoritesContent(
     val treeState = state.tree
     val query = state.query
     val savedListPosition = state.savedListPosition
+    val searchRefreshGeneration = state.searchRefreshGeneration
     val density = LocalDensity.current.density
     val animation = ComposeAnimationConfig
     val reduceMotion = LocalVisualEffectsPolicy.current.reduceMotion
@@ -169,7 +170,9 @@ internal fun FavoritesContent(
     }
 
     LaunchedEffect(allFavoriteFolderPaths) { onSyncFavoriteTree(allFavoriteFolderPaths) }
-    LaunchedEffect(normalizedQuery, favoritesState) { onSearchFavoriteContent(normalizedQuery) }
+    LaunchedEffect(normalizedQuery, favoritesState, searchRefreshGeneration) {
+        onSearchFavoriteContent(normalizedQuery)
+    }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { onUpdateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
     LaunchedEffect(listState, listPositionRestored) {

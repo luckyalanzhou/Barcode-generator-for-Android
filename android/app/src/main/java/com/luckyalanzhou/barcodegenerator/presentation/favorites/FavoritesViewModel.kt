@@ -23,6 +23,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeDataCoordin
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataSession
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataCoordinator
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodePersistenceCoordinator
+import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryLoadMetadata
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
@@ -55,6 +56,7 @@ class FavoritesViewModel @Inject constructor(
     private val scrollToTopRequests = Channel<Unit>(Channel.BUFFERED)
 
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
+    internal val snapshotMetadata: StateFlow<LibraryLoadMetadata?> = dataSession.loadMetadata
     val searchState: StateFlow<BarcodeDataState> = querySession.searchState
     private val mutableSearchStatus = MutableStateFlow(FavoriteSearchStatus())
     val searchStatus: StateFlow<FavoriteSearchStatus> = mutableSearchStatus.asStateFlow()

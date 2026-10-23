@@ -134,6 +134,7 @@ class FavoritesImportRefreshTest {
         assertTrue(dataSession.dataState.value.isReady)
         assertEquals(listOf("导入文件"), dataSession.dataState.value.groups.map { it.name })
         assertEquals(listOf("imported-item"), dataSession.dataState.value.items.map { it.text })
+        assertEquals(1L, viewModel.snapshotMetadata.value?.generation)
     }
 
     @Test
