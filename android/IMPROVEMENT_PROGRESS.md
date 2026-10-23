@@ -765,7 +765,7 @@
 
 - **检查范围**：从结果页打开收藏保存对话框、选择文件夹、输入名称、确认保存及成功/失败后的界面行为。
 - **问题依据/优先级**：确认 P2 自动化覆盖缺口，不代表当前仍有崩溃。`ResultToolbarInteractionTest` 只验证“收藏”按钮触发回调；现有测试未发现实际驱动 `saveResultAsFavoriteCompose()` 的对话框、保存按钮及成功导航。该代码组合了 Compose 状态、嵌套目录编辑、Activity 生命周期任务和 Dialog 关闭/导航交接，过去曾报告过保存崩溃，因此仅有 ViewModel 数据层测试不能覆盖完整触发路径。
-- **状态和依赖**：待确认。按 TDD 技能要求，新增测试前需确认测试接缝；2026-10-22 再次请用户确认以 Robolectric/Compose 驱动对话框、选择目录、输入名称、点击保存并验证成功回调/关闭的范围。当前无连接设备，也没有本次崩溃的可重现日志，不能据此诊断或宣称修复仍有效。
+- **状态和依赖**：待确认。按 TDD 技能要求，新增测试前需确认测试接缝；2026-10-22 再次请用户确认以 Robolectric/Compose 驱动对话框、选择目录、输入名称、点击保存并验证成功回调/关闭的范围。复查用户提供的 2026-10-07 日志时，现有异常均跟在 `result_edit` 事件后，没有收藏保存事件对应的崩溃堆栈；因此不能将结果编辑的 GlassBackdrop 根因外推到收藏保存。
 - **修改摘要**：本项无产品代码或测试修改；仅记录缺口和建议验证范围。
 - **验证及结果**：静态搜索 `android/app/src/test` 未发现收藏保存对话框端到端交互测试；确认项目已有 Compose UI 测试、Robolectric 与 Android 资源测试配置，可评估候选方案，但尚未验证启动主 Activity 并完整触发该 Dialog 的可行性。
 - **阻碍/恢复条件/下一步**：等待用户确认是否采用该 UI 测试接缝；确认后先验证它能到达真实调用链，再补回归用例。若未确认则不新增测试，继续检查独立的本地模块与系统边界。
@@ -1061,10 +1061,10 @@
 ### CI-111 — `:app` GlassBackdrop RenderNode 重入崩溃的回归保护
 
 - **检查范围**：`recordGlassBackdrop()` 的 GraphicsLayer 录制生命周期、实际 Compose 调用位置及渲染异常回归。
-- **问题依据/优先级**：用户 2026-10-07 的两份调试日志记录到同一异常：`Recording currently in progress - missing #endRecording() call?`；堆栈落在 `GraphicsLayer.record()` / `RenderNode.beginRecording()`。当前实现已有 `AtomicBoolean` 重入保护，失败分支直接绘制子内容，避免对同一 RenderNode 再次开始录制；生产代码目前只有 `ComposeAppShell` 页面容器这一处录制入口。历史日志确认故障曾发生，但触发该入口重入的具体页面时序尚未由真机证实。
-- **状态和依赖**：已修复，待验证。相同 GraphicsLayer 的嵌套录制在 Robolectric 原生图形测试中可稳定触发；保留保护时安全，移除保护时抛出 `IllegalStateException`。真实设备 GPU/页面切换仍需设备验证。
+- **问题依据/优先级**：用户 2026-10-07 提供的 `193714`、`195130` 两份日志均在 `result_edit` 事件后记录 `IllegalStateException`，堆栈进入 `GraphicsLayer.record()` / `RenderNode.beginRecording()`，与本项相同；`190650` 未记录该崩溃。当前实现已有 `AtomicBoolean` 重入保护，失败分支直接绘制子内容，避免对同一 RenderNode 再次开始录制；生产代码只有 `ComposeAppShell` 页面容器这一处录制入口。日志证明故障曾发生，但不能证明当前版本已在真机上不再触发。
+- **状态和依赖**：代码回归保护已验证，真机待验证。相同 GraphicsLayer 的嵌套录制在 Robolectric 原生图形测试中可稳定触发；保留保护时安全，移除保护时抛出 `IllegalStateException`。真实设备 GPU/页面切换仍需设备验证。
 - **修改摘要**：新增 Compose 原生绘制回归测试，嵌套使用同一 `GlassBackdropSource` 并显式捕获渲染图像，确保测试确实执行绘制。生产绘制逻辑未改动。
-- **验证及结果**：新回归测试在临时关闭保护的变异版本下失败，恢复原子保护后通过（1/1）。固定脚本的 `verifyLocal -PenableAppUnitTests=true --offline` 成功，191 项任务（4 执行、1 缓存、186 up-to-date）；Beta 单测 430 项、架构契约 67 项、Domain 23 项、Data 66 项、LAN Share 66 项均 0 失败/错误；未组装 APK。当前 `adb devices` 无设备。
+- **验证及结果**：新回归测试在临时关闭保护的变异版本下失败，恢复原子保护后通过（1/1）。2026-10-23 使用固定脚本在当前工作区强制重跑 `:app:testBetaDebugUnitTest --tests '*GlassBackdropRecordingTest' --rerun-tasks`，结果 1/1、0 失败/错误；既有完整验证为 `verifyLocal -PenableAppUnitTests=true --offline` 成功，191 项任务（4 执行、1 缓存、186 up-to-date），Beta 单测 430 项、架构契约 67 项、Domain 23 项、Data 66 项、LAN Share 66 项均 0 失败/错误；未组装 APK。尚无本轮真机验证证据。
 - **阻碍/恢复条件/下一步**：需连接 Android 设备，在重复切换页面/长按菜单及应用前后台切换过程中观察是否再出现该 RenderNode 异常；在此之前不宣称真机端已彻底验证。继续处理与设备验证无关的待办。
 
 ### CI-112 — 更新器版本解析与正式版无上限 SemVer 规则不一致
