@@ -1552,3 +1552,12 @@
 - **修改摘要**：无产品代码修改；补充一次设置和相机识别异步边界复核。
 - **验证及结果**：使用固定本地环境运行 `:app:testBetaDebugUnitTest --tests '*SettingsViewModelTest' --tests '*CameraOcrViewModelTest' --rerun-tasks` 成功，两个测试类各 5 项、共 10 项，0 失败/错误；73 项 Gradle actionable tasks 执行。未组装 APK。普通沙箱 daemon IPC 连接失败后，按项目权限流程用相同参数授权重试成功。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续检查其他可本地验证的核心路径。结果页编辑的历史崩溃日志已与 CI-111 的 GlassBackdrop 回归保护对应；收藏保存仍缺少其自身崩溃堆栈，完整对话框回归测试接缝仍待确认（CI-079）。
+
+### CI-167 — LAN 图片预览解码失败的降级边界复核
+
+- **检查范围**：`:core:lan-share` raster/TIFF 预览解码、浏览器预览缓存路由，以及 `:app` 预览解码器适配边界。
+- **问题依据/优先级**：扫描发现 raster 解码的 `runCatching` 会把包括 `OutOfMemoryError` 在内的 `Throwable` 转为 `null`，表面上类似吞掉致命错误；但当前调用是可选预览，不承载原始文件读取/写入。服务端在预览结果为 `null` 时返回明确的 406 下载原图提示；TIFF 解码器注释明确说明解码失败回退到常规附件 UI，并显式处理 `OutOfMemoryError`。未找到由该降级引起的用户可见错误或数据损失证据。
+- **状态和依赖**：已检查，无需修改；结论限于可选预览解码，不适用于持久化、上传或原始文件下载路径。
+- **修改摘要**：无产品代码修改；记录预览 `null` 结果的既有回退契约。
+- **验证及结果**：静态追踪 `LanShareWebImagePreviewCache.getOrCreate()` 到 `/api/preview/` 的 406 下载提示，核对 TIFF 解码器的失败契约、App 适配器的可空返回类型及 `LanShareViewModel` 缓存成功解码结果的方式。未运行测试，因为未修改代码且没有需复现的产品故障；未构建 APK。
+- **阻碍/恢复条件/下一步**：无；若将来有日志证明预览失败导致进程持续处于内存异常状态，需以该实际场景重新评估 OOM 降级策略。继续检查其他独立的 LAN/数据路径。
