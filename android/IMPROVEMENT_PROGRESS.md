@@ -1597,3 +1597,12 @@
 - **修改摘要**：无产品代码修改；记录时间戳分组和操作批次身份并非同一概念。
 - **验证及结果**：静态追踪 `GenerateBarcodesUseCase.execute(now)`、`HistoryScreen.groupBy(createdAt)`、`BarcodeDao.loadStartupItems()` 排序及 `insertGeneratedItemsWithAllocatedIds()`；确认所有条码仍以独立 ID 保存。未添加测试、运行测试或构建；没有证据显示条码内容丢失或数据库排序不稳定。
 - **阻碍/恢复条件/下一步**：需确认“同一毫秒的两次生成是否必须拆成两张历史卡片”；若需要，再设计向后兼容的批次 ID 迁移及回归 seam。继续检查与该产品决定无关的其他模块。
+
+### CI-172 — 收藏搜索与常规分页并发状态复核
+
+- **检查范围**：收藏页规范化查询状态、搜索取消/刷新、搜索分页互斥、常规分页代次校验、收藏树 UI 的查询身份与占位状态。
+- **问题依据/优先级**：针对快速改写搜索词、同时触发分页或收藏变更时，旧查询结果覆盖新查询、旧常规分页污染变更后快照的 P2 风险复核；未发现新的可证实缺陷。已有保护包括：常规分页提交前比较 `regularGeneration`；搜索首屏、分页、重置和刷新共用 `searchMutex` 并校验 `activeSearch`；搜索状态携带规范化 query，界面在 query 未匹配或仍 busy 时不呈现旧结果；导入重载代次纳入搜索 effect key（CI-126）。
+- **状态和依赖**：已检查，无需修改；结论限于当前状态协调与已有单元/Robolectric 覆盖，不等同于设备上的压力测试。
+- **修改摘要**：无产品代码修改；记录对收藏常规列表、搜索分页和查询切换并发边界的复核。
+- **验证及结果**：运行 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline :app:testBetaDebugUnitTest --tests '*FavoritesQueryCoordinatorTest' --tests '*FavoritesSearchSnapshotRefreshTest'`，`BUILD SUCCESSFUL`；10 项查询协调器测试与 1 项同快照刷新测试均通过，0 失败/错误，73 项 Gradle actionable tasks（1 执行、72 up-to-date）。首次沙箱运行在测试开始前因 Gradle daemon 回环通信失败；获批后以相同命令重试通过。未组装 APK。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续审查可独立推进的收藏数据和其他核心路径。CI-169 的 loopback 下载响应测试与 CI-171 的历史批次产品语义仍待用户确认，不阻塞本项。
