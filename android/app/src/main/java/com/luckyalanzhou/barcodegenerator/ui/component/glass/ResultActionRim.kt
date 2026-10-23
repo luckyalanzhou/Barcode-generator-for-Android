@@ -69,6 +69,7 @@ internal fun DrawScope.drawResultActionRim(
     accent: Color,
     density: Float,
     highContrast: Boolean,
+    showInnerHighlight: Boolean = true,
     origin: Offset = Offset.Zero,
     bounds: Size = size,
 ) {
@@ -88,7 +89,7 @@ internal fun DrawScope.drawResultActionRim(
             style = Stroke(stroke),
         )
     }
-    if (highContrast) return
+    if (highContrast || !showInnerHighlight) return
 
     val safeDensity = density.takeIf { it.isFinite() && it > 0f } ?: 1f
     val band = (safeDensity * .7f).coerceIn(1f, 3f)

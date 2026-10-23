@@ -94,6 +94,17 @@ class ButtonRenderingContractTest {
         }
     }
 
+    @Test fun `LAN download button keeps one outline in light and dark themes`() {
+        val bubble = source("LanShareMessageBubble.kt")
+        val downloadButton = bubble.substringAfter("Button(").substringBefore("contentPadding =")
+
+        // Material Button supplies its filled shape; only the shared rim draws an outline here.
+        assertTrue(downloadButton.contains(".resultActionEdgeChrome(RoundedCornerShape(12.dp), showInnerHighlight = false)"))
+        assertFalse(downloadButton.contains("border ="))
+        val rim = source("ResultActionRim.kt")
+        assertTrue(rim.contains("if (highContrast || !showInnerHighlight) return"))
+    }
+
     @Test fun `requested controls reuse result action rim while unframed pickers stay unframed`() {
         for (name in listOf("ComposeSettingsComponents.kt", "ComposeCommonDialogs.kt", "EditorChoiceField.kt",
             "ComposeFavoriteSaveDialog.kt", "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt",

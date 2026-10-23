@@ -120,7 +120,8 @@ internal fun LanShareMessageBubble(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSaveFile(file) }, interactionSource = downloadInteraction,
-                        modifier = Modifier.iosPressFeedback(downloadInteraction).height(36.dp).resultActionEdgeChrome(RoundedCornerShape(12.dp)),
+                        modifier = Modifier.iosPressFeedback(downloadInteraction).height(36.dp)
+                            .resultActionEdgeChrome(RoundedCornerShape(12.dp), showInnerHighlight = false),
                         contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (mine) themeColors.content.sentContent.copy(alpha = .18f) else themeColors.controls.button,

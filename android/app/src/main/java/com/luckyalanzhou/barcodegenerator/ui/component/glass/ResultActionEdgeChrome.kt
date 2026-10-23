@@ -17,6 +17,7 @@ internal fun Modifier.resultActionEdgeChrome(
     shape: Shape = RoundedCornerShape(LocalAppDimensions.current.buttonCornerRadius),
     rimBackground: Color? = null,
     rimAccent: Color? = null,
+    showInnerHighlight: Boolean = true,
 ): Modifier {
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
@@ -33,6 +34,7 @@ internal fun Modifier.resultActionEdgeChrome(
                 accent = accent,
                 density = density,
                 highContrast = effects.highContrast,
+                showInnerHighlight = showInnerHighlight,
                 bounds = size,
             )
         }
