@@ -891,10 +891,10 @@
 
 - **检查范围**：正式版与 Beta workflow 的临时 artifact 上传步骤、失败恢复路径及对应静态架构契约。
 - **问题依据/优先级**：确认 P2 发布恢复缺陷。两个 workflow 的 artifact 名称包含稳定的 `github.run_number`；正式版在同一个 job 中先上传 workflow artifact，之后还要上传并校验 Release 附件、最后才发布 Release。若后续步骤失败并重跑该 run，workflow 会再次上传同名 artifact。`actions/upload-artifact` 默认不覆盖已有同名 artifact，重跑会在上传阶段失败，阻断同版本恢复流程；Beta 全 workflow 重跑也有相同风险。Action 官方说明 `overwrite: true` 会先删除同名 artifact 再上传。
-- **状态和依赖**：已修复，待验证；本地回归契约通过，远端 Actions 重跑验证依赖将改动推送到远端并实际运行，当前未推送。
+- **状态和依赖**：已修复，待远端验证；Beta 与正式版 workflow 的修复已包含在 `origin/beta`。本地契约测试覆盖了两份 workflow 的 artifact 名称和覆盖配置，但尚无同一远端 run 重传成功的证据。
 - **修改摘要**：在正式版和 Beta 的 `actions/upload-artifact` 配置中启用 `overwrite: true`，并注明该设置用于同一 run 恢复；新增 `ReleaseWorkflowArtifactRetryContractTest` 检查两份 workflow 的 run 级名称和覆盖配置，将两个 YAML 文件登记为架构测试输入。
-- **验证及结果**：契约测试在添加覆盖设置前按预期失败，修复后通过；使用 `D:\Barcode_build\run-barcode-android-gradle.ps1 --offline :architecture-tests:test --rerun-tasks` 强制运行完整架构测试，`BUILD SUCCESSFUL`。没有构建 APK、启动远端 Actions、读取 Secrets 或修改 Release。
-- **阻碍/恢复条件/下一步**：远端重跑行为尚未验证；需在这组改动推送后，选择可恢复的 workflow run 验证重传。继续检查剩余 `:app` 生命周期/数据边界与发布配置，不因远端验证依赖而暂停独立任务。
+- **验证及结果**：契约测试在添加覆盖设置前按预期失败，修复后通过；本轮再次使用 `D:\Barcode_build\run-barcode-android-gradle.ps1 --offline :architecture-tests:test --rerun-tasks` 强制运行，提权允许 Gradle daemon 本地 IPC 后 `BUILD SUCCESSFUL`。未构建 APK、未读取 Secrets、未修改 Release。
+- **阻碍/恢复条件/下一步**：远端重跑行为尚未验证；需在同一 workflow run 上传过 artifact 后重跑，确认 `overwrite: true` 可恢复。当前本机 GitHub CLI token 无效，无法启动/重跑远端 Actions；重新认证后再验证。继续检查不依赖远端的独立模块。
 
 ### CI-093 — 收藏备份分享准备把致命 JVM 错误包装成普通失败
 
