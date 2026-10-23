@@ -668,7 +668,7 @@
 - **问题依据/优先级**：针对核心操作可能串线或 TalkBack 无法识别的线索做定向检查；未发现已证实缺陷。四个操作各自有独立 key 与回调；共享玻璃按钮组件提供 Button 角色和调用方传入的内容描述；只有分享/保存共用导出互斥状态。
 - **状态和依赖**：已检查，无需修改；设备级 TalkBack 播报与焦点顺序不在本次源码/Compose 测试证明范围内。
 - **修改摘要**：无产品代码修改。
-- **验证及结果**：核对 `ResultsContent.kt`、`GlassRoundActionButton.kt` 及 `ResultToolbarInteractionTest`；现有浅色/深色测试断言四个操作各自调用正确回调，并断言导出期间对应操作不可用。本次未重跑该测试，也未做 TalkBack 真机验收。
+- **验证及结果**：核对 `ResultsContent.kt`、`GlassRoundActionButton.kt` 及 `ResultToolbarInteractionTest`；2026-10-23 使用 `:app:testBetaDebugUnitTest --tests '*ResultToolbarInteractionTest'` 重跑，浅色/深色 2 项通过、0 失败/错误。测试断言四个操作各自调用正确回调，并断言导出期间分享/保存不可用而编辑/收藏仍可用；未做 TalkBack 真机验收，也不覆盖 Activity 的导航与收藏对话框保存流程。
 - **阻碍/恢复条件/下一步**：若后续发现实际播报或焦点顺序问题，在设备上按 TalkBack 复验并补充 Compose 语义断言；继续检查 `:app` 中尚未覆盖且可本地验证的边界。
 
 ### CI-069 — `:core:lan-share` Android 客户端上传取消与部分文件清理
