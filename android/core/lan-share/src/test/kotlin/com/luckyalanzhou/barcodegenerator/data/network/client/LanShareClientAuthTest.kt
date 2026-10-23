@@ -3,8 +3,11 @@ package com.luckyalanzhou.barcodegenerator.data.network.client
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
+import com.luckyalanzhou.barcodegenerator.domain.LanShareUploadSource
+import java.io.ByteArrayInputStream
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -56,5 +59,31 @@ class LanShareClientAuthTest {
         } finally {
             server.stop()
         }
+    }
+
+    @Test
+    fun uploadRejectsHostOutsideRouterSubnetBeforeOpeningFileSource() {
+        var sourceOpened = false
+        val client = LanShareClient(isRouterLanHost = { false }, logger = AppLogger { _, _, _ -> })
+        val source = LanShareUploadSource(
+            name = "private.bin",
+            size = 1,
+            mimeType = "application/octet-stream",
+        ) {
+            sourceOpened = true
+            ByteArrayInputStream(byteArrayOf(1))
+        }
+
+        val failure = runCatching {
+            client.upload(
+                LanShareSession("http://192.0.2.1:18181", "test-token"),
+                "invalid-host-test",
+                source,
+            ) { _, _ -> }
+        }.exceptionOrNull()
+
+        assertTrue("out-of-subnet upload must be rejected", failure is IllegalArgumentException)
+        assertEquals("分享地址不在当前路由器网关子网内", failure?.message)
+        assertFalse("rejected upload must not open the selected file", sourceOpened)
     }
 }

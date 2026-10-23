@@ -113,6 +113,7 @@ internal class LanShareClient(
         val size = source.size
         if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
         require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
+        requireRouterLanHost(session)
         val activeUpload = ActiveUpload()
         synchronized(uploadLock) {
             check(transferId !in activeUploads) { "上传任务标识已存在" }
@@ -252,7 +253,7 @@ internal class LanShareClient(
         readTimeoutMs: Int = 30_000,
         block: (HttpURLConnection) -> T,
     ): T {
-        require(isRouterLanHost(Uri.parse(session.baseUrl).host)) { "分享地址不在当前路由器网关子网内" }
+        requireRouterLanHost(session)
         val connection = (URL(session.baseUrl + path).openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
             readTimeout = readTimeoutMs
@@ -273,5 +274,10 @@ internal class LanShareClient(
         } finally {
             connection.disconnect()
         }
+    }
+
+    /** 对所有 App 主动发起的 HTTP 请求统一限制目标地址在当前路由器子网内。 */
+    private fun requireRouterLanHost(session: LanShareSession) {
+        require(isRouterLanHost(Uri.parse(session.baseUrl).host)) { "分享地址不在当前路由器网关子网内" }
     }
 }
