@@ -1759,3 +1759,12 @@
 - **修改摘要**：无产品代码修改；记录现有流式上限及原子替换检查结果。
 - **验证及结果**：只读核对 `LanShareClient.downloadPreview()`、`copyLanSharePreview()`、`LanSharePreviewStreamTest` 和 `LanShareClientDownloadTest`；本轮 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 的 79 项全量测试已通过，包含预览流上限和截断响应用例。未组装 APK、未做真机预览下载验证。
 - **阻碍/恢复条件/下一步**：无；继续审查其他独立 LAN 客户端或服务端边界。
+
+### CI-190 — LAN 上传连接缺少总时限
+
+- **检查范围**：`:core:lan-share` NanoHTTPD 2.3.1 socket 超时配置、上传槽与磁盘容量预留持有周期，以及固定长度/分块上传读取循环。
+- **问题依据/优先级**：确认 P2 可用性风险，但修复策略会影响极慢传输。服务启动传入 `LAN_SHARE_SOCKET_READ_TIMEOUT_MS = 120000`；NanoHTTPD 2.3.1 文档将其定义为单次 `Socket.getInputStream().read()` 的最大等待时间，而不是整次上传总时限（[NanoHTTPD 2.3.1 API](https://javadoc.io/static/org.nanohttpd/nanohttpd/2.3.1/fi/iki/elonen/NanoHTTPD.html)）。因此已配对的局域网客户端若持续在每个 120 秒窗口内发送少量字节，可让上传一直不结束，并持续占用 `activeUploads` 槽和容量预留；4 个并发槽全部被占时，其他上传会被拒绝。此问题需持有有效会话令牌，不是未授权公网攻击。
+- **状态和依赖**：待确认；风险边界有代码和依赖文档证据，但修复需要选择上传总时限或最低进度策略，可能使极慢但真实的传输提前失败。需结合产品可接受的最慢传输行为确定限制，再加入可重复的慢速客户端回归测试。
+- **修改摘要**：未改产品代码；记录已确认风险与策略依赖，避免将 120 秒单次读取超时误认为上传总时限。
+- **验证及结果**：只读核对 `LanShareManager` 的启动参数、`LanShareServer.reserveUploadCapacity()/receiveUpload()` 及 NanoHTTPD 2.3.1 API 说明；未运行慢速占槽注入测试，未改变合法传输行为。
+- **阻碍/恢复条件/下一步**：需确定对极慢上传的保护策略及宽限度；在此期间继续检查与该选择无关的模块。
