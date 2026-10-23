@@ -155,6 +155,7 @@ internal class LanShareClient(
         val connection = (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
             readTimeout = 120_000
+            instanceFollowRedirects = false
             requestMethod = "PUT"
             setRequestProperty("X-File-Size", size.toString())
             setRequestProperty("Content-Type", uploadedMimeType(name, mimeType))
@@ -260,6 +261,7 @@ internal class LanShareClient(
         val connection = (URL(session.baseUrl + path).openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
             readTimeout = readTimeoutMs
+            instanceFollowRedirects = false
             requestMethod = if (output) "POST" else "GET"
             session.accessToken?.let { setRequestProperty("Authorization", "Bearer $it") }
             doOutput = output

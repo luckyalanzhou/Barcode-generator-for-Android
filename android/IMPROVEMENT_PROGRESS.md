@@ -1741,3 +1741,12 @@
 - **修改摘要**：新增 `copyLanShareDownload()` 流式硬上限；原始下载先解析 `Content-Length` 并拒绝超限，再对实际数据执行同一 10 GiB 上限。合法大小、完整性校验、旧目标保留和同目录临时文件提交流程不变。
 - **验证及结果**：新增精确上限/超限流测试和 10 GiB+1 HTTP 响应头 loopback 测试；完整 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 共 78 项通过、0 失败/错误/跳过；项目 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，32 执行、159 up-to-date）；`git diff --check` 通过。未组装 APK、未做真机传输验证。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续审查 LAN 客户端剩余响应与落盘边界。协议允许的 10 GiB 合法文件仍需依赖目标设备本身具备足够可用存储空间。
+
+### CI-188 — LAN HTTP 客户端自动跟随未校验的重定向
+
+- **检查范围**：`:core:lan-share` 普通 HTTP 请求与 App 上传的重定向策略；核对客户端目标主机校验是否覆盖 HTTP 3xx 跳转。
+- **问题依据/优先级**：确认 P2 网络边界缺口。客户端先校验会话初始主机，但 Android `HttpURLConnection` 默认自动跟随重定向，跳转目标不会再次经过 `isRouterLanHost` 校验；[Android API 文档](https://developer.android.com/reference/java/net/HttpURLConnection#setInstanceFollowRedirects(boolean)) 说明默认跟随行为。恶意或异常局域网端点可让 App 对未校验的目标继续发起请求。
+- **状态和依赖**：已验证，完成；上传和普通 HTTP 连接都禁用自动重定向，3xx 作为明确请求失败返回，不再访问跳转目标。
+- **修改摘要**：在两个 `HttpURLConnection` 创建路径设置 `instanceFollowRedirects = false`；新增 loopback 回归测试，让已批准的 `127.0.0.1` 端点重定向到被主机校验器拒绝的 `127.0.0.2`，确认 302 被返回且目标未收到请求。错误响应测试断言同时加入实际消息，便于定位此前偶发的错误正文前缀断言失败。
+- **验证及结果**：重定向回归测试通过；完整 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 共 79 项通过、0 失败/错误/跳过；项目 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，26 执行、165 up-to-date）；`git diff --check` 通过。全量测试此前曾一次出现既有 `LanShareClientErrorResponseTest` 断言失败，单独重跑和随后全量重跑均通过；此次全量成功。未组装 APK、未做真机网络验证。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查 LAN 客户端其他可独立验证边界。此前错误响应测试的偶发失败尚未复现根因，若再次出现，新的断言会保留实际异常消息以便进一步定位。

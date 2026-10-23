@@ -45,7 +45,7 @@ class LanShareClientErrorResponseTest {
 
     private fun assertBoundedFailure(failure: Throwable?) {
         val message = failure?.message.orEmpty()
-        assertTrue("server error should be reported", message.contains("REMOTE_ERROR:"))
+        assertTrue("server error should be reported; actual message: $message", message.contains("REMOTE_ERROR:"))
         assertTrue("error detail must have a fixed upper bound, was ${message.length} characters", message.length < 5_000)
     }
 
