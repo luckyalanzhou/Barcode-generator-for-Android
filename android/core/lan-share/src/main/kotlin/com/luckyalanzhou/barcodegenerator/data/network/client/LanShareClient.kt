@@ -22,6 +22,7 @@ import java.net.URL
 import java.util.concurrent.CancellationException
 
 internal const val MAX_LAN_SHARE_ERROR_BODY_BYTES = 4 * 1024
+internal const val MAX_LAN_SHARE_UPLOAD_RECEIPT_BYTES = 1024
 
 /** 只读取固定上限的错误详情，避免对端错误响应被完整缓冲到内存。 */
 internal fun readLanShareErrorBody(input: InputStream?): String {
@@ -44,6 +45,29 @@ internal fun readLanShareErrorBody(input: InputStream?): String {
     val truncated = byteCount > MAX_LAN_SHARE_ERROR_BODY_BYTES
     val message = String(bytes, 0, minOf(byteCount, MAX_LAN_SHARE_ERROR_BODY_BYTES), Charsets.UTF_8).trim()
     return if (truncated) "$message…（错误详情已截断）" else message
+}
+
+/** 上传回执只包含服务端文件标识；限制正文大小，避免异常对端造成无界内存读取。 */
+internal fun readLanShareUploadReceipt(input: InputStream): String {
+    val bytes = ByteArray(MAX_LAN_SHARE_UPLOAD_RECEIPT_BYTES + 1)
+    var byteCount = 0
+    input.use { stream ->
+        while (byteCount < bytes.size) {
+            val read = stream.read(bytes, byteCount, bytes.size - byteCount)
+            if (read < 0) break
+            if (read == 0) {
+                val nextByte = stream.read()
+                if (nextByte < 0) break
+                bytes[byteCount++] = nextByte.toByte()
+            } else {
+                byteCount += read
+            }
+        }
+    }
+    if (byteCount > MAX_LAN_SHARE_UPLOAD_RECEIPT_BYTES) {
+        throw IOException("上传完成但文件标识过长")
+    }
+    return String(bytes, 0, byteCount, Charsets.UTF_8).trim()
 }
 
 /** App 端访问浏览器分享服务的 HTTP 客户端；不包含服务端生命周期逻辑。 */
@@ -160,7 +184,7 @@ internal class LanShareClient(
                 val reason = runCatching { readLanShareErrorBody(connection.errorStream) }.getOrDefault("")
                 error("上传失败：${connection.responseCode}${reason.takeIf(String::isNotBlank)?.let { "：$it" }.orEmpty()}")
             }
-            return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText().trim() }
+            return readLanShareUploadReceipt(connection.inputStream)
                 .ifBlank { error("上传完成但未收到文件标识") }
         } finally {
             synchronized(uploadLock) {
