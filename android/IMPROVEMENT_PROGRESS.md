@@ -1624,3 +1624,12 @@
 - **修改摘要**：初始化时按字段合并加载期间实际改动的样式项，保留其他已存值；保留早期 OCR 选择，并在初始化完成后重新排入持久化队列，确保旧设置迁移之后仍以用户修改为准。
 - **验证及结果**：新增确定性挂起加载回归测试；修复前定向测试失败，失败点为最终主题值被 `initialize()` 回滚；修复后该测试通过。完整 `SettingsViewModelTest` 类 6 项通过、0 失败/错误。使用固定脚本运行 `:app:testBetaDebugUnitTest --tests '*SettingsViewModelTest'`，`BUILD SUCCESSFUL`（73 项 Gradle actionable tasks，4 执行、69 up-to-date）；未组装 APK、未做设备验证。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续检查独立的核心数据与网络路径。CI-169 的 loopback 下载响应回归边界仍待用户确认，CI-171 的历史批次产品语义仍待确认，均不阻塞后续独立审查。
+
+### CI-175 — 条码渲染缓存键输入完整性复核
+
+- **检查范围**：ZXing 实际使用的格式、条码文本、像素宽高、明暗配色与 `barcodeRenderKey` 输入；与非像素标签设置和结果行间距区分。
+- **问题依据/优先级**：未发现缓存错误复用的产品缺陷。键含有条码文本、原始格式、渲染算法版本、最终像素宽高和明暗模式；结果页标签和条码间距由外层合成处理，不应让编码位图缓存失效。显示格式、文字大小等标签设置不会改变条码矩阵。
+- **状态和依赖**：已检查，无需产品修改；结论限于当前 ZXing 编码位图键与结果页合成职责。
+- **修改摘要**：补充测试，明确覆盖条码文本、格式、Code 128 宽度和高度变化都会使缓存键变化；不改变缓存或渲染行为。
+- **验证及结果**：运行固定脚本 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline :app:testBetaDebugUnitTest --tests '*BarcodeRenderKeyTest'`，`BUILD SUCCESSFUL`；该测试类 3 项通过，0 失败/错误，73 项 Gradle actionable tasks（4 执行、69 up-to-date）。未组装 APK。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查其他高影响独立路径。当前没有证据要求变更缓存键格式或使标签设置触发条码矩阵重算。

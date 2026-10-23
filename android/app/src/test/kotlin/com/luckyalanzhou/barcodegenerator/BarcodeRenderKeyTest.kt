@@ -21,6 +21,20 @@ class BarcodeRenderKeyTest {
     }
 
     @Test
+    fun textFormatAndRenderedDimensionsInvalidateCachedBarcode() {
+        val style = StyleSettings()
+        val pixels = barcodeRenderSize(BarcodeFormatIds.CODE_128, style, 2f)
+        val key = barcodeRenderKey(item, pixels, false)
+        val widerPixels = barcodeRenderSize(BarcodeFormatIds.CODE_128, style.copy(barWidth = 280f), 2f)
+        val tallerPixels = barcodeRenderSize(BarcodeFormatIds.CODE_128, style.copy(barHeight = 70), 2f)
+
+        assertNotEquals(key, barcodeRenderKey(item.copy(text = "ABC|124"), pixels, false))
+        assertNotEquals(key, barcodeRenderKey(item.copy(format = "QR Code"), pixels, false))
+        assertNotEquals(key, barcodeRenderKey(item, widerPixels, false))
+        assertNotEquals(key, barcodeRenderKey(item, tallerPixels, false))
+    }
+
+    @Test
     fun displayOnlyLabelSettingsDoNotInvalidateEncodedBarcode() {
         val style = StyleSettings()
         val changed = style.copy(textSize = 24f, showFormat = !style.showFormat)
