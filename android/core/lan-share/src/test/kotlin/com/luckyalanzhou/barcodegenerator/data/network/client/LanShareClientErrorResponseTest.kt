@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import java.io.ByteArrayInputStream
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -50,7 +51,7 @@ class LanShareClientErrorResponseTest {
     }
 
     private fun <T> withLargeErrorResponse(request: (LanShareSession) -> T): T {
-        ServerSocket(0).use { server ->
+        ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).apply { soTimeout = 5_000 }.use { server ->
             val executor = Executors.newSingleThreadExecutor()
             try {
                 val responseBody = "REMOTE_ERROR:" + "x".repeat(64 * 1024)

@@ -114,6 +114,22 @@ class LanShareServerUploadTest {
     }
 
     @Test
+    fun chunkedUploadRejectsChunkLargerThanDeclaredSizeAndRemovesStagingFile() {
+        assertRejectedChunkedUpload(
+            expectedBytes = 3,
+            chunkedBody = "4\r\nABCD\r\n0\r\n\r\n",
+        )
+    }
+
+    @Test
+    fun chunkedUploadRejectsPrematureTerminatorAndRemovesStagingFile() {
+        assertRejectedChunkedUpload(
+            expectedBytes = 3,
+            chunkedBody = "2\r\nAB\r\n0\r\n\r\n",
+        )
+    }
+
+    @Test
     fun fixedLengthUploadSurvivesIdleGapLongerThanPreviousSocketTimeout() {
         val folder = temporaryFolder.newFolder()
         val firstPart = ByteArray(512 * 1024) { index -> (index * 13).toByte() }
@@ -441,6 +457,34 @@ class LanShareServerUploadTest {
         folder,
         AppLogger { _, message, _ -> diagnostics += message },
     )
+
+    private fun assertRejectedChunkedUpload(expectedBytes: Long, chunkedBody: String) {
+        val folder = temporaryFolder.newFolder()
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            Socket("127.0.0.1", server.listeningPort).use { socket ->
+                socket.soTimeout = 5_000
+                val request =
+                    "PUT /upload?name=malformed.bin&client=cbrowser123 HTTP/1.1\r\n" +
+                        "Host: 127.0.0.1:${server.listeningPort}\r\n" +
+                        "Authorization: Bearer ${server.sessionToken}\r\n" +
+                        "Transfer-Encoding: chunked\r\n" +
+                        "X-File-Size: $expectedBytes\r\n" +
+                        "Connection: close\r\n\r\n" +
+                        chunkedBody
+                socket.getOutputStream().apply {
+                    write(request.toByteArray(StandardCharsets.US_ASCII))
+                    flush()
+                }
+                val statusLine = socket.getInputStream().bufferedReader(StandardCharsets.US_ASCII).use { it.readLine() }
+                assertTrue("malformed chunked upload must fail, got: $statusLine", statusLine?.startsWith("HTTP/1.1 500") == true)
+            }
+            assertTrue("malformed upload must not publish or leave partial files", folder.listFiles().orEmpty().isEmpty())
+        } finally {
+            server.stop()
+        }
+    }
 
     private fun upload(
         port: Int,

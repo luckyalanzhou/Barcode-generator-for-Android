@@ -1768,3 +1768,21 @@
 - **修改摘要**：未改产品代码；记录已确认风险与策略依赖，避免将 120 秒单次读取超时误认为上传总时限。
 - **验证及结果**：只读核对 `LanShareManager` 的启动参数、`LanShareServer.reserveUploadCapacity()/receiveUpload()` 及 NanoHTTPD 2.3.1 API 说明；未运行慢速占槽注入测试，未改变合法传输行为。
 - **阻碍/恢复条件/下一步**：需确定对极慢上传的保护策略及宽限度；在此期间继续检查与该选择无关的模块。
+
+### CI-191 — 手写 chunked 上传解析缺少异常帧回归覆盖
+
+- **检查范围**：`:core:lan-share` 服务端分块上传在 chunk 长度超过声明剩余量、零长度终止块提前出现时的拒绝与暂存文件清理。
+- **问题依据/优先级**：未发现生产解析错误，但确认有高价值测试缺口。现有集成测试只验证标准浏览器 chunked 上传成功；自定义解析器对 `chunkSize > expectedBytes - copied` 和最终 `copied != expectedBytes` 有拒绝逻辑，却缺少网络层回归保护。
+- **状态和依赖**：已验证，完成；只增加测试，不改变服务端协议或合法上传行为。
+- **修改摘要**：新增两条 raw-socket loopback 回归：超过声明大小的 chunk 和提前结束的零长度终止块均必须返回失败，且共享目录不留下发布文件或 `.part` 暂存文件。
+- **验证及结果**：`LanShareServerUploadTest` 定向 15 项通过；完整 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks --max-workers=1` 共 81 项通过、0 失败/错误/跳过；项目 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，3 执行、188 up-to-date）；`git diff --check` 通过。未组装 APK、未做真机上传验证。
+- **阻碍/恢复条件/下一步**：无；继续检查其他服务端边界。测试只覆盖当前记录的超长 chunk 和提前终止场景，不声称覆盖所有畸形 HTTP 实现。
+
+### CI-192 — LAN 错误响应测试夹具间歇性读取超时
+
+- **检查范围**：`:core:lan-share` `LanShareClientErrorResponseTest` 本地响应服务器的绑定地址、HTTP 正文发送与完整套件中的 `Read timed out`。
+- **问题依据/优先级**：确认测试可靠性问题，而非产品传输缺陷。此前多次全量运行偶发在 `getResponseCode()` 超时，单独运行可通过；该夹具以未指定地址创建 `ServerSocket(0)`，与同模块其他 loopback 客户端测试显式绑定 `127.0.0.1` 的方式不一致。
+- **状态和依赖**：已验证，完成；修正仅限定测试端监听地址并设置 5 秒 accept 超时，不改变应用网络配置或用户行为。
+- **修改摘要**：错误响应测试服务器固定绑定 IPv4 loopback，降低主机双栈/网卡选择差异，避免测试在完整运行时随机连接超时。
+- **验证及结果**：修改后错误响应测试定向通过；随后完整 LAN 模块 81 项通过、0 失败/错误/跳过，且同次 `verifyLocal -PenableAppUnitTests=true --offline` 成功。未组装 APK。
+- **阻碍/恢复条件/下一步**：无；若未来再次出现超时，保留实际异常消息并继续从服务端线程状态定位，不把单次通过视作所有网络环境都已验证。
