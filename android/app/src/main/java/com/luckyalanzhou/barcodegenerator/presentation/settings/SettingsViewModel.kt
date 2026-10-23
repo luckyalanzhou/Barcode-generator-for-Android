@@ -31,6 +31,19 @@ data class SettingsUiState(
     val saveFailed: Boolean = false,
 )
 
+private enum class StyleField {
+    SHOW_TEXT,
+    TEXT_POSITION,
+    TEXT_SIZE,
+    BAR_HEIGHT,
+    BAR_WIDTH,
+    MARGIN,
+    SHOW_FORMAT,
+    COLOR_SCHEME,
+    REDUCE_MOTION,
+    ENHANCE_CONTRAST,
+}
+
 /** 设置页状态与设置持久化之间的边界。 */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -42,6 +55,8 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var initialized = false
     private var currentStyle = StyleSettings()
+    private val styleFieldsChangedBeforeLoad = mutableSetOf<StyleField>()
+    private var ocrMaskChangedBeforeLoad: Int? = null
     private val writeFailureNotices = Channel<Unit>(Channel.BUFFERED)
     val persistenceFailures = writeFailureNotices.receiveAsFlow()
 
@@ -103,34 +118,72 @@ class SettingsViewModel @Inject constructor(
     fun initialize(style: StyleSettings, ocrMask: Int) {
         if (initialized) return
         initialized = true
-        currentStyle = style.copy()
+        val resolvedStyle = style.copy().apply {
+            if (StyleField.SHOW_TEXT in styleFieldsChangedBeforeLoad) showText = currentStyle.showText
+            if (StyleField.TEXT_POSITION in styleFieldsChangedBeforeLoad) textPosition = currentStyle.textPosition
+            if (StyleField.TEXT_SIZE in styleFieldsChangedBeforeLoad) textSize = currentStyle.textSize
+            if (StyleField.BAR_HEIGHT in styleFieldsChangedBeforeLoad) barHeight = currentStyle.barHeight
+            if (StyleField.BAR_WIDTH in styleFieldsChangedBeforeLoad) barWidth = currentStyle.barWidth
+            if (StyleField.MARGIN in styleFieldsChangedBeforeLoad) margin = currentStyle.margin
+            if (StyleField.SHOW_FORMAT in styleFieldsChangedBeforeLoad) showFormat = currentStyle.showFormat
+            if (StyleField.COLOR_SCHEME in styleFieldsChangedBeforeLoad) colorScheme = currentStyle.colorScheme
+            if (StyleField.REDUCE_MOTION in styleFieldsChangedBeforeLoad) reduceMotion = currentStyle.reduceMotion
+            if (StyleField.ENHANCE_CONTRAST in styleFieldsChangedBeforeLoad) enhanceContrast = currentStyle.enhanceContrast
+        }
+        val shouldPersistEarlyStyle = styleFieldsChangedBeforeLoad.isNotEmpty()
+        val earlyOcrMask = ocrMaskChangedBeforeLoad
+        currentStyle = resolvedStyle
+        styleFieldsChangedBeforeLoad.clear()
+        ocrMaskChangedBeforeLoad = null
         _uiState.value = SettingsUiState(
             style = currentStyle.copy(),
-            scheme = style.colorScheme,
-            showFormat = style.showFormat,
-            ocrMask = ocrMask,
-            textSize = style.textSize,
-            barHeight = style.barHeight.toFloat(),
-            barWidth = style.barWidth,
-            margin = style.margin.toFloat(),
+            scheme = currentStyle.colorScheme,
+            showFormat = currentStyle.showFormat,
+            ocrMask = earlyOcrMask ?: ocrMask,
+            textSize = currentStyle.textSize,
+            barHeight = currentStyle.barHeight.toFloat(),
+            barWidth = currentStyle.barWidth,
+            margin = currentStyle.margin.toFloat(),
         )
+        if (shouldPersistEarlyStyle) save()
+        if (earlyOcrMask != null) {
+            trackWrite("ocr_mask_save_after_initial_load") {
+                settingsRepository.setOcrConfusionReplacementMask(earlyOcrMask)
+            }
+        }
     }
 
     /** 用完整快照更新设置，避免 UI 逐字段修改可变 StyleSettings。 */
     fun updateStyle(style: StyleSettings) {
+        if (!initialized) recordPreloadStyleChanges(currentStyle, style)
         currentStyle = style.copy()
         publishStyleToUi()
     }
 
-    fun setOcrMask(value: Int) = _uiState.update { it.copy(ocrMask = value) }
+    fun setOcrMask(value: Int) {
+        if (!initialized) ocrMaskChangedBeforeLoad = value
+        _uiState.update { it.copy(ocrMask = value) }
+    }
     fun setTextSize(value: Float) = updateStyleValue { it.copy(textSize = value) }
     fun setBarHeight(value: Float) = updateStyleValue { it.copy(barHeight = value.toInt()) }
     fun setBarWidth(value: Float) = updateStyleValue { it.copy(barWidth = value) }
     fun setMargin(value: Float) = updateStyleValue { it.copy(margin = value.toInt()) }
 
     private fun updateStyleValue(transform: (StyleSettings) -> StyleSettings) {
-        currentStyle = transform(currentStyle).copy()
-        publishStyleToUi()
+        updateStyle(transform(currentStyle))
+    }
+
+    private fun recordPreloadStyleChanges(previous: StyleSettings, next: StyleSettings) {
+        if (previous.showText != next.showText) styleFieldsChangedBeforeLoad += StyleField.SHOW_TEXT
+        if (previous.textPosition != next.textPosition) styleFieldsChangedBeforeLoad += StyleField.TEXT_POSITION
+        if (previous.textSize != next.textSize) styleFieldsChangedBeforeLoad += StyleField.TEXT_SIZE
+        if (previous.barHeight != next.barHeight) styleFieldsChangedBeforeLoad += StyleField.BAR_HEIGHT
+        if (previous.barWidth != next.barWidth) styleFieldsChangedBeforeLoad += StyleField.BAR_WIDTH
+        if (previous.margin != next.margin) styleFieldsChangedBeforeLoad += StyleField.MARGIN
+        if (previous.showFormat != next.showFormat) styleFieldsChangedBeforeLoad += StyleField.SHOW_FORMAT
+        if (previous.colorScheme != next.colorScheme) styleFieldsChangedBeforeLoad += StyleField.COLOR_SCHEME
+        if (previous.reduceMotion != next.reduceMotion) styleFieldsChangedBeforeLoad += StyleField.REDUCE_MOTION
+        if (previous.enhanceContrast != next.enhanceContrast) styleFieldsChangedBeforeLoad += StyleField.ENHANCE_CONTRAST
     }
 
     private fun publishStyleToUi() {

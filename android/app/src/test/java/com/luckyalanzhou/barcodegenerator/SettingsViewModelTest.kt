@@ -7,7 +7,9 @@ import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
@@ -15,6 +17,47 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsViewModelTest {
+    @Test
+    fun userEditMadeWhileInitialLoadIsSuspendedIsNotOverwrittenByLoadedSettings() = runBlocking {
+        val loadStarted = CompletableDeferred<Unit>()
+        val finishLoad = CompletableDeferred<Unit>()
+        val savedStyles = mutableListOf<StyleSettings>()
+        val savedOcrMasks = mutableListOf<Int>()
+        val repository = object : SettingsRepository {
+            override suspend fun load() {
+                loadStarted.complete(Unit)
+                finishLoad.await()
+            }
+
+            override fun loadStyle() = StyleSettings(colorScheme = "dark", textSize = 14f, barWidth = 270f, showText = false)
+            override fun saveStyle(style: StyleSettings) = completedJob().also { savedStyles += style.copy() }
+            override fun getOcrConfusionReplacementMask() = 0
+            override fun setOcrConfusionReplacementMask(mask: Int) = completedJob().also { savedOcrMasks += mask }
+            override fun setUpdateError(error: String) = completedJob()
+        }
+        val migration = object : SettingsMigration {
+            override suspend fun migrateIfNeeded(): StyleSettings? = null
+        }
+        val viewModel = SettingsViewModel(repository, migration, AppLogger { _, _, _ -> })
+        val loading = async { viewModel.loadPersistedState() }
+
+        loadStarted.await()
+        viewModel.updateStyle(StyleSettings(colorScheme = "light", textSize = 18f))
+        viewModel.save()
+        viewModel.setOcrMaskPersisted(7)
+        finishLoad.complete(Unit)
+        loading.await()
+
+        assertEquals("light", viewModel.uiState.value.style.colorScheme)
+        assertEquals(18f, viewModel.uiState.value.style.textSize, 0f)
+        assertEquals("loaded values not edited by the user must be preserved", 270f, viewModel.style.barWidth, 0f)
+        assertEquals(false, viewModel.style.showText)
+        assertEquals("the merged user choice must be persisted after initialization", "light", savedStyles.last().colorScheme)
+        assertEquals(18f, savedStyles.last().textSize, 0f)
+        assertEquals(7, viewModel.uiState.value.ocrMask)
+        assertEquals(7, savedOcrMasks.last())
+    }
+
     @Test
     fun loadPersistedStatePerformsPersistenceWorkOffCallerThread() = runBlocking {
         val callerThread = Thread.currentThread()

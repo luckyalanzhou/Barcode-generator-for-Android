@@ -1615,3 +1615,12 @@
 - **修改摘要**：无产品代码修改；记录备份数据顺序、重复内容和事务边界复核。
 - **验证及结果**：运行 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline :core:data:testDebugUnitTest --tests '*FavoritesTransferManagerTest' --tests '*BarcodeDatabaseMigrationTest'`，`BUILD SUCCESSFUL`；收藏传输 18 项、数据库/导入迁移 12 项，共 30 项，0 失败/错误，34 项 Gradle actionable tasks（1 执行、33 up-to-date）。首次沙箱运行在测试开始前因 Gradle daemon 回环通信失败；获批后以相同命令重试通过。未组装 APK。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续检查 `:core:data` 中其他独立持久化路径。旧版权威数据库 fixture 仍按 CI-081 等待恢复条件；未影响本次现行备份传输验证。
+
+### CI-174 — 设置异步初始化期间的用户修改被加载结果覆盖
+
+- **检查范围**：首屏 Compose 外壳先显示与 Activity 后台加载设置的时序、`SettingsViewModel` 的预加载交互、设置写入队列与旧设置迁移提交顺序。
+- **问题依据/优先级**：确认 P2 设置丢失竞态。`MainActivity` 挂载交互界面后才异步加载设置；设置页可在加载结束前操作。原 `initialize()` 无条件把读取值覆盖到 ViewModel，用户刚修改的值会回退；预先排队的写入还可能早于旧设置迁移提交，令迁移覆盖这些修改。
+- **状态和依赖**：已验证，完成（本地）；范围限于设置 ViewModel 首次加载期间的设置与 OCR 纠错修改。
+- **修改摘要**：初始化时按字段合并加载期间实际改动的样式项，保留其他已存值；保留早期 OCR 选择，并在初始化完成后重新排入持久化队列，确保旧设置迁移之后仍以用户修改为准。
+- **验证及结果**：新增确定性挂起加载回归测试；修复前定向测试失败，失败点为最终主题值被 `initialize()` 回滚；修复后该测试通过。完整 `SettingsViewModelTest` 类 6 项通过、0 失败/错误。使用固定脚本运行 `:app:testBetaDebugUnitTest --tests '*SettingsViewModelTest'`，`BUILD SUCCESSFUL`（73 项 Gradle actionable tasks，4 执行、69 up-to-date）；未组装 APK、未做设备验证。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查独立的核心数据与网络路径。CI-169 的 loopback 下载响应回归边界仍待用户确认，CI-171 的历史批次产品语义仍待确认，均不阻塞后续独立审查。
