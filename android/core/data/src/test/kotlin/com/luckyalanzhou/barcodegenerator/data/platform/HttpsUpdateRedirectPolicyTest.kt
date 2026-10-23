@@ -1,6 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
 import java.net.URL
+import java.net.URLConnection
+import java.net.URLStreamHandler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -46,6 +48,25 @@ class HttpsUpdateRedirectPolicyTest {
                 "https://example.com/app.apk",
                 redirectsFollowed = HttpsUpdateRedirectPolicy.MAX_REDIRECTS,
             )
+        }
+    }
+
+    @Test
+    fun fatalErrorWhileFormattingCurrentUrlIsNotWrappedAsInvalidRedirect() {
+        val fatal = AssertionError("simulated fatal URL formatting failure")
+        val brokenUrl = URL(
+            "https",
+            "github.com",
+            -1,
+            "/releases/download/v1.0.0/app.apk",
+            object : URLStreamHandler() {
+                override fun openConnection(url: URL): URLConnection = error("connection must not be opened")
+                override fun toExternalForm(url: URL): String = throw fatal
+            },
+        )
+
+        assertThrows(AssertionError::class.java) {
+            HttpsUpdateRedirectPolicy.resolve(brokenUrl, "app-next.apk", redirectsFollowed = 0)
         }
     }
 

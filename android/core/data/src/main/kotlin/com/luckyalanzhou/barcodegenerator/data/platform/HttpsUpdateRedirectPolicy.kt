@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data.platform
 
 import java.net.URI
 import java.net.URL
+import java.util.concurrent.CancellationException
 
 /** 更新包下载只接受安全的 HTTPS 重定向，避免自动跟随导致协议降级。 */
 internal object HttpsUpdateRedirectPolicy {
@@ -15,9 +16,13 @@ internal object HttpsUpdateRedirectPolicy {
         require(redirectsFollowed in 0 until MAX_REDIRECTS) { "更新服务器重定向次数过多" }
         require(!location.isNullOrBlank()) { "更新服务器返回了无效重定向" }
 
-        val target = runCatching {
+        val target = try {
             URI(currentUrl.toExternalForm()).resolve(location.trim())
-        }.getOrElse { throw IllegalArgumentException("更新服务器返回了无效重定向", it) }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw IllegalArgumentException("更新服务器返回了无效重定向", error)
+        }
 
         require(
             target.scheme.equals("https", ignoreCase = true) &&
@@ -26,7 +31,12 @@ internal object HttpsUpdateRedirectPolicy {
                 target.rawFragment == null,
         ) { "更新下载重定向必须指向有效的 HTTPS 地址" }
 
-        return runCatching { target.toURL() }
-            .getOrElse { throw IllegalArgumentException("更新服务器返回了无效重定向", it) }
+        return try {
+            target.toURL()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw IllegalArgumentException("更新服务器返回了无效重定向", error)
+        }
     }
 }
