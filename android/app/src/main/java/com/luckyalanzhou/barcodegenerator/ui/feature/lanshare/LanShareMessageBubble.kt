@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -123,7 +124,7 @@ internal fun LanShareMessageBubble(
                         modifier = Modifier
                             .iosPressFeedback(downloadInteraction)
                             .height(36.dp)
-                            .widthIn(min = 64.dp)
+                            .widthIn(min = ButtonDefaults.MinWidth)
                             .clip(downloadShape)
                             .clickable(
                                 onClick = { onSaveFile(file) },

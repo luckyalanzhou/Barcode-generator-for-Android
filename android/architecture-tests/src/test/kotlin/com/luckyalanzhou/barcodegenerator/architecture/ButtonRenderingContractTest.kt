@@ -104,6 +104,7 @@ class ButtonRenderingContractTest {
         assertTrue(downloadButton.contains("clickable("))
         assertTrue(downloadButton.contains("role = Role.Button"))
         assertTrue(downloadButton.contains("interactionSource = downloadInteraction"))
+        assertTrue(downloadButton.contains("widthIn(min = ButtonDefaults.MinWidth)"))
         assertTrue(downloadButton.contains("shape = downloadShape"))
         assertTrue(downloadButton.contains("rimBackground = bubbleColor"))
         assertTrue(downloadButton.contains("showInnerHighlight = false"))
