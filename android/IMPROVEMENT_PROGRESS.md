@@ -1516,3 +1516,12 @@
 - **修改摘要**：无产品代码修改；补充一次出站资源边界复核记录。
 - **验证及结果**：静态追踪 `BrowserWebSocket` 的队列创建及 abort/transport.close 回调；现有 `WebSocketWriteQueueTest` 覆盖顺序、慢 peer 超时不阻塞另一 peer、队列溢出只 abort 一次、写失败原因保留。最近完整 `verifyLocal -PenableAppUnitTests=true --offline` 成功并执行 LAN 模块单元测试；本项未增加代码，不单独重跑。
 - **阻碍/恢复条件/下一步**：无阻碍；继续检查其他 LAN 路径。该队列检查不覆盖 CI-144 的入站帧分配风险。
+
+### CI-163 — Beta 发布工作流使用已弃用的 Node.js 20 Artifact Action
+
+- **检查范围**：Beta Release 发布 job 下载当前 workflow run 构建的 APK artifact 的 Action 版本及运行时兼容性。
+- **问题依据/优先级**：远端 run `39879019894` 实际标记 `actions/download-artifact@v6.0.0` 将被强制运行于 Node.js 24。GitHub 已于 2026-09-23 移除 Node.js 20 runner 支持；继续固定在旧 runtime 的 action 会保留弃用告警并存在后续兼容风险。官方 `v8.0.2` 的 action metadata 使用 `node24`，且仍支持当前同 run artifact 下载路径。
+- **状态和依赖**：已修复，待远端验证；只涉及发布 job 使用的第一方 Action，不改变 APK、artifact 命名或 Release 流程。实际 Node 24 hosted-runner 执行依赖下一次手动 Beta 发布。
+- **修改摘要**：将 Beta Release 的 `actions/download-artifact` 从 v6.0.0 升级并固定到官方 v8.0.2 commit SHA `9000827ccba6bdab643e8b6fd33ac0654aef8333`；正式版流程没有该下载步骤，不修改。
+- **验证及结果**：已从官方 release/tag 与 `action.yml` 核对 v8.0.2 commit 和 `runs.using: node24`；本地完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，4 执行、187 up-to-date），包括架构契约测试；`git diff --check` 通过。尚未在远端实际运行新 Action。
+- **阻碍/恢复条件/下一步**：推送该工作流修复；等下一次用户授权的 Beta `workflow_dispatch` 时确认远端下载步骤通过。无需为 Action pin 单独生成 APK，发布流程仍为手动触发。
