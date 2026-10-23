@@ -16,9 +16,35 @@ import android.net.Uri
 import org.json.JSONArray
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.CancellationException
+
+internal const val MAX_LAN_SHARE_ERROR_BODY_BYTES = 4 * 1024
+
+/** 只读取固定上限的错误详情，避免对端错误响应被完整缓冲到内存。 */
+internal fun readLanShareErrorBody(input: InputStream?): String {
+    if (input == null) return ""
+    val bytes = ByteArray(MAX_LAN_SHARE_ERROR_BODY_BYTES + 1)
+    var byteCount = 0
+    input.use { stream ->
+        while (byteCount < bytes.size) {
+            val read = stream.read(bytes, byteCount, bytes.size - byteCount)
+            if (read < 0) break
+            if (read == 0) {
+                val nextByte = stream.read()
+                if (nextByte < 0) break
+                bytes[byteCount++] = nextByte.toByte()
+            } else {
+                byteCount += read
+            }
+        }
+    }
+    val truncated = byteCount > MAX_LAN_SHARE_ERROR_BODY_BYTES
+    val message = String(bytes, 0, minOf(byteCount, MAX_LAN_SHARE_ERROR_BODY_BYTES), Charsets.UTF_8).trim()
+    return if (truncated) "$message…（错误详情已截断）" else message
+}
 
 /** App 端访问浏览器分享服务的 HTTP 客户端；不包含服务端生命周期逻辑。 */
 internal class LanShareClient(
@@ -131,7 +157,7 @@ internal class LanShareClient(
             } ?: error("无法读取附件")
             require(copiedBytes == size) { "附件读取不完整：$copiedBytes/$size 字节" }
             if (connection.responseCode !in 200..299) {
-                val reason = connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText().trim() }.orEmpty()
+                val reason = runCatching { readLanShareErrorBody(connection.errorStream) }.getOrDefault("")
                 error("上传失败：${connection.responseCode}${reason.takeIf(String::isNotBlank)?.let { "：$it" }.orEmpty()}")
             }
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText().trim() }
@@ -149,10 +175,14 @@ internal class LanShareClient(
     /** 下载原文件到同目录临时文件，完成后替换目标文件，避免留下不完整下载结果。 */
     fun downloadToFile(session: LanShareSession, id: String, destination: File) =
         request(session, "/dl/${Uri.encode(id)}") { connection ->
+            val declaredSize = connection.getHeaderFieldLong("Content-Length", -1L)
             val temporary = createDownloadTempFile(destination)
             try {
-                temporary.outputStream().use { output ->
+                val downloadedSize = temporary.outputStream().use { output ->
                     connection.inputStream.use { it.copyTo(output, LAN_SHARE_STREAM_BUFFER_SIZE) }
+                }
+                if (declaredSize >= 0L && downloadedSize != declaredSize) {
+                    throw IOException("下载文件不完整：$downloadedSize/$declaredSize 字节")
                 }
                 try {
                     replaceDownloadedFile(temporary, destination)
@@ -175,8 +205,11 @@ internal class LanShareClient(
             }
             val temporary = createDownloadTempFile(destination)
             try {
-                temporary.outputStream().buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
+                val downloadedSize = temporary.outputStream().buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
                     connection.inputStream.use { copyLanSharePreview(it, output, maxBytes) }
+                }
+                if (declaredSize >= 0L && downloadedSize != declaredSize) {
+                    throw IOException("图片预览下载不完整：$downloadedSize/$declaredSize 字节")
                 }
                 try {
                     replaceDownloadedFile(temporary, destination)
@@ -208,7 +241,7 @@ internal class LanShareClient(
             val responseCode = connection.responseCode
             if (responseCode !in 200..299) {
                 val detail = runCatching {
-                    (connection.errorStream ?: connection.inputStream).bufferedReader(Charsets.UTF_8).use { it.readText().trim() }
+                    readLanShareErrorBody(connection.errorStream ?: connection.inputStream)
                 }.getOrNull().orEmpty()
                 error("连接失败：$responseCode${detail.takeIf { it.isNotBlank() }?.let { "：$it" }.orEmpty()}")
             }

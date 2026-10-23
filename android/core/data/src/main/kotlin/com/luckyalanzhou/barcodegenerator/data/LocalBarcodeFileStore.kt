@@ -5,6 +5,21 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import java.io.File
+import java.io.OutputStream
+
+internal inline fun writeBitmapCacheFile(
+    temporary: File,
+    compress: (OutputStream) -> Boolean
+): Boolean {
+    var completed = false
+    return try {
+        temporary.outputStream().use(compress).also { completed = it }
+    } catch (_: Exception) {
+        false
+    } finally {
+        if (!completed) temporary.delete()
+    }
+}
 
 /** 应用私有文件数据源；Room 仍然是条码索引和查询的唯一数据源。 */
 class LocalBarcodeFileStore(context: Context) {
@@ -45,9 +60,9 @@ class LocalBarcodeFileStore(context: Context) {
             val temporary = File(imageDirectory, ".$key.tmp")
             activeTemporaryNames.add(temporary.name)
             try {
-                val compressed = runCatching {
-                    temporary.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                }.getOrDefault(false)
+                val compressed = writeBitmapCacheFile(temporary) {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
                 if (!compressed || temporary.length() > BarcodeImageCachePolicy.MAX_DISK_BYTES) {
                     temporary.delete()
                     return

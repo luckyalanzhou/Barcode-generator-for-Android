@@ -12,11 +12,23 @@ import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import com.luckyalanzhou.barcodegenerator.domain.ImagePayload
 import com.luckyalanzhou.barcodegenerator.domain.OcrCorrectionMask
 import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+internal inline fun ocrFallbackOrPropagate(
+    failure: Throwable,
+    fallback: () -> List<String>,
+    propagate: (Throwable) -> List<String>,
+): List<String> = when (failure) {
+    is CancellationException -> propagate(failure)
+    is Exception -> fallback()
+    else -> propagate(failure)
+}
 
 /** Android/ML Kit adapter; OCR remains outside presentation and domain. */
 class MlKitOcrTextGateway : OcrTextGateway {
@@ -57,9 +69,13 @@ class MlKitOcrTextGateway : OcrTextGateway {
 
         val recognizer = try {
             TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
             if (!enhanced.isRecycled) enhanced.recycle()
-            return emptyList()
+            return ocrFallbackOrPropagate(
+                error,
+                fallback = { emptyList() },
+                propagate = { throw it },
+            )
         }
 
         return suspendCancellableCoroutine { continuation ->
@@ -77,8 +93,22 @@ class MlKitOcrTextGateway : OcrTextGateway {
                                 }
                             }.joinToString("").lines().filter { it.isNotBlank() }
                             if (continuation.isActive) continuation.resume(normalized)
-                        } catch (_: Throwable) {
-                            if (continuation.isActive) continuation.resume(emptyList())
+                        } catch (failure: Throwable) {
+                            val recovered = ocrFallbackOrPropagate(
+                                failure,
+                                fallback = { emptyList() },
+                                propagate = { fatal ->
+                                    if (continuation.isActive) {
+                                        continuation.resumeWithException(fatal)
+                                        emptyList()
+                                    } else if (fatal is CancellationException) {
+                                        emptyList()
+                                    } else {
+                                        throw fatal
+                                    }
+                                },
+                            )
+                            if (continuation.isActive) continuation.resume(recovered)
                         }
                     }
                     .addOnFailureListener { if (continuation.isActive) continuation.resume(emptyList()) }
@@ -89,7 +119,21 @@ class MlKitOcrTextGateway : OcrTextGateway {
             } catch (error: Throwable) {
                 recognizer.close()
                 if (!enhanced.isRecycled) enhanced.recycle()
-                if (continuation.isActive) continuation.resume(emptyList())
+                val recovered = ocrFallbackOrPropagate(
+                    error,
+                    fallback = { emptyList() },
+                    propagate = { fatal ->
+                        if (continuation.isActive) {
+                            continuation.resumeWithException(fatal)
+                            emptyList()
+                        } else if (fatal is CancellationException) {
+                            emptyList()
+                        } else {
+                            throw fatal
+                        }
+                    },
+                )
+                if (continuation.isActive) continuation.resume(recovered)
             }
         }
     }

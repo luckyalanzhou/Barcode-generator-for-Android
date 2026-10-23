@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
 
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
@@ -21,6 +22,12 @@ private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
 private const val ZIP_LOCAL_HEADER_BYTES = 30L
 private const val ZIP_CENTRAL_DIRECTORY_HEADER_BYTES = 46L
 private const val ZIP_END_OF_CENTRAL_DIRECTORY_BYTES = 22L
+
+internal inline fun <T> parseFavoriteJsonOrError(parse: () -> T): T = try {
+    parse()
+} catch (_: JSONException) {
+    error("收藏文件不是有效 JSON")
+}
 
 object FavoritesTransferManager {
     fun export(output: OutputStream, snapshot: BarcodeSnapshot) {
@@ -206,7 +213,7 @@ object FavoritesTransferManager {
     }
 
     private fun parseFavoriteJson(json: String): InterchangeFavorite {
-        val value = runCatching { JSONObject(json) }.getOrElse { error("收藏文件不是有效 JSON") }
+        val value = parseFavoriteJsonOrError { JSONObject(json) }
         val legacyPath = value.optString("folder", "").trim()
         val rootFolder = value.optString("rootFolder", legacyPath.substringBefore('/')).trim()
         val subFolder = value.optString("subFolder", legacyPath.substringAfter('/', "")).trim()

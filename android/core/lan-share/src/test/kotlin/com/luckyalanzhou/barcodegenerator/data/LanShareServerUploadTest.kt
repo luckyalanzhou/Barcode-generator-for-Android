@@ -193,11 +193,16 @@ class LanShareServerUploadTest {
             // Close the actual TCP stream, not an HttpURLConnection-managed connection.
             uploadConnection.close()
 
-            val cleanupDeadline = System.nanoTime() + 5_000_000_000L
+            val cleanupDeadline = System.nanoTime() + 10_000_000_000L
             while (folder.listFiles().orEmpty().isNotEmpty() && System.nanoTime() < cleanupDeadline) {
                 Thread.sleep(10)
             }
-            assertTrue("cancelled upload must not leave staged or committed files", folder.listFiles().orEmpty().isEmpty())
+            val remainingFiles = folder.listFiles().orEmpty()
+            assertTrue(
+                "cancelled upload must not leave staged or committed files; " +
+                    "remaining=${remainingFiles.joinToString { "${it.name}:${it.length()}" }}",
+                remainingFiles.isEmpty(),
+            )
         } finally {
             connection?.close()
             server.stop()

@@ -6,12 +6,12 @@
 
 | 模块 | 检查重点 | 状态 | 依赖/说明 |
 | --- | --- | --- | --- |
-| `:core:data` | 持久化、数据库迁移、收藏快照和文件导入导出 | 检查中 | 依赖 `:core:domain`；本轮补充收藏备份 ID 分配溢出保护，并覆盖历史、收藏、设置与更新持久化；DataStore 实现依赖收回模块内部；APK 更新身份策略和中断下载临时包清理有回归测试；更新 tag 解析支持无位数上限的 SemVer（CI-112）；新版本缺 SHA-256 时在检查阶段即明确拒绝，不再呈现为可下载（CI-115）；旧版条码/设置迁移现传播取消与 JVM 致命错误，普通坏值仍保留既有默认值回退，迁移失败不清除源数据；损坏类型设置的默认值兼容性有集成回归保护（CI-127、CI-128、CI-131）；完整本地验证需按 CI-053 使用短 Java 临时路径（本轮已通过）；数据库/收藏回归中测试专用 SQLite 数据库名导致 Robolectric `SQLITE_CANTOPEN`，已改回类内标准隔离数据库并通过 12 项测试（CI-153）；Android PackageManager 对真实 APK 的解析分支仍未做平台集成验证；收藏备份 JSON 与 OCR/ZXing 适配器异常分类需按经确认的测试边界修复（CI-139–CI-141）；版本 1/2 数据库迁移回归覆盖缺口及权威旧版夹具待确认（CI-081） |
+| `:core:data` | 持久化、数据库迁移、收藏快照和文件导入导出 | 检查中 | 依赖 `:core:domain`；本轮补充收藏备份 ID 分配溢出保护，并覆盖历史、收藏、设置与更新持久化；DataStore 实现依赖收回模块内部；APK 更新身份策略和中断下载临时包清理有回归测试；更新 tag 解析支持无位数上限的 SemVer（CI-112）；新版本缺 SHA-256 时在检查阶段即明确拒绝，不再呈现为可下载（CI-115）；旧版条码/设置迁移现传播取消与 JVM 致命错误，普通坏值仍保留既有默认值回退，迁移失败不清除源数据；损坏类型设置的默认值兼容性有集成回归保护（CI-127、CI-128、CI-131）；完整本地验证需按 CI-053 使用短 Java 临时路径（本轮已通过）；数据库/收藏回归中测试专用 SQLite 数据库名导致 Robolectric `SQLITE_CANTOPEN`，已改回类内标准隔离数据库并通过 12 项测试（CI-153）；条码缓存压缩现仅降级普通异常、致命错误传播（CI-154）；ZXing 图片识别现传播取消与程序级错误，普通解码异常仍返回未识别（CI-141）；收藏 JSON 解析仅将 `JSONException` 转为现有格式错误提示（CI-139）；ML Kit OCR 现保留普通失败回退，同时传播取消与 JVM 致命错误（CI-140）；Android PackageManager 对真实 APK 的解析分支仍未做平台集成验证；版本 1/2 数据库迁移回归覆盖缺口及权威旧版夹具待确认（CI-081） |
 | `:core:domain` | 条码规则、收藏导入规划、更新与传输领域策略 | 已检查 | 本轮覆盖条码、身份、更新与 LAN 领域规则；版本比较现支持无位数上限的合法十进制段（CI-112） |
-| `:core:lan-share` | HTTP/WebSocket、浏览器端、文件完整性与会话清理 | 检查中 | 依赖 `:core:domain`；Android 客户端真实 HTTP 上传取消和服务端部分文件清理由 CI-069 增加 loopback 回归测试；可导出的上传日志不记录用户文件名，异常消息与 URI/路径会在日志路径脱敏；HTTP 下载响应提前断流时目标文件是否保持不变仍按 CI-135 待确认；NanoHTTPD 请求临时文件公告经实际请求路径核查，当前未触发受影响解析分支（CI-143）；WebSocket 64 KB 聊天限制发生在库层完整帧分配/重组之后，超大帧可能先耗尽进程内存（CI-144，修复需选择受限帧解析实现）；HTTP 上传在读取前做长度、并发、房间容量和磁盘空间预留，暂存后校验再提交（CI-147）；8 位配对码使用安全随机数，按客户端地址限频且限制跟踪地址总数，鉴权失败不泄露缓存内容（CI-148） |
+| `:core:lan-share` | HTTP/WebSocket、浏览器端、文件完整性与会话清理 | 检查中 | 依赖 `:core:domain`；Android 客户端真实 HTTP 上传取消和服务端部分文件清理由 CI-069 增加 loopback 回归测试；可导出的上传日志不记录用户文件名，异常消息与 URI/路径会在日志路径脱敏；文件与图片预览下载在响应声明 `Content-Length` 时都会校验实际字节数后再替换目标，截断响应保留旧目标（CI-135）；HTTP 错误响应详情在普通请求和上传路径统一限制最多读取 4 KiB + 1 字节，超长内容不再完整缓冲（CI-159）；`/api/files` 与 WebSocket 首次同步目前都完整构造文件快照/JSON，潜在峰值内存需按真实规模测量后再决定是否流式解析或分页（CI-160）；网页图片预览边长和磁盘缓存均有上限，临时文件与 Bitmap 在完成/失败后回收；上传目标使用唯一前缀且拒绝覆盖，未发现正常上传流程导致旧预览缓存复用（CI-161）；WebSocket 每连接出站队列有界（32 条），写入超时 5 秒，溢出时关闭慢连接（CI-162）；NanoHTTPD 请求临时文件公告经实际请求路径核查，当前未触发受影响解析分支（CI-143）；WebSocket 64 KB 聊天限制发生在库层完整帧分配/重组之后，超大帧可能先耗尽进程内存（CI-144，修复需选择受限帧解析实现）；HTTP 上传在读取前做长度、并发、房间容量和磁盘空间预留，暂存后校验再提交（CI-147）；8 位配对码使用安全随机数，按客户端地址限频且限制跟踪地址总数，鉴权失败不泄露缓存内容（CI-148） |
 | `:app` | 页面状态、导航、生成/结果/历史/收藏/设置与系统交互 | 检查中 | 启动快照读取增加一次安全重试；设置与库数据启动错误现已区分汇总；SAF 文档选择不再要求旧存储权限，旧版遗留持久 URI 授权改为一次性迁移清理；Beta 日志初始化移出首屏调用线程、跨日运行触发过期日志清理、异常摘要保留类型/堆栈但省略异常消息，旧日志导出前脱敏；图片解码、外部 Activity 启动失败和 SAF 缺少 URI 会留下安全诊断及用户反馈；LAN 下载失败或返回时会话失效会尝试删除 SAF 新建的空/部分目标文档；局域网相机返回时若会话已失效则清理临时照片并提示重连；关闭/切换 LAN 会话会立即回收活动上传照片；持久化队列、收藏备份、SAF 旧授权迁移及 Activity 启动现仅将普通 `Exception` 作为可恢复失败，取消与致命 `Error` 不再伪装成普通失败（CI-091、CI-093–CI-097、CI-100–CI-101）；更新安装路径使用 `SavedStateHandle` 保留待安装状态（CI-027，本地协调器测试复跑通过，真实进程回收待设备）；安装权限设置往返失败时会恢复待安装提示（CI-102）；LAN host 启动期间来自 NanoHTTPD 工作线程的连接事件可收敛到 UI（CI-113）；对高风险集合访问未发现未保护的 `first/single`；收藏组的内存次序现与 Room 的 `savedAt DESC, id DESC` 对齐（CI-121）；收藏列表分页读取失败现保留取消传播、记录不含查询内容的诊断并提供单独重试入口（CI-125）；自动备份默认覆盖 Room 条码库和 DataStore 设置，当前仅排除临时 LAN 文件与诊断日志，云备份/换机范围待产品确认（CI-129）；全局明文网络权限因局域网客户端需访问动态路由器 IPv4，尚无不改变连接方式的静态子网白名单，当前客户端与更新器均有协议/主机边界保护，残余平台级范围待确认（CI-130）；SAF 提供器和真实安装器行为仍需设备恢复演练；沙箱内 ADB 本机服务启动受限，授权后的只读设备枚举可运行但没有连接设备，当前未做真机验证；历史记录 500 条可见上限待产品确认 |
 | `:architecture-tests` | 模块依赖、渲染/日志等架构约定的覆盖有效性 | 已检查 | 修复变体源码输入漏项及 configuration cache 不兼容 |
-| 构建与发布配置 | Beta/正式版工作流、版本分配及签名边界 | 检查中 | Beta 同一 workflow run 在发布后重试会沿用已发布 versionCode（CI-110，本地验证）；正式版 workflow 对并发组启用最多 100 个等待 run 的队列，避免默认单等待位替换旧手动发布（CI-116）；Beta 稳定 Release 明确采用最新等待构建策略（CI-119）；恢复已公开但附件不完整的正式版时会先转草稿，附件校验后才重新公开（CI-114）；PR 门禁已接入 Release 编译与 Lint（CI-117）；Gradle Wrapper 9.5.0 的分发 ZIP 摘要与 Wrapper JAR 均锁定官方值（CI-118）；Beta 工作流权限与跨 job 产物交接已静态核对；新 workflow 尚未推送，远端 Actions 验证待授权；依赖版本集中管理，但仓库无自动更新 PR、锁文件或制品摘要校验配置，自动更新目标分支待确认（CI-155） |
+| 构建与发布配置 | Beta/正式版工作流、版本分配及签名边界 | 检查中 | Beta 同一 workflow run 在发布后重试会沿用已发布 versionCode（CI-110，本地验证）；正式版 workflow 对并发组启用最多 100 个等待 run 的队列，避免默认单等待位替换旧手动发布（CI-116）；Beta 稳定 Release 明确采用最新等待构建策略（CI-119）；恢复已公开但附件不完整的正式版时会先转草稿，附件校验后才重新公开（CI-114）；PR 门禁已接入 Release 编译与 Lint（CI-117）；Gradle Wrapper 9.5.0 的分发 ZIP 摘要与 Wrapper JAR 均锁定官方值（CI-118）；Beta 工作流权限与跨 job 产物交接已静态核对；提交 `bea226b` 已推送，Beta 远端验证、签名构建及 Release 发布均成功（CI-158）；依赖版本集中管理，但仓库无自动更新 PR、锁文件或制品摘要校验配置，自动更新目标分支待确认（CI-155） |
 | 项目文档 | README、目录结构、架构、协议、贡献和性能基线文档 | 已检查，无需修改 | README 安全说明曾与实际 LAN 配对/令牌实现相反，已修正（CI-150）；目录与架构文档和 Gradle 模块核对一致（CI-151）；协议文档已说明 64 KiB 聊天校验不是 WebSocket 帧内存上限（CI-152）；本地 Markdown 文件链接静态核对无断链 |
 
 ### 最近跨模块验证（2026-10-22）
@@ -1267,12 +1267,12 @@
 
 ### CI-135 — LAN 下载提前断流时是否会替换目标文件
 
-- **检查范围**：`:core:lan-share` 的 Android 客户端 `downloadToFile`、同目录暂存文件和目标替换行为。
-- **问题依据/优先级**：待证实的数据完整性线索（潜在 P1）。下载代码把响应流复制到暂存文件后直接替换目标，没有显式核对 `Content-Length` 与实际复制字节数；不过 `HttpURLConnection` 可能自行检测固定长度响应截断，目前不能仅凭缺少应用层检查断言有坏文件风险。
-- **状态和依赖**：待确认；TDD 技能要求先确认新增回归所用测试接缝。已向用户请求批准通过公开的 `LanShareClient.downloadToFile(session, id, destination)` 与 loopback HTTP 服务测试 200 响应提前断流，验证旧目标是否保持不变；未确认前不新增该测试或改生产代码。
-- **修改摘要**：当前工作树已有 `createDownloadTempFile` / `replaceDownloadedFile` 暂存替换抽取，移动失败时保留旧目标；没有明确核对实际响应字节数的逻辑。
-- **验证及结果**：当前树重跑 `D:\Barcode_build\run-barcode-android-gradle.ps1 --offline :core:lan-share:testDebugUnitTest --tests '*LanShareDownloadFilesTest' --tests '*LanShareClientAuthTest' --rerun-tasks` 成功：2 个网络下载用例、3 个暂存文件用例均 0 失败/错误。它们覆盖完整 HTTP 响应和文件替换失败，但未触发 200 响应提前断流，故不能判定旧目标在真实中断时保持不变。
-- **阻碍/恢复条件/下一步**：等待用户确认测试边界；若批准，先在旧实现运行回归测试以确认能否复现，再决定最小修复。此事项不阻塞其他模块。
+- **检查范围**：`:core:lan-share` 的 Android 客户端 `downloadToFile()`、`downloadPreview()`、同目录暂存文件和目标替换行为。
+- **问题依据/优先级**：确认 P1 数据完整性缺陷。文件下载和图片预览下载都会先写 `.part` 再替换目标；loopback 返回 `200`、声明 32 字节却仅发出 9 字节时，旧实现可能把截断响应视作成功并覆盖已有目标。预览路径的旧实现已由回归测试复现。
+- **状态和依赖**：已验证，完成；响应提供有效 `Content-Length` 时，两条下载路径均校验实际读取字节数，长度不匹配会在替换目标前失败；普通完整响应行为不变。
+- **修改摘要**：`downloadToFile()` 和 `downloadPreview()` 分别记录复制字节数并与声明长度比较；长度不符时不替换目标，沿既有 `finally` 删除暂存文件。新增 loopback 回归覆盖两条路径的截断响应、旧目标保留及 `.part` 清理；未改变下载接口或服务端协议。
+- **验证及结果**：截断预览回归在旧实现上失败，证明旧路径会接受不完整响应；修复后 `:core:lan-share:testDebugUnitTest --tests '*LanShareClientDownloadTest' --rerun-tasks` 通过。最新完整 `verifyLocal -PenableAppUnitTests=true --offline` 通过：191 项任务，4 执行、187 up-to-date，覆盖架构检查、Beta/Official Release 编译与 Lint、全部模块测试；未组装 APK。`git diff --check` 通过。
+- **阻碍/恢复条件/下一步**：无源码验证阻碍。缺少 `Content-Length` 的响应无法通过声明长度比较判断预期字节数；项目当前下载和预览响应均声明该头。Android 真机网络栈的断流行为仍待设备验证。
 
 ### CI-136 — `:app` 启动数据加载失败提示协调
 
@@ -1305,28 +1305,28 @@
 
 - **检查范围**：`:core:data` 的 `FavoritesTransferManager.restore(bytes)` ZIP JSON 解析及普通格式错误的用户可见回退。
 - **问题依据/优先级**：确认 P3 错误分类缺陷。`parseFavoriteJson()` 对 `JSONObject(json)` 使用 `runCatching`，会把 `JSONException` 以外的 `OutOfMemoryError`、`AssertionError` 等也改写成“收藏文件不是有效 JSON”，丢失程序级故障语义。虽然单项 JSON 限 1 MB、总解压限 32 MB，内存压力下仍可能触发；当前没有证据表明会损坏已提交数据。
-- **状态和依赖**：已确认，待修复；按 TDD 技能需先确认测试边界。已向用户询问只通过公开 `restore(bytes)` 测无效 JSON 行为，避免新增内部解析器注入接口；答复前不改代码或测试。
-- **修改摘要**：无。
-- **验证及结果**：静态追踪恢复入口到私有 JSON 解析器，确认异常只用于拒绝当前备份条目，未发现解析失败会提交部分数据；当前 `FavoritesTransferManagerTest` 没有注入解析器异常的用例。该结论尚未通过致命错误回归测试。
-- **阻碍/恢复条件/下一步**：等待用户确认测试边界；批准后优先将捕获范围缩至 JSON 格式异常并通过公开恢复入口验证既有拒绝行为，若致命错误覆盖需要扩展 seam，则先另行确认。继续检查不依赖此 seam 的其他路径。
+- **状态和依赖**：已验证，完成；普通 JSON 语法错误继续转换为原有“收藏文件不是有效 JSON”提示，其他运行时异常与 `Error` 不再误分类。
+- **修改摘要**：新增内部 `parseFavoriteJsonOrError()`，只捕获 `JSONException` 并保留原用户提示；未增加公开解析器接口或改变备份格式。
+- **验证及结果**：新增 3 项异常边界回归，首次运行时 OOM 与非 JSON 运行时异常两项失败、JSON 语法提示通过；改为仅捕获 `JSONException` 后定向 `:core:data:testDebugUnitTest --tests '*FavoriteJsonFailurePolicyTest'` 通过。随后完整 `verifyLocal -PenableAppUnitTests=true --offline` 通过：191 项任务，31 执行、1 缓存、159 up-to-date，覆盖架构测试、Beta/Official 编译与 Lint 及模块测试；未组装 APK。`git diff --check` 通过。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续审查 `:core:data` 和其他模块的独立待办。错误边界单测不等价于真实设备内存耗尽演练。
 
 ### CI-140 — ML Kit OCR 将初始化及回调致命错误降级为空结果
 
 - **检查范围**：`:core:data` 的 `MlKitOcrTextGateway.recognize()`、ML Kit 客户端创建、识别回调结果归一化、同步 `process()` 启动和 Bitmap/recognizer 清理。
 - **问题依据/优先级**：确认 P2 错误分类与诊断缺陷。三个生产失败边界分别以 `catch (Throwable)` 返回空列表：客户端初始化、成功回调的文本转换、同步 `process()` 调用。它们会吞掉 `OutOfMemoryError`、`AssertionError` 等程序级错误；Presentation 随后把空列表视为“无识别文字”。图片预处理中的两处 `catch (Throwable)` 仅清理后原样重抛，不属于此缺陷。
-- **状态和依赖**：已确认，待修复；按 TDD 技能需先确认 `OcrTextGateway.recognize(image, confusionMask)` 的实现测试 seam。已询问是否允许通过内部 ML Kit `TextRecognizer` factory 验证致命错误传播、普通初始化异常回退及 Bitmap 释放；答复前不改测试或生产接口。
-- **修改摘要**：无。
-- **验证及结果**：追踪 `AppModule` 到 `CameraOcrViewModel.decodeBarcode/recognizeText`：普通 `Exception` 由 Presentation 显示识别失败并记录，`Error` 本应继续传播；Gateway 的 `Throwable` 降级绕过此边界。固定本地脚本重跑 `:app:testBetaDebugUnitTest --tests '*CameraOcrViewModelTest' --rerun-tasks` 成功，5 项、0 失败/错误；这只验证上层错误反馈，不覆盖 ML Kit 适配器本身。当前未找到 `MlKitOcrTextGateway` 适配器级测试。
-- **阻碍/恢复条件/下一步**：等待用户确认内部 factory 测试边界；若获准，逐个覆盖创建、同步提交与异步回调失败路径，同时断言 Bitmap/recognizer 清理。真机 OCR 识别表现仍需独立设备验证。
+- **状态和依赖**：已验证，完成；普通 ML Kit 异常继续回退为空结果，协程取消及 JVM `Error` 不再被降级；无公开接口变化。
+- **修改摘要**：增加内部 OCR 异常分类策略，并用于客户端初始化、成功回调归一化和同步提交失败三处；新增 3 项策略回归测试。既有 bitmap / recognizer 清理顺序保持不变。
+- **验证及结果**：新测试先红后绿：基线下致命错误和取消两项失败、普通异常回退通过；修复后 `:core:data:testDebugUnitTest --tests '*OcrFailurePolicyTest' --rerun-tasks` 通过，3 项、0 失败/错误。完整固定本地 `verifyLocal -PenableAppUnitTests=true --offline` 通过：191 项任务，33 执行、1 缓存、157 up-to-date，覆盖架构检查、Beta/Official Release 编译与 Lint、各模块单测；未组装 APK。
+- **阻碍/恢复条件/下一步**：无源码验证阻碍；设备 OCR/相机行为尚未实测。继续处理 `:core:data` 其他独立事项；不把策略单测等同于 ML Kit SDK 实际回调或 Bitmap 所有权的设备验证。
 
 ### CI-141 — ZXing 条码图片识别吞掉内存和程序级错误
 
 - **检查范围**：`:core:data` `ZxingBarcodeDecodeGateway.decode(ImagePayload)` 与 `CameraOcrViewModel` 的错误处理和 Activity 图片资源回收。
 - **问题依据/优先级**：确认 P2 错误分类缺陷。Gateway 用 `runCatching` 覆盖 Bitmap 解码、全图像素数组分配和 ZXing 识别；因此 `OutOfMemoryError` 等会被当成普通“未识别到条码”返回 `null`。上层 `CameraOcrViewModel` 已明确只把普通 `Exception` 转为可恢复空结果并记录，Bitmap 生命周期由 Activity `finally` 回收；被 Gateway 吞掉的 `Error` 无法到达该边界。
-- **状态和依赖**：已确认，待修复；在添加适配器回归前需按 TDD 技能确认 `BarcodeDecodeGateway.decode(image)` 的内部 decoder factory seam。尚无 adapter 单测。
-- **修改摘要**：无。
-- **验证及结果**：静态追踪 `AppModule`、`CameraOcrFacade`、`CameraOcrViewModel` 与两个 Activity Result 分支；异常若正常传播，Activity 的 `finally` 仍清理图片。固定本地脚本重跑 `:app:testBetaDebugUnitTest --tests '*CameraOcrViewModelTest' --rerun-tasks` 成功，5 项、0 失败/错误；这只验证上层错误反馈，不覆盖 ZXing adapter。未发现 ZXing gateway 的直接测试。
-- **阻碍/恢复条件/下一步**：测试 seam 获确认后，验证坏图片仍返回既有的未识别结果、程序级错误传播、Bitmap 回收；答复前继续其他独立审查，不改生产代码。
+- **状态和依赖**：已验证，完成；普通解码异常维持 `null` 未识别结果，协程取消原样传播，`Error` 不被降级；不新增公开接口。
+- **修改摘要**：将 ZXing 解码异常边界抽成内部 `decodeImageOrNull()`，只将普通 `Exception` 转换为 `null`，显式重抛 `CancellationException`，不捕获 `Error`。
+- **验证及结果**：新增 3 项直接针对生产异常边界的回归。首次运行时，致命错误传播和协程取消两项均失败、普通异常行为通过，证明旧策略会吞掉两者；修复后定向 `:core:data:testDebugUnitTest --tests '*ZxingDecodeFailurePolicyTest'` 通过。完整 `verifyLocal -PenableAppUnitTests=true --offline` 通过：191 项任务，33 执行、1 缓存、157 up-to-date，覆盖架构、Beta/Official 编译与 Lint、模块测试；未组装 APK。`git diff --check` 通过。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续处理 `:core:data` 中其余独立待办。此测试验证错误分类边界，不声称真实设备 OOM 或图像解码性能已做设备复现。
 
 ### CI-142 — app 主源码同步等待调用筛查
 
@@ -1379,8 +1379,8 @@
 - **问题依据/优先级**：未发现无界上传或半文件被当作完成文件暴露的可证实缺陷。上传路由在读文件体前校验长度与 10 GiB 单文件上限；在锁内检查并预留 100 GiB 房间配额、系统可用空间和并发槽位，再于锁外流式写入同目录 `.part` 暂存文件；核对请求长度和落盘长度后才原子改名。失败或取消路径由 `finally` 删除暂存文件并释放容量预留。
 - **状态和依赖**：已检查，无需修改；依赖当前 LAN 服务认证及 `LanShareLimits` 配额。
 - **修改摘要**：无产品代码修改，仅补充审查记录。
-- **验证及结果**：固定脚本强制重跑 `:core:lan-share:testDebugUnitTest --tests '*LanShareServerUploadTest' --rerun-tasks` 成功，11 项、0 失败/错误；代码静态检查核对认证先于上传分发、请求长度检查和暂存/提交顺序。测试没有模拟 Android 设备断电或内核级磁盘故障。
-- **阻碍/恢复条件/下一步**：无；继续检查其他独立模块。WebSocket 超大帧（CI-144）和 HTTP 下载提前断流（CI-135）仍各自独立待处理，不由本项验证覆盖。
+- **验证及结果**：代码静态检查核对认证先于上传分发、请求长度检查和暂存/提交顺序。完整验证曾因取消上传测试用相同的 5 秒服务端 socket 读取超时和 5 秒清理断言窗口而失败；将测试观察窗扩至 10 秒并在失败消息列出残留文件后，定向取消测试连续 8 次通过，最终完整 `verifyLocal -PenableAppUnitTests=true --offline` 通过：191 项任务，6 执行、185 up-to-date。测试没有模拟 Android 设备断电或内核级磁盘故障。
+- **阻碍/恢复条件/下一步**：无已复现的产品清理缺陷；取消清理回归保留 10 秒等待以避免与服务端读取超时竞争。继续检查其他独立事项；WebSocket 超大帧（CI-144）仍待确认网络层方案，下载断流（CI-135）已完成。
 
 ### CI-148 — LAN 浏览器配对与会话鉴权复核
 
@@ -1440,10 +1440,10 @@
 
 - **检查范围**：`:core:data` `LocalBarcodeFileStore.writeImage()` 对临时 PNG 写入和 `Bitmap.compress()` 的异常处理，以及该缓存数据是否属于可再生成数据。
 - **问题依据/优先级**：确认 P3 错误分类/诊断缺陷。`runCatching` 会捕获所有 `Throwable`；缓存压缩遇到 `OutOfMemoryError` 或其他 `Error` 时会被转换为 `false`，随后删除临时文件并静默返回，掩盖 JVM/内存故障。缓存仅可由 Room 中的数据重新生成，未发现该路径会丢失用户条码持久数据。
-- **状态和依赖**：已确认，待修复；建议保留普通 `Exception` 的缓存写入失败回退，同时让 `Error` 传播。TDD 技能要求先确认测试边界；已请求通过现有公开 `LocalBarcodeFileStore.writeImage()` 用 Robolectric Bitmap 测试替身覆盖普通异常与 `Error` 的边界，不增加公开 API；等待确认。
-- **修改摘要**：无；尚未修改产品代码或测试。
-- **验证及结果**：静态追踪 `writeImage()` 的 `runCatching`、临时文件清理和返回路径，确认 `Throwable` 被转成普通失败；核对 Room 仍是条码索引/查询唯一数据源，图片目录位于可重建缓存。当前 `:core:data` 测试仅有 `BarcodeImageCachePolicyTest`，未找到 `LocalBarcodeFileStore` 适配器级测试或现成 Bitmap mock 库。没有运行代码测试，因为仍需先确认有效测试接缝。
-- **阻碍/恢复条件/下一步**：等待用户确认测试边界；答复前不新增测试或生产 seam。该事项不阻塞其他模块的独立检查。
+- **状态和依赖**：已验证，完成；缓存写入只将普通 `Exception` 降级为缓存失败，`Error` 原样传播；未改公开 API。
+- **修改摘要**：新增内部 `writeBitmapCacheFile()` 作为压缩/临时文件边界；压缩返回失败或抛异常/错误时清理部分文件，同时保留成功压缩后的临时文件供后续原子提交。
+- **验证及结果**：新增 3 项 `BitmapCacheFileWriterTest`，分别验证普通异常返回失败并清理、`OutOfMemoryError` 原样传播并清理、成功后保留临时文件；定向 `:core:data:testDebugUnitTest --tests '*BitmapCacheFileWriterTest'` 通过。完整 `verifyLocal -PenableAppUnitTests=true --offline` 通过：191 项任务，33 执行、1 缓存、157 up-to-date，覆盖架构检查、Beta/Official Release 编译与 Lint、各模块测试；未组装 APK。`git diff --check` 通过。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查 `:core:data` 其他未解决事项。真实设备 Bitmap/GPU 行为不属于此文件 I/O 异常边界测试范围。
 
 ### CI-155 — 依赖更新与制品完整性自动化缺口
 
@@ -1471,3 +1471,48 @@
 - **修改摘要**：无产品代码修改；仅记录一次跨 `:core:data`/`:app` 的位图所有权复核。
 - **验证及结果**：静态追踪 `ZxingBarcodeImageRenderer.loadOrCreate()`、`LocalBarcodeFileStore.readImage/writeImage()`、`prepareResultRows()`、`composeResultRowImage()` 和 `DisposableEffect`；确认结果行使用新建 Bitmap。未运行测试，未构建 APK；现有 `BarcodeRenderPerformanceBaselineTest` 使用内存缓存替身，不单独证明生产 LRU 的对象释放时序。
 - **阻碍/恢复条件/下一步**：无阻碍；继续处理其他未依赖用户决策的检查项。生产缓存异常分类与回归测试边界仍由 CI-154 单独追踪。
+
+### CI-158 — 持续改进批次 Beta 推送与远端构建验证
+
+- **检查范围**：本地 `verifyLocal`、变更集敏感文件检查、`beta` 分支推送、Beta workflow_dispatch、签名 APK 构建与稳定 Beta Release 资产。
+- **问题依据/优先级**：将本轮累计的可靠性、回归测试及发布工作流改动交付到 Beta，确保本地与远端验证使用相同提交；不涉及正式版发布。
+- **状态和依赖**：已验证，完成；提交 `bea226bb4af1eff2fcf7631844aaf1085ed926f4` 已推送至 `beta`，工作区在交付前干净。
+- **修改摘要**：提交 164 个文件，包含可靠性修复、回归测试、发布/构建约束和进度记录；未纳入签名密钥、构建产物或本地验证工具。
+- **验证及结果**：本地 `verifyLocal` 成功（191 项 Gradle 任务，4 执行、3 缓存、184 up-to-date）；`DiagnosticThrowableFormatterTest` 定向复测成功；`git diff --cached --check` 通过。远端 Beta Actions run `39809198560` 对同一 SHA 完整成功，签名 Release APK 与稳定 Beta Release 资产发布成功：versionName `9.9.9`、versionCode `5`、文件 `BarcodeGeneratorBeta9.9.9.apk`、SHA-256 `12ca907ed62be57e5b87000ff98ce6f18fb7c4aa5a19e112af963c2050a6afaf`。
+- **阻碍/恢复条件/下一步**：无本次交付阻碍；后续 CI-139/140/141/154 均已完成并通过本地验证。CI-144 的 WebSocket 帧大小方案、CI-155 的依赖更新目标分支及若干设备验证项仍按各自记录等待恢复条件。
+
+### CI-159 — LAN HTTP 错误响应被完整读入内存
+
+- **检查范围**：`:core:lan-share` 客户端普通 HTTP 请求与 App 文件上传的非 2xx 错误响应读取和异常信息构造。
+- **问题依据/优先级**：确认 P2 资源耗尽风险。普通请求与上传分支原先都对对端错误流调用 `readText()`；loopback 返回 500 并携带 64 KiB 错误正文时，普通请求产生 65,558 字符异常消息。局域网 HTTP 响应未加密，客户端不应假设错误正文总是短且可信。
+- **状态和依赖**：已验证，完成；详情最多读取 4 KiB 正文和 1 字节探测位，超长时附截断提示；普通请求与上传错误处理共用同一有界读取实现。
+- **修改摘要**：新增 `readLanShareErrorBody()`，固定缓冲上限并保留错误正文前缀；替换普通请求与上传路径的无界 `readText()`。未更改 HTTP 状态处理、成功响应、协议或服务端行为。
+- **验证及结果**：loopback 500 响应回归验证异常消息受限；计数流回归验证对 64 KiB 输入最多读取 4 KiB + 1 字节、保留错误前缀并显示截断标记；静态确认上传错误分支调用相同 helper。完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功：191 项任务，34 执行、157 up-to-date，覆盖架构检查、Beta/Official Release 编译与 Lint、模块测试；`git diff --check` 通过。未组装 APK、未做真机网络验证。
+- **阻碍/恢复条件/下一步**：无本项验证阻碍；继续审查 `:core:lan-share` 的独立路径。WebSocket 帧上限风险仍按 CI-144 等待网络层方案确认，不由本修复覆盖。
+
+### CI-160 — LAN 文件清单的大规模响应峰值内存待评估
+
+- **检查范围**：`:core:lan-share` 的 100 GiB 房间字节上限、`fileRecordsSnapshot()`、服务端 `GET /api/files`/WebSocket `snapshot` JSON 构造和 `LanShareClient.list()` 响应解析。
+- **问题依据/优先级**：发现 P2 可扩展性候选，尚未证实为用户可见缺陷。服务端只限制累计文件字节，不限制记录数或清单消息大小；HTTP/WS 快照、`JSONObject`/`JSONArray` 和 JSON 字符串会形成多份中间表示，Android 客户端再以 `readText()`、`JSONArray` 和领域列表重复物化。单字节文件理论上使字节上限无法提供有意义的条数上限。
+- **状态和依赖**：待确认；取决于实际最大文件数、目标设备可用内存及期望清单延迟。不能在缺少数据的情况下直接截断清单或引入分页，因为这会改变现有“返回全部文件”的行为。
+- **修改摘要**：无代码改动；静态核对 `LanShareLimits.MAX_ROOM_BYTES`、`fileRecordsSnapshot()`、`serveHttp()` 的清单路由和客户端 `list()`。
+- **验证及结果**：确认服务端容量上限为字节而非记录数，清单路由序列化全部快照，客户端完整读入响应后解析；未发现数量/正文上限。没有性能回归测试或代表性清单基准，故没有把结构性分配事实夸大为已复现的 OOM/卡顿，也未运行测试。
+- **阻碍/恢复条件/下一步**：需要代表性/最大文件数和低端目标设备基准，才能决定流式序列化/解析是否足够，或需要端到端分页；这不阻止继续检查其他 LAN 路径。
+
+### CI-161 — 网页图片预览缓存失效与资源回收复核
+
+- **检查范围**：`:core:lan-share` 的 `LanShareWebImagePreviewCache` 缓存键、并发生成、图片/临时文件回收，以及 `LanShareServer` 上传发布和预览响应调用链。
+- **问题依据/优先级**：未发现可复现的 P2 数据错误。缓存键由规范化路径、大小和修改时间组成；可能的同路径、同大小、同修改时间覆盖在理论上会复用旧预览，但服务端上传目标带 `System.nanoTime()` 唯一前缀并明确拒绝覆盖现有文件，正常上传无法产生该情况。预览输出限制最长边 4096、磁盘缓存 128 MiB；JPEG 写入采用临时文件后发布，Bitmap 与临时文件在 `finally` 回收。
+- **状态和依赖**：已检查，无需修改；结论限于服务端正常上传生命周期。若未来加入同路径覆盖/原地编辑，需要调整缓存失效契约。
+- **修改摘要**：无产品代码修改；记录对预览缓存所有权和源文件更新路径的复核。
+- **验证及结果**：静态追踪 `cacheKey()`、`getOrCreate()`、`makeRoom()`、`receiveUpload()` 的唯一目标名及 `/api/preview/` 路由；未发现正常写入可覆盖已缓存源文件的路径。未运行测试或构建，因为未发现可复现异常；现有测试覆盖预览解码器，不专门测试缓存失效竞态。
+- **阻碍/恢复条件/下一步**：无阻碍；继续检查其他 LAN 服务端/客户端边界。CI-160 清单峰值仍待实际规模和设备基准。
+
+### CI-162 — WebSocket 出站队列是否有界并隔离慢连接
+
+- **检查范围**：`:core:lan-share` 的 `WebSocketWriteQueue` 队列容量、单连接写入超时、溢出处理和并发回归测试。
+- **问题依据/优先级**：未发现可证实的慢客户端队列膨胀缺陷。每个浏览器连接有独立写入队列，默认容量 32；单条写入有 5 秒 watchdog，队列满时关闭该连接；其他 peer 使用不同 writer，不被阻塞。
+- **状态和依赖**：已检查，无需修改；依赖连接创建时每个 socket 都创建独立队列且关闭回调关闭其 TCP transport。
+- **修改摘要**：无产品代码修改；补充一次出站资源边界复核记录。
+- **验证及结果**：静态追踪 `BrowserWebSocket` 的队列创建及 abort/transport.close 回调；现有 `WebSocketWriteQueueTest` 覆盖顺序、慢 peer 超时不阻塞另一 peer、队列溢出只 abort 一次、写失败原因保留。最近完整 `verifyLocal -PenableAppUnitTests=true --offline` 成功并执行 LAN 模块单元测试；本项未增加代码，不单独重跑。
+- **阻碍/恢复条件/下一步**：无阻碍；继续检查其他 LAN 路径。该队列检查不覆盖 CI-144 的入站帧分配风险。
