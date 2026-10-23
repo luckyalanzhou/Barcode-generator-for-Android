@@ -1651,3 +1651,12 @@
 - **修改摘要**：无产品代码修改；记录现有输入与解压预算边界，未发现需要增加兼容性变化的拦截策略。
 - **验证及结果**：运行 `:app:testBetaDebugUnitTest --tests '*FavoriteBackupInputTest'` 与 `:core:data:testDebugUnitTest --tests '*FavoritesTransferManagerTest' --tests '*FavoriteJsonFailurePolicyTest'`；输入流边界 2 项、备份传输 18 项、JSON 错误策略 3 项，共 23 项通过，0 失败/错误。未组装 APK、未做设备低内存峰值测试或真实 SAF 恢复演练。
 - **阻碍/恢复条件/下一步**：若需确认 64 MiB 档案在最低内存设备上的体验，应以目标设备测峰值内存和导入时间；这不影响本轮已确认的有界解析结论。继续检查其他独立的数据/核心路径。
+
+### CI-178 — 条码图片缓存位图所有权与淘汰策略复核
+
+- **检查范围**：`:core:data` `LocalBarcodeFileStore` 的内存/磁盘缓存、临时 PNG 写入与发布、磁盘预算维护；`:app` 渲染缓存读取后是否被调用方提前回收。
+- **问题依据/优先级**：针对缓存位图被预览/导出调用方回收后仍由缓存复用、并发写入误删暂存文件及磁盘缓存无界增长的 P2 风险复核；未发现可证实缺陷。DI 将文件缓存绑定为单例；`loadOrCreate` 的缓存 Bitmap 只被用于准备图片及绘制独立结果行，结果行清理不回收缓存源图；导出路径调用独立的 `createBarcodeImage` 并回收自有位图。内存 LRU 按像素字节计量并限制为 64 MiB；磁盘按 64 MiB/512 张限制，先同目录临时写入后改名，淘汰时保护当前文件及其他活动临时写入。
+- **状态和依赖**：已检查，无需修改；结论限于当前单进程缓存所有权和正常缓存写入/回收路径。
+- **修改摘要**：无产品代码修改；记录渲染缓存与结果行/导出位图的所有权边界。
+- **验证及结果**：运行 `:core:data:testDebugUnitTest --tests '*BarcodeImageCachePolicyTest' --tests '*BitmapCacheFileWriterTest'`；缓存预算/淘汰 4 项、部分写入清理 3 项，共 7 项通过，0 失败/错误/跳过。`git diff --check` 通过；未做设备存储压力或多进程并发验证。
+- **阻碍/恢复条件/下一步**：无本项阻碍；缓存丢失后数据可由条码实体重建。继续检查其他独立数据与平台边界。
