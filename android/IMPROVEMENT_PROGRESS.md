@@ -1551,4 +1551,4 @@
 - **状态和依赖**：已检查，无需修改；依赖当前 `SettingsRepository` 的 Job 写入契约及 `CameraOcrFacade` 网关调用。
 - **修改摘要**：无产品代码修改；补充一次设置和相机识别异步边界复核。
 - **验证及结果**：使用固定本地环境运行 `:app:testBetaDebugUnitTest --tests '*SettingsViewModelTest' --tests '*CameraOcrViewModelTest' --rerun-tasks` 成功，两个测试类各 5 项、共 10 项，0 失败/错误；73 项 Gradle actionable tasks 执行。未组装 APK。普通沙箱 daemon IPC 连接失败后，按项目权限流程用相同参数授权重试成功。
-- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查其他可本地验证的核心路径。CI-079 的收藏保存/结果页编辑崩溃仍需最新脱敏日志、稳定复现步骤或测试接缝确认。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查其他可本地验证的核心路径。结果页编辑的历史崩溃日志已与 CI-111 的 GlassBackdrop 回归保护对应；收藏保存仍缺少其自身崩溃堆栈，完整对话框回归测试接缝仍待确认（CI-079）。
