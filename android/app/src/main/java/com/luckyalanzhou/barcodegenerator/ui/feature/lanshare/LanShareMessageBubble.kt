@@ -10,11 +10,11 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,8 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -118,16 +118,33 @@ internal fun LanShareMessageBubble(
                         Text(formatLanShareSize(file.size), color = if (mine) themeColors.barcode.qrBackground else secondary, fontSize = 12.sp, maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
                     }
                     Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { onSaveFile(file) }, interactionSource = downloadInteraction,
-                        modifier = Modifier.iosPressFeedback(downloadInteraction).height(36.dp)
-                            .resultActionEdgeChrome(RoundedCornerShape(12.dp), showInnerHighlight = false),
-                        contentPadding = PaddingValues(horizontal = 10.dp), shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (mine) themeColors.content.sentContent.copy(alpha = .18f) else themeColors.controls.button,
-                            contentColor = if (mine) themeColors.content.sentContent else themeColors.text.link,
-                        ),
-                    ) { Text("下载", fontSize = 12.sp, maxLines = 1) }
+                    val downloadShape = RoundedCornerShape(12.dp)
+                    Box(
+                        modifier = Modifier
+                            .iosPressFeedback(downloadInteraction)
+                            .height(36.dp)
+                            .widthIn(min = 64.dp)
+                            .clip(downloadShape)
+                            .clickable(
+                                onClick = { onSaveFile(file) },
+                                interactionSource = downloadInteraction,
+                                role = Role.Button,
+                            )
+                            .resultActionEdgeChrome(
+                                shape = downloadShape,
+                                rimBackground = bubbleColor,
+                                showInnerHighlight = false,
+                            )
+                            .padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "下载",
+                            color = if (mine) themeColors.content.sentContent else themeColors.text.link,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }

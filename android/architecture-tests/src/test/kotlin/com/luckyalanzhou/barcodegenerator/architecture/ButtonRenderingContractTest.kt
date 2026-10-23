@@ -96,11 +96,17 @@ class ButtonRenderingContractTest {
 
     @Test fun `LAN download button keeps one outline in light and dark themes`() {
         val bubble = source("LanShareMessageBubble.kt")
-        val downloadButton = bubble.substringAfter("Button(").substringBefore("contentPadding =")
+        val downloadButton = bubble.substringAfter("val downloadShape = RoundedCornerShape(12.dp)")
+            .substringBefore("Text(\n                            \"下载\"")
 
-        // Material Button supplies its filled shape; only the shared rim draws an outline here.
-        assertTrue(downloadButton.contains(".resultActionEdgeChrome(RoundedCornerShape(12.dp), showInnerHighlight = false)"))
-        assertFalse(downloadButton.contains("border ="))
+        // 下载入口只保留统一自绘单层轮廓，不再叠加 Material Button 的表面实现。
+        assertFalse(downloadButton.contains("Button("))
+        assertTrue(downloadButton.contains("clickable("))
+        assertTrue(downloadButton.contains("role = Role.Button"))
+        assertTrue(downloadButton.contains("interactionSource = downloadInteraction"))
+        assertTrue(downloadButton.contains("shape = downloadShape"))
+        assertTrue(downloadButton.contains("rimBackground = bubbleColor"))
+        assertTrue(downloadButton.contains("showInnerHighlight = false"))
         val rim = source("ResultActionRim.kt")
         assertTrue(rim.contains("if (highContrast || !showInnerHighlight) return"))
     }
