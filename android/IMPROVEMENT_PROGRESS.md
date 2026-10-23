@@ -1750,3 +1750,12 @@
 - **修改摘要**：在两个 `HttpURLConnection` 创建路径设置 `instanceFollowRedirects = false`；新增 loopback 回归测试，让已批准的 `127.0.0.1` 端点重定向到被主机校验器拒绝的 `127.0.0.2`，确认 302 被返回且目标未收到请求。错误响应测试断言同时加入实际消息，便于定位此前偶发的错误正文前缀断言失败。
 - **验证及结果**：重定向回归测试通过；完整 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 共 79 项通过、0 失败/错误/跳过；项目 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，26 执行、165 up-to-date）；`git diff --check` 通过。全量测试此前曾一次出现既有 `LanShareClientErrorResponseTest` 断言失败，单独重跑和随后全量重跑均通过；此次全量成功。未组装 APK、未做真机网络验证。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续检查 LAN 客户端其他可独立验证边界。此前错误响应测试的偶发失败尚未复现根因，若再次出现，新的断言会保留实际异常消息以便进一步定位。
+
+### CI-189 — LAN 图片预览下载大小与临时文件边界复核
+
+- **检查范围**：`:core:lan-share` 图片预览响应的声明长度预检、实际流式写入上限、下载失败后的临时文件清理和目标替换顺序。
+- **问题依据/优先级**：未发现新的可证实缺陷。`downloadPreview()` 先检查可解析的 `Content-Length`，实际读取由 `copyLanSharePreview()` 按调用方上限逐块约束；长度缺失或错误时，超限数据也不会写入越界块。下载完成且长度匹配后才替换目标，失败路径会删除临时文件并保留旧目标。
+- **状态和依赖**：已检查，无需修改；结论仅覆盖 LAN 图片预览客户端的大小与落盘边界。
+- **修改摘要**：无产品代码修改；记录现有流式上限及原子替换检查结果。
+- **验证及结果**：只读核对 `LanShareClient.downloadPreview()`、`copyLanSharePreview()`、`LanSharePreviewStreamTest` 和 `LanShareClientDownloadTest`；本轮 `:core:lan-share:testDebugUnitTest --offline --rerun-tasks` 的 79 项全量测试已通过，包含预览流上限和截断响应用例。未组装 APK、未做真机预览下载验证。
+- **阻碍/恢复条件/下一步**：无；继续审查其他独立 LAN 客户端或服务端边界。
