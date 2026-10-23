@@ -1200,7 +1200,7 @@
 - **状态和依赖**：已验证，完成（本地）；依赖 `:core:domain` 的 `BarcodeDataMigration` 与 Repository 迁移契约，不改变数据格式或迁移成功条件。
 - **修改摘要**：迁移门闩/旧偏好读取及 Room 迁移只降级普通 `Exception`；显式重抛协程取消，JVM `Error` 自然传播。迁移未成功时仍不删除旧偏好，成功提交后才标记并清理旧键。
 - **验证及结果**：新增两项 Robolectric 回归测试，取消与 `AssertionError` 在旧实现下都按预期失败，修复后分别验证异常原样传播且旧偏好保留。完整 `:core:data:testDebugUnitTest` 73 项、0 失败/错误；`D:\Barcode_build\run-barcode-android-gradle.ps1 verifyLocal -PenableAppUnitTests=true --offline` 成功，191 项任务（27 执行、2 缓存、162 up-to-date），覆盖全模块测试、架构契约、Beta/Official Release Kotlin 编译与 Lint；不组装 APK。2026-10-22 再针对当前工作区强制重跑该异常传播测试类，2 项通过、0 失败/错误。`git diff --check` 对产品代码通过。
-- **阻碍/恢复条件/下一步**：无需设备或远端条件；未提交、未推送、未构建 APK。继续按模块清单处理尚未完成的 `:app` 与构建/发布远端验证事项；CI-126 仍是独立的待确认搜索交接线索。
+- **阻碍/恢复条件/下一步**：无需设备或远端条件；未提交、未推送、未构建 APK。继续按模块清单处理尚未完成的 `:app` 与构建/发布远端验证事项。
 
 ### CI-128 — 旧版设置迁移吞掉致命错误并可能清理源设置
 
@@ -1209,7 +1209,7 @@
 - **状态和依赖**：已验证，完成（本地）；依赖当前 DataStore `SettingsStore` 和旧版 SharedPreferences 键，不改变格式或正常坏值回退行为。
 - **修改摘要**：统一旧值读取异常边界：仅普通 `Exception` 继续记录并回退默认值；`CancellationException` 原样传播；JVM `Error` 不捕获，因此迁移不会错误标记完成或删除旧源设置。
 - **验证及结果**：定向回归在修复前失败、修复后通过；完整 `:core:data:testDebugUnitTest` 74 项全部通过。完整 `D:\Barcode_build\run-barcode-android-gradle.ps1 verifyLocal -PenableAppUnitTests=true --offline` 成功，191 项任务（30 执行、1 缓存、160 up-to-date），覆盖五模块单测、架构契约、Beta/Official Release 编译与 Lint，不组装 APK。2026-10-22 再针对当前工作区强制重跑该异常传播测试类，2 项通过、0 失败/错误。生产文件 `git diff --check` 与新增测试尾随空白检查通过。
-- **阻碍/恢复条件/下一步**：无设备或远端依赖；未提交、未推送、未构建 APK。继续检查 `:app` 尚未审阅的核心流程；CI-126 搜索交接仍待更稳定的 UI 测试时钟/设备复验，远端 Actions 配置验证仍需推送授权。
+- **阻碍/恢复条件/下一步**：无设备或远端依赖；未提交、未推送、未构建 APK。继续检查 `:app` 尚未审阅的核心流程；远端 Actions 配置验证仍需推送授权。
 
 ### CI-129 — Android 自动备份包含收藏/历史数据（范围待确认）
 
@@ -1236,7 +1236,7 @@
 - **状态和依赖**：已检查，无产品行为修复；依赖公开迁移入口 `SettingsMigration.migrateIfNeeded()`、真实 Robolectric SharedPreferences 与 DataStore，不 mock 内部实现。
 - **修改摘要**：新增集成回归，把八个旧设置键写成错误的值类型，断言迁移结果及持久化样式等于领域默认值、迁移门闩完成且旧键已清除。
 - **验证及结果**：定向 `LegacySettingsMigratorFailurePropagationTest` 成功（2 项）；完整 `D:\Barcode_build\run-barcode-android-gradle.ps1 --offline :core:data:testDebugUnitTest` 成功，75 项、0 失败/错误。测试使用 CI-053 要求的短 Java 临时路径；没有改生产代码或依赖。
-- **阻碍/恢复条件/下一步**：无；不需要设备或远端服务。继续审查 `:app` 其他尚未确认的核心流程；CI-129 的备份范围仍等待用户选择，CI-126 搜索重载竞态仍缺确定性 UI 复现。
+- **阻碍/恢复条件/下一步**：无；不需要设备或远端服务。继续审查 `:app` 其他尚未确认的核心流程；CI-129 的备份范围仍等待用户选择。
 
 ### CI-132 — 结果图片分享与 SAF 保存的临时文件生命周期复核
 
@@ -1525,3 +1525,12 @@
 - **修改摘要**：将 Beta Release 的 `actions/download-artifact` 从 v6.0.0 升级并固定到官方 v8.0.2 commit SHA `9000827ccba6bdab643e8b6fd33ac0654aef8333`；正式版流程没有该下载步骤，不修改。
 - **验证及结果**：已从官方 release/tag 与 `action.yml` 核对 v8.0.2 commit 和 `runs.using: node24`；本地完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，4 执行、187 up-to-date），包括架构契约测试；`git diff --check` 通过。尚未在远端实际运行新 Action。
 - **阻碍/恢复条件/下一步**：推送该工作流修复；等下一次用户授权的 Beta `workflow_dispatch` 时确认远端下载步骤通过。无需为 Action pin 单独生成 APK，发布流程仍为手动触发。
+
+### CI-164 — 持续改进记录保留 CI-126 的过期阻塞引用
+
+- **检查范围**：持续改进记录中 CI-126 的状态及后续 CI-127、CI-128、CI-131 的恢复条件说明。
+- **问题依据/优先级**：确认 P3 文档一致性问题。CI-126 已记录为“已验证，完成”，且提交 `03e37db` 包含收藏搜索重载修复与定向回归测试；但三个后续条目仍称 CI-126 待确认、待 UI 复验或缺确定性复现，容易误导后续推进并重复排查。
+- **状态和依赖**：已修复并完成静态核验；不依赖产品代码、设备或外部服务。
+- **修改摘要**：移除 CI-127、CI-128、CI-131 后续说明中的过期 CI-126 阻塞描述，保留各条目仍然有效的其他下一步。
+- **验证及结果**：对照 CI-126 完成记录、提交 `03e37db` 的文件清单与回归测试；搜索全文确认不存在将 CI-126 描述为待确认、待复验或待复现的残留引用；`git diff --check` 通过。未运行产品测试或构建。
+- **阻碍/恢复条件/下一步**：无；继续审查不依赖设备、旧版数据库样本、用户决策或远端认证的 `:app` 路径。
