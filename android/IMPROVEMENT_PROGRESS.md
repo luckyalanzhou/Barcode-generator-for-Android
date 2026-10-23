@@ -1669,3 +1669,12 @@
 - **修改摘要**：无产品代码修改；记录设置存储的顺序、失败隔离及等待者/写入任务所有权。
 - **验证及结果**：运行 `:core:data:testDebugUnitTest --tests '*SettingsWriteQueueTest' --tests '*SettingsStoreUpdateErrorTest' --tests '*SettingsStyleCodecTest'`；队列 2 项、更新错误存储 3 项、样式编解码 4 项，共 9 项通过，0 失败/错误/跳过。未组装 APK、未做设备存储故障注入。
 - **阻碍/恢复条件/下一步**：无本项阻碍；若未来引入多进程设置访问或新的 `SettingsStore.load()` 生命周期，需重新核对缓存与 DataStore 的跨进程/重载同步。继续审查剩余独立路径。
+
+### CI-180 — 历史删除与收藏数据保留边界复核
+
+- **检查范围**：`:app` 历史批次删除、历史清空及共享条码删除操作；`:core:data` 历史清空 DAO/Room 事务对收藏条码与关联的保留行为。
+- **问题依据/优先级**：针对删除历史记录误删收藏条码、单条全局删除仅清除历史状态、清空操作受启动 500 条窗口限制的 P2 数据损失风险复核；未发现新的可证实缺陷。批次删除只将当前命中的条码 `inHistory` 置为 false 并持久化有限快照；全局“清空历史”走专用 Repository 操作，清除数据库完整历史范围并保留收藏条码及其关联；明确删除条码的共享变更路径才会同步从收藏组解除关联。
+- **状态和依赖**：已检查，无需修改；结论限于当前历史/收藏共享实体的删除意图与 Room 清空事务。
+- **修改摘要**：无产品代码修改；记录历史状态删除、条码全局删除和收藏保留三者的职责边界。
+- **验证及结果**：运行 `HistoryCoordinatorTest` 2 项、`HistoryBatchSummaryTest` 3 项、`BarcodeItemMutationCoordinatorTest` 4 项，以及 `BarcodeDatabaseMigrationTest.clearHistoryIncludesRowsBeyondStartupLimitAndPreservesFavoriteLinks` 1 项，共 10 项通过，0 失败/错误。未组装 APK、未做设备 UI 操作验证。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查其余不依赖设备或产品决策的模块边界。
