@@ -1543,3 +1543,12 @@
 - **修改摘要**：更正 CI-067、084、085、117、163 中已推送 workflow 改动的状态，明确分支保护未配置与 workflow 托管端执行验证是不同事项；Beta 双 job 和 Node 24 Action 共用下一次远端 Beta run 验证。
 - **验证及结果**：用 `git rev-parse` 核实 `HEAD` 与 `origin/beta` 同为 `f98aec2`；用 `merge-base --is-ancestor` 核实相关 workflow 提交已进入远端分支；静态检查 Beta workflow 的 job 依赖、Action SHA 与 PR workflow 的 `verifyLocal` 命令；`git diff --check` 通过。只读 GitHub Actions API 查询被当前 GitHub connector 拒绝为不支持的 endpoint，未重试或改用其他工具。
 - **阻碍/恢复条件/下一步**：只有当前 `origin/beta` HEAD 的实际 GitHub Actions run 能验证托管端行为；本地静态检查不能替代该验证。继续审查其他可本地推进的高影响路径。
+
+### CI-166 — `:app` 设置和相机识别 ViewModel 的取消边界复核
+
+- **检查范围**：`SettingsViewModel` 的设置加载/异步写入，以及 `CameraOcrViewModel` 的 OCR/条码识别错误分类和 Bitmap 清理。
+- **问题依据/优先级**：针对异步取消被误记为普通失败、UI 收到伪失败提示或识别 Bitmap 未释放的 P2 稳定性风险复核；未发现新的可证实问题。设置加载显式记录并重抛 `CancellationException`；写入完成回调将取消与失败分开，取消不会触发 `saveFailed` 或失败通知。OCR 和条码识别均显式重抛取消，仅将普通 `Exception` 降级为既有用户反馈/空结果；OCR Bitmap 在 `finally` 与任务完成回调中检查后释放，避免泄漏或重复回收。
+- **状态和依赖**：已检查，无需修改；依赖当前 `SettingsRepository` 的 Job 写入契约及 `CameraOcrFacade` 网关调用。
+- **修改摘要**：无产品代码修改；补充一次设置和相机识别异步边界复核。
+- **验证及结果**：使用固定本地环境运行 `:app:testBetaDebugUnitTest --tests '*SettingsViewModelTest' --tests '*CameraOcrViewModelTest' --rerun-tasks` 成功，两个测试类各 5 项、共 10 项，0 失败/错误；73 项 Gradle actionable tasks 执行。未组装 APK。普通沙箱 daemon IPC 连接失败后，按项目权限流程用相同参数授权重试成功。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查其他可本地验证的核心路径。CI-079 的收藏保存/结果页编辑崩溃仍需最新脱敏日志、稳定复现步骤或测试接缝确认。
