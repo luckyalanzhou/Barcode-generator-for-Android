@@ -1660,3 +1660,12 @@
 - **修改摘要**：无产品代码修改；记录渲染缓存与结果行/导出位图的所有权边界。
 - **验证及结果**：运行 `:core:data:testDebugUnitTest --tests '*BarcodeImageCachePolicyTest' --tests '*BitmapCacheFileWriterTest'`；缓存预算/淘汰 4 项、部分写入清理 3 项，共 7 项通过，0 失败/错误/跳过。`git diff --check` 通过；未做设备存储压力或多进程并发验证。
 - **阻碍/恢复条件/下一步**：无本项阻碍；缓存丢失后数据可由条码实体重建。继续检查其他独立数据与平台边界。
+
+### CI-179 — DataStore 设置写入队列与提交等待复核
+
+- **检查范围**：`:core:data` 的 `SettingsStore` 写入顺序、缓存值更新时机、写入失败后的后续重试；`:core:domain` 的 `awaitSettingsCommit()` 等待/取消语义；与旧设置迁移的提交等待调用。
+- **问题依据/优先级**：针对快速连续设置写入时旧值覆盖新值、失败阻塞队列、调用方取消等待误取消实际保存的 P2 风险复核；未发现新的可证实缺陷。持久化写入经单例 `SettingsStore` 的进程级 `SupervisorJob + Dispatchers.IO` 队列串行执行，内存缓存只在 DataStore `edit` 成功返回后更新；队列连接上一次任务只等待完成而不传播前次失败；等待者取消仅释放自身完成回调，不取消队列中的保存任务。
+- **状态和依赖**：已检查，无需修改；结论限于单进程 DataStore 写队列与迁移使用的提交等待边界。
+- **修改摘要**：无产品代码修改；记录设置存储的顺序、失败隔离及等待者/写入任务所有权。
+- **验证及结果**：运行 `:core:data:testDebugUnitTest --tests '*SettingsWriteQueueTest' --tests '*SettingsStoreUpdateErrorTest' --tests '*SettingsStyleCodecTest'`；队列 2 项、更新错误存储 3 项、样式编解码 4 项，共 9 项通过，0 失败/错误/跳过。未组装 APK、未做设备存储故障注入。
+- **阻碍/恢复条件/下一步**：无本项阻碍；若未来引入多进程设置访问或新的 `SettingsStore.load()` 生命周期，需重新核对缓存与 DataStore 的跨进程/重载同步。继续审查剩余独立路径。
