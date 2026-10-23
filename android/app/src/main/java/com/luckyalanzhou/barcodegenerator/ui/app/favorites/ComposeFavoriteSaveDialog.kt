@@ -65,7 +65,8 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
     onCreateFolder: (String) -> Unit,
     onSaved: () -> Unit,
 ) {
-    showComposeDialog(compact = false) { dismiss ->
+    var saveInProgress = false
+    showComposeDialog(compact = false, canCancel = { !saveInProgress }) { dismiss ->
         val dark = isDark()
         if (resultState.items.isEmpty()) {
             LaunchedEffect(Unit) { dismiss() }
@@ -89,6 +90,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
         fun persistFavorite(target: FavoriteGroup?, folder: String, cleanName: String, onCommitted: () -> Unit) {
             if (saving) return
             saving = true
+            saveInProgress = true
             // Activity 生命周期持有等待任务：覆盖确认替换 Dialog 时不会取消保存确认。
             lifecycleScope.launch {
                 try {
@@ -102,6 +104,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                     toast("收藏保存失败，输入已保留，请重试")
                 } finally {
                     saving = false
+                    saveInProgress = false
                 }
             }
         }

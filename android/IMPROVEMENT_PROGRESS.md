@@ -11,7 +11,7 @@
 | `:core:lan-share` | HTTP/WebSocket、浏览器端、文件完整性与会话清理 | 检查中 | 依赖 `:core:domain`；Android 客户端真实 HTTP 上传取消和服务端部分文件清理由 CI-069 增加 loopback 回归测试；可导出的上传日志不记录用户文件名，异常消息与 URI/路径会在日志路径脱敏；文件与图片预览下载在响应声明 `Content-Length` 时都会校验实际字节数后再替换目标，截断响应保留旧目标（CI-135）；HTTP 错误响应详情在普通请求和上传路径统一限制最多读取 4 KiB + 1 字节，超长内容不再完整缓冲（CI-159）；`/api/files` 与 WebSocket 首次同步目前都完整构造文件快照/JSON，潜在峰值内存需按真实规模测量后再决定是否流式解析或分页（CI-160）；网页图片预览边长和磁盘缓存均有上限，临时文件与 Bitmap 在完成/失败后回收；上传目标使用唯一前缀且拒绝覆盖，未发现正常上传流程导致旧预览缓存复用（CI-161）；WebSocket 每连接出站队列有界（32 条），写入超时 5 秒，溢出时关闭慢连接（CI-162）；NanoHTTPD 请求临时文件公告经实际请求路径核查，当前未触发受影响解析分支（CI-143）；WebSocket 64 KB 聊天限制发生在库层完整帧分配/重组之后，超大帧可能先耗尽进程内存（CI-144，修复需选择受限帧解析实现）；HTTP 上传在读取前做长度、并发、房间容量和磁盘空间预留，暂存后校验再提交（CI-147）；8 位配对码使用安全随机数，按客户端地址限频且限制跟踪地址总数，鉴权失败不泄露缓存内容（CI-148）；`/dl` 固定作为附件响应并发送 `nosniff`，SVG 上传→下载响应由 loopback 回归覆盖（CI-169） |
 | `:app` | 页面状态、导航、生成/结果/历史/收藏/设置与系统交互 | 检查中 | 启动快照读取增加一次安全重试；设置与库数据启动错误现已区分汇总；SAF 文档选择不再要求旧存储权限，旧版遗留持久 URI 授权改为一次性迁移清理；Beta 日志初始化移出首屏调用线程、跨日运行触发过期日志清理、异常摘要保留类型/堆栈但省略异常消息，旧日志导出前脱敏；图片解码、外部 Activity 启动失败和 SAF 缺少 URI 会留下安全诊断及用户反馈；LAN 下载失败或返回时会话失效会尝试删除 SAF 新建的空/部分目标文档；局域网相机返回时若会话已失效则清理临时照片并提示重连；关闭/切换 LAN 会话会立即回收活动上传照片；持久化队列、收藏备份、SAF 旧授权迁移及 Activity 启动现仅将普通 `Exception` 作为可恢复失败，取消与致命 `Error` 不再伪装成普通失败（CI-091、CI-093–CI-097、CI-100–CI-101）；更新安装路径使用 `SavedStateHandle` 保留待安装状态（CI-027，本地协调器测试复跑通过，真实进程回收待设备）；安装权限设置往返失败时会恢复待安装提示（CI-102）；LAN host 启动期间来自 NanoHTTPD 工作线程的连接事件可收敛到 UI（CI-113）；对高风险集合访问未发现未保护的 `first/single`；收藏组的内存次序现与 Room 的 `savedAt DESC, id DESC` 对齐（CI-121）；收藏列表分页读取失败现保留取消传播、记录不含查询内容的诊断并提供单独重试入口（CI-125）；自动备份默认覆盖 Room 条码库和 DataStore 设置，当前仅排除临时 LAN 文件与诊断日志，云备份/换机范围待产品确认（CI-129）；全局明文网络权限因局域网客户端需访问动态路由器 IPv4，尚无不改变连接方式的静态子网白名单，当前客户端与更新器均有协议/主机边界保护，残余平台级范围待确认（CI-130）；SAF 提供器和真实安装器行为仍需设备恢复演练；沙箱内 ADB 本机服务启动受限，授权后的只读设备枚举可运行但没有连接设备，当前未做真机验证；历史记录 500 条可见上限待产品确认 |
 | `:architecture-tests` | 模块依赖、渲染/日志等架构约定的覆盖有效性 | 已检查 | 修复变体源码输入漏项及 configuration cache 不兼容 |
-| 构建与发布配置 | Beta/正式版工作流、版本分配及签名边界 | 检查中 | Beta 同一 workflow run 在发布后重试会沿用已发布 versionCode（CI-110，本地验证）；正式版 workflow 对并发组启用最多 100 个等待 run 的队列，避免默认单等待位替换旧手动发布（CI-116）；Beta 稳定 Release 明确采用最新等待构建策略（CI-119）；恢复已公开但附件不完整的正式版时会先转草稿，附件校验后才重新公开（CI-114）；PR 门禁已接入 Release 编译与 Lint（CI-117）；Gradle Wrapper 9.5.0 的分发 ZIP 摘要与 Wrapper JAR 均锁定官方值（CI-118）；Beta 工作流权限与跨 job 产物交接已静态核对；提交 `bea226b` 已推送，Beta 远端验证、签名构建及 Release 发布均成功（CI-158）；依赖版本集中管理，但仓库无自动更新 PR、锁文件或制品摘要校验配置，自动更新目标分支待确认（CI-155） |
+| 构建与发布配置 | Beta/正式版工作流、版本分配及签名边界 | 检查中 | Beta 同一 workflow run 在发布后重试会沿用已发布 versionCode（CI-110，本地验证）；正式版 workflow 对并发组启用最多 100 个等待 run 的队列，避免默认单等待位替换旧手动发布（CI-116）；Beta 稳定 Release 明确采用最新等待构建策略（CI-119）；恢复已公开但附件不完整的正式版时会先转草稿，附件校验后才重新公开（CI-114）；PR 门禁已接入 Release 编译与 Lint（CI-117）；Gradle Wrapper 9.5.0 的分发 ZIP 摘要与 Wrapper JAR 均锁定官方值（CI-118）；Beta Artifact 下载已升级至 Node 24 并经远端 run 验证（CI-163）；Beta 工作流权限与跨 job 产物交接已静态核对；提交 `bea226b` 已推送，Beta 远端验证、签名构建及 Release 发布均成功（CI-158）；依赖版本集中管理，但仓库无自动更新 PR、锁文件或制品摘要校验配置，自动更新目标分支待确认（CI-155） |
 | 项目文档 | README、目录结构、架构、协议、贡献和性能基线文档 | 已检查，无需修改 | README 安全说明曾与实际 LAN 配对/令牌实现相反，已修正（CI-150）；目录与架构文档和 Gradle 模块核对一致（CI-151）；协议文档已说明 64 KiB 聊天校验不是 WebSocket 帧内存上限（CI-152）；本地 Markdown 文件链接静态核对无断链 |
 
 ### 最近跨模块验证（2026-10-22）
@@ -253,7 +253,7 @@
 - **问题依据/优先级**：确认 P2 数据一致性风险。重命名策略验证层级并保护收藏文件身份不冲突，但没有拒绝已存在的目标目录或目标目录的隐式父路径。UI 原先仅检查 `dataState.folders`；旧数据若只有收藏分组路径而缺少对应文件夹表行，可能绕过 UI 重名检查，导致路径合并，或撞上 `favorite_folders.name` 主键约束。
 - **状态和依赖**：已验证，完成；依赖收藏状态中显式文件夹路径、收藏文件路径身份和 Room 文件夹表。
 - **修改摘要**：重命名策略现在拒绝占用的目标路径及其隐式父目录，同时允许同路径不变；UI 用显式文件夹与当前已加载分组路径做前置提示；协调器拒绝时返回失败，弹窗保持打开并提示，而不再无反馈关闭。
-- **验证及结果**：新增目标目录/隐式父目录冲突测试，旧规则先失败；策略修复后定向 `FavoriteFolderRenamePolicyTest` 通过，完整 `:app:testBetaDebugUnitTest` 通过。2026-10-22 针对当前工作区强制重跑 `-PenableAppUnitTests=true --offline :app:testBetaDebugUnitTest --tests '*FavoriteFolderRenamePolicyTest' --tests '*ComposeFavoriteTreeTest' --rerun-tasks` 成功，合计 12 项测试、0 失败/错误，并编译 Beta Debug 主源码及测试源码。续查确认弹窗与文件夹行均调用同一父路径组合策略；持久化队列失败会进入共享恢复通道。固定本地脚本强制重跑 `:app:testBetaDebugUnitTest --tests '*FavoritesPartialLoadMutationTest' --tests '*LibraryDataRecoveryTest' --rerun-tasks` 成功，6 项、0 失败/错误。未做设备端旧数据迁移场景测试，也未构建 APK。
+- **验证及结果**：新增目标目录/隐式父目录冲突测试，旧规则先失败；策略修复后定向 `FavoriteFolderRenamePolicyTest` 通过，完整 `:app:testBetaDebugUnitTest` 通过。2026-10-22 针对当前工作区强制重跑 `-PenableAppUnitTests=true --offline :app:testBetaDebugUnitTest --tests '*FavoriteFolderRenamePolicyTest' --tests '*ComposeFavoriteTreeTest' --rerun-tasks` 成功，合计 12 项测试、0 失败/错误，并编译 Beta Debug 主源码及测试源码。2026-10-23 再次运行同一固定 Gradle 脚本的 `:app:testBetaDebugUnitTest --tests '*FavoriteFolderRenamePolicyTest'`，7 项全部通过；静态追踪确认 Compose 编辑框初始化使用末级名称 helper，文件夹行保存也使用同一父路径重建规则。续查确认持久化队列失败会进入共享恢复通道。固定本地脚本强制重跑 `:app:testBetaDebugUnitTest --tests '*FavoritesPartialLoadMutationTest' --tests '*LibraryDataRecoveryTest' --rerun-tasks` 成功，6 项、0 失败/错误。未驱动真实 Compose 编辑弹窗或设备端旧数据迁移场景，也未构建 APK。
 - **阻碍/恢复条件/下一步**：本地代码路径未发现新增阻碍；辅助策略与异步写入恢复已有回归覆盖，但没有用设备重放用户操作。若要验证完整弹窗交互，按 CI-079 的测试接缝确认后再补端到端覆盖；该事项不阻塞其他模块。历史页是否扩展至 500 条之外仍待产品决定。
 
 ### CI-023 — `:app` 收藏树搜索与分页协调
@@ -1521,10 +1521,10 @@
 
 - **检查范围**：Beta Release 发布 job 下载当前 workflow run 构建的 APK artifact 的 Action 版本及运行时兼容性。
 - **问题依据/优先级**：远端 run `39879019894` 实际标记 `actions/download-artifact@v6.0.0` 将被强制运行于 Node.js 24。GitHub 已于 2026-09-23 移除 Node.js 20 runner 支持；继续固定在旧 runtime 的 action 会保留弃用告警并存在后续兼容风险。官方 `v8.0.2` 的 action metadata 使用 `node24`，且仍支持当前同 run artifact 下载路径。
-- **状态和依赖**：已推送，待远端验证；只涉及发布 job 使用的第一方 Action，不改变 APK、artifact 命名或 Release 流程。实际 Node 24 hosted-runner 执行依赖下一次 Beta workflow run。
+- **状态和依赖**：已验证，完成；只涉及发布 job 使用的第一方 Action，不改变 APK、artifact 命名或 Release 流程。远端验证的 workflow 文件与当前 `origin/beta` 一致。
 - **修改摘要**：将 Beta Release 的 `actions/download-artifact` 从 v6.0.0 升级并固定到官方 v8.0.2 commit SHA `9000827ccba6bdab643e8b6fd33ac0654aef8333`；正式版流程没有该下载步骤，不修改。
-- **验证及结果**：已从官方 release/tag 与 `action.yml` 核对 v8.0.2 commit 和 `runs.using: node24`；本地完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，4 执行、187 up-to-date），包括架构契约测试；`git diff --check` 通过。尚未在远端实际运行新 Action。
-- **阻碍/恢复条件/下一步**：使用当前 `origin/beta` HEAD 的下一次 Beta workflow run 确认远端下载步骤通过；与 CI-067 共用验证。无需为 Action pin 单独生成 APK，发布流程仍为手动触发。
+- **验证及结果**：已从官方 release/tag 与 `action.yml` 核对 v8.0.2 commit 和 `runs.using: node24`；本地完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，4 执行、187 up-to-date），包括架构契约测试；`git diff --check` 通过。远端 Beta run `39885625406`（commit `6610e796`）构建与 Release 发布均成功，Release job 的“Download beta APK artifact”步骤通过；经 Git 对比，该 run 所用 `.github/workflows/build-android-testing.yml` 与当前 `origin/beta` HEAD `c4a88a7` 完全相同，因此本次修复后的 Artifact Action 已有真实 hosted-runner 执行证据。该 run 的源码提交早于当前 HEAD，但 HEAD 之后没有 workflow 文件变化；不把该 run 说成当前源码的最新 APK 构建。
+- **阻碍/恢复条件/下一步**：无本项阻碍；CI-067 已有同一次远端下载步骤验证。无需为 Action pin 单独生成 APK，发布流程仍为手动触发。
 
 ### CI-164 — 持续改进记录保留 CI-126 的过期阻塞引用
 
@@ -1790,8 +1790,26 @@
 ### CI-193 — `:app` 结果收藏保存的异步提交与失败恢复复核
 
 - **检查范围**：结果收藏对话框的重复提交保护、Activity 生命周期任务、保存事务提交等待、失败后的数据快照恢复与成功导航时序。
-- **问题依据/优先级**：复核此前收藏保存闪退关联路径；本轮未发现新的可证实生产缺陷。对话框在保存期间阻止重复写入和关闭；异步任务由 Activity 生命周期持有，普通异常会记录并保留输入供重试，取消异常继续传播。业务层在数据库提交完成后才返回成功并发布新状态；持久化失败时 ViewModel 先重载已提交快照，再把异常交还 UI，避免把未提交的乐观状态当作成功。
+- **问题依据/优先级**：复核此前收藏保存闪退关联路径；发现此前“阻止关闭”的结论只覆盖 Compose 显式取消按钮，未覆盖系统返回和点外部触发的平台取消（CI-195）。异步任务由 Activity 生命周期持有，普通异常会记录并保留输入供重试，取消异常继续传播。业务层在数据库提交完成后才返回成功并发布新状态；持久化失败时 ViewModel 先重载已提交快照，再把异常交还 UI，避免把未提交的乐观状态当作成功。
 - **状态和依赖**：已检查，无需修改；结论限于当前保存调用链和数据层失败恢复。完整 Compose 对话框交互覆盖仍由 CI-079 跟踪，等待用户确认测试接缝；本项不代表历史闪退已在设备上复现或端到端排除。
 - **修改摘要**：无产品代码修改；记录当前异步提交与恢复边界。
 - **验证及结果**：运行 `:app:testBetaDebugUnitTest --tests '*FavoritesMutationCoordinatorOrderTest' --tests '*FavoritesPartialLoadMutationTest'`，共 6 项通过、0 失败/错误/跳过。未运行完整 `verifyLocal`、未驱动真实 Dialog、未组装 APK 或进行设备闪退复测。
 - **阻碍/恢复条件/下一步**：CI-079 的测试接缝仍待确认；继续审查不依赖该 UI 测试选择的 `:app` 独立路径。
+
+### CI-194 — GitHub Actions 中 Gradle 缓存读写边界复核
+
+- **检查范围**：PR 架构验证、Beta 手动构建和正式版手动构建的 Gradle 用户目录缓存路径、读写策略、手动刷新入口及共享构建性能属性。
+- **问题依据/优先级**：针对 PR/Beta 分支写入可污染正式版缓存、Beta 无法刷新过期依赖缓存、Wrapper 分发未被纳入缓存的 P2 构建可靠性风险复核；未发现当前配置缺陷。PR 与普通 Beta 运行均只读；Beta 只有手动勾选 `refresh_gradle_cache` 才写缓存；正式版作为主分支缓存写入者。三者都显式包含模块依赖缓存、脚本 JAR 和 Wrapper distributions；性能属性集中在 `gradle.properties`。
+- **状态和依赖**：已检查，无需修改；结论限于工作流声明的缓存访问策略，不代表远端缓存实际命中率或构建时长已测量。
+- **修改摘要**：无工作流或 Gradle 配置修改；记录当前缓存信任边界和刷新策略。
+- **验证及结果**：只读核对 `.github/workflows/architecture-checks.yml`、`build-android-testing.yml`、`build-android-official.yml` 与 `android/gradle.properties`；确认 `cache-read-only`、`refresh_gradle_cache` 和 `gradle-home-cache-includes` 的配置对应上述边界。未启动远端 Actions、未清理或刷新任何缓存、未构建 APK。
+- **阻碍/恢复条件/下一步**：若需量化是否提速，应对比同一 runner/提交的远端 Actions 缓存命中与阶段耗时；本轮没有运行记录作为基线。继续核查其他尚未覆盖且不依赖用户决策的模块边界。
+
+### CI-195 — 收藏保存期间系统/外部取消关闭对话框
+
+- **检查范围**：`:app` 结果收藏保存进行中，平台 Dialog 对返回键和点外部取消的处理，以及异步保存与对话框可见状态的一致性。
+- **问题依据/优先级**：确认 P2 状态一致性缺陷。保存通过 Activity `lifecycleScope` 执行，原保护只拦截 Compose 内部“取消”按钮；`Dialog.cancel()` 仍可被系统返回键或点外部调用，导致对话框先关闭而保存任务继续，失败时用户失去原输入与重试入口，成功时则可能在已关闭界面后切页。
+- **状态和依赖**：已验证，完成；只在收藏保存提交期间禁止平台取消，提交结束或失败后恢复原有取消行为。重名确认仍可正常取消，因为锁定仅在用户确认开始实际保存后开启。
+- **修改摘要**：为公共 Compose Dialog 增加默认允许取消的策略回调，其他弹窗行为不变；收藏保存开始时锁定系统/外部取消，在 `finally` 中恢复。新增 Robolectric 回归覆盖保存期间返回键、直接取消均不关闭，保存完成后取消行为恢复。
+- **验证及结果**：先运行新增测试确认旧实现稳定失败，再修复并通过；随后运行完整 `:app:testBetaDebugUnitTest --offline`，124 项通过、0 失败/错误/跳过。项目固定 Gradle 脚本完成 Kotlin 生产/测试编译；`git diff --check` 通过。未组装 APK、未做真机验证，因此本结论限于代码路径与单元测试，不宣称解决了设备上所有收藏闪退。
+- **阻碍/恢复条件/下一步**：无本项代码验证阻碍；继续按模块清单检查 `:app` 及其直接依赖中的独立高影响路径。历史闪退仍需用户提供新日志或设备复测，才能确认是否还有其他根因。

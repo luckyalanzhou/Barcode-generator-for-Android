@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 
+import android.content.Context
 import android.app.Dialog
 import android.view.Gravity
 import android.view.WindowManager
@@ -14,13 +15,22 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlin.math.roundToInt
 
+/** 创建 Compose 弹窗使用的平台窗口；独立 seam 允许测试取消策略。 */
+internal fun createComposeDialog(context: Context, canCancel: () -> Boolean): Dialog =
+    object : Dialog(context) {
+        override fun cancel() {
+            if (canCancel()) super.cancel()
+        }
+    }
+
 /** 公共 Compose 弹窗窗口基础设施。 */
 internal fun MainActivity.showComposeDialog(
     compact: Boolean,
     onCancel: (() -> Unit)? = null,
+    canCancel: () -> Boolean = { true },
     content: @Composable (dismiss: () -> Unit) -> Unit,
 ) {
-    val dialog = Dialog(this)
+    val dialog = createComposeDialog(this, canCancel)
     val composeView = ComposeView(this)
     val screenWidth = resources.displayMetrics.widthPixels
     val preferredWidth = (screenWidth * if (compact) 0.82f else 0.88f).roundToInt()
