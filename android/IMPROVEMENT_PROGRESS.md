@@ -1606,3 +1606,12 @@
 - **修改摘要**：无产品代码修改；记录对收藏常规列表、搜索分页和查询切换并发边界的复核。
 - **验证及结果**：运行 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline :app:testBetaDebugUnitTest --tests '*FavoritesQueryCoordinatorTest' --tests '*FavoritesSearchSnapshotRefreshTest'`，`BUILD SUCCESSFUL`；10 项查询协调器测试与 1 项同快照刷新测试均通过，0 失败/错误，73 项 Gradle actionable tasks（1 执行、72 up-to-date）。首次沙箱运行在测试开始前因 Gradle daemon 回环通信失败；获批后以相同命令重试通过。未组装 APK。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续审查可独立推进的收藏数据和其他核心路径。CI-169 的 loopback 下载响应测试与 CI-171 的历史批次产品语义仍待用户确认，不阻塞本项。
+
+### CI-173 — 收藏备份往返的条码顺序与重复内容复核
+
+- **检查范围**：`:core:data` 收藏 ZIP 导出/导入顺序、同内容条码身份分配、Room 收藏关联位置约束与导入提交事务。
+- **问题依据/优先级**：针对备份往返可能合并重复条码内容、重排收藏文件内条码或留下部分导入数据的风险复核；未发现新的可证实缺陷。导出按 `position, itemId` 读取关联并逐项写入文本/格式；导入为每个文本单独分配 item ID 并生成连续 position；Room 对 `(groupId, position)` 建唯一索引，导入表与关联在单一事务内提交。相同条码正文不会参与收藏文件身份判重。
+- **状态和依赖**：已检查，无需修改；结论限于当前 ZIP 与 Room 导入/导出实现和覆盖到的测试，不替代真实用户备份文件的设备恢复演练。
+- **修改摘要**：无产品代码修改；记录备份数据顺序、重复内容和事务边界复核。
+- **验证及结果**：运行 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline :core:data:testDebugUnitTest --tests '*FavoritesTransferManagerTest' --tests '*BarcodeDatabaseMigrationTest'`，`BUILD SUCCESSFUL`；收藏传输 18 项、数据库/导入迁移 12 项，共 30 项，0 失败/错误，34 项 Gradle actionable tasks（1 执行、33 up-to-date）。首次沙箱运行在测试开始前因 Gradle daemon 回环通信失败；获批后以相同命令重试通过。未组装 APK。
+- **阻碍/恢复条件/下一步**：无本项阻碍；继续检查 `:core:data` 中其他独立持久化路径。旧版权威数据库 fixture 仍按 CI-081 等待恢复条件；未影响本次现行备份传输验证。
