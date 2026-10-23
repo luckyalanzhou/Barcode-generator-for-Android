@@ -7,10 +7,15 @@ import com.luckyalanzhou.barcodegenerator.domain.UpdateSecurity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Comparator
 import java.util.Locale
+
+internal const val MAX_UPDATE_CATALOG_RESPONSE_BYTES = 1 * 1024 * 1024
 
 /** GitHub release metadata adapter; channel/build configuration is supplied by the app. */
 class AndroidUpdateCatalogGateway(
@@ -32,7 +37,7 @@ class AndroidUpdateCatalogGateway(
             }
             val releases = try {
                 if (connection.responseCode !in 200..299) throw IllegalStateException("GitHub HTTP ${connection.responseCode}")
-                connection.inputStream.bufferedReader().use { JSONArray(it.readText()) }
+                readUpdateCatalogJson(connection.inputStream)
             } finally {
                 connection.disconnect()
             }
@@ -48,6 +53,36 @@ class AndroidUpdateCatalogGateway(
             UpdateLookupResult.Failed(error.message ?: "检查更新失败，请稍后重试")
         }
     }
+}
+
+internal fun readUpdateCatalogJson(inputStream: InputStream): JSONArray {
+    val responseBytes = inputStream.use { stream ->
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var totalBytes = 0
+        while (true) {
+            val requestedBytes = minOf(buffer.size, MAX_UPDATE_CATALOG_RESPONSE_BYTES - totalBytes + 1)
+            val bytesRead = stream.read(buffer, 0, requestedBytes)
+            if (bytesRead < 0) break
+            if (bytesRead == 0) {
+                val nextByte = stream.read()
+                if (nextByte < 0) break
+                if (totalBytes == MAX_UPDATE_CATALOG_RESPONSE_BYTES) {
+                    throw IOException("更新信息过大，请稍后重试")
+                }
+                output.write(nextByte)
+                totalBytes++
+                continue
+            }
+            totalBytes += bytesRead
+            if (totalBytes > MAX_UPDATE_CATALOG_RESPONSE_BYTES) {
+                throw IOException("更新信息过大，请稍后重试")
+            }
+            output.write(buffer, 0, bytesRead)
+        }
+        output.toByteArray()
+    }
+    return JSONArray(String(responseBytes, Charsets.UTF_8))
 }
 
 internal fun parseUpdateCatalogResponse(
