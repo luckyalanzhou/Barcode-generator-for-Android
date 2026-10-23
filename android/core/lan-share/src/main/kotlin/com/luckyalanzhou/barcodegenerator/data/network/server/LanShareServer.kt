@@ -809,9 +809,10 @@ internal class LanShareServer(
                     else newFixedLengthResponse(Response.Status.OK, fileMimeType(file), FileInputStream(file), file.length()).apply {
                         addHeader("Content-Length", file.length().toString())
                         addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
+                        addHeader("X-Content-Type-Options", "nosniff")
                         addHeader(
                             "Content-Disposition",
-                            "${if (fileMimeType(file).startsWith("image/")) "inline" else "attachment"}; filename=\"${toLanShareFile(file, "peer", fileMimeType(file)).name}\""
+                            "attachment; filename=\"${toLanShareFile(file, "peer", fileMimeType(file)).name}\""
                         )
                     }
                 }

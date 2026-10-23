@@ -291,6 +291,47 @@ class LanShareServerUploadTest {
     }
 
     @Test
+    fun uploadedSvgIsServedAsAttachmentWithNosniff() {
+        val folder = temporaryFolder.newFolder()
+        val payload = "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>".toByteArray(StandardCharsets.UTF_8)
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            val uploaded = upload(
+                server.listeningPort,
+                server.sessionToken,
+                payload,
+                "payload.svg",
+                "cbrowser123",
+                chunked = false,
+                contentType = "image/svg+xml",
+            )
+            assertEquals(200, uploaded.first)
+
+            val encodedId = URLEncoder.encode(uploaded.second, StandardCharsets.UTF_8.name())
+            val connection = URL("http://127.0.0.1:${server.listeningPort}/dl/$encodedId")
+                .openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 5_000
+                connection.readTimeout = 5_000
+                connection.setRequestProperty("Authorization", "Bearer ${server.sessionToken}")
+                assertEquals(200, connection.responseCode)
+                assertEquals("image/svg+xml", connection.contentType)
+                assertTrue(
+                    "download route must not render uploaded SVG as an inline document",
+                    connection.getHeaderField("Content-Disposition")?.startsWith("attachment;") == true,
+                )
+                assertEquals("nosniff", connection.getHeaderField("X-Content-Type-Options"))
+                assertArrayEquals(payload, connection.inputStream.use { it.readBytes() })
+            } finally {
+                connection.disconnect()
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun uploadedFileWithPartExtensionRemainsVisibleAndDownloadable() {
         val folder = temporaryFolder.newFolder()
         val payload = byteArrayOf(3, 1, 4, 1, 5)
