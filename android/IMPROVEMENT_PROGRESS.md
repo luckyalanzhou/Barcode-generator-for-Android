@@ -1588,3 +1588,12 @@
 - **修改摘要**：无产品代码修改；记录最低 SDK 与所查平台 API 的一致性。
 - **验证及结果**：读取三个 Android 模块 Gradle 配置并枚举生产源码调用；运行 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline :app:lintBetaRelease :app:lintOfficialRelease`，`BUILD SUCCESSFUL`，94 项 actionable tasks（2 执行、92 up-to-date），未组装 APK。
 - **阻碍/恢复条件/下一步**：无本项阻碍；继续按模块检查其他独立路径。
+
+### CI-171 — 历史列表以毫秒时间戳作为生成批次身份
+
+- **检查范围**：`:app` 历史页 `HistoryScreen` 分组键、领域生成用例时间戳赋值、Room 历史顺序及最终条码 ID 分配。
+- **问题依据/优先级**：确认一个低概率、仅影响展示分组的 P3 边界。每次 `GenerateBarcodesUseCase.execute()` 将一次 `now` 值赋给本次所有生成条码；历史页使用 `groupBy { createdAt }` 作为批次边界。因此两个独立生成操作若得到相同毫秒时间戳，会合并显示为同一历史卡片。Room 查询已有 `createdAt DESC, id DESC` 稳定排序，持久化条码和 ID 不丢失；风险是卡片批次边界不再等同于用户操作边界。
+- **状态和依赖**：待确认；是否要求每次生成操作始终对应独立历史卡片，当前产品语义未写明。可靠区分需要显式批次身份（会涉及数据库迁移及旧记录兼容），未用人为时间戳偏移掩盖真实时间，也未修改行为。
+- **修改摘要**：无产品代码修改；记录时间戳分组和操作批次身份并非同一概念。
+- **验证及结果**：静态追踪 `GenerateBarcodesUseCase.execute(now)`、`HistoryScreen.groupBy(createdAt)`、`BarcodeDao.loadStartupItems()` 排序及 `insertGeneratedItemsWithAllocatedIds()`；确认所有条码仍以独立 ID 保存。未添加测试、运行测试或构建；没有证据显示条码内容丢失或数据库排序不稳定。
+- **阻碍/恢复条件/下一步**：需确认“同一毫秒的两次生成是否必须拆成两张历史卡片”；若需要，再设计向后兼容的批次 ID 迁移及回归 seam。继续检查与该产品决定无关的其他模块。
