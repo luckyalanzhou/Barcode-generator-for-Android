@@ -57,6 +57,7 @@ internal class LanShareServer(
     private val webSocketHeartbeatTimeoutMs: Long = LAN_SHARE_WEBSOCKET_HEARTBEAT_TIMEOUT_MS,
     private val maxConcurrentUploads: Int = 4,
     private val availableUploadBytes: () -> Long = { folder.usableSpace },
+    private val beforeUploadCommit: () -> Unit = {},
 ) : NanoWSD(host, port) {
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
@@ -101,7 +102,7 @@ internal class LanShareServer(
     private val uploadLock = Any()
     private var reservedUploadBytes = 0L
     private var activeUploads = 0
-    private enum class UploadRejection { Busy, RoomFull, DiskFull }
+    private enum class UploadRejection { Stopped, Busy, RoomFull, DiskFull }
     private val currentClientSocket = ThreadLocal<Socket>()
     internal val sessionToken: String = createSessionToken()
     internal val pairingCode: String = createPairingCode()
@@ -233,6 +234,7 @@ internal class LanShareServer(
 
     /** 在锁内核对并预留容量；上传的网络读取和文件内容写入在锁外执行。 */
     private fun reserveUploadCapacity(size: Long): UploadRejection? = synchronized(uploadLock) {
+        if (stopped) return@synchronized UploadRejection.Stopped
         if (activeUploads >= maxConcurrentUploads) return@synchronized UploadRejection.Busy
         val stored = folder.listFiles().orEmpty().filter(::isCommittedSharedFile).sumOf { it.length() }
         if (stored > LanShareLimits.MAX_ROOM_BYTES ||
@@ -296,8 +298,10 @@ internal class LanShareServer(
             require(copiedBytes == body.expectedBytes && stagingFile.length() == body.expectedBytes) {
                 "上传内容大小不匹配：$copiedBytes/${body.expectedBytes} 字节"
             }
+            beforeUploadCommit()
             val commitStartedAtNanos = System.nanoTime()
             synchronized(uploadLock) {
+                check(!stopped) { "分享服务已停止" }
                 check(!target.exists()) { "目标文件已存在" }
                 check(stagingFile.renameTo(target)) { "无法保存上传文件" }
                 uploadedMimeTypes[target.name] = mimeType
@@ -613,8 +617,10 @@ internal class LanShareServer(
     }
 
     override fun stop() {
-        val peers = synchronized(webSocketStateLock) {
+        synchronized(uploadLock) {
             stopped = true
+        }
+        val peers = synchronized(webSocketStateLock) {
             connectionGeneration++
             pendingDisconnect?.cancel(false)
             pendingDisconnect = null
@@ -751,6 +757,7 @@ internal class LanShareServer(
                     val rejection = reserveUploadCapacity(body.expectedBytes)
                     if (rejection != null) {
                         val message = when (rejection) {
+                            UploadRejection.Stopped -> "分享服务已停止"
                             UploadRejection.Busy -> "同时上传任务过多，请等待当前传输完成后重试"
                             UploadRejection.RoomFull -> "房间文件总大小不能超过 100 GB"
                             UploadRejection.DiskFull -> "设备可用存储空间不足，请清理后重试"

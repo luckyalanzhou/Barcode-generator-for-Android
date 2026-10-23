@@ -10,6 +10,9 @@ import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -205,6 +208,57 @@ class LanShareServerUploadTest {
             )
         } finally {
             connection?.close()
+            server.stop()
+        }
+    }
+
+    @Test
+    fun stoppingServerPreventsAnAlreadyReceivedUploadFromCommittingAfterStop() {
+        val folder = temporaryFolder.newFolder()
+        val uploadReadyToCommit = CountDownLatch(1)
+        val continueCommit = CountDownLatch(1)
+        val uploadFailure = AtomicReference<Throwable?>()
+        val server = LanShareServer(
+            "127.0.0.1",
+            0,
+            folder,
+            AppLogger { _, _, _ -> },
+            beforeUploadCommit = {
+                uploadReadyToCommit.countDown()
+                check(continueCommit.await(5, TimeUnit.SECONDS)) { "test timed out waiting to release upload commit" }
+            },
+        )
+        var uploadThread: Thread? = null
+        try {
+            server.start(5_000, false)
+            uploadThread = Thread {
+                runCatching {
+                    upload(server.listeningPort, server.sessionToken, byteArrayOf(1, 2, 3), "late.bin", "app", false)
+                }.onFailure(uploadFailure::set)
+            }.apply {
+                name = "test-lan-share-upload"
+                isDaemon = true
+                start()
+            }
+
+            assertTrue("upload should reach the commit boundary", uploadReadyToCommit.await(5, TimeUnit.SECONDS))
+            server.stop()
+            continueCommit.countDown()
+            uploadThread.join(5_000)
+            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (folder.listFiles().orEmpty().isNotEmpty() && System.nanoTime() < cleanupDeadline) {
+                Thread.sleep(10)
+            }
+
+            assertTrue("upload handler should finish after the commit gate is released", !uploadThread.isAlive)
+            assertTrue(
+                "a stopped server must not publish an upload that was still pending commit; " +
+                    "failure=${uploadFailure.get()?.javaClass?.simpleName}, files=${folder.listFiles().orEmpty().map { it.name }}",
+                folder.listFiles().orEmpty().isEmpty(),
+            )
+        } finally {
+            continueCommit.countDown()
+            uploadThread?.join(5_000)
             server.stop()
         }
     }
