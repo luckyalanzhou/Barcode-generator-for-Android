@@ -656,11 +656,11 @@
 
 - **检查范围**：架构检查、Beta、正式版三个 workflow 的第三方 Action 引用；Beta 构建/签名与 Release 创建、元数据刷新、产物交接及临时签名文件清理。
 - **问题依据/优先级**：确认第三方 Action 使用可移动版本标签存在供应链风险；并确认一次实际 Beta 门禁失败是有效捕获架构违规，而非分支竞态：`78cd965` 的生成 UI 导入 `presentation.generate.BatchBarcodeTextParser`，导致两个架构测试失败。后续 `bb7a34b` 将解析器移入 `ui.feature.generate` 并移除反向依赖。另核实 `contents: read` 本身不等于显式 PAT 无写权限，不能据此推断发布故障。
-- **状态和依赖**：远端 HEAD 的单 job Beta 流程已成功验证；当前工作树里的 SHA 固定与 build/publish 双 job 改动未推送，仍待用户授权后的远端验证。此项不触发提交、推送或构建。
-- **修改摘要**：工作树中的三个 workflow 已将第三方 Actions 固定到完整 commit SHA；Beta 拆分签名构建与 Release 发布 job，并用 artifact 和 job outputs 交接 APK、版本及校验值；发布 job 使用显式 `RELEASE_PUBLISH_TOKEN`，`GITHUB_TOKEN` 保持只读，签名文件在 build runner 清理。以上是当前未提交工作树状态，不宣称已进入远端。
-- **验证及结果**：只读核对远端运行 `39563328301` 在 `:architecture-tests:test` 中有两项失败，具体为生成 UI 对 presentation/app composition 的依赖边界；随后提交 `bb7a34b` 修复依赖方向。远端运行 `39564048987`（SHA 与当前 HEAD 一致）完整成功，`verifyLocal`、Beta APK 构建、Release 更新和临时 keystore 清理各步均成功。远端 Release `android-test-v9.9.9` 为已发布状态，`versionName=9.9.9`、`versionCode=4`；Release 正文 SHA-256 与 GitHub APK asset digest 一致，附件状态为 uploaded。未下载 APK，故未独立重算安装包字节摘要。远端成功运行使用的是该 SHA 上的单 job workflow；当前工作树的双 job 和 SHA 固定改动尚无远端证据。
+- **状态和依赖**：SHA 固定与 build/publish 双 job 改动已推送到 `origin/beta`；现有远端成功记录对应旧的单 job 流程，不能验证当前双 job 交接。等待当前 `origin/beta` HEAD 的新远端 Beta workflow run 验证。
+- **修改摘要**：三个 workflow 将第三方 Actions 固定到完整 commit SHA；Beta 拆分签名构建与 Release 发布 job，并用 artifact 和 job outputs 交接 APK、版本及校验值；发布 job 使用显式 `RELEASE_PUBLISH_TOKEN`，`GITHUB_TOKEN` 保持只读，签名文件在 build runner 清理。以上改动已包含在远端 Beta 分支，不是未提交工作树状态。
+- **验证及结果**：只读核对远端运行 `39563328301` 在 `:architecture-tests:test` 中有两项失败，具体为生成 UI 对 presentation/app composition 的依赖边界；随后提交 `bb7a34b` 修复依赖方向。远端运行 `39564048987`（SHA 与当时 HEAD 一致）完整成功，`verifyLocal`、Beta APK 构建、Release 更新和临时 keystore 清理各步均成功。远端 Release `android-test-v9.9.9` 为已发布状态，`versionName=9.9.9`、`versionCode=4`；Release 正文 SHA-256 与 GitHub APK asset digest 一致，附件状态为 uploaded。未下载 APK，故未独立重算安装包字节摘要。该远端成功运行使用旧的单 job workflow；当前 `origin/beta` 的双 job 和 SHA 固定改动尚无远端执行证据。
 - **本地补充核验**：本次逐条检查三个 workflow 的 14 个外部 `uses:` 引用，全部为 40 位 commit SHA 且附版本注释；与各 Action 官方 release 页核对时，checkout、setup-java、setup-gradle、upload-artifact、download-artifact 的 SHA 前缀与相应版本标签匹配并显示已验证签名。`softprops/action-gh-release` 的固定 SHA 前缀与官方仓库 v3.0.3 发布记录一致。该项只证明当前引用来源/格式，不替代推送后的托管端运行验证。
-- **阻碍/恢复条件/下一步**：需要用户授权推送/构建后，才能验证当前工作树的 workflow 双 job 交接和固定 Action SHA；本目标在获得授权前不执行。继续其他本地审查。
+- **阻碍/恢复条件/下一步**：需取得当前 Beta workflow run 的托管端执行结果，验证 build/publish artifact 交接及 SHA 固定 Action 的实际运行；与 CI-163 共用下一次远端验证。继续其他本地审查。
 
 ### CI-068 — `:app` 结果页四个操作的语义与回调隔离
 
@@ -810,28 +810,28 @@
 
 - **检查范围**：Beta 与正式版 GitHub Actions 的触发方式、分支条件、Token/签名密钥暴露范围、版本恢复及 Release 发布前校验。
 - **问题依据/优先级**：针对普通推送触发正式发布、错误分支发布、构建 job 获得不必要的 Release 写权限，以及未校验附件即公开发布的风险进行复核；未发现已证实问题。两个 workflow 都仅声明 `workflow_dispatch`；Beta job 限定 `beta`，正式版限定 `main`。发布 PAT 仅注入需要读写 Release 的步骤/job，构建使用单独的签名 Secrets；正式版发布前会从 Release 下载 APK 与校验文件进行字节比对和 SHA-256 检查，并确认 Release API 附件名称、大小和上传状态。
-- **状态和依赖**：静态检查通过；远端 Beta 当前 HEAD 的单 job 流程及 Release 更新已有成功记录（CI-067）。正式版远端流程尚无本轮验证；工作树内未提交的 Beta workflow 双 job 拆分也尚无远端验证。未读取仓库 Secrets。
+- **状态和依赖**：静态检查通过；旧的单 job Beta 流程及 Release 更新已有成功记录（CI-067）。当前 `origin/beta` 的双 job Beta 流程尚无远端执行验证，正式版远端流程也无本轮验证。未读取仓库 Secrets。
 - **修改摘要**：本轮未改 workflow 或发布脚本；记录反映现有工作树与远端证据的差异。
 - **验证及结果**：核对两个 workflow 的触发器、分支条件、权限与 Secrets 注入范围；正式版版本分配测试 15 项通过。只读检查的 Beta 成功运行完成 APK 构建、Release 更新及签名文件清理，Release 正文摘要与已上传 asset digest 一致；未独立下载 APK 重算摘要。未启动新 Actions、未读取 Secret 值。
-- **阻碍/恢复条件/下一步**：正式版集成、工作树内 Beta 双 job 改动和 Action SHA 固定需要之后经授权的推送/运行验证；本轮不做外部写入。继续检查剩余不依赖这些动作的模块。
+- **阻碍/恢复条件/下一步**：需当前 `origin/beta` HEAD 的远端运行验证双 job 与 Action SHA 固定；正式版集成仍缺本轮远端验证。与 CI-067、CI-163 共用 Beta 验证。继续检查剩余不依赖这些动作的模块。
 
 ### CI-085 — `main` 正式版分支未强制执行 PR 检查
 
 - **检查范围**：GitHub `main`/`beta` 分支保护、仓库 Rulesets、PR 检查 workflow 触发方式及其强制执行状态。
-- **问题依据/优先级**：确认 P2 交付门禁缺口。GitHub REST API 当前对 `main` 和 `beta` 的 branch protection 查询均返回 `Branch not protected (404)`，仓库 rulesets 列表为空，因此两条分支都没有已配置的 required status check 或 PR 保护；直接推送 `main` 仍可绕过 PR 检查。PR workflow 已在本地补入 Release 编译与 Lint（CI-117），但 workflow 本身未推送且分支保护仍未启用，不能据此认定门禁已强制执行。
+- **问题依据/优先级**：确认 P2 交付门禁缺口。2026-10-22 的 GitHub REST 查询显示 `main`、`beta` 均未启用 branch protection，rulesets 列表为空，因此当时没有 required status check 或 PR 保护；若设置未改变，直接推送 `main` 仍可绕过 PR 检查。PR workflow 的 Release 编译与 Lint 改动现已包含在 `origin/beta`（CI-117），但这不会自动启用分支保护，也不能证明 `main` 已包含该 workflow。
 - **状态和依赖**：待确认；是否为 `main` 启用“必须通过 PR 与 `Verify architecture boundaries` 状态检查”会改变现有直推流程，需要用户决定。`beta` 也未保护，但本记录不建议擅自改变用户当前 Beta 推送习惯。
 - **修改摘要**：未修改 GitHub 仓库保护设置；PR workflow 的检查范围改动单独记录为 CI-117。
-- **验证及结果**：2026-10-22 只读查询仓库 branch protection：`main`、`beta` 均返回 `Branch not protected (404)`，rulesets 仍为空；新 workflow 尚未推送，远端尚无本次 `verifyLocal` 接线的运行证据。
+- **验证及结果**：2026-10-22 只读查询仓库 branch protection：`main`、`beta` 均返回 `Branch not protected (404)`，rulesets 为空。该结果有日期，未在本次重新查询；当前 `origin/beta` 已包含 CI-117 的 workflow 修改，但尚无当前 revision 的远端 PR run 证据。
 - **阻碍/恢复条件/下一步**：如用户决定强制保护 `main`，需明确 required check 名称、是否要求 PR 审核及是否限制管理员绕过，然后再修改 GitHub 设置；在决定前不做外部写入。继续其他不依赖此决定的本地审查。
 
 ### CI-117 — PR 门禁遗漏 Beta/Official Release 编译与 Lint
 
 - **检查范围**：`.github/workflows/architecture-checks.yml` 的 PR Gradle 命令，以及根 `verifyLocal` 的依赖任务与 APK 组装边界。
 - **问题依据/优先级**：确认 P2 检查覆盖缺口。原 PR 命令只运行架构、Domain/Data/LAN Share 和 Beta Debug 单测；根 `verifyLocal` 还包含 Beta/Official Release Kotlin 编译及两种 Release Lint。编译/Lint 故障此前只能在手动发布前发现，增加不必要的反馈延迟。
-- **状态和依赖**：已验证，完成（本地）；架构契约、全量 `:architecture-tests:test` 与 `verifyLocal` 均通过。GitHub 上的实际 PR workflow 执行待推送授权。
+- **状态和依赖**：已验证，完成（本地）；架构契约、全量 `:architecture-tests:test` 与 `verifyLocal` 均通过。workflow 修改已推送至 `origin/beta`，当前 revision 的 GitHub PR workflow 托管端执行仍未验证。
 - **修改摘要**：PR job 改为调用 `verifyLocal --no-configuration-cache -PenableAppUnitTests=true`，保留已有 job/check 名称与只读权限；新增架构契约确认 PR 调用完整门禁、门禁包含两种 Release 编译和 Lint 且没有 `assemble` 任务。未修改分支保护、触发方式或发布流程。
 - **验证及结果**：契约测试先在旧 workflow 上按预期失败（缺少 `verifyLocal`），更新 YAML 后定向契约通过；强制重跑完整 `:architecture-tests:test` 成功。随后使用 `D:\Barcode_build\run-barcode-android-gradle.ps1 -PenableAppUnitTests=true --offline verifyLocal` 成功，191 项任务（3 执行、2 缓存、186 up-to-date），覆盖 Beta 单测、架构检查、Beta/Official Release 编译与 Lint，不组装 APK；`git diff --check` 无空白错误，仅提示若干既有文件的 LF/CRLF 转换。该本地结果不代表 GitHub 托管 runner 已验证。
-- **阻碍/恢复条件/下一步**：推送并由 GitHub Actions 执行后才能验证 runner 环境、缓存和整套 Release 检查；推送前继续独立本地审查。CI-085 的 branch protection 仍需用户决定，不因本项修复而关闭。
+- **阻碍/恢复条件/下一步**：需要当前 revision 的 GitHub PR workflow run 才能验证 runner 环境、缓存和整套 Release 检查；PR 门禁是否强制仍由 CI-085 的分支保护决策决定，不因 workflow 已推送而视为关闭。
 
 ### CI-086 — 仓库签名密钥文件跟踪与忽略边界
 
@@ -1521,10 +1521,10 @@
 
 - **检查范围**：Beta Release 发布 job 下载当前 workflow run 构建的 APK artifact 的 Action 版本及运行时兼容性。
 - **问题依据/优先级**：远端 run `39879019894` 实际标记 `actions/download-artifact@v6.0.0` 将被强制运行于 Node.js 24。GitHub 已于 2026-09-23 移除 Node.js 20 runner 支持；继续固定在旧 runtime 的 action 会保留弃用告警并存在后续兼容风险。官方 `v8.0.2` 的 action metadata 使用 `node24`，且仍支持当前同 run artifact 下载路径。
-- **状态和依赖**：已修复，待远端验证；只涉及发布 job 使用的第一方 Action，不改变 APK、artifact 命名或 Release 流程。实际 Node 24 hosted-runner 执行依赖下一次手动 Beta 发布。
+- **状态和依赖**：已推送，待远端验证；只涉及发布 job 使用的第一方 Action，不改变 APK、artifact 命名或 Release 流程。实际 Node 24 hosted-runner 执行依赖下一次 Beta workflow run。
 - **修改摘要**：将 Beta Release 的 `actions/download-artifact` 从 v6.0.0 升级并固定到官方 v8.0.2 commit SHA `9000827ccba6bdab643e8b6fd33ac0654aef8333`；正式版流程没有该下载步骤，不修改。
 - **验证及结果**：已从官方 release/tag 与 `action.yml` 核对 v8.0.2 commit 和 `runs.using: node24`；本地完整离线 `verifyLocal -PenableAppUnitTests=true --offline` 成功（191 项任务，4 执行、187 up-to-date），包括架构契约测试；`git diff --check` 通过。尚未在远端实际运行新 Action。
-- **阻碍/恢复条件/下一步**：推送该工作流修复；等下一次用户授权的 Beta `workflow_dispatch` 时确认远端下载步骤通过。无需为 Action pin 单独生成 APK，发布流程仍为手动触发。
+- **阻碍/恢复条件/下一步**：使用当前 `origin/beta` HEAD 的下一次 Beta workflow run 确认远端下载步骤通过；与 CI-067 共用验证。无需为 Action pin 单独生成 APK，发布流程仍为手动触发。
 
 ### CI-164 — 持续改进记录保留 CI-126 的过期阻塞引用
 
@@ -1534,3 +1534,12 @@
 - **修改摘要**：移除 CI-127、CI-128、CI-131 后续说明中的过期 CI-126 阻塞描述，保留各条目仍然有效的其他下一步。
 - **验证及结果**：对照 CI-126 完成记录、提交 `03e37db` 的文件清单与回归测试；搜索全文确认不存在将 CI-126 描述为待确认、待复验或待复现的残留引用；`git diff --check` 通过。未运行产品测试或构建。
 - **阻碍/恢复条件/下一步**：无；继续审查不依赖设备、旧版数据库样本、用户决策或远端认证的 `:app` 路径。
+
+### CI-165 — 持续改进记录未反映已推送的 workflow 改动
+
+- **检查范围**：CI-067、CI-084、CI-085、CI-117、CI-163 的状态/恢复条件与 `origin/beta` 当前提交及 workflow 文件。
+- **问题依据/优先级**：确认 P3 进度准确性问题。CI-067/084 将已推送的 Beta 双 job 与 SHA 固定继续写成工作树未推送；CI-085/117 将已推送的 PR workflow 写成未推送；CI-163 仍把“推送工作流修复”列为下一步。当前 `HEAD` 与 `origin/beta` 均为 `f98aec2`，相关提交均可从该分支到达；Beta workflow 已包含独立 `build`/`publish` job 和固定到 Node 24 的 `actions/download-artifact@v8.0.2`，PR workflow 已包含 `verifyLocal` 门禁。
+- **状态和依赖**：本地记录已修正；远端 hosted-runner 对当前流程的验证仍待实际 Beta workflow run。
+- **修改摘要**：更正 CI-067、084、085、117、163 中已推送 workflow 改动的状态，明确分支保护未配置与 workflow 托管端执行验证是不同事项；Beta 双 job 和 Node 24 Action 共用下一次远端 Beta run 验证。
+- **验证及结果**：用 `git rev-parse` 核实 `HEAD` 与 `origin/beta` 同为 `f98aec2`；用 `merge-base --is-ancestor` 核实相关 workflow 提交已进入远端分支；静态检查 Beta workflow 的 job 依赖、Action SHA 与 PR workflow 的 `verifyLocal` 命令；`git diff --check` 通过。只读 GitHub Actions API 查询被当前 GitHub connector 拒绝为不支持的 endpoint，未重试或改用其他工具。
+- **阻碍/恢复条件/下一步**：只有当前 `origin/beta` HEAD 的实际 GitHub Actions run 能验证托管端行为；本地静态检查不能替代该验证。继续审查其他可本地推进的高影响路径。
