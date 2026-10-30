@@ -1,0 +1,286 @@
+name: Build Android Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Patch 兼容修复、Minor 兼容功能、Major 不兼容变更
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-official-release
+  # 正式发布按序排队，避免默认单等待位替换更早的手动发布；运行中发布不可取消。
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref_name == 'main'
+    name: Assemble and verify official release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: android
+        shell: bash
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.jvmargs=-Xmx6g -XX:+UseParallelGC
+        -Dfile.encoding=UTF-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Test official version allocator
+        run: python3 -m unittest discover -s tools -p 'test_official_release_version.py' -v
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Reserve or resume official release
+        id: reserve
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_TYPE: ${{ inputs.release_type || 'patch' }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" || { echo "::error::缺少 RELEASE_PUBLISH_TOKEN（需仓库 Contents 读写权限）"; exit 1; }
+          release_list="$RUNNER_TEMP/official-releases.json"
+          release_plan="$RUNNER_TEMP/official-release-plan.json"
+          request_file="$RUNNER_TEMP/official-release-reserve.json"
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$release_list"
+          python3 tools/official_release_version.py plan \
+            --releases "$release_list" \
+            --run-id "$GITHUB_RUN_ID" \
+            --release-type "$RELEASE_TYPE" \
+            --output "$release_plan"
+          action="$(jq -r '.action' "$release_plan")"
+          version="$(jq -r '.version' "$release_plan")"
+          version_code="$(jq -r '.version_code' "$release_plan")"
+          tag="$(jq -r '.tag_name' "$release_plan")"
+          release_type="$(jq -r '.release_type // ""' "$release_plan")"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
+          echo "plan=$release_plan" >> "$GITHUB_OUTPUT"
+          if [[ "$action" == "skip" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "本次运行对应的 Release 已经完整发布，不重复覆盖。"
+            exit 0
+          fi
+          python3 tools/official_release_version.py reserve-request \
+            --plan "$release_plan" \
+            --target-commitish "$GITHUB_SHA" \
+            --output "$request_file"
+          if [[ "$action" == "create" ]]; then
+            response="$RUNNER_TEMP/official-release-response.json"
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/releases" \
+              --input "$request_file" > "$response"
+            release_id="$(jq -er '.id' "$response")"
+          else
+            release_id="$(jq -er '.release_id' "$release_plan")"
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              --input "$request_file" > "$RUNNER_TEMP/official-release-response.json"
+          fi
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          if [[ "$action" == "resume" ]]; then
+            echo "检测到未完成的正式版 v${version}；继续使用已分配版本和递增类型（${release_type:-历史版本}），忽略本次新选择。"
+          else
+            echo "本次正式版递增类型：${release_type}。"
+          fi
+          echo "已为正式版 v${version} 保留草稿，versionCode=${version_code}。"
+
+      - name: Decode release keystore
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Missing RELEASE_KEYSTORE_BASE64 secret"; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo "::error::Missing RELEASE_KEYSTORE_PASSWORD secret"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::Missing RELEASE_KEY_ALIAS secret"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::Missing RELEASE_KEY_PASSWORD secret"; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.jks
+          test -s release.jks
+          chmod 600 release.jks
+
+      - name: Verify release keystore
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          check_dir="$RUNNER_TEMP/release-signing-check"
+          check_jar="$RUNNER_TEMP/release-signing-check.jar"
+          trap 'rm -rf "$check_dir" "$check_jar"' EXIT
+          mkdir -p "$check_dir"
+          jar --create --file "$check_jar" -C "$check_dir" .
+          jarsigner \
+            -keystore release.jks \
+            -storepass:env KEYSTORE_PASSWORD \
+            -keypass:env KEY_PASSWORD \
+            "$check_jar" \
+            "$KEY_ALIAS" >/dev/null
+          echo "Release keystore, alias, and key password validation passed."
+
+      - name: Set up Gradle
+        if: steps.reserve.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          # 正式版负责写入主分支缓存，供正式版和其他分支复用。
+          cache-read-only: false
+          # 只缓存依赖、脚本 JAR 和 Wrapper；任务输出与 transforms 由
+          # setup-gradle v6 的增强缓存分别管理。
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/jars-9
+            wrapper/dists
+          cache-cleanup: on-success
+          add-job-summary: on-failure
+
+      - name: Make Gradle wrapper executable
+        if: steps.reserve.outputs.skip != 'true'
+        run: chmod +x gradlew
+
+      - name: Build signed release
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/android/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.reserve.outputs.version }}
+          VERSION_CODE: ${{ steps.reserve.outputs.version_code }}
+        # 正式版只在手动启动时构建；版本从已保留的 Release 状态注入。
+        run: ./gradlew assembleOfficialRelease --no-configuration-cache -x :app:lintVitalOfficialRelease -PversionName="$VERSION_NAME" -PversionCode="$VERSION_CODE"
+
+      - name: Prepare APK and SHA-256 file
+        id: package
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          VERSION_NAME: ${{ steps.reserve.outputs.version }}
+        run: |
+          set -euo pipefail
+          source_apk="app/build/outputs/apk/official/release/app-official-release.apk"
+          apk_path="app/build/outputs/apk/official/release/BarcodeGeneratorOfficial${VERSION_NAME}.apk"
+          checksum_path="${apk_path}.sha256"
+          test -f "$source_apk" || { echo "::error::Official APK not found"; exit 1; }
+          mv "$source_apk" "$apk_path"
+          (cd "$(dirname "$apk_path")" && sha256sum "$(basename "$apk_path")" > "$(basename "$checksum_path")")
+          test -s "$apk_path"
+          test -s "$checksum_path"
+          echo "apk_path=$apk_path" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$checksum_path" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$(basename "$apk_path")" >> "$GITHUB_OUTPUT"
+          echo "checksum_name=$(basename "$checksum_path")" >> "$GITHUB_OUTPUT"
+          ls -lh "$apk_path" "$checksum_path"
+
+      - name: Upload APK and checksum as workflow artifacts
+        if: steps.reserve.outputs.skip != 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: BarcodeGeneratorOfficial${{ steps.reserve.outputs.version }}-release-build${{ github.run_number }}
+          path: |
+            android/${{ steps.package.outputs.apk_path }}
+            android/${{ steps.package.outputs.checksum_path }}
+          if-no-files-found: error
+          compression-level: 0
+          # 同一 run 恢复时允许替换上次的临时构建产物。
+          overwrite: true
+          retention-days: 14
+
+      - name: Upload both files to draft Release
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_TAG: ${{ steps.reserve.outputs.tag }}
+          APK_PATH: ${{ steps.package.outputs.apk_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" "$APK_PATH" "$CHECKSUM_PATH" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Download and verify uploaded Release assets
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_TAG: ${{ steps.reserve.outputs.tag }}
+          RELEASE_ID: ${{ steps.reserve.outputs.release_id }}
+          APK_PATH: ${{ steps.package.outputs.apk_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+          APK_NAME: ${{ steps.package.outputs.apk_name }}
+          CHECKSUM_NAME: ${{ steps.package.outputs.checksum_name }}
+        run: |
+          set -euo pipefail
+          verify_dir="$(mktemp -d "$RUNNER_TEMP/official-release-verify.XXXXXX")"
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$verify_dir" \
+            --pattern "$APK_NAME" \
+            --pattern "$CHECKSUM_NAME"
+          cmp "$APK_PATH" "$verify_dir/$APK_NAME"
+          cmp "$CHECKSUM_PATH" "$verify_dir/$CHECKSUM_NAME"
+          (cd "$verify_dir" && sha256sum --check "$CHECKSUM_NAME")
+          apk_size="$(stat -c '%s' "$APK_PATH")"
+          checksum_size="$(stat -c '%s' "$CHECKSUM_PATH")"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" | jq -e \
+            --arg apk "$APK_NAME" \
+            --arg checksum "$CHECKSUM_NAME" \
+            --argjson apk_size "$apk_size" \
+            --argjson checksum_size "$checksum_size" \
+            '.assets as $assets |
+             any($assets[]; .name == $apk and .size == $apk_size and .state == "uploaded") and
+             any($assets[]; .name == $checksum and .size == $checksum_size and .state == "uploaded")' \
+            > /dev/null
+          echo "Release 中的 APK 与 SHA-256 文件已下载比对，摘要校验通过。"
+
+      - name: Publish verified Release
+        if: steps.reserve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+          RELEASE_ID: ${{ steps.reserve.outputs.release_id }}
+          RELEASE_PLAN: ${{ steps.reserve.outputs.plan }}
+        run: |
+          set -euo pipefail
+          request_file="$RUNNER_TEMP/official-release-publish.json"
+          response_file="$RUNNER_TEMP/official-release-published.json"
+          python3 tools/official_release_version.py publish-request \
+            --plan "$RELEASE_PLAN" --output "$request_file"
+          gh api --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            --input "$request_file" > "$response_file"
+          jq -e '.draft == false and (.body | contains("status=complete"))' \
+            "$response_file" > /dev/null
+          echo "正式版 v${{ steps.reserve.outputs.version }} 已发布并通过附件校验。"
+
+      - name: Remove temporary keystore
+        if: always()
+        continue-on-error: true
+        run: rm -f release.jks

@@ -1,0 +1,221 @@
+package com.luckyalanzhou.barcodegenerator.presentation.shared
+
+import com.luckyalanzhou.barcodegenerator.presentation.*
+
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeDataMigration
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** 忽略普通重试日志异常，但保留取消和 JVM 致命错误的传播语义。 */
+internal fun runSnapshotRetryNotification(
+    readFailure: Exception,
+    onReadRetry: (Throwable) -> Unit,
+) {
+    try {
+        onReadRetry(readFailure)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (notificationFailure: Exception) {
+        if (notificationFailure !== readFailure) readFailure.addSuppressed(notificationFailure)
+    }
+}
+
+/** 条码、历史与收藏的持久化协调器，隔离 ViewModel 与具体数据源。 */
+@Singleton
+class BarcodePersistenceCoordinator @Inject constructor(
+    private val barcodeRepository: BarcodeRepository,
+    private val legacyBarcodeDataMigrator: BarcodeDataMigration,
+) {
+    data class LoadedData(
+        val items: List<CodeItem>,
+        val groups: List<FavoriteGroup>,
+        val folders: List<String>,
+        val hasMoreGroups: Boolean,
+        val identityGroups: List<FavoriteGroup>,
+    )
+
+    // 此协程作用域由进程持有，生命周期长于页面 ViewModel；离开页面不能取消已排队的写入。
+    private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val writeQueue = PersistenceWriteQueue(persistenceScope)
+    // 保护跨页面共享的内存收藏状态与数据库快照写入，避免导入和旧快照并发。
+    private val libraryMutationMutex = Mutex()
+    // 应用只有一个恢复消费者；暂时没有 ViewModel 时保留失败，不能用无重放广播丢弃。
+    private val _writeFailures = Channel<Throwable>(Channel.BUFFERED)
+    val writeFailures: Flow<Throwable> = _writeFailures.receiveAsFlow()
+
+    fun persistAllFavorites(
+        items: List<CodeItem>,
+        groups: List<FavoriteGroup>,
+        folders: List<String>,
+        replaceGroupLinkIds: Set<Long> = emptySet(),
+        deleteGroupIds: Set<Long> = emptySet(),
+    ): Deferred<Result<Unit>> {
+        val itemSnapshot = items.map { it.copy() }
+        val groupSnapshot = groups.map { it.copy(itemIds = it.itemIds.toMutableList()) }
+        val folderSnapshot = folders.filter { it.isNotBlank() }.distinct()
+        return enqueue {
+            barcodeRepository.applyFavoritesMutation(
+                BarcodeSnapshot(itemSnapshot, groupSnapshot, groupSnapshot.flatMap { group ->
+                    group.itemIds.distinct().mapIndexed { position, itemId ->
+                        FavoriteGroupItem(group.id, itemId, position)
+                    }
+                }, folderSnapshot, replaceGroupLinkIds, deleteGroupIds),
+            )
+        }
+    }
+
+    fun persistItems(items: List<CodeItem>): Deferred<Result<Unit>> {
+        val snapshot = (items.filter { it.favorite } + items.filterNot { it.favorite }.take(500)).map { it.copy() }
+        return enqueue { barcodeRepository.saveItems(snapshot) }
+    }
+
+    fun clearHistory(): Deferred<Result<Unit>> = enqueue { barcodeRepository.clearHistory() }
+
+    suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> {
+        val drafts = items.map { it.copy() }
+        var inserted = emptyList<CodeItem>()
+        // 与收藏库排队写入共用顺序；只有事务提交后才返回 ID。
+        enqueue { inserted = barcodeRepository.insertGeneratedItems(drafts) }.await().getOrThrow()
+        return inserted
+    }
+
+    internal fun refreshFavoriteFlags(store: LibraryStateStore, onRefreshed: () -> Unit) = enqueue {
+        val ids = store.itemsSnapshot().map { it.id }
+        val persisted = ids.chunked(900).flatMap { barcodeRepository.loadItemsByIds(it) }.associateBy { it.id }
+        store.edit {
+            items.forEach { item ->
+                persisted[item.id]?.let { saved ->
+                    item.favorite = saved.favorite
+                    item.folder = saved.folder
+                }
+            }
+        }
+        onRefreshed()
+    }
+
+    fun persistFavoriteFolders(folders: List<String>): Deferred<Result<Unit>> {
+        val snapshot = folders.filter { it.isNotBlank() }.distinct()
+        return enqueue { barcodeRepository.saveFavoriteFolders(snapshot) }
+    }
+
+    fun clearFavoriteFlags(itemIds: List<Long>): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.clearFavoriteFlags(itemIds) }
+    }
+
+    fun clearAllFavoriteFlags(): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.clearAllFavoriteFlags() }
+    }
+
+    fun clearFavoriteFlagsForGroups(groupIds: List<Long>): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.clearFavoriteFlagsForGroups(groupIds) }
+    }
+
+    fun deleteFavoriteGroups(groupIds: List<Long>): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.deleteFavoriteGroups(groupIds) }
+    }
+
+    fun deleteItem(itemId: Long, modifiedAt: Long) = enqueue { barcodeRepository.deleteItem(itemId, modifiedAt) }
+
+    internal suspend fun awaitPendingWrites() = writeQueue.awaitIdle()
+
+    /** 串行化对共享收藏状态及其持久化快照的变更；锁跨越数据库回执。 */
+    internal suspend fun <T> withLibraryMutation(block: suspend () -> T): T =
+        libraryMutationMutex.withLock { block() }
+
+    fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) = enqueue {
+        barcodeRepository.updateFavoriteGroupMetadata(groupId, name, folder, savedAt)
+    }
+
+    fun clearAllFavoriteGroups(): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.clearAllFavoriteGroups() }
+    }
+
+    fun clearAllFavorites(): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.clearAllFavorites() }
+    }
+
+    fun renameFavoriteFolder(path: String, renamedPath: String, savedAt: Long): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.renameFavoriteFolder(path, renamedPath, savedAt) }
+    }
+
+    fun deleteFavoriteFolder(path: String): Deferred<Result<Unit>> {
+        return enqueue { barcodeRepository.deleteFavoriteFolder(path) }
+    }
+
+    suspend fun load(): LoadedData {
+        prepareForLoad()
+        return loadSnapshot()
+    }
+
+    /** 只重试持久化快照读取；排队写入和旧版数据迁移都只执行一次。 */
+    internal suspend fun loadWithSnapshotRetry(onReadRetry: (Throwable) -> Unit): LoadedData {
+        prepareForLoad()
+        return try {
+            loadSnapshot()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (firstError: Exception) {
+            runSnapshotRetryNotification(firstError, onReadRetry)
+            try {
+                loadSnapshot()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (retryError: Exception) {
+                if (retryError !== firstError) firstError.addSuppressed(retryError)
+                throw firstError
+            }
+        }
+    }
+
+    private suspend fun prepareForLoad() {
+        writeQueue.awaitIdle()
+        legacyBarcodeDataMigrator.migrateIfNeeded()
+    }
+
+    private suspend fun loadSnapshot(): LoadedData {
+        val snapshot = barcodeRepository.loadStartupSnapshot()
+        val loadedGroups = snapshot.groups.map { group ->
+            FavoriteGroup(
+                group.id,
+                group.folder.takeUnless { it == "默认" } ?: "",
+                group.name,
+                group.savedAt,
+                snapshot.links.filter { it.groupId == group.id }.map { it.itemId }.toMutableList(),
+            )
+        }
+        val loadedFolders = (snapshot.folders + loadedGroups.map { it.folder })
+            .filter { it.isNotBlank() && it != "默认" }
+            .distinct()
+            .sorted()
+        val loadedItems = snapshot.items.map { it.copy(folder = it.folder.takeUnless { folder -> folder == "默认" } ?: "") }
+        return LoadedData(loadedItems, loadedGroups, loadedFolders, snapshot.hasMoreGroups, snapshot.identityGroups)
+    }
+
+    private fun enqueue(write: suspend () -> Unit): Deferred<Result<Unit>> {
+        val deferred = writeQueue.enqueue(write)
+        persistenceScope.launch {
+            // 普通失败经 Result 进入恢复通道；取消与致命错误保持协程异常语义。
+            deferred.await()
+                .exceptionOrNull()
+                ?.let { _writeFailures.send(it) }
+        }
+        return deferred
+    }
+}

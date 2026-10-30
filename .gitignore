@@ -1,0 +1,41 @@
+# Android/Gradle local build output and caches
+.gradle/
+android/.gradle/
+android/.gradle-local/
+android/build/
+android/app/build/
+android/local.properties
+
+# Local IDE files
+.idea/
+*.iml
+
+# Local AI instructions and session state
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.codex/
+.codex-remote-attachments/
+.claude/
+.cursor/
+.gemini/
+.impeccable/critique/
+
+# Local Python test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local packages and signing material
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Local environment variables and secrets; keep placeholder templates trackable.
+.env
+.env.*
+!.env.example
+
+# Local-only build helper; never commit or push it
+android/local-build.ps1

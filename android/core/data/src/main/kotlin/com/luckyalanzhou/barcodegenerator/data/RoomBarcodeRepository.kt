@@ -1,0 +1,473 @@
+package com.luckyalanzhou.barcodegenerator.data
+
+import com.luckyalanzhou.barcodegenerator.domain.CodeItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupContent
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.StartupBarcodeSnapshot
+import com.luckyalanzhou.barcodegenerator.domain.LegacyBarcodeData
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupPageCursor
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchGroupCursor
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteSearchItemCursor
+
+import androidx.room.withTransaction
+import org.json.JSONArray
+
+private const val SQLITE_SAFE_ID_BATCH_SIZE = 900
+private const val SQLITE_SAFE_REPEATED_ID_BATCH_SIZE = SQLITE_SAFE_ID_BATCH_SIZE / 2
+
+/** Room 实现；只在 Data 层处理 Entity 和旧版数据迁移。 */
+class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepository {
+    private val dao get() = database.barcodeDao()
+
+    override suspend fun saveAll(snapshot: BarcodeSnapshot) {
+        database.withTransaction {
+            val retainedItemIds = snapshot.items.map { it.id }.toSet()
+            if (retainedItemIds.isEmpty()) {
+                dao.clearGroupItems()
+                dao.clearItems()
+            } else {
+                dao.loadLinkedItemIds().filterNot(retainedItemIds::contains)
+                    .distinct().chunked(SQLITE_SAFE_ID_BATCH_SIZE)
+                    .forEach { dao.deleteGroupItemsByItemIds(it) }
+                dao.loadItemIds().filterNot(retainedItemIds::contains)
+                    .chunked(SQLITE_SAFE_ID_BATCH_SIZE)
+                    .forEach { dao.deleteItemsByIds(it) }
+            }
+            val retainedGroupIds = snapshot.groups.map { it.id }.toSet()
+            if (retainedGroupIds.isEmpty()) {
+                dao.clearGroupItems()
+                dao.clearGroups()
+            } else {
+                val staleGroupIds = (dao.loadGroupIds() + dao.loadLinkedGroupIds())
+                    .filterNot(retainedGroupIds::contains)
+                    .distinct()
+                staleGroupIds.chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { groupIds ->
+                    dao.deleteGroupItems(groupIds)
+                    dao.deleteGroups(groupIds)
+                }
+                clearGroupItemsForGroupsBatched(retainedGroupIds.toList())
+            }
+            dao.clearFolders()
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
+            dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+        }
+    }
+
+    override suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot) {
+        database.withTransaction {
+            // 内存数据可能只包含已经加载的收藏页；仅写入本次提供的行，并只替换明确标记的分组关联，
+            // 不得把尚未加载的分页误删。
+            val retainedGroupIds = snapshot.groups.mapTo(mutableSetOf()) { it.id }
+            snapshot.deleteGroupIds.filterNot { it in retainedGroupIds }.distinct()
+                .chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { groupIds ->
+                    dao.deleteGroupItems(groupIds)
+                    dao.deleteGroups(groupIds)
+                }
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
+            if (snapshot.groups.isNotEmpty()) {
+                val groupIds = snapshot.groups.map { it.id }
+                dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+                val linkGroups = snapshot.replaceGroupLinkIds.intersect(groupIds.toSet())
+                clearGroupItemsForGroupsBatched(linkGroups.toList())
+                dao.saveGroupItems(snapshot.groups.filter { it.id in linkGroups }.flatMap(FavoriteGroup::toLinkEntities))
+            }
+            // 已加载页面不代表条码没有其他收藏关联，因此重新汇总其收藏标记。
+            dao.reconcileFavoriteFlags()
+            dao.deleteUnreferencedItemsNotInHistory()
+            dao.clearFolders()
+            dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+        }
+    }
+
+    override suspend fun saveItems(items: List<CodeItem>) {
+        database.withTransaction {
+            dao.reconcileFavoriteFlags()
+            // 调用方只持有最近的有限历史窗口；缺席的旧记录不是删除指令。
+            dao.upsertItems(items.map(CodeItem::toEntity))
+            dao.reconcileFavoriteFlags()
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun clearHistory() {
+        database.withTransaction {
+            dao.reconcileFavoriteFlags()
+            dao.clearNonFavoriteItems()
+            dao.clearAllHistoryFlags()
+        }
+    }
+
+    override suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> =
+        database.withTransaction { insertGeneratedItemsWithAllocatedIds(dao, items) }
+
+    override suspend fun deleteItem(itemId: Long, modifiedAt: Long) {
+        database.withTransaction {
+            dao.touchGroupsForItem(itemId, modifiedAt)
+            dao.deleteItemLinks(itemId)
+            dao.deleteItem(itemId)
+        }
+    }
+
+    override suspend fun updateFavoriteGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long) {
+        require(name.isNotBlank()) { "收藏文件名不能为空" }
+        database.withTransaction {
+            dao.updateGroupMetadata(groupId, name, folder, savedAt)
+            if (folder.isNotBlank()) dao.saveFolders(listOf(FavoriteFolderEntity(folder)))
+        }
+    }
+
+    override suspend fun upsertItems(items: List<CodeItem>) {
+        if (items.isNotEmpty()) dao.upsertItems(items.map(CodeItem::toEntity))
+    }
+
+    override suspend fun loadItemsByIds(ids: List<Long>): List<CodeItem> =
+        if (ids.isEmpty()) emptyList()
+        else restoreRequestedItemOrder(
+            ids,
+            ids.distinct().chunked(SQLITE_SAFE_ID_BATCH_SIZE)
+                .flatMap { dao.loadItemsByIds(it) }
+                .map(CodeItemEntity::toDomain),
+        )
+
+    override suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem> =
+        if (query.isBlank() || limit <= 0) emptyList()
+        else dao.searchFavoriteItems(query, limit, cursor?.createdAt, cursor?.id).map(CodeItemEntity::toDomain)
+
+    override suspend fun clearFavoriteFlags(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        database.withTransaction {
+            clearFavoriteFlagsBatched(ids)
+        }
+    }
+
+    override suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>) {
+        if (groupIds.isEmpty()) return
+        database.withTransaction {
+            clearFavoriteFlagsForGroupsBatched(groupIds)
+        }
+    }
+
+    override suspend fun clearAllFavoriteFlags() = dao.clearAllFavoriteFlags()
+
+    override suspend fun saveFavoriteGroups(groups: List<FavoriteGroup>, links: List<FavoriteGroupItem>) {
+        database.withTransaction {
+            val retainedGroupIds = groups.map { it.id }.toSet()
+            if (retainedGroupIds.isEmpty()) {
+                dao.clearGroupItems()
+                dao.clearGroups()
+            } else {
+                val staleGroupIds = (dao.loadGroupIds() + dao.loadLinkedGroupIds())
+                    .filterNot(retainedGroupIds::contains)
+                    .distinct()
+                staleGroupIds.chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { groupIds ->
+                    dao.deleteGroupItems(groupIds)
+                    dao.deleteGroups(groupIds)
+                }
+                clearGroupItemsForGroupsBatched(retainedGroupIds.toList())
+            }
+            dao.upsertGroups(groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            dao.saveGroupItems(links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun deleteFavoriteGroups(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        database.withTransaction {
+            ids.distinct().chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { groupIds ->
+                clearFavoriteFlagsForGroupsBatched(groupIds)
+                dao.deleteGroupItems(groupIds)
+                dao.deleteGroups(groupIds)
+            }
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun clearAllFavoriteGroups() {
+        database.withTransaction {
+            dao.clearAllFavoriteFlags()
+            dao.clearGroupItems()
+            dao.clearGroups()
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun clearAllFavorites() {
+        database.withTransaction {
+            dao.clearAllFavoriteFlags()
+            dao.clearGroupItems()
+            dao.clearGroups()
+            dao.clearFolders()
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun renameFavoriteFolder(path: String, renamedPath: String, savedAt: Long) {
+        database.withTransaction {
+            dao.renameGroupsFolder(path, renamedPath, savedAt)
+            dao.renameFolders(path, renamedPath)
+        }
+    }
+
+    override suspend fun deleteFavoriteFolder(path: String) {
+        database.withTransaction {
+            val groupIds = dao.loadGroupIdsByFolder(path)
+            groupIds.chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { batch ->
+                clearFavoriteFlagsForGroupsBatched(batch)
+                dao.deleteGroupItems(batch)
+            }
+            dao.deleteGroupsByFolder(path)
+            dao.deleteFoldersByPath(path)
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun saveFavoriteFolders(folders: List<String>) {
+        database.withTransaction {
+            dao.clearFolders()
+            dao.saveFolders(folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+        }
+    }
+
+    override suspend fun loadItems(): List<CodeItem> = dao.loadItems().map(CodeItemEntity::toDomain)
+
+    override suspend fun loadGroups(): List<FavoriteGroup> = dao.loadGroups().map {
+        FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf())
+    }
+
+    override suspend fun loadGroupItems(): List<FavoriteGroupItem> =
+        dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId, it.position) }
+
+    override suspend fun loadGroupItemIds(groupId: Long): List<Long> = dao.loadGroupItemIds(groupId)
+
+    override suspend fun loadFavoriteGroupContent(groupId: Long): FavoriteGroupContent? = database.withTransaction {
+        val groupEntity = dao.loadGroupById(groupId) ?: return@withTransaction null
+        val itemIds = dao.loadGroupItemIds(groupId)
+        val itemsById = itemIds.chunked(900)
+            .flatMap { dao.loadItemsByIds(it) }
+            .associateBy(CodeItemEntity::id)
+        val items = itemIds.mapNotNull(itemsById::get).map(CodeItemEntity::toDomain)
+        val invalidItemIds = itemIds.filter { id -> itemsById[id]?.text?.isNotBlank() != true }
+        FavoriteGroupContent(
+            group = FavoriteGroup(
+                groupEntity.id,
+                groupEntity.folder.takeUnless { it == "默认" } ?: "",
+                groupEntity.name,
+                groupEntity.savedAt,
+                itemIds.toMutableList(),
+            ),
+            items = items,
+            invalidItemIds = invalidItemIds,
+        )
+    }
+
+    override suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup> =
+        dao.loadGroupsPage(limit, cursor?.savedAt, cursor?.id)
+            .map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) }
+
+    override suspend fun loadFavoriteGroupsByIds(ids: List<Long>): List<FavoriteGroup> =
+        if (ids.isEmpty()) emptyList() else {
+            val batches = ids.distinct().chunked(SQLITE_SAFE_ID_BATCH_SIZE)
+            val groupItems = mutableListOf<FavoriteGroupItemEntity>()
+            val groups = mutableListOf<FavoriteGroupEntity>()
+            for (batch in batches) {
+                groupItems += dao.loadGroupItemsByGroupIds(batch)
+                groups += dao.loadGroupsByIds(batch)
+            }
+            val itemIdsByGroup = groupItems.groupBy { it.groupId }
+            groups
+                .sortedWith(compareByDescending<FavoriteGroupEntity> { it.savedAt }.thenByDescending { it.id })
+                .map { group ->
+                FavoriteGroup(
+                    group.id,
+                    group.folder,
+                    group.name,
+                    group.savedAt,
+                    itemIdsByGroup[group.id].orEmpty().map { it.itemId }.toMutableList(),
+                )
+            }
+        }
+
+    override suspend fun searchFavoriteGroups(query: String, limit: Int, cursor: FavoriteSearchGroupCursor?): List<FavoriteGroup> =
+        if (query.isBlank() || limit <= 0) emptyList()
+        else {
+            val groups = dao.searchFavoriteGroups(query, limit, cursor?.savedAt, cursor?.id)
+            val groupItems = mutableListOf<FavoriteGroupItemEntity>()
+            for (batch in groups.map { it.id }.chunked(SQLITE_SAFE_ID_BATCH_SIZE)) {
+                groupItems += dao.loadGroupItemsByGroupIds(batch)
+            }
+            val itemIdsByGroup = groupItems.groupBy { it.groupId }
+            groups.map { group ->
+                FavoriteGroup(
+                    group.id,
+                    group.folder,
+                    group.name,
+                    group.savedAt,
+                    itemIdsByGroup[group.id].orEmpty().map { it.itemId }.toMutableList(),
+                )
+            }
+        }
+
+    override suspend fun loadFolders(): List<String> = dao.loadFolders().map { it.name }
+
+    override suspend fun loadSnapshot(): BarcodeSnapshot = database.withTransaction {
+        BarcodeSnapshot(
+            items = dao.loadItems().map(CodeItemEntity::toDomain),
+            groups = dao.loadGroups().map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) },
+            links = dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId, it.position) },
+            folders = dao.loadFolders().map { it.name },
+        )
+    }
+
+    override suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot = database.withTransaction {
+        dao.reconcileFavoriteFlags()
+        val startupGroups = dao.loadGroupsPage(101, null, null)
+        StartupBarcodeSnapshot(
+            items = dao.loadStartupItems().map(CodeItemEntity::toDomain),
+            groups = startupGroups.take(100).map { FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf()) },
+            links = emptyList(),
+            folders = dao.loadFolders().map { it.name },
+            hasMoreGroups = startupGroups.size > 100,
+            identityGroups = dao.loadGroups().map {
+                FavoriteGroup(it.id, it.folder, it.name, it.savedAt, mutableListOf())
+            },
+        )
+    }
+
+    override suspend fun appendSnapshot(snapshot: BarcodeSnapshot) {
+        database.withTransaction {
+            dao.upsertItems(snapshot.items.map(CodeItem::toEntity))
+            dao.upsertGroups(snapshot.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            clearGroupItemsForGroupsBatched(snapshot.groups.map { it.id })
+            dao.saveGroupItems(snapshot.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun commitFavoriteImport(snapshot: BarcodeSnapshot, replacedGroupIds: Set<Long>) {
+        database.withTransaction {
+            // 导入规划期间可能有其他写入；规划生成的 ID 只是草稿，不能当作最终持久化身份。
+            val imported = allocateImportedSnapshotIds(snapshot, dao.maxItemId(), dao.maxGroupId())
+            if (replacedGroupIds.isNotEmpty()) {
+                replacedGroupIds.toList().chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { ids ->
+                    clearFavoriteFlagsForGroupsBatched(ids)
+                    dao.deleteGroupItems(ids)
+                    dao.deleteGroups(ids)
+                }
+            }
+            dao.insertNewItems(imported.items.map(CodeItem::toEntity))
+            dao.insertNewGroups(imported.groups.map { FavoriteGroupEntity(it.id, it.folder, it.name, it.savedAt) })
+            val importedGroupIds = imported.groups.map { it.id }
+            clearGroupItemsForGroupsBatched(importedGroupIds)
+            dao.saveGroupItems(imported.links.map { FavoriteGroupItemEntity(it.groupId, it.itemId, it.position) })
+            dao.reconcileFavoriteFlags()
+            // 导入只补充文件夹，不删除用户原有的空文件夹。
+            dao.saveFolders(snapshot.folders.filter { it.isNotBlank() }.distinct().map(::FavoriteFolderEntity))
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun migrateLegacyDataIfNeeded(legacy: LegacyBarcodeData): Boolean {
+        val items = parseLegacyItems(legacy.itemsJson)
+        val (groups, links) = parseLegacyGroups(legacy.groupsJson, items.map { it.id }.toSet())
+        if (legacy.itemsJson == null && legacy.groupsJson == null && legacy.folders.isEmpty()) return true
+
+        return database.withTransaction {
+            if (dao.loadItems().isNotEmpty() || dao.loadGroups().isNotEmpty() || dao.loadFolders().isNotEmpty()) {
+                return@withTransaction false
+            }
+            dao.upsertItems(items)
+            dao.upsertGroups(groups)
+            if (links.isNotEmpty()) dao.saveGroupItems(links)
+            dao.saveFolders(legacy.folders.filter { it.isNotBlank() && it != "默认" }.map(::FavoriteFolderEntity))
+            true
+        }
+    }
+
+    private suspend fun clearFavoriteFlagsBatched(itemIds: List<Long>) {
+        itemIds.distinct().chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { batch -> dao.clearFavoriteFlags(batch) }
+    }
+
+    /** 该查询会为每个 ID 绑定两次：一次用于 IN，一次用于 NOT IN。 */
+    private suspend fun clearFavoriteFlagsForGroupsBatched(groupIds: List<Long>) {
+        groupIds.distinct().chunked(SQLITE_SAFE_REPEATED_ID_BATCH_SIZE).forEach { batch ->
+            dao.clearFavoriteFlagsForGroups(batch)
+        }
+    }
+
+    private suspend fun clearGroupItemsForGroupsBatched(groupIds: List<Long>) {
+        groupIds.distinct().chunked(SQLITE_SAFE_ID_BATCH_SIZE).forEach { batch ->
+            dao.clearGroupItemsForGroups(batch)
+        }
+    }
+}
+
+private fun parseLegacyItems(json: String?): List<CodeItemEntity> {
+    if (json == null) return emptyList()
+    val array = JSONArray(json)
+    val items = (0 until array.length()).map { index ->
+        val item = array.getJSONObject(index)
+        val id = item.getLong("id")
+        require(id > 0L) { "Invalid legacy item ID at index $index" }
+        CodeItemEntity(
+            id = id,
+            text = item.getString("text"),
+            format = item.getString("format"),
+            createdAt = item.optLong("createdAt", id),
+            favorite = item.optBoolean("favorite"),
+            folder = item.optString("folder", "默认"),
+            inHistory = item.optBoolean("inHistory", true),
+        )
+    }
+    require(items.map(CodeItemEntity::id).distinct().size == items.size) { "Duplicate legacy item IDs" }
+    return items
+}
+
+private fun parseLegacyGroups(json: String?, itemIds: Set<Long>): Pair<List<FavoriteGroupEntity>, List<FavoriteGroupItemEntity>> {
+    if (json == null) return emptyList<FavoriteGroupEntity>() to emptyList()
+    val array = JSONArray(json)
+    val groups = mutableListOf<FavoriteGroupEntity>()
+    val links = mutableListOf<FavoriteGroupItemEntity>()
+    for (index in 0 until array.length()) {
+        val group = array.getJSONObject(index)
+        val groupId = group.getLong("id")
+        require(groupId > 0L) { "Invalid legacy group ID at index $index" }
+        groups += FavoriteGroupEntity(
+            groupId,
+            group.optString("folder", "默认"),
+            group.optString("name", "未命名收藏"),
+            group.optLong("savedAt", groupId),
+        )
+        val itemIdsArray = group.optJSONArray("itemIds")
+        if (group.has("itemIds") && !group.isNull("itemIds")) {
+            require(itemIdsArray != null) { "Invalid legacy group item list at index $index" }
+        }
+        val linkedIds = mutableSetOf<Long>()
+        for (itemIndex in 0 until (itemIdsArray?.length() ?: 0)) {
+            val itemId = itemIdsArray!!.getLong(itemIndex)
+            require(itemId in itemIds) { "Missing legacy item $itemId in group $groupId" }
+            if (linkedIds.add(itemId)) links += FavoriteGroupItemEntity(groupId, itemId, linkedIds.size - 1)
+        }
+    }
+    require(groups.map(FavoriteGroupEntity::id).distinct().size == groups.size) { "Duplicate legacy group IDs" }
+    return groups to links
+}
+
+/** 将收藏文件声明的条码顺序保存为从 0 开始的连续位置。 */
+private fun FavoriteGroup.toLinkEntities(): List<FavoriteGroupItemEntity> =
+    itemIds.distinct().mapIndexed { position, itemId ->
+        FavoriteGroupItemEntity(groupId = id, itemId = itemId, position = position)
+    }
+
+/** Room 不保证 IN 查询结果顺序；统一在仓库边界按调用方声明的 ID 顺序恢复。 */
+internal fun restoreRequestedItemOrder(requestedIds: List<Long>, loadedItems: List<CodeItem>): List<CodeItem> {
+    if (requestedIds.isEmpty() || loadedItems.isEmpty()) return emptyList()
+    val itemsById = loadedItems.associateBy(CodeItem::id)
+    return requestedIds.distinct().mapNotNull(itemsById::get)
+}

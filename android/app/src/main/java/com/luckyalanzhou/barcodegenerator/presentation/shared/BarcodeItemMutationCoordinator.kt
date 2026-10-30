@@ -1,0 +1,40 @@
+package com.luckyalanzhou.barcodegenerator.presentation.shared
+
+
+/** 协调可能同时影响收藏分组与历史记录的条码条目编辑。 */
+internal class BarcodeItemMutationCoordinator(
+    private val store: LibraryStateStore,
+    private val persistAllFavorites: () -> Unit,
+    private val persistItems: () -> Unit,
+    private val persistDeletion: (Long, Long) -> Unit,
+) {
+    fun deleteItem(itemId: Long) {
+        val modifiedAt = System.currentTimeMillis()
+        store.edit {
+            items.removeAll { it.id == itemId }
+            groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
+                val group = groups[index]
+                group.itemIds.removeAll { it == itemId }
+                groups[index] = group.copy(savedAt = modifiedAt)
+            }
+            sortGroupsByRecency()
+        }
+        persistDeletion(itemId, modifiedAt)
+    }
+
+    fun updateItem(itemId: Long, text: String, format: String) {
+        if (text.isBlank() || !com.luckyalanzhou.barcodegenerator.domain.BarcodeValidator.validate(text, format).valid) return
+        val favorite = store.edit {
+            val item = items.firstOrNull { it.id == itemId } ?: return@edit null
+            item.text = text
+            item.format = format
+            val modifiedAt = System.currentTimeMillis()
+            groups.indices.filter { itemId in groups[it].itemIds }.forEach { index ->
+                groups[index] = groups[index].copy(savedAt = modifiedAt)
+            }
+            sortGroupsByRecency()
+            item.favorite
+        } ?: return
+        if (favorite) persistAllFavorites() else persistItems()
+    }
+}

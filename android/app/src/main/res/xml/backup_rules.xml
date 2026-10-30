@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- 保留用户收藏库数据；不恢复临时 LAN 附件或诊断日志。 -->
+    <exclude domain="file" path="barcode-data/" />
+    <exclude domain="file" path="lan-share/" />
+    <exclude domain="file" path="debug-logs/" />
+    <exclude domain="file" path="debug.log" />
+</full-backup-content>
