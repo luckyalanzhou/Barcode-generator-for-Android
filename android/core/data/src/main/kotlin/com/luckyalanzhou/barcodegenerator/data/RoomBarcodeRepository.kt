@@ -136,7 +136,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
 
     override suspend fun searchFavoriteItems(query: String, limit: Int, cursor: FavoriteSearchItemCursor?): List<CodeItem> =
         if (query.isBlank() || limit <= 0) emptyList()
-        else dao.searchFavoriteItems(query, limit, cursor?.createdAt, cursor?.id).map(CodeItemEntity::toDomain)
+        else dao.searchFavoriteItems(query.escapeLikeWildcards(), limit, cursor?.createdAt, cursor?.id).map(CodeItemEntity::toDomain)
 
     override suspend fun clearFavoriteFlags(ids: List<Long>) {
         if (ids.isEmpty()) return
@@ -296,7 +296,7 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
     override suspend fun searchFavoriteGroups(query: String, limit: Int, cursor: FavoriteSearchGroupCursor?): List<FavoriteGroup> =
         if (query.isBlank() || limit <= 0) emptyList()
         else {
-            val groups = dao.searchFavoriteGroups(query, limit, cursor?.savedAt, cursor?.id)
+            val groups = dao.searchFavoriteGroups(query.escapeLikeWildcards(), limit, cursor?.savedAt, cursor?.id)
             val groupItems = mutableListOf<FavoriteGroupItemEntity>()
             for (batch in groups.map { it.id }.chunked(SQLITE_SAFE_ID_BATCH_SIZE)) {
                 groupItems += dao.loadGroupItemsByGroupIds(batch)
@@ -322,6 +322,13 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             links = dao.loadGroupItems().map { FavoriteGroupItem(it.groupId, it.itemId, it.position) },
             folders = dao.loadFolders().map { it.name },
         )
+    }
+
+    private fun String.escapeLikeWildcards(): String = buildString(length) {
+        for (character in this@escapeLikeWildcards) {
+            if (character == '\\' || character == '%' || character == '_') append('\\')
+            append(character)
+        }
     }
 
     override suspend fun loadStartupSnapshot(): StartupBarcodeSnapshot = database.withTransaction {

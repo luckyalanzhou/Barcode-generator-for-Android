@@ -49,6 +49,7 @@ class AndroidUpdateCatalogResponseTest {
 
         assertTrue(result is UpdateLookupResult.Available)
         assertEquals(expectedSha, (result as UpdateLookupResult.Available).expectedSha256)
+        assertEquals("9.9.9#9", result.ignoreKey)
     }
 
     @Test
@@ -69,6 +70,7 @@ class AndroidUpdateCatalogResponseTest {
 
         assertTrue(result is UpdateLookupResult.Available)
         assertEquals(expectedSha, (result as UpdateLookupResult.Available).expectedSha256)
+        assertEquals("1.0.0", result.ignoreKey)
     }
 
     private fun releases(

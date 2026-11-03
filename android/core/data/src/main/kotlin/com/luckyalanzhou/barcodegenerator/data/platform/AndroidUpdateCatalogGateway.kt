@@ -182,7 +182,17 @@ internal fun parseUpdateCatalogResponse(
         if (expectedSha256 == null) {
             UpdateLookupResult.Failed("该版本缺少 SHA-256 校验信息，无法安全更新")
         } else {
-            UpdateLookupResult.Available(latest, downloadUrl, expectedSize, expectedSha256)
+            UpdateLookupResult.Available(
+                latest,
+                downloadUrl,
+                expectedSize,
+                expectedSha256,
+                ignoreKey = if (updateTagPrefix == "android-v" || releaseVersionCode == null) {
+                    latest
+                } else {
+                    "$latest#$releaseVersionCode"
+                },
+            )
         }
     } else UpdateLookupResult.UpToDate
 }

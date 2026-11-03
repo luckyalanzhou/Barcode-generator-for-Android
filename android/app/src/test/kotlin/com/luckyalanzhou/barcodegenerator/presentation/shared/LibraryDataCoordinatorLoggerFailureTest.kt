@@ -14,10 +14,14 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -34,6 +38,77 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class LibraryDataCoordinatorLoggerFailureTest {
+    @Test
+    fun cancelledRetryRestoresPreviouslyFailedLoadState() = runBlocking {
+        val session = LibraryDataSession().apply {
+            publishDataState(isReady = false, loadFailed = true)
+        }
+        val migrationStarted = CompletableDeferred<Unit>()
+        val coordinator = LibraryDataCoordinator(
+            persistence = BarcodePersistenceCoordinator(
+                repository(
+                    startupSnapshot = StartupBarcodeSnapshot(
+                        items = emptyList(),
+                        groups = emptyList(),
+                        links = emptyList(),
+                        folders = emptyList(),
+                        hasMoreGroups = false,
+                    ),
+                ),
+                object : BarcodeDataMigration {
+                    override suspend fun migrateIfNeeded() {
+                        migrationStarted.complete(Unit)
+                        awaitCancellation()
+                    }
+                },
+            ),
+            session = session,
+            logger = logger(),
+        )
+        val load = async { coordinator.loadPersistedData() }
+
+        migrationStarted.await()
+        load.cancelAndJoin()
+
+        assertFalse(session.dataState.value.isReady)
+        assertTrue("a cancelled retry must remain retryable instead of showing an endless spinner", session.dataState.value.loadFailed)
+    }
+
+    @Test
+    fun persistedSnapshotMappingRunsOffTheCallingThread() = runBlocking {
+        val callerThread = Thread.currentThread()
+        val mappingThread = AtomicReference<Thread?>()
+        val trackedItems = object : AbstractList<CodeItem>() {
+            private val values = listOf(CodeItem(7L, "persisted", "Code 128-B", inHistory = true))
+
+            override val size: Int get() = values.size
+
+            override fun get(index: Int): CodeItem {
+                mappingThread.compareAndSet(null, Thread.currentThread())
+                return values[index]
+            }
+        }
+        val session = LibraryDataSession()
+        val persistence = BarcodePersistenceCoordinator(
+            repository(
+                startupSnapshot = StartupBarcodeSnapshot(
+                    items = trackedItems,
+                    groups = emptyList(),
+                    links = emptyList(),
+                    folders = emptyList(),
+                    hasMoreGroups = false,
+                ),
+            ),
+            noLegacyMigration(),
+        )
+        val coordinator = LibraryDataCoordinator(persistence, session, logger())
+
+        coordinator.loadPersistedData()
+
+        assertTrue("snapshot conversion must not run on the UI caller", mappingThread.get() !== callerThread)
+        assertTrue(session.dataState.value.isReady)
+    }
+
     @Test
     fun successfulSnapshotIsPublishedWhenCompletionLogFails() = runBlocking {
         val persistedItem = CodeItem(7L, "persisted", "Code 128-B", inHistory = true)
@@ -87,7 +162,11 @@ class LibraryDataCoordinatorLoggerFailureTest {
 
         val failure = runCatching { coordinator.loadPersistedData() }.exceptionOrNull()
 
-        assertTrue("the original persistence failure must remain visible", failure?.cause is IOException)
+        assertTrue(
+            "the original persistence failure must remain visible: " +
+                generateSequence(failure) { it.cause }.joinToString(" -> ") { it.javaClass.name },
+            generateSequence(failure) { it.cause }.any { it is IOException },
+        )
         assertEquals("a failed snapshot is retried once", 2, startupLoadCount.get())
         assertEquals("no partial snapshot replaces the previous state", listOf(previousItem), session.dataState.value.items)
         assertFalse(session.dataState.value.isReady)
@@ -243,6 +322,89 @@ class LibraryDataCoordinatorLoggerFailureTest {
         } finally {
             allowRecoveryReadToFinish.countDown()
             mutationDriver.join(TimeUnit.SECONDS.toMillis(5))
+            viewModelStore.clear()
+        }
+    }
+
+    @Test
+    fun startupLoadDoesNotOverwriteHistoryDeleteCommittedDuringSnapshotRead() = runBlocking {
+        val oldItem = CodeItem(9L, "delete-during-load", "Code 128-B", inHistory = true)
+        val oldSnapshot = StartupBarcodeSnapshot(
+            // Room 返回独立实体对象；不能与内存 store 共享可变 CodeItem 实例。
+            items = listOf(oldItem.copy()),
+            groups = emptyList(),
+            links = emptyList(),
+            folders = emptyList(),
+            hasMoreGroups = false,
+        )
+        val persisted = AtomicReference(oldSnapshot)
+        val snapshotReadStarted = CountDownLatch(1)
+        val allowSnapshotReadToReturn = CountDownLatch(1)
+        val deleteWriteFinished = CountDownLatch(1)
+        val repository = Proxy.newProxyInstance(
+            BarcodeRepository::class.java.classLoader,
+            arrayOf(BarcodeRepository::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "loadStartupSnapshot" -> {
+                    val captured = persisted.get()
+                    snapshotReadStarted.countDown()
+                    check(allowSnapshotReadToReturn.await(5, TimeUnit.SECONDS))
+                    captured
+                }
+                "saveItems" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val savedItems = args!![0] as List<CodeItem>
+                    persisted.set(persisted.get().copy(items = savedItems))
+                    deleteWriteFinished.countDown()
+                    Unit
+                }
+                else -> error("Unexpected repository operation: ${method.name}")
+            }
+        } as BarcodeRepository
+        val session = LibraryDataSession().apply {
+            store.replace(listOf(oldItem.copy()), emptyList(), emptyList())
+            publishDataState(isReady = true)
+        }
+        val persistence = BarcodePersistenceCoordinator(repository, noLegacyMigration())
+        val libraryDataViewModel = LibraryDataViewModel(
+            LibraryDataCoordinator(persistence, session, logger()),
+            persistence,
+            logger(),
+        )
+        val historyViewModel = com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel(
+            session,
+            persistence,
+        )
+        val viewModelStore = ViewModelStore().apply {
+            put("library-data", libraryDataViewModel)
+            put("history", historyViewModel)
+        }
+        val loading = async(Dispatchers.IO) { libraryDataViewModel.loadPersistedData() }
+
+        try {
+            check(snapshotReadStarted.await(5, TimeUnit.SECONDS))
+            historyViewModel.deleteHistoryBatch(listOf(oldItem))
+            assertFalse(
+                "history deletion must wait until the older startup snapshot has been published",
+                deleteWriteFinished.await(250, TimeUnit.MILLISECONDS),
+            )
+
+            allowSnapshotReadToReturn.countDown()
+            loading.await()
+            check(deleteWriteFinished.await(5, TimeUnit.SECONDS))
+            pumpMainUntil("history deletion must publish after startup loading completes") {
+                session.dataState.value.items.singleOrNull()?.inHistory == false
+            }
+
+            assertTrue("the controlled read must still hold the pre-delete database snapshot", oldSnapshot.items.single().inHistory)
+            assertFalse(
+                "a serialized delete must remain applied after startup loading completes",
+                session.dataState.value.items.single().inHistory,
+            )
+        } finally {
+            allowSnapshotReadToReturn.countDown()
+            loading.cancelAndJoin()
             viewModelStore.clear()
         }
     }

@@ -61,8 +61,14 @@ internal class UpdateCoordinator(
             return when (val result = updateCatalogGateway.check()) {
                 is UpdateLookupResult.Available -> {
                     recordSafely("check available version=${result.version}", null, null)
-                    setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
-                    UpdateCheckResult.Available(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256)
+                    setAvailableUpdate(result.version, result.downloadUrl, result.expectedSize, result.expectedSha256, result.ignoreKey)
+                    UpdateCheckResult.Available(
+                        result.version,
+                        result.downloadUrl,
+                        result.expectedSize,
+                        result.expectedSha256,
+                        result.ignoreKey,
+                    )
                 }
                 UpdateLookupResult.UpToDate -> {
                     recordSafely("check up_to_date", null, null)
@@ -90,10 +96,11 @@ internal class UpdateCoordinator(
         }
     }
 
-    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) {
+    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?, ignoreKey: String? = version) {
         _uiState.update {
             it.copy(
                 availableVersion = version,
+                availableUpdateKey = if (version == null) null else ignoreKey ?: version,
                 availableUrl = url,
                 expectedSize = expectedSize,
                 sha256 = sha256,
@@ -101,7 +108,7 @@ internal class UpdateCoordinator(
         }
     }
 
-    fun clearAvailableUpdate() = setAvailableUpdate(null, null, null, null)
+    fun clearAvailableUpdate() = setAvailableUpdate(null, null, null, null, null)
 
     fun setDialogShowing(value: Boolean) {
         _uiState.update { it.copy(dialogShowing = value) }

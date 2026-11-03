@@ -41,11 +41,20 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /** 第一阶段依赖图：只接管原来由 MainActivity 手动创建的基础设施。 */
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+    @Provides
+    @Singleton
+    @ApplicationScope
+    internal fun provideApplicationScope(): CoroutineScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     @Provides
     @Singleton
     internal fun provideBarcodeDatabase(@ApplicationContext context: Context): BarcodeDatabase =

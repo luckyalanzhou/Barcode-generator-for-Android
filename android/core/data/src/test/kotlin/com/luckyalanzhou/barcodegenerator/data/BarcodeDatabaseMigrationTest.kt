@@ -56,6 +56,39 @@ class BarcodeDatabaseMigrationTest {
     }
 
     @Test
+    fun migrationFromVersion6AddsEmptyLegacyBatchIdentityWithoutChangingRows() {
+        createLegacyDatabase(6)
+        assertRoomCanOpenAndReadMigratedFixture()
+    }
+
+    @Test
+    fun generatedHistoryBatchIdentitySurvivesRoomPersistence() = runBlocking {
+        val database = currentRoomDatabase()
+        try {
+            val item = com.luckyalanzhou.barcodegenerator.domain.CodeItem(
+                id = 100L,
+                text = "batch persistence",
+                format = "Code 128-B",
+                createdAt = 42L,
+                historyBatchId = "batch-100",
+            )
+            val repository = RoomBarcodeRepository(database)
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    items = listOf(item),
+                    groups = emptyList(),
+                    links = emptyList(),
+                    folders = emptyList(),
+                ),
+            )
+
+            assertEquals("batch-100", repository.loadItems().single().historyBatchId)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun clearHistoryIncludesRowsBeyondStartupLimitAndPreservesFavoriteLinks() = runBlocking {
         val database = Room.databaseBuilder(context, BarcodeDatabase::class.java, TEST_DATABASE)
             .allowMainThreadQueries()
@@ -65,6 +98,7 @@ class BarcodeDatabaseMigrationTest {
                 BarcodeDatabase.MIGRATION_3_4,
                 BarcodeDatabase.MIGRATION_4_5,
                 BarcodeDatabase.MIGRATION_5_6,
+                BarcodeDatabase.MIGRATION_6_7,
             )
             .build()
         try {
@@ -540,6 +574,35 @@ class BarcodeDatabaseMigrationTest {
     }
 
     @Test
+    fun malformedLegacyDataCanBeRetriedAfterTheStoredJsonIsCorrected() = runBlocking {
+        val preferences = context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE)
+        preferences.edit().clear()
+            .putString("items", """[{"id":1,"text":"legacy"}]""")
+            .commit()
+        val database = currentRoomDatabase()
+        val repository = RoomBarcodeRepository(database)
+        val migrator = LegacyBarcodeDataMigrator(context, repository)
+        try {
+            migrator.migrateIfNeeded()
+
+            assertTrue("invalid legacy data must remain available for correction", preferences.contains("items"))
+            assertFalse("invalid legacy data must not be treated like a Room-populated skip",
+                preferences.getBoolean("room_data_migration_skipped", false))
+
+            preferences.edit()
+                .putString("items", """[{"id":1,"text":"repaired legacy","format":"Code 128-B"}]""")
+                .commit()
+            migrator.migrateIfNeeded()
+
+            assertEquals("repaired legacy", repository.loadItems().single().text)
+            assertTrue(preferences.getBoolean("room_data_migrated", false))
+            assertFalse(preferences.contains("items"))
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun successfulLegacyMigrationCommitsRoomDataBeforeRemovingPreferences() = runBlocking {
         val preferences = context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE)
         preferences.edit().clear()
@@ -558,6 +621,46 @@ class BarcodeDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun skippedLegacyMigrationDoesNotResurrectOldRecordsAfterRoomIsCleared() = runBlocking {
+        val preferences = context.getSharedPreferences("barcode_app", Context.MODE_PRIVATE)
+        preferences.edit().clear()
+            .putString("items", """[{"id":1,"text":"stale legacy","format":"Code 128-B","inHistory":true}]""")
+            .commit()
+        val database = currentRoomDatabase()
+        val repository = RoomBarcodeRepository(database)
+        try {
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    items = listOf(com.luckyalanzhou.barcodegenerator.domain.CodeItem(10, "current Room", "Code 128-B")),
+                    groups = emptyList(),
+                    links = emptyList(),
+                    folders = emptyList(),
+                ),
+            )
+            val migrator = LegacyBarcodeDataMigrator(context, repository)
+            migrator.migrateIfNeeded()
+            assertEquals("current Room", repository.loadItems().single().text)
+            assertTrue(preferences.getBoolean("room_data_migration_skipped", false))
+            assertTrue("skipped legacy data remains available for recovery", preferences.contains("items"))
+
+            repository.saveAll(
+                com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot(
+                    items = emptyList(),
+                    groups = emptyList(),
+                    links = emptyList(),
+                    folders = emptyList(),
+                ),
+            )
+            migrator.migrateIfNeeded()
+
+            assertTrue("legacy data skipped because Room was already populated must not return after the user clears Room",
+                repository.loadItems().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
     private fun currentRoomDatabase(name: String = TEST_DATABASE) = Room.databaseBuilder(context, BarcodeDatabase::class.java, name)
         .allowMainThreadQueries()
         .addMigrations(
@@ -566,6 +669,7 @@ class BarcodeDatabaseMigrationTest {
             BarcodeDatabase.MIGRATION_3_4,
             BarcodeDatabase.MIGRATION_4_5,
             BarcodeDatabase.MIGRATION_5_6,
+            BarcodeDatabase.MIGRATION_6_7,
         )
         .build()
 
@@ -586,7 +690,7 @@ class BarcodeDatabaseMigrationTest {
 
         try {
             helper.writableDatabase.use { database ->
-                insertFavoriteFixture(database)
+                insertFavoriteFixture(database, version)
             }
         } finally {
             helper.close()
@@ -614,7 +718,7 @@ class BarcodeDatabaseMigrationTest {
         }
     }
 
-    private fun insertFavoriteFixture(database: SupportSQLiteDatabase) {
+    private fun insertFavoriteFixture(database: SupportSQLiteDatabase, version: Int) {
         database.execSQL(
             "INSERT INTO code_items(id, text, format, createdAt, favorite, folder, inHistory) VALUES " +
                 "(1, 'first', 'Code 128', 100, 1, 'Root', 1), " +
@@ -625,10 +729,17 @@ class BarcodeDatabaseMigrationTest {
                 "(10, 'Root', 'Group A', 300), (20, 'Root/Sub', 'Group B', 400)",
         )
         // 故意按乱序插入；迁移说明规定的回退顺序是 itemId 升序。
-        database.execSQL(
-            "INSERT INTO favorite_group_items(groupId, itemId) VALUES " +
-                "(10, 2), (10, 1), (20, 2)",
-        )
+        if (version >= 6) {
+            database.execSQL(
+                "INSERT INTO favorite_group_items(groupId, itemId, position) VALUES " +
+                    "(10, 2, 1), (10, 1, 0), (20, 2, 0)",
+            )
+        } else {
+            database.execSQL(
+                "INSERT INTO favorite_group_items(groupId, itemId) VALUES " +
+                    "(10, 2), (10, 1), (20, 2)",
+            )
+        }
         database.execSQL("INSERT INTO favorite_folders(name) VALUES ('Root'), ('Root/Sub')")
     }
 
@@ -641,6 +752,7 @@ class BarcodeDatabaseMigrationTest {
                 BarcodeDatabase.MIGRATION_3_4,
                 BarcodeDatabase.MIGRATION_4_5,
                 BarcodeDatabase.MIGRATION_5_6,
+                BarcodeDatabase.MIGRATION_6_7,
             )
             .build()
         try {
@@ -661,6 +773,7 @@ class BarcodeDatabaseMigrationTest {
                     ),
                     dao.loadItems(),
                 )
+                assertEquals(listOf("", ""), dao.loadItems().map(CodeItemEntity::historyBatchId))
                 assertEquals(
                     listOf(
                         FavoriteGroupEntity(20, "Root/Sub", "Group B", 400),

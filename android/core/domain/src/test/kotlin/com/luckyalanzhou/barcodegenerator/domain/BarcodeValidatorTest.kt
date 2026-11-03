@@ -22,6 +22,12 @@ class BarcodeValidatorTest {
     }
 
     @Test
+    fun acceptsOnlyPrintableAsciiForCode128B() {
+        assertTrue(BarcodeValidator.validate("~", "Code 128-B").valid)
+        assertFalse(BarcodeValidator.validate("\u007F", "Code 128-B").valid)
+    }
+
+    @Test
     fun validatesCodabarPayloadAndPairedGuards() {
         assertTrue(BarcodeValidator.validate("12345", "Codabar").valid)
         assertTrue(BarcodeValidator.validate("A12345B", "Codabar").valid)
@@ -32,5 +38,13 @@ class BarcodeValidatorTest {
     @Test
     fun rejectsCode39ContentLongerThanEncoderLimit() {
         assertFalse(BarcodeValidator.validate("A".repeat(81), "Code 39").valid)
+    }
+
+    @Test
+    fun rejectsLinearBarcodePayloadsThatExceedSafeRenderLimit() {
+        assertTrue(BarcodeValidator.validate("A".repeat(256), "Code 128-B").valid)
+        assertFalse(BarcodeValidator.validate("A".repeat(257), "Code 128-B").valid)
+        assertTrue(BarcodeValidator.validate("1".repeat(256), "Codabar").valid)
+        assertFalse(BarcodeValidator.validate("1".repeat(257), "Codabar").valid)
     }
 }

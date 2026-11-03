@@ -101,6 +101,36 @@ class GenerateEditorInstanceStateTest {
     }
 
     @Test
+    fun encodedDraftPayloadPersistsExactly() {
+        val expected = GenerateEditorState(
+            inputDraft = listOf(" 00123 ", "零件-04", ""),
+            formatName = "Code 128-B",
+        )
+        val encoded = checkNotNull(GenerateEditorDraftStore.encode(expected))
+        val store = GenerateEditorDraftStore(application.noBackupFilesDir)
+        val expectedEncodedBytes = expected.inputDraft.sumOf {
+            it.toByteArray(Charsets.UTF_8).size.toLong() + 8L
+        } + expected.formatName.toByteArray(Charsets.UTF_8).size
+        assertEquals(expectedEncodedBytes, encoded.estimatedBytes)
+
+        assertTrue(store.save(encoded))
+        val restored = store.restore()
+
+        assertEquals(expected.inputDraft, restored?.inputs)
+        assertEquals(expected.formatName, restored?.formatName)
+    }
+
+    @Test
+    fun oversizedEncodedDraftIsRejectedBeforeKeepingItsPayload() {
+        val oversized = GenerateEditorState(
+            inputDraft = listOf("x".repeat(GenerateEditorDraftStore.MAX_DRAFT_FILE_BYTES + 1)),
+            formatName = "QR Code",
+        )
+
+        assertNull(GenerateEditorDraftStore.encode(oversized))
+    }
+
+    @Test
     fun largeDraftRestoreReadsOnIoAndReturnsTheSavedFileIdentity() = runBlocking {
         val expected = GenerateEditorState(
             inputDraft = listOf("async-restore-".repeat(GenerateEditorInstanceState.MAX_SAVED_DRAFT_BYTES / 14)),

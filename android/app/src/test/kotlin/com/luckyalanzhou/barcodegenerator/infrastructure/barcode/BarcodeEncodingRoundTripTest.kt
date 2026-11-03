@@ -7,7 +7,10 @@ import com.google.zxing.MultiFormatWriter
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeValidator
+import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
+import com.luckyalanzhou.barcodegenerator.domain.MAX_LINEAR_BARCODE_CONTENT_LENGTH
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,6 +24,53 @@ class BarcodeEncodingRoundTripTest {
             rect[0] >= 4 && rect[1] >= 4 && matrix.width - rect[0] - rect[2] >= 4 && matrix.height - rect[1] - rect[3] >= 4
         })
         assertEquals(text, decode(matrix))
+    }
+
+    @Test
+    fun qrValidatorRejectsPayloadThatExceedsZxingCapacity() {
+        val text = "X".repeat(5_000)
+        val encoding = runCatching {
+            MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, 500, 500, barcodeEncodeHints(BarcodeFormat.QR_CODE))
+        }
+
+        assertTrue("ZXing must reject text beyond QR version 40 capacity", encoding.isFailure)
+        assertFalse("Domain validation must reject content the app cannot encode", BarcodeValidator.validate(text, "QR Code").valid)
+        assertFalse(GenerateBarcodesUseCase().execute(listOf(text), "QR Code", emptyList()).isValid)
+    }
+
+    @Test
+    fun qrValidatorAcceptsSupportedEncodingModeCapacityBoundaries() {
+        val examples = listOf(
+            "7".repeat(7_089),
+            "X".repeat(4_296),
+            "界".repeat(983),
+        )
+
+        examples.forEach { text ->
+            assertTrue("Domain accepts supported QR payload length ${text.length}", BarcodeValidator.validate(text, "QR Code").valid)
+            MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, 500, 500, barcodeEncodeHints(BarcodeFormat.QR_CODE))
+        }
+    }
+
+    @Test
+    fun qrByteModeValidationMatchesZxingNearMaximumCapacity() {
+        val mismatches = mutableListOf<String>()
+        listOf(
+            "a".repeat(2_950),
+            "a".repeat(2_951),
+            "a".repeat(2_952),
+            "a".repeat(2_953),
+            "界".repeat(984),
+            "界".repeat(985),
+        ).forEach { text ->
+            val byteLength = text.toByteArray(Charsets.UTF_8).size
+            val canEncode = runCatching {
+                MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, 500, 500, barcodeEncodeHints(BarcodeFormat.QR_CODE))
+            }.isSuccess
+            val accepted = BarcodeValidator.validate(text, "QR Code").valid
+            if (canEncode != accepted) mismatches += "$byteLength bytes: ZXing=$canEncode validator=$accepted"
+        }
+        assertTrue("QR byte-mode validator and ZXing disagree: $mismatches", mismatches.isEmpty())
     }
 
     @Test
@@ -39,6 +89,20 @@ class BarcodeEncodingRoundTripTest {
         examples.forEach { (format, text) ->
             val matrix = MultiFormatWriter().encode(text, format, 500, 200, barcodeEncodeHints(format))
             assertEquals("往返解码 $format", text, decode(matrix, format))
+        }
+    }
+
+    @Test
+    fun maximumLinearBarcodePayloadsRemainEncodable() {
+        val examples = listOf(
+            BarcodeFormat.CODE_128 to "A".repeat(MAX_LINEAR_BARCODE_CONTENT_LENGTH),
+            BarcodeFormat.CODABAR to "A" + "1".repeat(MAX_LINEAR_BARCODE_CONTENT_LENGTH - 2) + "B",
+        )
+
+        examples.forEach { (format, text) ->
+            val formatName = if (format == BarcodeFormat.CODE_128) "Code 128-B" else "Codabar"
+            assertTrue("Domain accepts supported $formatName boundary", BarcodeValidator.validate(text, formatName).valid)
+            MultiFormatWriter().encode(text, format, 500, 200, barcodeEncodeHints(format))
         }
     }
 

@@ -12,6 +12,7 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.OutputStream
+import java.util.Locale
 import java.util.zip.ZipInputStream
 import java.util.zip.CRC32
 
@@ -52,7 +53,7 @@ object FavoritesTransferManager {
 
         fun ensureDirectories(directory: String) {
             var path = ""
-            directory.split('/').filter { it.isNotBlank() }.forEach { part ->
+            directory.split('/').filter { it.isNotBlank() }.map(::safeArchiveFolderSegment).forEach { part ->
                 path = if (path.isBlank()) part else "$path/$part"
                 if (writtenDirectories.add(path)) entries += ExportEntry("$path/", null)
             }
@@ -227,8 +228,9 @@ object FavoritesTransferManager {
         val formats = if (originalFormats.isEmpty()) emptyList() else keptIndices.map { toTransferType(originalFormats[it]) }
         require(name.isNotBlank()) { "收藏文件缺少文件名" }
         require(texts.isNotEmpty()) { "收藏文件“$name”没有有效内容，无法导入" }
-        require(rootFolder.isBlank() || !rootFolder.contains('/')) { "一级文件夹格式无效" }
-        require(subFolder.isBlank() || !subFolder.contains('/')) { "二级文件夹格式无效" }
+        // 导入与导出共用文件夹段约束，避免导入后无法再次导出。
+        require(isValidFolderSegment(rootFolder)) { "一级文件夹格式无效" }
+        require(isValidFolderSegment(subFolder)) { "二级文件夹格式无效" }
         return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts, formats)
     }
 
@@ -303,9 +305,13 @@ object FavoritesTransferManager {
     private fun splitFolder(folder: String): Pair<String, String> {
         val parts = folder.split('/').filter { it.isNotBlank() }
         require(parts.size <= 2) { "文件夹“$folder”超过两级，无法跨平台导出" }
-        parts.forEach { require(it != "." && it != ".." && !it.contains(Char(92))) { "文件夹“$folder”格式无效" } }
+        parts.forEach { require(isValidFolderSegment(it)) { "文件夹“$folder”格式无效" } }
         return (parts.getOrNull(0) ?: "") to (parts.getOrNull(1) ?: "")
     }
+
+    private fun isValidFolderSegment(segment: String): Boolean =
+        segment.isBlank() || (segment != "." && segment != ".." && '/' !in segment && Char(92) !in segment)
+
     /** 使用纯 Kotlin 编码 JSON，使导出不依赖 Android 测试环境中的 `org.json` 桩实现。 */
     private fun favoriteJson(favorite: InterchangeFavorite): String = buildString {
         append('{')
@@ -364,15 +370,16 @@ object FavoritesTransferManager {
         val baseName = safeFileName(favorite.name)
         val directory = listOf(FAVORITES_DIRECTORY, favorite.rootFolder, favorite.subFolder)
             .filter { it.isNotBlank() }
+            .mapIndexed { index, segment -> if (index == 0) segment else safeArchiveFolderSegment(segment) }
             .joinToString("/")
         var fileName = "$baseName.json"
         var candidate = listOf(directory, fileName).filter { it.isNotBlank() }.joinToString("/")
-        if (!usedPaths.add(candidate)) {
+        if (!addCaseInsensitivePath(candidate, usedPaths)) {
             val id = favorite.id?.takeIf { it.isNotBlank() } ?: "duplicate"
             fileName = "$baseName-$id.json"
             candidate = listOf(directory, fileName).filter { it.isNotBlank() }.joinToString("/")
             var suffix = 2
-            while (!usedPaths.add(candidate)) {
+            while (!addCaseInsensitivePath(candidate, usedPaths)) {
                 fileName = "$baseName-$id-$suffix.json"
                 candidate = listOf(directory, fileName).filter { it.isNotBlank() }.joinToString("/")
                 suffix++
@@ -381,13 +388,41 @@ object FavoritesTransferManager {
         return candidate
     }
 
-    private fun safeFileName(value: String): String = value
-        .replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        .trim()
-        .trimEnd('.')
-        .ifBlank { "未命名收藏" }
+    /** 按 Windows 解压器的大小写不敏感规则分配路径，避免 ZIP 中出现无法并存的收藏文件。 */
+    private fun addCaseInsensitivePath(path: String, usedPaths: MutableSet<String>): Boolean =
+        usedPaths.add(path.lowercase(Locale.ROOT))
+
+    private fun safeFileName(value: String): String = safeArchiveFolderSegment(
+        value.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            .trim()
+            .trimEnd('.')
+            .ifBlank { "未命名收藏" },
+    )
+
+    /** ZIP 目录段需能在常见 Windows 文件系统中解压，收藏原名仍保存在 JSON 数据中。 */
+    private fun safeArchiveFolderSegment(value: String): String {
+        val safe = buildString(value.length) {
+            value.forEach { character ->
+                append(if (character.code < 32 || character in "\\/:*?\"<>|") '_' else character)
+            }
+        }.trim().trimEnd('.')
+            .ifBlank { "未命名文件夹" }
+        val deviceName = safe.substringBefore('.')
+        val isReservedWindowsName = Regex("(?i)^(CONIN\\$|CONOUT\\$|CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$")
+            .matches(deviceName)
+        return if (isReservedWindowsName) safe.replaceRange(0, deviceName.length, "${deviceName}_") else safe
+    }
+
     private fun toTransferType(format: String): String = when (format.trim().lowercase()) {
-        "qr", "qr code" -> "qr"; "code128", "code 128-b" -> "code128"; "code39", "code 39" -> "code39"; "ean13", "ean-13" -> "ean13"; "ean8", "ean-8" -> "ean8"; "upca", "upc-a" -> "upca"; "itf14", "itf-14", "itf" -> "itf14"; "codabar" -> "codabar"; else -> error("不支持的条码格式：$format")
+        "qr", "qrcode", "qr_code", "qr code" -> "qr"
+        "code_128", "code128", "code 128", "code 128-b" -> "code128"
+        "code_39", "code39", "code 39" -> "code39"
+        "ean13", "ean_13", "ean-13" -> "ean13"
+        "ean8", "ean_8", "ean-8" -> "ean8"
+        "upca", "upc_a", "upc-a" -> "upca"
+        "itf14", "itf_14", "itf-14", "itf" -> "itf14"
+        "codabar" -> "codabar"
+        else -> error("不支持的条码格式：$format")
     }
     private fun toAndroidFormat(type: String): String = when (toTransferType(type)) {
         "qr" -> "QR Code"; "code128" -> "Code 128-B"; "code39" -> "Code 39"; "ean13" -> "EAN-13"; "ean8" -> "EAN-8"; "upca" -> "UPC-A"; "itf14" -> "ITF-14"; else -> "Codabar"

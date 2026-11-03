@@ -142,6 +142,10 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
         UpdateAvailableDialogContent(
             latest = latest,
             dark = isDark(),
+            // 只有版本忽略状态成功落盘后才关闭宿主 Dialog。
+            onIgnore = {
+                updateViewModel.ignoreAvailableUpdate(onIgnored = dismiss, onFailure = { toast(it) })
+            },
             onLater = {
                 updateViewModel.setDialogShowing(false)
                 dismiss()

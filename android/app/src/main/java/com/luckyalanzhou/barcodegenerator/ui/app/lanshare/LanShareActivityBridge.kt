@@ -209,7 +209,6 @@ internal fun MainActivity.joinLanShareSession(value: String) {
 
 internal fun MainActivity.closeLanShare() {
     lanShareViewModel.closeSession()
-    File(cacheDir, "lan-share-preview").listFiles().orEmpty().forEach { it.delete() }
 }
 
 

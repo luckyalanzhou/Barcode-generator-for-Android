@@ -16,6 +16,7 @@ import com.luckyalanzhou.barcodegenerator.domain.lanSharePreviewCacheKey
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_MAX_FILE_BYTES
 import com.luckyalanzhou.barcodegenerator.domain.LAN_SHARE_PREVIEW_CACHE_MAX_BYTES
 import com.luckyalanzhou.barcodegenerator.presentation.shared.recordSafely
+import com.luckyalanzhou.barcodegenerator.di.ApplicationScope
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -30,6 +31,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +47,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
@@ -139,15 +143,24 @@ class LanShareViewModel @Inject constructor(
     private val previewDecoder: LanShareBitmapPreviewDecoder,
     @ApplicationContext private val appContext: Context,
     private val logger: AppLogger,
+    @ApplicationScope applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val gatewayStopCoordinator: LanShareGatewayStopCoordinator =
+        LanShareGatewayStopCoordinator(lanShareGateway, applicationScope, logger),
 ) : ViewModel() {
+    private val gatewayStopOwner = gatewayStopCoordinator.acquireOwner()
     private val _uiState = MutableStateFlow(LanShareUiState())
     val uiState: StateFlow<LanShareUiState> = _uiState.asStateFlow()
     private val refreshGuard = LanShareRefreshGuard(_uiState)
     private val _events = Channel<LanShareEvent>(Channel.BUFFERED)
     val events: Flow<LanShareEvent> = _events.receiveAsFlow()
     private var refreshJob: Job? = null
+    private val refreshLock = Any()
+    private data class PendingRefresh(val session: LanShareSession, val showError: Boolean)
+    private var pendingRefresh: PendingRefresh? = null
     private val hostStartupLock = Any()
     private var activeHostStartupJob: Job? = null
+    /** 取消启动时沿用触发切换的清理意图，避免加入他人房间时误删本机分享文件。 */
+    private var activeHostStartupRollbackClearsFiles = true
     private var activeTextSendId: String? = null
     private var activeTextSendJob: Job? = null
     private val activeDownloadFileIds = ConcurrentHashMap<String, String>()
@@ -155,9 +168,22 @@ class LanShareViewModel @Inject constructor(
     private val activeUploadTasks = ConcurrentHashMap<String, ActiveUploadTask>()
     private data class ActiveDownloadTask(val job: Job, val cancellation: LanShareDownloadCancellation)
     private val activeDownloadTasks = ConcurrentHashMap<String, ActiveDownloadTask>()
+    private data class HostSessionSnapshot(
+        val session: LanShareSession,
+        val browserConnected: Boolean,
+        val files: List<LanShareFile>,
+        val messages: List<LanShareMessage>,
+    )
     @Volatile
     private var previewFilesById: Map<String, java.io.File> = emptyMap()
     private val previewDecodeSlots = Semaphore(2)
+
+    /** 关闭服务和清理缓存可能较慢；放进程级作用域，确保 ViewModel 清除后仍能完成。 */
+    private fun scheduleGatewayStop(clearSharedFiles: Boolean) {
+        gatewayStopCoordinator.scheduleStop(gatewayStopOwner, clearSharedFiles)
+    }
+
+    private suspend fun awaitGatewayStop() = gatewayStopCoordinator.awaitPendingStop()
     private val decodedPreviews = object : android.util.LruCache<String, Bitmap>(24 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
     }
@@ -173,50 +199,107 @@ class LanShareViewModel @Inject constructor(
     fun isRouterLanHost(host: String?): Boolean = lanShareGateway.isRouterLanHost(host)
 
     fun startHostSession(): LanShareSession {
+        val snapshot = createHostSessionSnapshot()
+        publishHostSession(snapshot)
+        return snapshot.session
+    }
+
+    private fun createHostSessionSnapshot(): HostSessionSnapshot {
         logger.recordSafely("lan_ui", "host_start requested")
         invalidateRoomRefresh()
         previewFilesById = emptyMap()
         val session = lanShareGateway.start()
         logger.recordSafely("lan_ui", "host_start success")
-        _uiState.update {
-            it.copy(
-                session = session,
+        return HostSessionSnapshot(
+            session = session,
+            browserConnected = lanShareGateway.browserConnected(),
+            files = lanShareGateway.localFiles(),
+            messages = lanShareGateway.localMessages(),
+        )
+    }
+
+    private fun publishHostSession(snapshot: HostSessionSnapshot) {
+        _uiState.update { state ->
+            state.copy(
+                session = snapshot.session,
                 isHost = true,
                 qrVisible = true,
-                browserConnected = lanShareGateway.browserConnected(),
-                files = lanShareGateway.localFiles(),
-                messages = lanShareGateway.localMessages(),
+                browserConnected = snapshot.browserConnected,
+                files = snapshot.files,
+                messages = snapshot.messages,
                 ownFileIds = emptySet(),
                 previewFileIds = emptySet(),
             )
         }
-        return session
     }
 
     /** 网络枚举和服务启动在 IO 线程执行；状态先发布，页面可立即显示启动反馈。 */
     fun startHostSessionAsync(onFailure: (Exception) -> Unit) {
         synchronized(hostStartupLock) {
             if (_uiState.value.session != null || _uiState.value.isStartingHost) return
+            activeHostStartupRollbackClearsFiles = true
             _uiState.update { it.copy(isStartingHost = true) }
         }
         lateinit var startupJob: Job
         startupJob = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            var startedSession: LanShareSession? = null
+            var startupSnapshot: HostSessionSnapshot? = null
+            val startupRolledBack = AtomicBoolean(false)
+            val rollbackStartup = {
+                if (startupRolledBack.compareAndSet(false, true)) {
+                    val clearSharedFiles = synchronized(hostStartupLock) {
+                        activeHostStartupRollbackClearsFiles
+                    }
+                    scheduleGatewayStop(clearSharedFiles = clearSharedFiles)
+                    startedSession?.let { session ->
+                        previewFilesById = emptyMap()
+                        _uiState.update { state ->
+                            if (state.session == session && state.isHost) {
+                                state.copy(
+                                    session = null,
+                                    isHost = false,
+                                    qrVisible = false,
+                                    browserConnected = false,
+                                    files = emptyList(),
+                                    messages = emptyList(),
+                                    ownFileIds = emptySet(),
+                                    previewFileIds = emptySet(),
+                                )
+                            } else state
+                        }
+                    }
+                }
+            }
             try {
-                withContext(Dispatchers.IO) {
+                val recoverableFailure = withContext(Dispatchers.IO) {
+                    awaitGatewayStop()
+                    val startupContext = currentCoroutineContext()
+                    startupContext.ensureActive()
                     var recoverableFailure: Exception? = null
                     captureRecoverableLanShareHostStart(
                         startHost = {
                             if (!lanShareGateway.isOnLocalNetwork()) {
                                 throw IllegalStateException("Error 当前不处于局域网")
                             }
-                            startHostSession()
+                            val snapshot = createHostSessionSnapshot()
+                            startedSession = snapshot.session
+                            startupSnapshot = snapshot
+                            // start() 可能在取消后才返回；确认取消并回滚，避免关闭的房间重新出现。
+                            startupContext.ensureActive()
                         },
                         // start() 可能正在执行不可中断的系统调用，统一先回滚再传播失败。
-                        rollback = { lanShareGateway.stop(clearSharedFiles = true) },
+                        rollback = rollbackStartup,
                         onFailure = { recoverableFailure = it },
                     )
                     recoverableFailure
-                }?.let(onFailure)
+                }
+                // 只在主线程的启动任务仍有效时发布，避免迟到快照覆盖关闭或加入的房间。
+                if (recoverableFailure != null) onFailure(recoverableFailure)
+                else startupSnapshot?.let(::publishHostSession)
+            } catch (cancelled: CancellationException) {
+                // 覆盖取消发生在启动调用返回到 withContext 边界的竞态窗口。
+                rollbackStartup()
+                throw cancelled
             } finally {
                 synchronized(hostStartupLock) {
                     if (activeHostStartupJob === startupJob) {
@@ -230,10 +313,18 @@ class LanShareViewModel @Inject constructor(
         startupJob.start()
     }
 
+    private fun cancelPendingHostStartup(reason: String, clearSharedFilesOnRollback: Boolean): Boolean = synchronized(hostStartupLock) {
+        val startupJob = activeHostStartupJob ?: return@synchronized false
+        activeHostStartupRollbackClearsFiles = clearSharedFilesOnRollback
+        startupJob.cancel(CancellationException(reason))
+        true
+    }
+
     fun joinSession(session: LanShareSession) {
         logger.recordSafely("lan_ui", "join requested")
+        cancelPendingHostStartup("正在切换到加入的局域网房间", clearSharedFilesOnRollback = false)
         invalidateRoomRefresh()
-        lanShareGateway.stop()
+        scheduleGatewayStop(clearSharedFiles = false)
         previewFilesById = emptyMap()
         _uiState.update {
             it.copy(
@@ -266,13 +357,13 @@ class LanShareViewModel @Inject constructor(
 
     fun closeSession() {
         logger.recordSafely("lan_ui", "close requested")
-        val hostStartupPending = synchronized(hostStartupLock) {
-            activeHostStartupJob?.cancel(CancellationException("局域网房间启动已取消"))
-            activeHostStartupJob != null
-        }
+        val hostStartupPending = cancelPendingHostStartup(
+            "局域网房间启动已取消",
+            clearSharedFilesOnRollback = true,
+        )
         invalidateRoomRefresh()
         previewFilesById = emptyMap()
-        lanShareGateway.stop(clearSharedFiles = true)
+        scheduleGatewayStop(clearSharedFiles = true)
         _uiState.update {
             it.copy(
                 session = null,
@@ -293,48 +384,78 @@ class LanShareViewModel @Inject constructor(
     }
 
     fun refreshFiles(session: LanShareSession, showError: Boolean = true) {
-        if (!refreshGuard.isCurrent(session, refreshGuard.currentGeneration())) return
-        if (refreshJob?.isActive == true) return
-        val ticket = refreshGuard.currentGeneration()
-        refreshJob = viewModelScope.launch(Dispatchers.IO) {
-            val result = loadLanShareRefreshData(lanShareGateway, session)
-            currentCoroutineContext().ensureActive()
-            if (!refreshGuard.isCurrent(session, ticket)) return@launch
-            result.onSuccess { (files, messages) ->
-                if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
-                val imageIds = files.filter { isLanShareImage(it.name, it.mimeType) }.map { it.id }.toSet()
-                previewFilesById = previewFilesById.filterKeys { it in imageIds }
-                refreshGuard.update(session, ticket) {
-                    it.copy(
-                        files = files,
-                        messages = messages,
-                        previewFileIds = previewFilesById.keys,
-                    )
-                }
-                val previews = fetchPreviews(session, files)
+        val jobToStart = synchronized(refreshLock) {
+            val ticket = refreshGuard.currentGeneration()
+            if (!refreshGuard.isCurrent(session, ticket)) return
+            if (refreshJob?.isActive == true) {
+                val priorRequest = pendingRefresh?.takeIf { it.session == session }
+                pendingRefresh = PendingRefresh(session, showError || priorRequest?.showError == true)
+                return
+            }
+            launchRoomRefresh(session, ticket, showError).also { refreshJob = it }
+        }
+        jobToStart.start()
+    }
+
+    private fun launchRoomRefresh(session: LanShareSession, ticket: Long, showError: Boolean): Job {
+        lateinit var job: Job
+        job = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+            try {
+                awaitGatewayStop()
+                val result = loadLanShareRefreshData(lanShareGateway, session)
                 currentCoroutineContext().ensureActive()
-                if (previews.isNotEmpty()) {
+                if (!refreshGuard.isCurrent(session, ticket)) return@launch
+                result.onSuccess { (files, messages) ->
                     if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
-                    previewFilesById = previewFilesById + previews
+                    val imageIds = files.filter { isLanShareImage(it.name, it.mimeType) }.map { it.id }.toSet()
+                    previewFilesById = previewFilesById.filterKeys { it in imageIds }
                     refreshGuard.update(session, ticket) {
-                        it.copy(previewFileIds = previewFilesById.keys)
+                        it.copy(
+                            files = files,
+                            messages = messages,
+                            previewFileIds = previewFilesById.keys,
+                        )
+                    }
+                    val previews = fetchPreviews(session, files)
+                    currentCoroutineContext().ensureActive()
+                    if (previews.isNotEmpty()) {
+                        if (!refreshGuard.isCurrent(session, ticket)) return@onSuccess
+                        previewFilesById = previewFilesById + previews
+                        refreshGuard.update(session, ticket) {
+                            it.copy(previewFileIds = previewFilesById.keys)
+                        }
+                    }
+                }.onFailure { error ->
+                    if (showError && refreshGuard.isCurrent(session, ticket)) {
+                        _events.trySend(LanShareEvent.Error("无法连接到分享房间"))
+                    }
+                    if (error !is CancellationException) {
+                        logger.recordSafely("lan_ui", "refresh failed generation=$ticket", error, error)
                     }
                 }
-            }.onFailure { error ->
-                if (showError && refreshGuard.isCurrent(session, ticket)) {
-                    _events.trySend(LanShareEvent.Error("无法连接到分享房间"))
-                }
-                if (error !is CancellationException) {
-                    logger.recordSafely("lan_ui", "refresh failed generation=$ticket", error, error)
-                }
+            } finally {
+                finishRoomRefresh(job)
             }
         }
+        return job
+    }
+
+    private fun finishRoomRefresh(completedJob: Job) {
+        val followUp = synchronized(refreshLock) {
+            if (refreshJob !== completedJob) return
+            refreshJob = null
+            pendingRefresh.also { pendingRefresh = null }
+        }
+        followUp?.let { refreshFiles(it.session, it.showError) }
     }
 
     private fun invalidateRoomRefresh() {
         refreshGuard.invalidate()
-        refreshJob?.cancel()
-        refreshJob = null
+        synchronized(refreshLock) {
+            refreshJob?.cancel()
+            refreshJob = null
+            pendingRefresh = null
+        }
         synchronized(hostStartupLock) {
             activeTextSendJob?.cancel(CancellationException("局域网会话已关闭"))
             activeTextSendJob = null

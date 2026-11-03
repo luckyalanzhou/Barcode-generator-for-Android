@@ -13,4 +13,6 @@ interface SettingsRepository {
     fun getOcrConfusionReplacementMask(): Int
     fun setOcrConfusionReplacementMask(mask: Int): Job
     fun setUpdateError(error: String): Job
+    suspend fun getIgnoredUpdateVersion(): String?
+    suspend fun setIgnoredUpdateVersion(version: String)
 }

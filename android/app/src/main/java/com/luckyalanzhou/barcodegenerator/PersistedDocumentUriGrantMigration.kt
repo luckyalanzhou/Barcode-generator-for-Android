@@ -4,6 +4,21 @@ import android.content.Intent
 import android.net.Uri
 import java.util.concurrent.CancellationException
 
+/** 启动时在后台执行旧授权迁移，避免平台权限查询和释放占用主线程。 */
+internal fun startDocumentUriGrantMigrationAsync(
+    operation: () -> Unit,
+    onFailure: (Exception) -> Unit,
+): Thread = Thread({
+    try {
+        operation()
+    } catch (error: Exception) {
+        onFailure(error)
+    }
+}, "document-uri-grant-migration").apply {
+    isDaemon = true
+    start()
+}
+
 /** 迁移时只把普通平台异常作为可重试失败；取消和 JVM 致命错误必须继续传播。 */
 internal inline fun <T> captureRecoverableDocumentUriGrantOperation(operation: () -> T): Result<T> =
     try {

@@ -29,8 +29,14 @@ internal class GenerateEditorDraftStore(
     private val newFile = File(draftFile.path + ".new")
     /** 写入成功后才返回 true；失败草稿不会被 Bundle 标记为可恢复。 */
     fun save(state: GenerateEditorState): Boolean {
+        if (state.inputDraft.size > MAX_SAVED_ROWS) return false
+        return encode(state)?.let(::save) ?: false
+    }
+
+    /** Activity 状态兜底和后台预存共用一次 UTF-8 编码结果，保留同步耐久写入。 */
+    fun save(draft: EncodedGenerateEditorDraft): Boolean {
         try {
-            if (state.inputDraft.size > MAX_SAVED_ROWS || serializedSize(state) > MAX_DRAFT_FILE_BYTES) return false
+            if (draft.inputs.size > MAX_SAVED_ROWS || draft.serializedBytes > MAX_DRAFT_FILE_BYTES) return false
             if (!directory.isDirectory && !directory.mkdirs() && !directory.isDirectory) return false
 
             recoverInterruptedWrite()
@@ -39,9 +45,9 @@ internal class GenerateEditorDraftStore(
                 val data = DataOutputStream(BufferedOutputStream(output))
                 data.writeInt(FILE_MAGIC)
                 data.writeInt(FILE_VERSION)
-                data.writeInt(state.inputDraft.size)
-                writeString(data, state.formatName)
-                state.inputDraft.forEach { writeString(data, it) }
+                data.writeInt(draft.inputs.size)
+                writeString(data, draft.formatName)
+                draft.inputs.forEach { writeString(data, it) }
                 data.flush()
                 output.fd.sync()
             }
@@ -175,11 +181,7 @@ internal class GenerateEditorDraftStore(
         }
     }
 
-    private fun serializedSize(state: GenerateEditorState): Long =
-        FILE_HEADER_BYTES + utf8Size(state.formatName) + state.inputDraft.sumOf { ROW_LENGTH_BYTES + utf8Size(it) }
-
-    private fun writeString(output: DataOutputStream, value: String) {
-        val bytes = value.toByteArray(Charsets.UTF_8)
+    private fun writeString(output: DataOutputStream, bytes: ByteArray) {
         output.writeInt(bytes.size)
         output.write(bytes)
     }
@@ -204,8 +206,6 @@ internal class GenerateEditorDraftStore(
         }
     }
 
-    private fun utf8Size(value: String): Long = value.toByteArray(Charsets.UTF_8).size.toLong()
-
     companion object {
         internal const val DIRECTORY_NAME = "generate-editor-drafts"
         internal const val FILE_NAME = "current.draft"
@@ -215,6 +215,26 @@ internal class GenerateEditorDraftStore(
         private const val INSTANCE_FILE_PREFIX = "activity-"
 
         internal fun newDraftId(): String = UUID.randomUUID().toString()
+
+        internal fun encode(state: GenerateEditorState): EncodedGenerateEditorDraft? =
+            encode(state.inputDraft, state.formatName)
+
+        internal fun encode(inputs: List<String>, formatName: String): EncodedGenerateEditorDraft? {
+            if (inputs.size > MAX_SAVED_ROWS) return null
+            val encodedFormat = formatName.toByteArray(Charsets.UTF_8)
+            val encodedInputs = ArrayList<ByteArray>(inputs.size)
+            var estimatedBytes = encodedFormat.size.toLong()
+            var serializedBytes = FILE_HEADER_BYTES + encodedFormat.size
+            if (serializedBytes > MAX_DRAFT_FILE_BYTES) return null
+            for (input in inputs) {
+                val encodedInput = input.toByteArray(Charsets.UTF_8)
+                estimatedBytes += encodedInput.size.toLong() + 8L
+                serializedBytes += ROW_LENGTH_BYTES + encodedInput.size
+                if (serializedBytes > MAX_DRAFT_FILE_BYTES) return null
+                encodedInputs += encodedInput
+            }
+            return EncodedGenerateEditorDraft(encodedFormat, encodedInputs, estimatedBytes, serializedBytes)
+        }
 
         internal fun isValidDraftId(value: String): Boolean = runCatching {
             UUID.fromString(value).toString() == value
@@ -240,6 +260,14 @@ internal class GenerateEditorDraftStore(
         private const val ROW_LENGTH_BYTES = 4L
     }
 }
+
+/** UTF-8 payload prepared once before choosing Bundle or durable file storage. */
+internal data class EncodedGenerateEditorDraft(
+    val formatName: ByteArray,
+    val inputs: List<ByteArray>,
+    val estimatedBytes: Long,
+    val serializedBytes: Long,
+)
 
 /** 仅包含进程恢复需要的输入和格式，不包含 pendingFormat 等瞬时编辑信号。 */
 internal data class GenerateEditorDraft(

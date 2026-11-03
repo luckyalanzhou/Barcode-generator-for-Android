@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 internal fun UpdateAvailableDialogContent(
     latest: String,
     dark: Boolean,
+    onIgnore: () -> Unit,
     onLater: () -> Unit,
     onUpdate: () -> Unit,
 ) {
@@ -26,10 +27,12 @@ internal fun UpdateAvailableDialogContent(
             color = LocalAppColorScheme.current.text.secondary,
             fontSize = 15.sp,
         )
+        // 忽略更新作为次要操作放在左侧；三项操作在高密度窄屏仍可见。
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            DialogAction("忽略更新", dark, onClick = onIgnore)
             DialogAction("稍后更新", dark, onClick = onLater)
             DialogAction("立即更新", dark, primary = true, onClick = onUpdate)
         }

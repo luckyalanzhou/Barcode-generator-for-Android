@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -31,8 +32,10 @@ class HistoryViewModel @Inject constructor(
     val refreshGeneration: StateFlow<Long> = mutableRefreshGeneration.asStateFlow()
 
     fun refreshHistory() {
-        dataSession.publishDataState()
-        mutableRefreshGeneration.update { it + 1 }
+        viewModelScope.launch(Dispatchers.IO) {
+            dataSession.publishDataState()
+            mutableRefreshGeneration.update { it + 1 }
+        }
     }
 
     fun deleteHistoryBatch(batch: List<CodeItem>) {
@@ -50,7 +53,7 @@ class HistoryViewModel @Inject constructor(
 
     /** 历史写入会影响共享条码快照，需与收藏导入/编辑串行并等待写入回执。 */
     private fun runLibraryMutation(mutation: () -> Unit) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             withContext(NonCancellable) {
                 persistence.withLibraryMutation {
                     persistence.awaitPendingWrites()

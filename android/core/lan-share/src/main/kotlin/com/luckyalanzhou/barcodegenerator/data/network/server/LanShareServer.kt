@@ -646,18 +646,26 @@ internal class LanShareServer(
 
     fun messagesSnapshot(): List<LanShareMessage> = synchronized(chatMessages) { chatMessages.toList() }
 
-    fun sendLocalMessage(text: String): LanShareMessage = publishMessage(text, "app")
-        ?: throw IllegalArgumentException("文字消息为空或超过 64 KB")
+    fun sendLocalMessage(text: String): LanShareMessage {
+        check(!stopped) { "分享服务已停止" }
+        return publishMessage(text, "app", rejectWhenStopped = true)
+            ?: throw IllegalArgumentException("文字消息为空或超过 64 KB")
+    }
 
     /** 应用与 App 主机相同的消息长度上限后，接收一条浏览器聊天消息。 */
     internal fun receiveBrowserMessage(clientId: String, text: String): LanShareMessage? {
         val sender = "browser:${safeBrowserClientId(clientId)}"
-        return publishMessage(text, sender)
+        return publishMessage(text, sender, rejectWhenStopped = false)
     }
 
-    private fun publishMessage(text: String, sender: String): LanShareMessage? {
+    private fun publishMessage(text: String, sender: String, rejectWhenStopped: Boolean): LanShareMessage? {
         if (text.isBlank() || text.toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) return null
         val message = synchronized(chatMessages) {
+            // 与 stop() 使用同一把锁，避免关闭后的旧引用再写入失效会话。
+            if (stopped) {
+                if (rejectWhenStopped) throw IllegalStateException("分享服务已停止")
+                return@synchronized null
+            }
             val previousTimestamp = chatMessages.lastOrNull()?.createdAt ?: 0L
             LanShareMessage(
                 id = UUID.randomUUID().toString(),
@@ -668,7 +676,7 @@ internal class LanShareServer(
                 chatMessages += it
                 if (chatMessages.size > LAN_SHARE_MAX_SESSION_MESSAGES) chatMessages.removeAt(0)
             }
-        }
+        } ?: return null
         if (webSockets.isNotEmpty()) {
             broadcast(JSONObject().put("type", "message").put("message", messageJson(message)).toString())
         }
@@ -842,7 +850,7 @@ internal class LanShareServer(
 
     override fun stop() {
         synchronized(uploadLock) {
-            stopped = true
+            synchronized(chatMessages) { stopped = true }
         }
         val peers = synchronized(webSocketStateLock) {
             connectionGeneration++

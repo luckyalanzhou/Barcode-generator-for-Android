@@ -3,9 +3,14 @@ package com.luckyalanzhou.barcodegenerator
 import android.content.Intent
 import android.net.Uri
 import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import org.robolectric.annotation.Config
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -13,6 +18,24 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class PersistedDocumentUriGrantMigrationTest {
+    @Test
+    fun migrationRunsOnDaemonWorkerInsteadOfCallingThread() {
+        val callingThread = Thread.currentThread()
+        val migrationThread = AtomicReference<Thread>()
+        val migrationFailure = AtomicReference<Exception?>()
+        val worker = startDocumentUriGrantMigrationAsync(
+            operation = { migrationThread.set(Thread.currentThread()) },
+            onFailure = migrationFailure::set,
+        )
+
+        worker.join(TimeUnit.SECONDS.toMillis(2))
+
+        assertTrue("migration worker should finish", !worker.isAlive)
+        assertTrue("migration worker should be a daemon", worker.isDaemon)
+        assertNotSame(callingThread, migrationThread.get())
+        assertNull(migrationFailure.get())
+    }
+
     @Test
     fun recoverablePlatformExceptionIsReturnedForRetryHandling() {
         val failure = IllegalStateException("provider unavailable")

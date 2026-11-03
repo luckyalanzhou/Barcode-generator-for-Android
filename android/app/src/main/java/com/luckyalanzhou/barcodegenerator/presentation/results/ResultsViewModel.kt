@@ -56,6 +56,7 @@ class ResultsViewModel @Inject constructor(
     private var favoriteRenderRequest = 0L
     private var resultPreparationJob: Job? = null
     private var resultPreparationRequest = 0L
+    private var historyResultPreparationInProgress = false
     private var generatedCommitInProgress = false
     private val _isPreparingResult = MutableStateFlow(false)
     val isPreparingResult: StateFlow<Boolean> = _isPreparingResult.asStateFlow()
@@ -126,6 +127,7 @@ class ResultsViewModel @Inject constructor(
         resultPreparationRequest++
         resultPreparationJob?.cancel()
         resultPreparationJob = null
+        historyResultPreparationInProgress = false
         if (!generatedCommitInProgress) _isPreparingResult.value = false
         cancelFavoriteGroupRendering()
     }
@@ -189,7 +191,7 @@ class ResultsViewModel @Inject constructor(
         onNotice: (String) -> Unit,
         onNavigateToResults: () -> Unit,
     ) {
-        prepareResultImages(batch, style, dark, density, onNotice) {
+        prepareResultImages(batch, style, dark, density, onNotice, replaceHistoryPreparation = true) {
             restorationJob?.cancel()
             results.showHistoryResult(batch)
             savedResult.save(results.current())
@@ -249,11 +251,17 @@ class ResultsViewModel @Inject constructor(
         dark: Boolean,
         density: Float,
         onNotice: (String) -> Unit,
+        replaceHistoryPreparation: Boolean = false,
         onReady: suspend (request: Long) -> Unit,
     ) {
-        if (items.isEmpty() || _isPreparingResult.value) return
+        if (items.isEmpty()) return
+        if (_isPreparingResult.value) {
+            if (!replaceHistoryPreparation || !historyResultPreparationInProgress) return
+            resultPreparationJob?.cancel()
+        }
         resultPreparationJob?.cancel()
         val request = ++resultPreparationRequest
+        historyResultPreparationInProgress = replaceHistoryPreparation
         _isPreparingResult.value = true
         resultPreparationJob = viewModelScope.launch {
             try {
@@ -268,7 +276,10 @@ class ResultsViewModel @Inject constructor(
                 if (request == resultPreparationRequest) onNotice("条码结果准备或保存失败，结果尚未打开；请重试")
                 appLogger.recordSafely("results", "preparing or saving result failed", error, error)
             } finally {
-                if (request == resultPreparationRequest) _isPreparingResult.value = false
+                if (request == resultPreparationRequest) {
+                    historyResultPreparationInProgress = false
+                    _isPreparingResult.value = false
+                }
             }
         }
     }
@@ -326,7 +337,8 @@ class ResultsViewModel @Inject constructor(
         }
     }
 
-    private fun persistGeneratedItems() {
+    /** 完整共享库快照可能较大；复制与发布放到 IO，避免生成完成时阻塞主线程。 */
+    private suspend fun persistGeneratedItems() = withContext(Dispatchers.IO) {
         persistence.persistItems(dataSession.store.itemsSnapshot())
         dataSession.publishDataState()
     }

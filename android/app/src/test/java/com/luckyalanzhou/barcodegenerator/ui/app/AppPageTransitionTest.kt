@@ -5,12 +5,13 @@ import org.junit.Test
 
 class AppPageTransitionTest {
     @Test
-    fun onlyMainTabSwipeUsesTheDirectPageHost() {
-        assertEquals(AppPageHostKind.DIRECT, appPageHostKind(AppRoute.History, true))
-        assertEquals(AppPageHostKind.DIRECT, appPageHostKind(AppRoute.Favorites, true))
-        assertEquals(AppPageHostKind.ANIMATED, appPageHostKind(AppRoute.Generate, false))
-        assertEquals(AppPageHostKind.ANIMATED, appPageHostKind(AppRoute.LanShare, true))
-        assertEquals(AppPageHostKind.ANIMATED, appPageHostKind(AppRoute.Results, true))
+    fun everyMainTabUsesTheDirectPageHost() {
+        assertEquals(AppPageHostKind.DIRECT, appPageHostKind(AppRoute.Generate))
+        assertEquals(AppPageHostKind.DIRECT, appPageHostKind(AppRoute.History))
+        assertEquals(AppPageHostKind.DIRECT, appPageHostKind(AppRoute.Favorites))
+        assertEquals(AppPageHostKind.DIRECT, appPageHostKind(AppRoute.Settings))
+        assertEquals(AppPageHostKind.ANIMATED, appPageHostKind(AppRoute.LanShare))
+        assertEquals(AppPageHostKind.ANIMATED, appPageHostKind(AppRoute.Results))
     }
 
     @Test

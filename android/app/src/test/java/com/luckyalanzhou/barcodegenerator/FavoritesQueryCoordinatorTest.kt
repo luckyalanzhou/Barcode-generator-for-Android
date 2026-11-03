@@ -22,12 +22,41 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FavoritesQueryCoordinatorTest {
+    @Test
+    fun searchSnapshotCopiesGroupLinksOffTheCallingThread() = runBlocking {
+        val callerThread = Thread.currentThread()
+        val copyThread = AtomicReference<Thread?>()
+        val trackedLinks = object : AbstractMutableList<Long>() {
+            override val size: Int get() = 1
+
+            override fun get(index: Int): Long {
+                check(index == 0)
+                copyThread.compareAndSet(null, Thread.currentThread())
+                return 1L
+            }
+
+            override fun set(index: Int, element: Long): Long = error("test links are read-only")
+            override fun add(index: Int, element: Long) = error("test links are read-only")
+            override fun removeAt(index: Int): Long = error("test links are read-only")
+        }
+        val matchedGroup = group(1L, "搜索结果").copy(itemIds = trackedLinks)
+        val repository = FakeFavoriteRepository(groups = listOf(matchedGroup))
+        val dataSession = LibraryDataSession()
+        val querySession = FavoritesQuerySession(repository, dataSession, persistence(repository))
+
+        querySession.search("搜索")
+
+        assertTrue("publishing a search snapshot must not copy group links on the UI caller", copyThread.get() !== callerThread)
+        assertEquals(listOf(1L), querySession.searchState.value.groups.single().itemIds)
+    }
+
     @Test
     fun querySessionUsesTheSharedSearchStore() = runBlocking {
         val dataSession = LibraryDataSession()
@@ -105,6 +134,22 @@ class FavoritesQueryCoordinatorTest {
         querySession.refreshSearchAfterMutation()
 
         assertEquals("收藏新名", querySession.searchState.value.groups.single().name)
+    }
+
+    @Test
+    fun loadingANewLibrarySnapshotRefreshesTheActiveSearch() = runBlocking {
+        val repository = FakeFavoriteRepository(groups = listOf(group(1L, "搜索旧结果")))
+        val dataSession = LibraryDataSession()
+        val querySession = FavoritesQuerySession(repository, dataSession, persistence(repository))
+
+        querySession.search("搜索")
+        assertEquals(listOf(1L), querySession.searchState.value.groups.map { it.id })
+
+        repository.groups = listOf(group(2L, "搜索新结果"))
+        dataSession.publishLoadedSnapshot(cursor = null, hasMoreGroups = false)
+        querySession.onLibrarySnapshotLoaded(requireNotNull(dataSession.loadMetadata.value))
+
+        assertEquals(listOf(2L), querySession.searchState.value.groups.map { it.id })
     }
 
     @Test
@@ -264,6 +309,25 @@ class FavoritesQueryCoordinatorTest {
         assertEquals(100, store.groupsSnapshot().size)
         assertEquals(51L, store.groupsSnapshot()[50].id)
         assertEquals(100L, store.groupsSnapshot().last().id)
+    }
+
+    @Test
+    fun repeatingCurrentSearchDoesNotAdvancePagination() = runBlocking {
+        val repository = FakeFavoriteRepository(
+            groups = (1L..101L).map { group(it, "搜索结果$it") },
+        )
+        val store = LibraryStateStore()
+        val coordinator = FavoritesQueryCoordinator(repository, store)
+
+        coordinator.search("搜索")
+        coordinator.search("搜索")
+
+        assertEquals(50, store.groupsSnapshot().size)
+        assertEquals(1L, store.groupsSnapshot().first().id)
+
+        assertTrue(coordinator.loadMore("搜索"))
+        assertEquals(100, store.groupsSnapshot().size)
+        assertEquals(51L, store.groupsSnapshot()[50].id)
     }
 
     @Test

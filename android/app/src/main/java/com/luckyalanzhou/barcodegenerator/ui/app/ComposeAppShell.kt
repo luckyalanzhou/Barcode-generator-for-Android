@@ -8,7 +8,6 @@ import com.luckyalanzhou.barcodegenerator.presentation.favorites.FavoritesViewMo
 import com.luckyalanzhou.barcodegenerator.presentation.results.ResultsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.navigation.AppNavigationViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.history.HistoryViewModel
-import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeItemViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareQrBitmapFactory
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
@@ -82,13 +81,12 @@ internal data class ComposeAppShellDependencies(
     val cameraOcrViewModel: CameraOcrViewModel,
     val generateViewModel: GenerateViewModel,
     val settingsViewModel: SettingsViewModel,
-    val lanShareViewModel: LanShareViewModel,
+    val lanShareViewModel: () -> LanShareViewModel,
     val lanShareQrBitmapFactory: LanShareQrBitmapFactory,
     val updateViewModel: UpdateViewModel,
     val favoritesViewModel: FavoritesViewModel,
-    val historyViewModel: HistoryViewModel,
+    val historyViewModel: () -> HistoryViewModel,
     val resultsViewModel: ResultsViewModel,
-    val barcodeItemViewModel: BarcodeItemViewModel,
     val libraryDataViewModel: LibraryDataViewModel,
     val actions: ComposeAppShellActions,
 )
@@ -105,13 +103,12 @@ internal fun MainActivity.buildComposeShell() {
                         cameraOcrViewModel = activity.cameraOcrViewModel,
                         generateViewModel = activity.generateViewModel,
                         settingsViewModel = activity.settingsViewModel,
-                        lanShareViewModel = activity.lanShareViewModel,
+                        lanShareViewModel = { activity.lanShareViewModel },
                         lanShareQrBitmapFactory = activity.lanShareQrBitmapFactory,
                         updateViewModel = activity.updateViewModel,
                         favoritesViewModel = activity.favoritesViewModel,
-                        historyViewModel = activity.historyViewModel,
+                        historyViewModel = { activity.historyViewModel },
                         resultsViewModel = activity.resultsViewModel,
-                        barcodeItemViewModel = activity.barcodeItemViewModel,
                         libraryDataViewModel = activity.libraryDataViewModel,
                         actions = activity.composeAppShellActions(),
                     ),
@@ -179,10 +176,11 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     LaunchedEffect(currentRoute, windowSize) { dismissMenu() }
     LaunchedEffect(currentRoute) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
-        if (currentRoute == AppRoute.LanShare && dependencies.lanShareViewModel.uiState.value.session == null &&
-            !dependencies.lanShareViewModel.uiState.value.isStartingHost
-        ) {
-            dependencies.actions.ensureLanShare()
+        if (currentRoute == AppRoute.LanShare) {
+            val viewModel = dependencies.lanShareViewModel()
+            if (viewModel.uiState.value.session == null && !viewModel.uiState.value.isStartingHost) {
+                dependencies.actions.ensureLanShare()
+            }
         }
     }
     LaunchedEffect(Unit) {
@@ -269,7 +267,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         AppPageTransitionHost(
                             targetRoute = currentRoute,
                             transition = pageTransition,
-                            tabChangeFromSwipe = appUiState.tabChangeFromSwipe,
                             transitionSpec = {
                                 when (if (effects.reduceMotion) AppPageTransitionKind.NONE else appPageTransitionKind(initialState, targetState, appUiState.tabChangeFromSwipe)) {
                                     AppPageTransitionKind.NONE -> EnterTransition.None togetherWith ExitTransition.None using null

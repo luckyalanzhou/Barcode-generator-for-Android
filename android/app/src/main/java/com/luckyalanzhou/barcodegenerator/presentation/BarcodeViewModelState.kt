@@ -58,6 +58,7 @@ data class UpdateUiState(
     val checking: Boolean = false,
     val startupCheckStarted: Boolean = false,
     val availableVersion: String? = null,
+    val availableUpdateKey: String? = null,
     val availableUrl: String? = null,
     val expectedSize: Long? = null,
     val sha256: String? = null,
@@ -89,6 +90,7 @@ sealed interface UpdateCheckResult {
         val downloadUrl: String,
         val expectedSize: Long?,
         val expectedSha256: String?,
+        val ignoreKey: String = version,
     ) : UpdateCheckResult
     data object UpToDate : UpdateCheckResult
     data class Failed(val reason: String) : UpdateCheckResult

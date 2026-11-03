@@ -45,6 +45,143 @@ class FavoritesTransferManagerTest {
             assertTrue(content.contains("\"formats\":[\"ean8\",\"code39\"]"))
         }
     }
+
+    @Test
+    fun exportSanitizesWindowsInvalidFolderCharactersWithoutChangingFavoriteData() {
+        val snapshot = BarcodeSnapshot(
+            items = listOf(CodeItem(1, "ABC", "Code 128-B"), CodeItem(2, "DEF", "Code 128-B")),
+            groups = listOf(
+                FavoriteGroup(1, "一级:beta/二级*alpha", "portable", 1, mutableListOf(1)),
+                FavoriteGroup(2, "CON", "reserved", 1, mutableListOf(2)),
+            ),
+            links = listOf(FavoriteGroupItem(1, 1, 0), FavoriteGroupItem(2, 2, 0)),
+            folders = listOf("一级:beta", "一级:beta/二级*alpha", "CON"),
+        )
+        val output = ByteArrayOutputStream()
+
+        FavoritesTransferManager.export(output, snapshot)
+
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            val paths = mutableListOf<String>()
+            val favoriteJsons = mutableListOf<String>()
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                paths += entry.name
+                if (entry.name.endsWith(".json")) favoriteJsons += zip.readBytes().toString(Charsets.UTF_8)
+            }
+            assertTrue(paths.contains("favorites/一级_beta/"))
+            assertTrue(paths.contains("favorites/一级_beta/二级_alpha/"))
+            assertTrue(paths.contains("favorites/CON_/"))
+            assertTrue(paths.none { ':' in it || '*' in it })
+            assertTrue(favoriteJsons.any { it.contains("\"rootFolder\":\"一级:beta\"") })
+            assertTrue(favoriteJsons.any { it.contains("\"subFolder\":\"二级*alpha\"") })
+            assertTrue(favoriteJsons.any { it.contains("\"rootFolder\":\"CON\"") })
+        }
+    }
+
+    @Test
+    fun exportSanitizesWindowsReservedFavoriteFileNamesWithoutChangingFavoriteData() {
+        val snapshot = BarcodeSnapshot(
+            items = listOf(
+                CodeItem(1, "ABC", "Code 128-B"),
+                CodeItem(2, "DEF", "Code 128-B"),
+                CodeItem(3, "GHI", "Code 128-B"),
+                CodeItem(4, "JKL", "Code 128-B"),
+            ),
+            groups = listOf(
+                FavoriteGroup(1, "", "CON", 1, mutableListOf(1)),
+                FavoriteGroup(2, "", "CON.txt", 1, mutableListOf(2)),
+                FavoriteGroup(3, "", "CONIN\$", 1, mutableListOf(3)),
+                FavoriteGroup(4, "", "CONOUT\$", 1, mutableListOf(4)),
+            ),
+            links = listOf(
+                FavoriteGroupItem(1, 1, 0),
+                FavoriteGroupItem(2, 2, 0),
+                FavoriteGroupItem(3, 3, 0),
+                FavoriteGroupItem(4, 4, 0),
+            ),
+            folders = emptyList(),
+        )
+        val output = ByteArrayOutputStream()
+
+        FavoritesTransferManager.export(output, snapshot)
+
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            val paths = mutableListOf<String>()
+            val favoriteJsons = mutableListOf<String>()
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                paths += entry.name
+                if (entry.name.endsWith(".json")) favoriteJsons += zip.readBytes().toString(Charsets.UTF_8)
+            }
+            assertTrue(paths.contains("favorites/CON_.json"))
+            assertTrue(paths.contains("favorites/CON_.txt.json"))
+            assertTrue(paths.contains("favorites/CONIN\$_.json"))
+            assertTrue(paths.contains("favorites/CONOUT\$_.json"))
+            assertTrue(favoriteJsons.any { it.contains("\"name\":\"CON\"") })
+            assertTrue(favoriteJsons.any { it.contains("\"name\":\"CON.txt\"") })
+            assertTrue(favoriteJsons.any { it.contains("\"name\":\"CONIN\$\"") })
+            assertTrue(favoriteJsons.any { it.contains("\"name\":\"CONOUT\$\"") })
+        }
+    }
+
+    @Test
+    fun exportDisambiguatesNamesThatCollideOnCaseInsensitiveFilesystems() {
+        val snapshot = BarcodeSnapshot(
+            items = listOf(CodeItem(1, "ABC", "Code 128-B"), CodeItem(2, "DEF", "Code 128-B")),
+            groups = listOf(
+                FavoriteGroup(1, "Root", "File", 1, mutableListOf(1)),
+                FavoriteGroup(2, "root", "file", 1, mutableListOf(2)),
+            ),
+            links = listOf(FavoriteGroupItem(1, 1, 0), FavoriteGroupItem(2, 2, 0)),
+            folders = emptyList(),
+        )
+        val output = ByteArrayOutputStream()
+
+        FavoritesTransferManager.export(output, snapshot)
+
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            val favoritePaths = mutableListOf<String>()
+            val favoriteJsons = mutableListOf<String>()
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name.endsWith(".json")) {
+                    favoritePaths += entry.name
+                    favoriteJsons += zip.readBytes().toString(Charsets.UTF_8)
+                }
+            }
+            assertEquals(2, favoritePaths.map { it.lowercase() }.distinct().size)
+            assertTrue(favoriteJsons.any { it.contains("\"name\":\"File\"") })
+            assertTrue(favoriteJsons.any { it.contains("\"name\":\"file\"") })
+        }
+    }
+
+    @Test
+    fun exportAcceptsLegacyFormatAliasesPreservedInStoredItems() {
+        val aliases = listOf("CODE_128", "QR_CODE", "CODE_39", "EAN_13", "EAN_8", "UPC_A", "ITF_14", "Codabar")
+        val items = aliases.mapIndexed { index, format -> CodeItem(index + 1L, "ITEM-$index", format) }
+        val snapshot = BarcodeSnapshot(
+            items = items,
+            groups = listOf(FavoriteGroup(1, "", "legacy", 1, items.map { it.id }.toMutableList())),
+            links = items.mapIndexed { index, item -> FavoriteGroupItem(1, item.id, index) },
+            folders = emptyList(),
+        )
+        val output = ByteArrayOutputStream()
+
+        FavoritesTransferManager.export(output, snapshot)
+
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            var content = ""
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name.endsWith(".json")) content = zip.readBytes().toString(Charsets.UTF_8)
+            }
+            assertTrue(
+                content.contains("\"formats\":[\"code128\",\"qr\",\"code39\",\"ean13\",\"ean8\",\"upca\",\"itf14\",\"codabar\"]"),
+            )
+        }
+    }
+
     @Test
     fun importEntitiesPreserveFolderAndTexts() {
         val backup = InterchangeBackup(

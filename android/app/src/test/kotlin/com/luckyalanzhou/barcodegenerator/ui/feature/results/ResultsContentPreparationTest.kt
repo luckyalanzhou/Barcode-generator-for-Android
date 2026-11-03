@@ -8,12 +8,14 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.theme.AppTheme
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -105,12 +107,46 @@ class ResultsContentPreparationTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false)
                 .isNotEmpty()
         }
+        compose.onNodeWithContentDescription("条码准备进度").assertExists()
+        compose.onNodeWithText("全部准备完成后显示结果", substring = false).assertExists()
+        assertEquals("整批完成前不得显示任何已准备条码", 0,
+            compose.onAllNodesWithContentDescription("ROW-1")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).size)
+        assertEquals("整批完成前不得显示结果工具栏", 0,
+            compose.onAllNodesWithContentDescription("编辑")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).size)
 
         finalImage.complete(Bitmap.createBitmap(100, 30, Bitmap.Config.ARGB_8888))
         compose.waitUntil(10_000) {
             compose.onAllNodesWithContentDescription("编辑")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false)
                 .isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("ROW-1").assertExists()
+    }
+
+    @Test
+    fun preparationReturnsTheSharedRawBitmapAndRowLayout() = runBlocking {
+        val item = CodeItem(1L, "RAW-123", "Code 128-B")
+        val raw = Bitmap.createBitmap(100, 30, Bitmap.Config.ARGB_8888)
+        try {
+            val rows = prepareResultRows(
+                items = listOf(item),
+                style = StyleSettings(),
+                dark = false,
+                density = 1f,
+                fontScale = 1f,
+                rowWidth = 320,
+                loadBarcodeImage = { _, _, _ -> raw },
+                onRowsPrepared = {},
+            )
+            assertEquals(1, rows.size)
+            assertTrue("prepared rows must retain the shared renderer bitmap", rows.single().barcode === raw)
+            assertEquals(320, rows.single().layout.width)
+            assertEquals(StyleSettings().barWidth.toInt(), rows.single().layout.barcodeWidth)
+            assertTrue("preparation must not recycle cache-owned raw bitmaps", !raw.isRecycled)
+        } finally {
+            if (!raw.isRecycled) raw.recycle()
         }
     }
 }

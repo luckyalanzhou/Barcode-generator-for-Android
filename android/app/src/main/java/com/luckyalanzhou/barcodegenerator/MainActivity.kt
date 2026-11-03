@@ -43,6 +43,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.closeLanShare
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.findRecentLanCameraMedia
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.resolveLanCameraCaptureTarget
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.installApkCompose
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.observeManualUpdateCheckResults
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.StartupFailureNoticeCoordinator
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.openLanShareCamera
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.openLanShareFilePicker
@@ -54,6 +55,8 @@ import com.luckyalanzhou.barcodegenerator.ui.app.toast
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.confirmImportFavorites
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.exportFavorites
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.launchCamera
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showPermissionRationaleDialog
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showPermissionSettingsDialog
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.BARCODE_RECOGNITION_MAX_EDGE
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.OCR_RECOGNITION_MAX_EDGE
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.decodeRecognitionBitmap
@@ -147,7 +150,8 @@ class MainActivity : AppCompatActivity() {
     internal val cameraOcrViewModel: CameraOcrViewModel by viewModels()
     internal val generateViewModel: GenerateViewModel by viewModels()
     internal val settingsViewModel: SettingsViewModel by viewModels()
-    internal val lanShareViewModel: LanShareViewModel by viewModels()
+    private val lanShareViewModelDelegate: Lazy<LanShareViewModel> = viewModels()
+    internal val lanShareViewModel: LanShareViewModel by lanShareViewModelDelegate
     internal val updateViewModel: UpdateViewModel by viewModels()
     internal val favoritesViewModel: FavoritesViewModel by viewModels()
     internal val historyViewModel: HistoryViewModel by viewModels()
@@ -163,8 +167,13 @@ class MainActivity : AppCompatActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
+        val permanentlyDeniedPermission = findPermanentlyDeniedPermission(result, ::shouldShowRequestPermissionRationale)
         val permissionResult = cameraOcrViewModel.consumePermissionRequest(result)
-        handlePermissionResult(permissionResult.requestCode, permissionResult.granted)
+        handlePermissionResult(
+            permissionResult.requestCode,
+            permissionResult.granted,
+            permanentlyDeniedPermission != null,
+        )
     }
     companion object {
         const val REQUEST_CAMERA_PERMISSION = 42
@@ -240,6 +249,7 @@ class MainActivity : AppCompatActivity() {
             it.observe(lifecycleScope, generateViewModel.uiState)
         }
         buildComposeShell()
+        observeManualUpdateCheckResults()
 
         // ViewModelLazy/Hilt ViewModel 的创建和清理必须在主线程执行。
         // 启动任务派发到后台前，先在此处取得这些 Activity 作用域实例。
@@ -332,7 +342,12 @@ class MainActivity : AppCompatActivity() {
     private fun cleanupInterruptedCameraCaptures() {
         val protectedPaths = buildSet {
             cameraOcrViewModel.cameraCaptureState.value.outputFile?.absolutePath?.let(::add)
-            lanShareViewModel.uiState.value.pendingUploadTempFile?.absolutePath?.let(::add)
+            // 首次启动时 LAN 页面尚未使用，不为清理任务提前创建 LAN 服务依赖。
+            if (lanShareViewModelDelegate.isInitialized() ||
+                navigationViewModel.uiState.value.page == AppRoute.LanShare
+            ) {
+                lanShareViewModelDelegate.value.uiState.value.pendingUploadTempFile?.absolutePath?.let(::add)
+            }
             addAll(activeCameraCapturePaths)
         }
         val cacheDirectory = cacheDir
@@ -414,11 +429,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun requestAppPermissions(permissions: Array<String>, requestCode: Int, cameraRequestCode: Int? = null) {
+        val permissionLabel = if (Manifest.permission.CAMERA in permissions) "相机" else "照片读取"
+        val rationalePermission = permissionRequiringRationale(permissions, ::shouldShowRequestPermissionRationale)
+        if (rationalePermission != null) {
+            showPermissionRationaleDialog(
+                permissionLabel,
+                onContinue = { beginAndLaunchPermissionRequest(permissions, requestCode, cameraRequestCode) },
+                onCancel = {},
+            )
+            return
+        }
+        beginAndLaunchPermissionRequest(permissions, requestCode, cameraRequestCode)
+    }
+
+    private fun beginAndLaunchPermissionRequest(
+        permissions: Array<String>,
+        requestCode: Int,
+        cameraRequestCode: Int?,
+    ) {
         if (!cameraOcrViewModel.beginPermissionRequest(requestCode, permissions, cameraRequestCode)) {
             DebugLog.record("permission", "launch_rejected requestCode=$requestCode reason=request_pending")
             toast("权限请求正在处理中，请稍后重试")
             return
         }
+        launchPendingPermissionRequest(permissions, requestCode)
+    }
+
+    private fun launchPendingPermissionRequest(permissions: Array<String>, requestCode: Int) {
         launchPermissionRequestSafely(
             launch = { permissionLauncher.launch(permissions) },
             onFailure = { error ->
@@ -432,7 +469,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun handlePermissionResult(requestCode: Int, granted: Boolean) {
+    private fun handlePermissionResult(requestCode: Int, granted: Boolean, permanentlyDenied: Boolean) {
         if (requestCode == 42) {
             if (granted) {
                 when (cameraOcrViewModel.cameraCaptureState.value.requestCode) {
@@ -441,10 +478,13 @@ class MainActivity : AppCompatActivity() {
                     else -> launchCamera(cameraOcrViewModel.cameraCaptureState.value.requestCode)
                 }
             } else {
-                toast("需要相机权限才能拍照识别")
+                if (permanentlyDenied) showPermissionSettingsDialog("相机")
+                else toast("需要相机权限才能拍照识别")
             }
         } else if (requestCode == REQUEST_LAN_SHARE_GALLERY_PERMISSION) {
-            if (granted) openLanShareGalleryPicker() else toast("需要照片权限才能选择图库照片")
+            if (granted) openLanShareGalleryPicker()
+            else if (permanentlyDenied) showPermissionSettingsDialog("照片读取")
+            else toast("需要照片权限才能选择图库照片")
         } else if (requestCode == REQUEST_LAN_SHARE_FILE_PERMISSION) {
             if (granted) openLanShareFilePicker() else toast("需要文件权限才能选择文件")
         }

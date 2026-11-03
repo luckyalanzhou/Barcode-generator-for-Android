@@ -10,9 +10,9 @@ import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRout
 /** 将生成的条码写入共享数据会话，并准备结果页快照。 */
 internal class GenerateCoordinator(
     private val store: LibraryStateStore,
-    private val persistItems: () -> Unit,
+    private val persistItems: suspend () -> Unit,
 ) {
-    fun commit(generated: List<CodeItem>, currentResult: ResultUiState): ResultUiState {
+    suspend fun commit(generated: List<CodeItem>, currentResult: ResultUiState): ResultUiState {
         val editingFavorite = currentResult.selectedFavoriteGroup
             ?.takeIf { currentResult.returnPage == AppRoute.Favorites }
         store.edit { items.addAll(0, generated) }

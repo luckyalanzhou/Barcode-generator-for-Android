@@ -30,10 +30,10 @@ internal val barcodeFormats: List<BarcodeFormatOption> = listOf(
     BarcodeFormatOption("Codabar", BarcodeFormatIds.CODABAR, "数字与常用符号"),
 )
 
-/** 将旧版或导入的格式名称转换为编辑器使用的显示名称。 */
-internal fun canonicalBarcodeFormatName(raw: String?): String {
+/** 查找显示名称或旧版别名；预览入口用 null 区分不支持的值。 */
+internal fun barcodeFormatOption(raw: String?): BarcodeFormatOption? {
     val value = raw?.trim().orEmpty()
-    barcodeFormats.firstOrNull { it.displayName.equals(value, ignoreCase = true) }?.let { return it.displayName }
+    barcodeFormats.firstOrNull { it.displayName.equals(value, ignoreCase = true) }?.let { return it }
     val id = when (value.lowercase()) {
         "code_128", "code128", "code 128" -> BarcodeFormatIds.CODE_128
         "qr", "qrcode", "qr_code" -> BarcodeFormatIds.QR_CODE
@@ -45,10 +45,13 @@ internal fun canonicalBarcodeFormatName(raw: String?): String {
         "codabar" -> BarcodeFormatIds.CODABAR
         else -> null
     }
-    return barcodeFormats.firstOrNull { it.id == id }?.displayName ?: barcodeFormats.first().displayName
+    return barcodeFormats.firstOrNull { it.id == id }
 }
+
+/** 将旧版或导入的格式名称转换为编辑器使用的显示名称。 */
+internal fun canonicalBarcodeFormatName(raw: String?): String =
+    barcodeFormatOption(raw)?.displayName ?: barcodeFormats.first().displayName
 
 /** 将已持久化的名称和旧别名解析为不依赖具体实现的 ID。 */
 internal fun barcodeFormatId(raw: String?): String =
-    barcodeFormats.firstOrNull { it.displayName == canonicalBarcodeFormatName(raw) }?.id
-        ?: BarcodeFormatIds.CODE_128
+    barcodeFormatOption(raw)?.id ?: BarcodeFormatIds.CODE_128

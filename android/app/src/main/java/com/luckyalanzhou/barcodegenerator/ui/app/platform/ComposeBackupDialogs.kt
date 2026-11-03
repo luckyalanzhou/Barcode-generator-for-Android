@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.FavoritesImportConflictSummary
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
+import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -57,17 +58,26 @@ private fun ComposeDialogChoice(text: String, dark: Boolean, onClick: () -> Unit
 
 internal fun MainActivity.confirmImportFavoritesCompose(uri: android.net.Uri, backup: InterchangeBackup) {
     lifecycleScope.launch(Dispatchers.IO) {
-        val conflicts = favoritesViewModel.inspectFavoriteImport(backup)
+        val result = captureRecoverableFavoriteBackupOperation {
+            favoritesViewModel.inspectFavoriteImport(backup)
+        }
         withContext(Dispatchers.Main) {
-            if (conflicts.hasConflicts) {
-                showFavoriteImportConflictDialog(backup, conflicts)
-            } else {
-                showComposeConfirmDialog(
-                    title = "导入跨平台收藏？",
-                    message = "将导入 ${backup.favorites.size} 个收藏，并保留一级文件夹、二级文件夹和收藏文件名。",
-                    positive = "导入",
-                ) { importFavoritesForCompose(backup, overwriteConflicts = false) }
-            }
+            result
+                .onSuccess { conflicts ->
+                    if (conflicts.hasConflicts) {
+                        showFavoriteImportConflictDialog(backup, conflicts)
+                    } else {
+                        showComposeConfirmDialog(
+                            title = "导入跨平台收藏？",
+                            message = "将导入 ${backup.favorites.size} 个收藏，并保留一级文件夹、二级文件夹和收藏文件名。",
+                            positive = "导入",
+                        ) { importFavoritesForCompose(backup, overwriteConflicts = false) }
+                    }
+                }
+                .onFailure { error ->
+                    DebugLog.actionFailed("favorites_backup_conflict_inspection", error)
+                    toast("无法检查收藏冲突：${error.message ?: "请稍后重试"}")
+                }
         }
     }
 }

@@ -6,8 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
-import com.luckyalanzhou.barcodegenerator.barcodeFormats
-import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
+import com.luckyalanzhou.barcodegenerator.barcodeFormatId
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
@@ -126,7 +125,7 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? =
                 render = { item ->
                     resultsViewModel.createBarcodeImage(
                         item.text,
-                        barcodeFormats.firstOrNull { it.displayName == item.format }?.id ?: BarcodeFormatIds.CODE_128,
+                        barcodeFormatId(item.format),
                         style,
                         dark,
                         density,

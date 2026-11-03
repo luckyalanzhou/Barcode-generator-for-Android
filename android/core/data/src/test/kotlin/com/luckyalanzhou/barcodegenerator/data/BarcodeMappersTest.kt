@@ -46,7 +46,7 @@ class BarcodeMappersTest {
 
     @Test
     fun entityRoundTripPreservesAllCodeItemFields() {
-        val item = CodeItem(9L, "  A B  ", "QR_CODE", 42L, true, "一级/二级", true)
+        val item = CodeItem(9L, "  A B  ", "QR_CODE", 42L, true, "一级/二级", true, "batch-9")
 
         assertEquals(item, item.toEntity().toDomain())
     }

@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class LibraryDataViewModel @Inject constructor(
     private val coordinator: LibraryDataCoordinator,
-    persistence: BarcodePersistenceCoordinator,
+    private val persistence: BarcodePersistenceCoordinator,
     private val logger: AppLogger,
 ) : ViewModel() {
     private val _persistenceFailures = Channel<Unit>(Channel.BUFFERED)
@@ -46,7 +46,8 @@ class LibraryDataViewModel @Inject constructor(
         }
     }
 
-    suspend fun loadPersistedData() = coordinator.loadPersistedData()
+    /** 启动和手动重试读取与跨页面收藏/历史变更串行，防止旧快照覆盖刚提交的写入。 */
+    suspend fun loadPersistedData() = persistence.withLibraryMutation { coordinator.loadPersistedData() }
 }
 
 /** 只把实际恢复异常记录为失败；ViewModel 销毁等生命周期取消必须继续向上传播。 */

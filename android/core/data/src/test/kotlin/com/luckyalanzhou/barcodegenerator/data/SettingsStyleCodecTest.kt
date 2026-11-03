@@ -35,6 +35,15 @@ class SettingsStyleCodecTest {
         assertEquals(0, decoded.margin)
     }
 
+    @Test fun nonFinitePersistedStyleValuesFallBackToDefaults() {
+        val values = mutablePreferencesOf(SettingsStore.TEXT_SIZE to Float.NaN, SettingsStore.BAR_WIDTH to Float.NaN)
+
+        val decoded = decodeStyleSettings(values)
+
+        assertEquals(14f, decoded.textSize, 0f)
+        assertEquals(220f, decoded.barWidth, 0f)
+    }
+
     @Test fun removedAppearancePreferencesAreIgnoredAndCleanedOnSave() {
         val transparencyKey = androidx.datastore.preferences.core.booleanPreferencesKey("appearance_reduce_transparency")
         val motionKey = androidx.datastore.preferences.core.booleanPreferencesKey("appearance_reduce_motion")

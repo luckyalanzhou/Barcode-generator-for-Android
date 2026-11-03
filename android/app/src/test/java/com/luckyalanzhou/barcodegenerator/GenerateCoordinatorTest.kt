@@ -9,10 +9,11 @@ import com.luckyalanzhou.barcodegenerator.presentation.navigation.NavigationRout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 
 class GenerateCoordinatorTest {
     @Test
-    fun commitPersistsGeneratedItemsAndPreservesFavoriteReturnContext() {
+    fun commitPersistsGeneratedItemsAndPreservesFavoriteReturnContext() = runBlocking {
         val existing = CodeItem(1L, "existing", "Code 128-B", 1L)
         val generated = CodeItem(2L, "new", "Code 128-B", 2L)
         val selectedGroup = FavoriteGroup(9L, "folder", "group", 9L, mutableListOf())

@@ -6,6 +6,10 @@ android/build/
 android/app/build/
 android/local.properties
 
+# Local validation logs, Gradle cache, and APK copies
+/.local-validation/
+android/.local-validation/
+
 # Local IDE files
 .idea/
 *.iml

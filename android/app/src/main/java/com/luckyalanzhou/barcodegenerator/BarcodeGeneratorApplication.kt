@@ -17,7 +17,17 @@ class BarcodeGeneratorApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         cleanupStaleCacheArtifactsAsync()
-        releaseObsoleteDocumentUriGrants()
+        startDocumentUriGrantMigrationAsync(
+            operation = {
+                Log.i(TAG, "Starting obsolete document access grant migration")
+                if (releaseObsoleteDocumentUriGrants()) {
+                    Log.i(TAG, "Completed obsolete document access grant migration")
+                }
+            },
+            onFailure = { error ->
+                Log.w(TAG, "Failed obsolete document access grant migration", error)
+            },
+        )
     }
 
     /** 后台清理中断传输残片和过期分享副本，避免扫描缓存目录阻塞应用启动。 */
@@ -42,16 +52,16 @@ class BarcodeGeneratorApplication : Application() {
     }
 
     /** LAN 附件 URI 只服务于内存中的一次上传；清除旧版本留下的跨重启授权。 */
-    private fun releaseObsoleteDocumentUriGrants() {
+    private fun releaseObsoleteDocumentUriGrants(): Boolean {
         val migrationPreferences = getSharedPreferences(URI_GRANT_MIGRATION_PREFERENCES, MODE_PRIVATE)
-        if (migrationPreferences.getBoolean(URI_GRANT_MIGRATION_COMPLETED, false)) return
+        if (migrationPreferences.getBoolean(URI_GRANT_MIGRATION_COMPLETED, false)) return true
 
         val grants = captureRecoverableDocumentUriGrantOperation {
             contentResolver.persistedUriPermissions.toList()
         }
             .getOrElse { error ->
                 Log.w(TAG, "Unable to inspect persisted document access grants", error)
-                return
+                return false
             }
         val releaseFailures = releasePersistedDocumentUriGrants(
             grants.map { PersistedDocumentUriGrant(it.uri, it.isReadPermission, it.isWritePermission) },
@@ -59,11 +69,13 @@ class BarcodeGeneratorApplication : Application() {
         )
         if (releaseFailures > 0) {
             Log.w(TAG, "Unable to release $releaseFailures obsolete document access grants")
+            return false
         } else {
             // 这是一次性的旧版本迁移；后续版本新增的持久 URI 授权不应被每次启动清除。
             migrationPreferences.edit {
                 putBoolean(URI_GRANT_MIGRATION_COMPLETED, true)
             }
+            return true
         }
     }
 

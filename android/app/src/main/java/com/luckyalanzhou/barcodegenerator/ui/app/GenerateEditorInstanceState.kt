@@ -79,8 +79,8 @@ internal object GenerateEditorInstanceState {
             return true
         }
 
-        val encodedBytes = state.inputDraft.sumOf { it.toByteArray(Charsets.UTF_8).size.toLong() + 8L } +
-            state.formatName.toByteArray(Charsets.UTF_8).size
+        val encodedDraft = GenerateEditorDraftStore.encode(state) ?: return false
+        val encodedBytes = encodedDraft.estimatedBytes
         if (encodedBytes > GenerateEditorDraftStore.MAX_DRAFT_FILE_BYTES) return false
         if (encodedBytes <= MAX_SAVED_DRAFT_BYTES) {
             outState.putStringArrayList(INPUTS_KEY, ArrayList(state.inputDraft))
@@ -91,7 +91,7 @@ internal object GenerateEditorInstanceState {
 
         val fileId = existingDraftId?.takeUnless { it == autosavingDraftId }
             ?: GenerateEditorDraftStore.newDraftId()
-        if (!GenerateEditorDraftStore(context.noBackupFilesDir, fileId).save(state)) return false
+        if (!GenerateEditorDraftStore(context.noBackupFilesDir, fileId).save(encodedDraft)) return false
         outState.putBoolean(FILE_SAVED_KEY, true)
         outState.putString(FILE_ID_KEY, fileId)
         return true

@@ -508,6 +508,7 @@ class FavoritesImportRefreshTest {
     fun backupImportWaitsForPendingFavoriteMutationBeforeWriting() = runBlocking {
         val renameStarted = CompletableDeferred<Unit>()
         val releaseRename = CompletableDeferred<Unit>()
+        val inspectionStarted = CompletableDeferred<Unit>()
         val importStarted = CompletableDeferred<Unit>()
         val repository = Proxy.newProxyInstance(
             BarcodeRepository::class.java.classLoader,
@@ -546,8 +547,10 @@ class FavoritesImportRefreshTest {
         val backupRepository = object : FavoritesBackupRepository {
             override suspend fun export(output: OutputStream) = Unit
             override fun restore(bytes: ByteArray) = InterchangeBackup(emptyList(), emptyList())
-            override suspend fun inspectImport(backup: InterchangeBackup) =
-                FavoritesImportConflictSummary(emptyList(), emptyList())
+            override suspend fun inspectImport(backup: InterchangeBackup): FavoritesImportConflictSummary {
+                inspectionStarted.complete(Unit)
+                return FavoritesImportConflictSummary(emptyList(), emptyList())
+            }
             override suspend fun import(backup: InterchangeBackup, overwriteConflicts: Boolean): Pair<Int, Int> {
                 importStarted.complete(Unit)
                 return 0 to 0
@@ -565,13 +568,21 @@ class FavoritesImportRefreshTest {
 
         try {
             withTimeout(5_000) { renameStarted.await() }
+            val inspection = async {
+                viewModel.inspectFavoriteImport(InterchangeBackup(emptyList(), emptyList()))
+            }
+            yield()
+            assertFalse("conflict inspection must not read while a favorite mutation is in flight", inspectionStarted.isCompleted)
             val import = async { viewModel.importFavorites(InterchangeBackup(emptyList(), emptyList()), overwriteConflicts = true) }
             yield()
 
+            assertFalse("conflict inspection must wait for the active favorite mutation", inspection.isCompleted)
             assertFalse("backup import must not overlap an in-flight favorite mutation", importStarted.isCompleted)
             releaseRename.complete(Unit)
             assertTrue(rename.await())
+            withTimeout(5_000) { inspection.await() }
             assertEquals(0 to 0, import.await())
+            assertTrue(inspectionStarted.isCompleted)
             assertTrue(importStarted.isCompleted)
         } finally {
             releaseRename.complete(Unit)

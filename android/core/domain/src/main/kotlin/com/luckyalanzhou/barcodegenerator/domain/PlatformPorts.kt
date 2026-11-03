@@ -34,6 +34,8 @@ sealed interface UpdateLookupResult {
         val downloadUrl: String,
         val expectedSize: Long?,
         val expectedSha256: String?,
+        /** 用于持久忽略某个具体构建；旧调用默认按显示版本匹配。 */
+        val ignoreKey: String = version,
     ) : UpdateLookupResult
 
     data object UpToDate : UpdateLookupResult

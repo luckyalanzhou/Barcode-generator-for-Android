@@ -39,6 +39,7 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         internal val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
         internal val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
         internal val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
+        internal val IGNORED_UPDATE_VERSION = stringPreferencesKey("ignored_update_version")
         internal val SETTINGS_MIGRATED = booleanPreferencesKey("settings_datastore_migrated")
     }
 
@@ -80,6 +81,13 @@ class SettingsStore(private val context: Context) : SettingsRepository {
 
     override fun setUpdateError(error: String): Job = write { it[LAST_UPDATE_ERROR] = UPDATE_FAILURE_SUMMARY }
 
+    override suspend fun getIgnoredUpdateVersion(): String? =
+        context.settingsDataStore.data.first()[IGNORED_UPDATE_VERSION]
+
+    override suspend fun setIgnoredUpdateVersion(version: String) {
+        write { it[IGNORED_UPDATE_VERSION] = version }.awaitSettingsCommit()
+    }
+
     override fun getOcrConfusionReplacementMask(): Int = ocrConfusionReplacementMask
 
     override fun setOcrConfusionReplacementMask(mask: Int): Job {
@@ -101,13 +109,16 @@ internal fun decodeStyleSettings(values: Preferences): StyleSettings = with(Sett
     StyleSettings(
         showText = values[SHOW_TEXT] ?: true,
         textPosition = values[TEXT_POSITION] ?: "bottom",
-        textSize = (values[TEXT_SIZE] ?: 14f).coerceIn(10f, 24f),
+        textSize = values[TEXT_SIZE].finiteOrDefault(14f).coerceIn(10f, 24f),
         barHeight = (values[BAR_HEIGHT] ?: 55).coerceIn(30, 80),
-        barWidth = (values[BAR_WIDTH] ?: 220f).coerceIn(120f, 300f),
+        barWidth = values[BAR_WIDTH].finiteOrDefault(220f).coerceIn(120f, 300f),
         margin = (values[MARGIN] ?: 4).coerceIn(0, 10),
         colorScheme = values[COLOR_SCHEME] ?: "system",
     )
 }
+
+private fun Float?.finiteOrDefault(default: Float): Float =
+    this?.takeIf(Float::isFinite) ?: default
 
 internal fun MutablePreferences.writeStyleSettings(style: StyleSettings) = with(SettingsStore) {
     // 清理早期版本遗留的用户条码颜色；新版本颜色完全由外观模式决定。

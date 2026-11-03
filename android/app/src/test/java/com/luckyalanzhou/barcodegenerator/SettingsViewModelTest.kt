@@ -28,6 +28,8 @@ class SettingsViewModelTest {
             override fun getOcrConfusionReplacementMask() = 6
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
             override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val migration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? = null
@@ -56,6 +58,8 @@ class SettingsViewModelTest {
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
             override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val migration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? = null
@@ -87,6 +91,8 @@ class SettingsViewModelTest {
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
             override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val migration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? = null
@@ -124,6 +130,8 @@ class SettingsViewModelTest {
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob().also { savedOcrMasks += mask }
             override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val migration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? = null
@@ -167,6 +175,10 @@ class SettingsViewModelTest {
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
 
             override fun setUpdateError(error: String) = completedJob()
+
+            override suspend fun getIgnoredUpdateVersion() = null
+
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val settingsMigration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? {
@@ -246,6 +258,8 @@ class SettingsViewModelTest {
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = pending
             override fun setUpdateError(error: String) = pending
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val migration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? = null
@@ -285,6 +299,8 @@ class SettingsViewModelTest {
             override fun getOcrConfusionReplacementMask() = storedMask
             override fun setOcrConfusionReplacementMask(mask: Int) = pendingWrite
             override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
         }
         val migration = object : SettingsMigration {
             override suspend fun migrateIfNeeded(): StyleSettings? = null

@@ -66,7 +66,10 @@ internal fun rememberGlassBackdropRenderer(
     enabled: Boolean = true,
 ): BackdropRenderer? {
     val factory = remember(menuMaterial) { lazy {
-        if (Build.VERSION.SDK_INT >= 33) BackdropRenderer.createOrNull(menuMaterial) else null
+        if (Build.VERSION.SDK_INT >= 33) {
+            val renderer = BackdropRenderer.createOrNull(menuMaterial)
+            renderer
+        } else null
     } }
     return if (!enabled || LocalVisualEffectsPolicy.current.opaqueGlass) null else factory.value
 }

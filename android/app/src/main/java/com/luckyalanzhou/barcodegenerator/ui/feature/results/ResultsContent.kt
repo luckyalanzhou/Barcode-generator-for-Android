@@ -14,7 +14,9 @@ import com.luckyalanzhou.barcodegenerator.icons.DownloadIcon
 import androidx.compose.runtime.remember
 
 import android.graphics.Bitmap
-import androidx.compose.foundation.Image
+import android.graphics.Paint
+import android.graphics.Rect
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,6 +41,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,9 +62,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -74,6 +80,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 
 /**
  * 结果页：先在后台准备本批全部条码图片，全部就绪后才显示列表；顶部固定提供编辑、收藏、分享和保存。
@@ -132,7 +140,7 @@ internal fun ResultsContent(
 
     // 不显示只准备了一部分的结果；进程停止后图片缓存被清理时，恢复结果也会走此准备流程。
     val preparedRows by key(items, style, dark, density, rowWidth, fontScale, retryAttempt) {
-        produceState<List<Bitmap>?>(null, items, style, dark, density, rowWidth, fontScale, retryAttempt) {
+        produceState<List<PreparedResultRow>?>(null, items, style, dark, density, rowWidth, fontScale, retryAttempt) {
             value = try {
                 prepareResultRows(items, style, dark, density, fontScale, rowWidth, loadBarcodeImage) {
                     preparationProgress.value = it
@@ -146,13 +154,6 @@ internal fun ResultsContent(
                 onRenderFailure(error, items.size, rowWidth)
                 emptyList()
             }
-        }
-    }
-
-    androidx.compose.runtime.DisposableEffect(preparedRows) {
-        val ownedRows = preparedRows
-        onDispose {
-            ownedRows.orEmpty().forEach { if (!it.isRecycled) it.recycle() }
         }
     }
 
@@ -170,20 +171,31 @@ internal fun ResultsContent(
                 modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
             )
             if (preparedRows == null) {
-                Row(
+                // 用确定进度解释整批等待时间，同时明确结果仍会在全部准备完后统一出现。
+                Column(
                     Modifier.padding(vertical = 40.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        Modifier.width(20.dp).height(20.dp),
+                    LinearProgressIndicator(
+                        progress = { completedRows.toFloat() / items.size.coerceAtLeast(1) },
+                        modifier = Modifier.width(240.dp).height(4.dp)
+                            .semantics {
+                                contentDescription = "条码准备进度"
+                                stateDescription = "$completedRows/${items.size}"
+                                liveRegion = LiveRegionMode.Polite
+                            },
                         color = themeColors.controls.accent,
-                        strokeWidth = 2.dp,
                     )
-                    Spacer(Modifier.width(10.dp))
                     Text(
                         "正在准备条码 $completedRows/${items.size}…",
                         color = secondary,
                         fontSize = 17.sp,
+                    )
+                    Text(
+                        "全部准备完成后显示结果",
+                        color = secondary,
+                        fontSize = 14.sp,
                     )
                 }
             } else {
@@ -214,12 +226,12 @@ internal fun ResultsContent(
             verticalArrangement = Arrangement.spacedBy(style.margin.coerceIn(0, 10).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                val bitmap = prepared.getOrNull(index)
-                if (bitmap != null) Image(bitmap.asImageBitmap(), resultImageLabel(item),
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-                        .aspectRatio(bitmap.width.toFloat() / bitmap.height))
+            itemsIndexed(prepared, key = { _, row -> row.item.id }) { _, row ->
+                PreparedResultRowView(
+                    row = row,
+                    dark = dark,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                )
             }
         }
         Box(
@@ -239,6 +251,51 @@ internal fun ResultsContent(
 }
 }
 
+/** 结果页直接绘制缓存原图与独立标签，避免每一条结果再保留一张合成位图。 */
+@Composable
+internal fun PreparedResultRowView(row: PreparedResultRow, dark: Boolean, modifier: Modifier = Modifier) {
+    val layout = row.layout
+    val barcodePaint = remember { Paint().apply { isFilterBitmap = false } }
+    Canvas(
+        modifier = modifier
+            .aspectRatio(layout.width.toFloat() / layout.height.coerceAtLeast(1))
+            .semantics { contentDescription = resultImageLabel(row.item) },
+    ) {
+        drawRect(Color(resultPageBackground(dark)))
+        drawIntoCanvas { composeCanvas ->
+            val canvas = composeCanvas.nativeCanvas
+            val checkpoint = canvas.save()
+            canvas.scale(size.width / layout.width, size.height / layout.height)
+            canvas.drawBitmap(
+                row.barcode,
+                null,
+                Rect(
+                    layout.barcodeLeft,
+                    layout.barcodeTop,
+                    layout.barcodeLeft + layout.barcodeWidth,
+                    layout.barcodeTop + layout.barcodeHeight,
+                ),
+                barcodePaint,
+            )
+            val label = layout.label
+            val labelTop = layout.labelTop
+            if (label != null && labelTop != null) {
+                val labelSave = canvas.save()
+                canvas.translate(0f, labelTop.toFloat())
+                label.draw(canvas)
+                canvas.restoreToCount(labelSave)
+            }
+            canvas.restoreToCount(checkpoint)
+        }
+    }
+}
+
+internal data class PreparedResultRow(
+    val item: CodeItem,
+    val barcode: Bitmap,
+    val layout: ResultImageRowLayout,
+)
+
 internal suspend fun prepareResultRows(
     items: List<CodeItem>,
     style: StyleSettings,
@@ -248,36 +305,33 @@ internal suspend fun prepareResultRows(
     rowWidth: Int,
     loadBarcodeImage: suspend (CodeItem, Boolean, Float) -> Bitmap?,
     onRowsPrepared: (Int) -> Unit,
-): List<Bitmap> {
-    val createdRows = java.util.Collections.synchronizedList(mutableListOf<Bitmap>())
-    val previewBitmapConfig = resultPreviewBitmapConfig()
-    return try {
-        withContext(Dispatchers.Default.limitedParallelism(8)) {
-            val preparedRows = mutableListOf<Bitmap>()
-            items.chunked(8).forEach { batch ->
-                val batchRows = coroutineScope {
-                    batch.map { item ->
-                        async {
-                            val raw = checkNotNull(loadBarcodeImage(item, dark, density))
-                            composeResultRowImage(
-                                raw, item, style, dark, rowWidth, density, fontScale,
-                                bitmapConfig = previewBitmapConfig,
-                                rasterWidthLimit = raw.width,
-                            )
-                                .also(createdRows::add)
-                        }
-                    }.awaitAll()
+): List<PreparedResultRow> = withContext(Dispatchers.Default.limitedParallelism(8)) {
+    val preparedRows = mutableListOf<PreparedResultRow>()
+    items.chunked(8).forEach { batch ->
+        val batchRows = coroutineScope {
+            batch.map { item ->
+                async {
+                    val raw = checkNotNull(loadBarcodeImage(item, dark, density))
+                    PreparedResultRow(
+                        item = item,
+                        barcode = raw,
+                        layout = resultImageRowLayout(
+                            raw,
+                            item,
+                            style,
+                            dark,
+                            if (isCode128ResultFormat(item)) rowWidth else minOf(rowWidth, raw.width),
+                            density,
+                            fontScale,
+                        ),
+                    )
                 }
-                preparedRows += batchRows
-                onRowsPrepared(preparedRows.size)
-            }
-            preparedRows
+            }.awaitAll()
         }
-    } catch (error: Throwable) {
-        val partiallyCreatedRows = synchronized(createdRows) { createdRows.toList() }
-        partiallyCreatedRows.forEach { if (!it.isRecycled) it.recycle() }
-        throw error
+        preparedRows += batchRows
+        onRowsPrepared(preparedRows.size)
     }
+    preparedRows
 }
 
 // 按系统字体缩放标签宽度，同时限制最大值，保证手机上每组两个操作仍可使用。
@@ -287,7 +341,7 @@ internal fun resultToolbarActionWidth(fontScale: Float): Float =
 /** 结果页四个操作入口保持各自回调和按压状态，仅分享与保存互斥执行导出。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean,
+internal fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolean,
     onEdit: () -> Unit, onSaveFavorite: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
     val themeColors = LocalAppColorScheme.current
     val actionWidth = resultToolbarActionWidth(LocalDensity.current.fontScale).dp

@@ -223,7 +223,7 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun enterLanShare() = traceAction("lan_share_enter") { this@composeAppShellActions.enterLanShare() }
     override fun restoreFavorites() = this@composeAppShellActions.restoreFavoritesImport()
     override fun exportFavorites() = this@composeAppShellActions.createFavoritesExportCompose()
-    override fun checkForUpdates() = this@composeAppShellActions.checkForUpdates(silent = false)
+    override fun checkForUpdates() = this@composeAppShellActions.checkForUpdates()
     override fun openLanShareCamera() = this@composeAppShellActions.openLanShareCamera()
     override fun openLanShareGallery() = this@composeAppShellActions.openLanShareGallery()
     override fun openLanShareFiles() = this@composeAppShellActions.openLanShareFiles()

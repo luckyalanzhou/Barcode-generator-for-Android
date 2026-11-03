@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app.editor
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
+import com.luckyalanzhou.barcodegenerator.barcodeFormatOption
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeValidator
 import com.luckyalanzhou.barcodegenerator.ui.app.*
@@ -29,6 +30,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** 编辑旧数据时保留其有效格式；只有无法识别的格式才回退到首项。 */
+internal fun itemEditorInitialFormat(raw: String): String =
+    barcodeFormatOption(raw)?.displayName ?: barcodeFormats.first().displayName
+
 internal fun MainActivity.showItemEditorCompose(
     item: CodeItem,
     onUpdate: (Long, String, String) -> Unit,
@@ -39,10 +44,9 @@ internal fun MainActivity.showItemEditorCompose(
     showComposeDialog(compact = false) { dismiss ->
         val dark = isDark()
         val availableFormats = barcodeFormats
-        val fallbackFormat = availableFormats.firstOrNull()?.displayName.orEmpty()
         var value by remember { mutableStateOf(initialText) }
         var selectedFormat by remember {
-            mutableStateOf(availableFormats.firstOrNull { it.displayName == initialFormat }?.displayName ?: fallbackFormat)
+            mutableStateOf(itemEditorInitialFormat(initialFormat))
         }
         ComposeGlassDialogCard(dark) {
             Text("编辑条目", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)

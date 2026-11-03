@@ -23,6 +23,9 @@ import androidx.lifecycle.lifecycleScope
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import android.content.Intent
+import android.provider.Settings
+import android.net.Uri
 
 internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {
     showComposeDialog(compact = true) { dismiss ->
@@ -31,6 +34,66 @@ internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {
             Text(message, modifier = Modifier.fillMaxWidth(), color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction("确定", dark, dismiss)
+            }
+        }
+    }
+}
+
+/** 系统要求先解释用途时显示简短提示，用户确认后才发起权限请求。 */
+internal fun MainActivity.showPermissionRationaleDialog(
+    permissionLabel: String,
+    onContinue: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    showComposeDialog(compact = true, onCancel = onCancel) { dismiss ->
+        val dark = isDark()
+        ComposeGlassDialogCard(dark) {
+            Text("需要${permissionLabel}权限", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(
+                "此功能需要${permissionLabel}权限才能继续。",
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                color = LocalAppColorScheme.current.text.secondary,
+                fontSize = 14.sp,
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                DialogAction("取消", dark, { onCancel(); dismiss() })
+                DialogAction("继续", dark, { dismiss(); onContinue() }, Modifier.padding(start = 20.dp), primary = true)
+            }
+        }
+    }
+}
+
+/** 永久拒绝后提供明确的系统设置入口，避免再次点击只得到无效权限弹窗。 */
+internal fun MainActivity.showPermissionSettingsDialog(permissionLabel: String) {
+    showComposeDialog(compact = true) { dismiss ->
+        val dark = isDark()
+        ComposeGlassDialogCard(dark) {
+            Text("请在设置中开启权限", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(
+                "${permissionLabel}权限已被关闭。请到应用设置中开启权限，返回后再重试。",
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                color = LocalAppColorScheme.current.text.secondary,
+                fontSize = 14.sp,
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                DialogAction("取消", dark, dismiss)
+                DialogAction(
+                    "去设置",
+                    dark,
+                    {
+                        dismiss()
+                        try {
+                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", packageName, null)
+                            })
+                        } catch (error: Exception) {
+                            DebugLog.record("permission", "open_app_settings_failed", error)
+                            toast("无法打开应用设置")
+                        }
+                    },
+                    Modifier.padding(start = 20.dp),
+                    primary = true,
+                )
             }
         }
     }

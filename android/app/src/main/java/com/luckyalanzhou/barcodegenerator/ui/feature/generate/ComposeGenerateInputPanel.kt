@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -113,7 +114,8 @@ internal fun ComposeGenerateInputPanel(
                         ) {
                             Text(
                                 text = (index + 1).toString(),
-                                modifier = Modifier.width(32.dp),
+                                // 三位序号需随文字宽度扩展，避免大字体时折行并挤压输入内容。
+                                modifier = Modifier.widthIn(min = 32.dp),
                                 color = textColor,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,

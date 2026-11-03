@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withTranslation
 import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
-import com.luckyalanzhou.barcodegenerator.barcodeFormats
+import com.luckyalanzhou.barcodegenerator.barcodeFormatId
 import com.luckyalanzhou.barcodegenerator.domain.barcodeRenderSize
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
@@ -28,7 +28,58 @@ internal fun resultImageSpacing(margin: Int, density: Float): Int =
 internal fun resultPageBackground(dark: Boolean): Int =
     appColorScheme(dark).surfaces.background.toArgb()
 
+/** 历史/收藏数据可能仍保存旧别名；结果布局须按渲染器相同的格式目录判断。 */
+internal fun isCode128ResultFormat(item: CodeItem): Boolean =
+    barcodeFormatId(item.format) == BarcodeFormatIds.CODE_128
+
 internal data class ResultImageRowSize(val width: Int, val height: Int)
+
+/** 原始条码图、绘制边界与标签共用的结果行几何信息。 */
+internal data class ResultImageRowLayout(
+    val width: Int,
+    val height: Int,
+    val barcodeLeft: Int,
+    val barcodeTop: Int,
+    val barcodeWidth: Int,
+    val barcodeHeight: Int,
+    val labelTop: Int?,
+    val labelHeight: Int,
+    internal val label: StaticLayout?,
+)
+
+/** 与 PNG 合成保持同一尺寸规则；结果页只保留这份几何信息和共享原图。 */
+internal fun resultImageRowLayout(
+    barcode: Bitmap,
+    item: CodeItem,
+    style: StyleSettings,
+    dark: Boolean,
+    width: Int,
+    density: Float,
+    fontScale: Float,
+): ResultImageRowLayout {
+    val safeWidth = width.coerceAtLeast(1)
+    val barWidth = if (isCode128ResultFormat(item)) {
+        (style.barWidth.coerceIn(120f, 300f) * density).roundToInt().coerceAtMost(safeWidth)
+    } else safeWidth
+    val barHeight = if (isCode128ResultFormat(item)) {
+        (style.barHeight.coerceIn(30, 80) * density).roundToInt()
+    } else {
+        (barcode.height.toFloat() * safeWidth / barcode.width.coerceAtLeast(1)).roundToInt()
+    }
+    val label = resultLabelLayout(item, style, dark, safeWidth, density, fontScale)
+    val labelPadding = (4 * density).roundToInt()
+    return ResultImageRowLayout(
+        width = safeWidth,
+        height = barHeight + (label?.let { it.height + 2 * labelPadding } ?: 0),
+        barcodeLeft = (safeWidth - barWidth) / 2,
+        barcodeTop = 0,
+        barcodeWidth = barWidth,
+        barcodeHeight = barHeight,
+        labelTop = label?.let { barHeight + labelPadding },
+        labelHeight = label?.height ?: 0,
+        label = label,
+    )
+}
 
 /** 预览行保留页面画布的精确颜色；QR 原始像素宽度限制负责控制大批量内存。 */
 internal fun resultPreviewBitmapConfig(): Bitmap.Config = Bitmap.Config.ARGB_8888
@@ -41,7 +92,7 @@ internal fun resultImageRowSize(
     density: Float,
     fontScale: Float,
 ): ResultImageRowSize {
-    val formatId = barcodeFormats.firstOrNull { it.displayName == item.format }?.id ?: BarcodeFormatIds.CODE_128
+    val formatId = barcodeFormatId(item.format)
     val (barcodeWidth, barcodeHeight) = barcodeRenderSize(formatId, style, density)
     return resultImageRowSize(item, style, barcodeWidth, barcodeHeight, width, density, fontScale)
 }
@@ -56,7 +107,7 @@ private fun resultImageRowSize(
     fontScale: Float,
 ): ResultImageRowSize {
     val safeWidth = width.coerceAtLeast(1)
-    val code128 = item.format == "Code 128-B"
+    val code128 = isCode128ResultFormat(item)
     val barHeight = if (code128) (style.barHeight.coerceIn(30, 80) * density).roundToInt()
         else (barcodeHeight.toFloat() * safeWidth / barcodeWidth.coerceAtLeast(1)).roundToInt()
     val label = resultLabelLayout(
@@ -82,27 +133,24 @@ internal fun composeResultRowImage(
 ): Bitmap {
     // 屏幕预览可直接保留非 Code 128 原始条码像素，避免先放大整行再长期驻留；导出不传此限制。
     val outputWidth = rasterWidthLimit
-        ?.takeIf { item.format != "Code 128-B" }
+        ?.takeIf { !isCode128ResultFormat(item) }
         ?.let { minOf(width.coerceAtLeast(1), it.coerceAtLeast(1)) }
         ?: width
-    val size = resultImageRowSize(item, style, barcode.width, barcode.height, outputWidth, density, fontScale)
-    val safeWidth = size.width
-    val barWidth = if (item.format == "Code 128-B") (style.barWidth.coerceIn(120f, 300f) * density).roundToInt().coerceAtMost(safeWidth)
-        else safeWidth
-    val label = resultLabelLayout(item, style, dark, safeWidth, density, fontScale)
-    val labelPadding = (4 * density).roundToInt()
-    val barHeight = if (item.format == "Code 128-B") (style.barHeight.coerceIn(30, 80) * density).roundToInt()
-        else (barcode.height.toFloat() * safeWidth / barcode.width.coerceAtLeast(1)).roundToInt()
+    val layout = resultImageRowLayout(barcode, item, style, dark, outputWidth, density, fontScale)
     // 结果行背景始终不透明；预览和导出都保留主题色精度，屏幕预览另以原始条码宽度控制内存。
-    val result = createBitmap(safeWidth, size.height.coerceAtLeast(1), bitmapConfig)
+    val result = createBitmap(layout.width, layout.height.coerceAtLeast(1), bitmapConfig)
     try {
         val canvas = Canvas(result)
         canvas.drawColor(resultPageBackground(dark))
-        val left = (safeWidth - barWidth) / 2
-        canvas.drawBitmap(barcode, null, Rect(left, 0, left + barWidth, barHeight),
+        canvas.drawBitmap(barcode, null, Rect(
+            layout.barcodeLeft,
+            layout.barcodeTop,
+            layout.barcodeLeft + layout.barcodeWidth,
+            layout.barcodeTop + layout.barcodeHeight,
+        ),
             Paint().apply { isFilterBitmap = false })
-        if (label != null) {
-            canvas.withTranslation(y = (barHeight + labelPadding).toFloat()) { label.draw(this) }
+        if (layout.label != null && layout.labelTop != null) {
+            canvas.withTranslation(y = layout.labelTop.toFloat()) { layout.label.draw(this) }
         }
         return result
     } catch (error: Throwable) {
@@ -119,7 +167,7 @@ private fun resultLabelLayout(
     density: Float,
     fontScale: Float,
 ): StaticLayout? {
-    if (item.format != "Code 128-B") return null
+    if (!isCode128ResultFormat(item)) return null
     val labelText = resultImageLabel(item)
     return StaticLayout.Builder.obtain(
         labelText,

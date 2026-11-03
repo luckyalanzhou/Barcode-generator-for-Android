@@ -88,6 +88,41 @@ class BatchBarcodeTextParserTest {
         )
     }
 
+    @Test
+    fun previewShowsAddedAndResultingCountsWithoutChangingTheDraft() {
+        val current = listOf("EXISTING", "")
+
+        assertEquals(
+            BatchBarcodePastePreview.Ready(addedCount = 2, totalCount = 3),
+            BatchBarcodeTextParser.preview(current, "ONE\n\nTWO"),
+        )
+        assertEquals(listOf("EXISTING", ""), current)
+    }
+
+    @Test
+    fun previewReportsMalformedSourceLineBeforeAppendingAnything() {
+        assertEquals(
+            BatchBarcodePastePreview.Invalid(
+                line = 2,
+                reason = "每行只能有一个条码值；含逗号或双引号的值请用双引号括起",
+            ),
+            BatchBarcodeTextParser.preview(listOf("EXISTING"), "ONE\nTWO,THREE"),
+        )
+    }
+
+    @Test
+    fun previewReportsRemainingCapacityConflictWithoutPartialRows() {
+        assertEquals(
+            BatchBarcodePastePreview.Invalid(line = null, reason = "最多保留 3 行；本次导入会超出上限"),
+            BatchBarcodeTextParser.preview(listOf("ONE", "TWO"), "THREE\nFOUR", maxRows = 3),
+        )
+    }
+
+    @Test
+    fun previewKeepsEmptyInputNeutral() {
+        assertEquals(BatchBarcodePastePreview.Empty, BatchBarcodeTextParser.preview(listOf(""), "\uFEFF \n"))
+    }
+
     private class CountingCharSequence(
         private val pattern: String,
         repetitions: Int,

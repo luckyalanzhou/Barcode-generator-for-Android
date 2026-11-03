@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 import android.content.Context
 import androidx.room.Dao
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -31,7 +32,8 @@ data class CodeItemEntity(
     val createdAt: Long,
     val favorite: Boolean,
     val folder: String,
-    val inHistory: Boolean
+    val inHistory: Boolean,
+    @ColumnInfo(defaultValue = "''") val historyBatchId: String = "",
 )
 
 @Entity(
@@ -92,7 +94,7 @@ interface BarcodeDao {
     @Query("SELECT DISTINCT itemId FROM favorite_group_items") suspend fun loadLinkedItemIds(): List<Long>
     @Query("SELECT * FROM code_items WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500") suspend fun loadStartupItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE id IN (:ids)") suspend fun loadItemsByIds(ids: List<Long>): List<CodeItemEntity>
-    @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' AND (:cursorCreatedAt IS NULL OR ci.createdAt < :cursorCreatedAt OR (ci.createdAt = :cursorCreatedAt AND ci.id < :cursorId)) ORDER BY ci.createdAt DESC, ci.id DESC LIMIT :limit") suspend fun searchFavoriteItems(query: String, limit: Int, cursorCreatedAt: Long?, cursorId: Long?): List<CodeItemEntity>
+    @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' ESCAPE '\\' AND (:cursorCreatedAt IS NULL OR ci.createdAt < :cursorCreatedAt OR (ci.createdAt = :cursorCreatedAt AND ci.id < :cursorId)) ORDER BY ci.createdAt DESC, ci.id DESC LIMIT :limit") suspend fun searchFavoriteItems(query: String, limit: Int, cursorCreatedAt: Long?, cursorId: Long?): List<CodeItemEntity>
     // 不要对被 `favorite_group_items` 引用的记录使用 REPLACE：SQLite 会先删除再插入，导致收藏关联被级联删除。
     @Update(onConflict = OnConflictStrategy.IGNORE) suspend fun updateItems(items: List<CodeItemEntity>): Int
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertItemsIfMissing(items: List<CodeItemEntity>)
@@ -120,7 +122,7 @@ interface BarcodeDao {
     suspend fun loadGroupsPage(limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     @Query("SELECT * FROM favorite_groups WHERE id IN (:ids) ORDER BY savedAt DESC, id DESC") suspend fun loadGroupsByIds(ids: List<Long>): List<FavoriteGroupEntity>
     @Query("SELECT * FROM favorite_groups WHERE id = :id LIMIT 1") suspend fun loadGroupById(id: Long): FavoriteGroupEntity?
-    @Query("SELECT DISTINCT fg.* FROM favorite_groups AS fg LEFT JOIN favorite_group_items AS links ON links.groupId = fg.id LEFT JOIN code_items AS items ON items.id = links.itemId WHERE (lower(fg.name) LIKE '%' || lower(:query) || '%' OR lower(fg.folder) LIKE '%' || lower(:query) || '%' OR lower(items.text) LIKE '%' || lower(:query) || '%') AND (:cursorSavedAt IS NULL OR fg.savedAt < :cursorSavedAt OR (fg.savedAt = :cursorSavedAt AND fg.id < :cursorId)) ORDER BY fg.savedAt DESC, fg.id DESC LIMIT :limit") suspend fun searchFavoriteGroups(query: String, limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
+    @Query("SELECT DISTINCT fg.* FROM favorite_groups AS fg LEFT JOIN favorite_group_items AS links ON links.groupId = fg.id LEFT JOIN code_items AS items ON items.id = links.itemId WHERE (lower(fg.name) LIKE '%' || lower(:query) || '%' ESCAPE '\\' OR lower(fg.folder) LIKE '%' || lower(:query) || '%' ESCAPE '\\' OR lower(items.text) LIKE '%' || lower(:query) || '%' ESCAPE '\\') AND (:cursorSavedAt IS NULL OR fg.savedAt < :cursorSavedAt OR (fg.savedAt = :cursorSavedAt AND fg.id < :cursorId)) ORDER BY fg.savedAt DESC, fg.id DESC LIMIT :limit") suspend fun searchFavoriteGroups(query: String, limit: Int, cursorSavedAt: Long?, cursorId: Long?): List<FavoriteGroupEntity>
     // 收藏分组同样是 `favorite_group_items` 的外键父项；应原位更新。
     @Update(onConflict = OnConflictStrategy.IGNORE) suspend fun updateGroups(groups: List<FavoriteGroupEntity>): Int
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertGroupsIfMissing(groups: List<FavoriteGroupEntity>)
@@ -157,7 +159,7 @@ interface BarcodeDao {
 
 @Database(
     entities = [CodeItemEntity::class, FavoriteGroupEntity::class, FavoriteGroupItemEntity::class, FavoriteFolderEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class BarcodeDatabase : RoomDatabase() {
@@ -168,7 +170,7 @@ abstract class BarcodeDatabase : RoomDatabase() {
             context.applicationContext,
             BarcodeDatabase::class.java,
             "barcode_generator.db"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
 
         internal val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -285,6 +287,13 @@ abstract class BarcodeDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE favorite_group_items_new RENAME TO favorite_group_items")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_favorite_group_items_groupId_position ON favorite_group_items(groupId, position)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_group_items_itemId ON favorite_group_items(itemId)")
+            }
+        }
+
+        /** 新字段为空时表示旧版记录，避免升级时猜测并改变已有历史分组。 */
+        internal val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE code_items ADD COLUMN historyBatchId TEXT NOT NULL DEFAULT ''")
             }
         }
     }

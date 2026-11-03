@@ -29,11 +29,13 @@ internal class FavoritesQueryCoordinator(
     private var regularGeneration = 0L
     private val searchMutex = Mutex()
     private var activeSearch = ""
+    private var searchInitialized = false
     private var searchGroupCursor: FavoriteSearchGroupCursor? = null
     private var searchItemCursor: FavoriteSearchItemCursor? = null
     private var searchGroupsHasMore = false
     private var searchItemsHasMore = false
 
+    /** 重置普通分页游标，并按当前关键词重新加载搜索投影。 */
     suspend fun resetPaging(initialCursor: FavoriteGroupPageCursor?, initialHasMore: Boolean) {
         synchronized(regularStateLock) {
             cursor = initialCursor
@@ -42,12 +44,17 @@ internal class FavoritesQueryCoordinator(
             regularGeneration++
         }
         searchMutex.withLock {
-            activeSearch = ""
+            val query = activeSearch
+            searchInitialized = false
             searchGroupCursor = null
             searchItemCursor = null
-            searchGroupsHasMore = false
-            searchItemsHasMore = false
+            searchGroupsHasMore = query.isNotBlank()
+            searchItemsHasMore = query.isNotBlank()
             clearSearchStore()
+            if (query.isNotBlank()) {
+                loadSearchPage(query)
+                searchInitialized = true
+            }
         }
     }
 
@@ -77,10 +84,12 @@ internal class FavoritesQueryCoordinator(
 
             searchGroupCursor = null
             searchItemCursor = null
+            searchInitialized = false
             searchGroupsHasMore = true
             searchItemsHasMore = true
             clearSearchStore()
             loadSearchPage(query)
+            searchInitialized = true
             true
         }
     }
@@ -89,6 +98,7 @@ internal class FavoritesQueryCoordinator(
         if (query.isBlank()) {
             searchMutex.withLock {
                 activeSearch = ""
+                searchInitialized = false
                 searchGroupCursor = null
                 searchItemCursor = null
                 searchGroupsHasMore = false
@@ -101,13 +111,16 @@ internal class FavoritesQueryCoordinator(
         searchMutex.withLock {
             if (activeSearch != query) {
                 activeSearch = query
+                searchInitialized = false
                 searchGroupCursor = null
                 searchItemCursor = null
                 searchGroupsHasMore = true
                 searchItemsHasMore = true
                 clearSearchStore()
             }
+            if (searchInitialized) return@withLock
             loadSearchPage(query)
+            searchInitialized = true
         }
     }
 
@@ -142,7 +155,7 @@ internal class FavoritesQueryCoordinator(
 
     private suspend fun loadMoreSearch(query: String): Boolean {
         return searchMutex.withLock {
-            if (query != activeSearch || (!searchGroupsHasMore && !searchItemsHasMore)) return@withLock false
+            if (query != activeSearch || !searchInitialized || (!searchGroupsHasMore && !searchItemsHasMore)) return@withLock false
             loadSearchPage(query)
         }
     }

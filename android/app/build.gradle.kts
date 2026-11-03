@@ -18,6 +18,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -71,6 +72,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["appLabel"] = "@string/app_name_debug"
+        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
@@ -82,6 +86,9 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -90,6 +97,25 @@ android {
 }
 
 androidComponents {
+    onVariants { variant ->
+        val apkName = when (variant.name) {
+            "officialRelease" -> "BarcodeGenerator-Official.apk"
+            "betaRelease" -> "BarcodeGenerator-Beta.apk"
+            "betaDebug" -> "BarcodeGenerator-Debug.apk"
+            else -> null
+        }
+        if (apkName != null) {
+            variant.outputs.forEach { output ->
+                output.outputFileName.set(apkName)
+            }
+        }
+
+        if (variant.name == "betaDebug") {
+            // betaDebug 独立于 beta Release 安装，方便同时保留 Beta 与 Debug 应用。
+            variant.applicationId.set("com.luckyalanzhou.barcodegenerator.debug")
+        }
+    }
+
     beforeVariants { variantBuilder ->
         if (variantBuilder.buildType == "debug" && !enableAppUnitTests) {
             // 默认不生成 officialDebug/betaDebug；显式开启应用单测时才创建测试所需的 debug 变体。
@@ -113,7 +139,13 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     "debugImplementation"(libs.compose.ui.test.manifest)
+    "debugImplementation"(libs.compose.ui.tooling)
+    "debugImplementation"(libs.compose.ui.tooling.preview)
     testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.compose.preview.scanner.support)
+    testImplementation(libs.compose.preview.scanner.android)
     implementation(libs.zxing.core)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
@@ -122,4 +154,19 @@ dependencies {
     implementation(libs.activity.ktx)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+}
+
+@OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+roborazzi {
+    // 保留截图基准和差异图在本机专用目录，避免把本机截图推到远端。
+    outputDir.set(rootProject.file("../.local-validation/ui-previews/roborazzi"))
+    compare {
+        outputDir.set(rootProject.file("../.local-validation/ui-previews/compare"))
+    }
+    generateComposePreviewRobolectricTests {
+        enable = true
+        packages = listOf("com.luckyalanzhou.barcodegenerator.ui.preview")
+        robolectricConfig = mapOf("sdk" to "[35]")
+        includePrivatePreviews = true
+    }
 }

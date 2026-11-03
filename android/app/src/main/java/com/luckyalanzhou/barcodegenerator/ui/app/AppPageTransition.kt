@@ -21,23 +21,22 @@ internal enum class AppPageHostKind {
     ANIMATED,
 }
 
-internal fun appPageHostKind(targetRoute: AppRoute, tabChangeFromSwipe: Boolean): AppPageHostKind =
-    if (tabChangeFromSwipe && targetRoute.mainTabIndex != null) {
+internal fun appPageHostKind(targetRoute: AppRoute): AppPageHostKind =
+    if (targetRoute.mainTabIndex != null) {
         AppPageHostKind.DIRECT
     } else {
         AppPageHostKind.ANIMATED
     }
 
-/** 拖动 Tab 时直接替换页面组合；点按与二级导航仍由 AnimatedContent 执行动画。 */
+/** 主 Tab 直接替换页面组合，避免切换时同时测量和绘制两张完整页面。 */
 @Composable
 internal fun AppPageTransitionHost(
     targetRoute: AppRoute,
     transition: Transition<AppRoute>,
-    tabChangeFromSwipe: Boolean,
     transitionSpec: AnimatedContentTransitionScope<AppRoute>.() -> ContentTransform,
     content: @Composable (AppRoute) -> Unit,
 ) {
-    if (appPageHostKind(targetRoute, tabChangeFromSwipe) == AppPageHostKind.DIRECT) {
+    if (appPageHostKind(targetRoute) == AppPageHostKind.DIRECT) {
         Box(Modifier.fillMaxSize()) {
             key(targetRoute.pageName) { content(targetRoute) }
         }

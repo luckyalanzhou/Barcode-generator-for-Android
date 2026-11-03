@@ -25,6 +25,42 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class)
 class BarcodePreviewTransparencyTest {
     @Test
+    fun shortCode128KeepsTenModuleQuietZonesAtHighDensity() {
+        val renderer = ZxingBarcodeImageRenderer(InMemoryBarcodeImageCache(), AppLogger { _, _, _ -> })
+        val bitmaps = listOf(
+            requireNotNull(renderer.create("A", BarcodeFormatIds.CODE_128, StyleSettings(), false, 3f, false)),
+            requireNotNull(renderer.loadOrCreate(CodeItem(1, "A", "Code 128-B"), StyleSettings(), false, 3f)),
+        )
+        bitmaps.forEach { bitmap ->
+            try {
+                val foreground = BarcodeImageColors.foreground(false)
+                val y = bitmap.height / 2
+                val firstBar = (0 until bitmap.width).first { bitmap.getPixel(it, y) == foreground }
+                val lastBar = (bitmap.width - 1 downTo 0).first { bitmap.getPixel(it, y) == foreground }
+                var moduleWidth = 0
+                var runStart = firstBar
+                var runColor = bitmap.getPixel(firstBar, y)
+                for (x in firstBar + 1..lastBar) {
+                    val color = bitmap.getPixel(x, y)
+                    if (color != runColor) {
+                        moduleWidth = gcd(moduleWidth, x - runStart)
+                        runStart = x
+                        runColor = color
+                    }
+                }
+                moduleWidth = gcd(moduleWidth, lastBar + 1 - runStart)
+                val quietLeft = firstBar
+                val quietRight = bitmap.width - lastBar - 1
+
+                assertTrue("左右静区均需至少 10 个窄模块：x=$moduleWidth, 左=$quietLeft, 右=$quietRight",
+                    quietLeft >= moduleWidth * 10 && quietRight >= moduleWidth * 10)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+    }
+
+    @Test
     fun renderedPreviewDecodesWithStandardDarkBarsInLightAndDarkThemes() {
         listOf(false, true).forEach { dark ->
             val text = "SCAN-2400-TEST"
@@ -132,4 +168,7 @@ class BarcodePreviewTransparencyTest {
             images[key] = bitmap
         }
     }
+
+    private fun gcd(left: Int, right: Int): Int =
+        if (right == 0) left else gcd(right, left % right)
 }

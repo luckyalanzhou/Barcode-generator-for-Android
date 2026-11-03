@@ -237,7 +237,11 @@ class FavoritesViewModel @Inject constructor(
     }
 
     suspend fun inspectFavoriteImport(backup: InterchangeBackup): FavoritesImportConflictSummary =
-        barcodeDataCoordinator.inspectFavoriteImport(backup)
+        persistence.withLibraryMutation {
+            // 冲突确认必须基于已完成的收藏写入状态，避免弹窗漏报正在提交的同名文件。
+            persistence.awaitPendingWrites()
+            barcodeDataCoordinator.inspectFavoriteImport(backup)
+        }
 
     /** 按冲突策略导入收藏备份，随后通过分页快照重载数据，避免界面保留旧数据。 */
     suspend fun importFavorites(
@@ -351,8 +355,8 @@ class FavoritesViewModel @Inject constructor(
     internal fun isFavoriteGroupCurrent(groupId: Long, savedAt: Long, mutationGeneration: Long): Boolean =
         querySession.isGroupCurrent(groupId, savedAt, mutationGeneration)
 
-    private fun publishAfterMutation() {
-        querySession.onLibraryMutation()
+    private suspend fun publishAfterMutation() {
+        querySession.onLibraryMutationFromUi()
         if (query.value.isNotBlank()) {
             searchJob?.cancel()
             searchJob = viewModelScope.launch {

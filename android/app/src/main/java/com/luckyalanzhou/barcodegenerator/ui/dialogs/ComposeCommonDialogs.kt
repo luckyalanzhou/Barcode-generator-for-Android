@@ -102,14 +102,17 @@ internal fun DialogAction(
     modifier: Modifier = Modifier,
     primary: Boolean = false,
     destructive: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val colors = LocalAppColorScheme.current
     val foreground = when {
+        !enabled -> colors.text.disabled
         primary -> colors.text.onAccent
         destructive -> colors.text.destructive
         else -> colors.text.primary
     }
-    val background = if (primary) colors.controls.primaryAction else colors.controls.button
+    val background = if (!enabled) colors.controls.disabledContainer
+        else if (primary) colors.controls.primaryAction else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
@@ -117,7 +120,7 @@ internal fun DialogAction(
             .iosPressFeedback(interactionSource)
             .resultActionEdgeChrome(RoundedCornerShape(12.dp))
             .background(background, RoundedCornerShape(12.dp))
-            .clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {

@@ -20,8 +20,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.collect
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -48,6 +52,8 @@ class ResultsViewModelCommitCancellationTest {
         val imagePrepared = CompletableDeferred<Unit>()
         val insertStarted = CompletableDeferred<Unit>()
         val persistedItems = CompletableDeferred<List<CodeItem>>()
+        val generatedSnapshotPublishThread = AtomicReference<Thread?>()
+        val resultNavigationThread = AtomicReference<Thread?>()
         val repository = Proxy.newProxyInstance(
             BarcodeRepository::class.java.classLoader,
             arrayOf(BarcodeRepository::class.java),
@@ -74,6 +80,13 @@ class ResultsViewModelCommitCancellationTest {
         val dataSession = LibraryDataSession().apply {
             store.replace(listOf(oldItem), emptyList(), emptyList())
             publishDataState(isReady = true)
+        }
+        val snapshotObserver = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined).launch {
+            dataSession.dataState.collect { state ->
+                if (state.items.any { it.text == "generated" }) {
+                    generatedSnapshotPublishThread.set(Thread.currentThread())
+                }
+            }
         }
         val viewModel = ResultsViewModel(
             imageRenderer = object : BarcodeImageRenderer {
@@ -104,7 +117,7 @@ class ResultsViewModelCommitCancellationTest {
                 dark = false,
                 density = 1f,
                 onNotice = { error("Unexpected result preparation failure: $it") },
-                onNavigateToResults = {},
+                onNavigateToResults = { resultNavigationThread.set(Thread.currentThread()) },
             )
             pumpMainUntil("generated result image preparation") { imagePrepared.isCompleted }
             pumpMainFor(250)
@@ -124,6 +137,11 @@ class ResultsViewModelCommitCancellationTest {
         assertTrue("the imported favorite flag must survive generated-item commit", imported.favorite)
         assertEquals("导入目录", imported.folder)
         assertTrue(saved.any { it.text == "generated" })
+        assertTrue(
+            "copying and publishing the generated library snapshot must stay off the UI thread",
+            generatedSnapshotPublishThread.get() !== resultNavigationThread.get(),
+        )
+        snapshotObserver.cancel()
         persistence.awaitPendingWrites()
     }
 
@@ -218,6 +236,71 @@ class ResultsViewModelCommitCancellationTest {
         preview.join()
 
         assertTrue("a bitmap rejected by lifecycle cancellation must be recycled", requireNotNull(renderedBitmap.get()).isRecycled)
+    }
+
+    @Test
+    fun latestHistoryBatchSelectionWinsWhileImagesArePreparing() {
+        val firstRenderStarted = CountDownLatch(1)
+        val releaseFirstRender = CountDownLatch(1)
+        val repository = Proxy.newProxyInstance(
+            BarcodeRepository::class.java.classLoader,
+            arrayOf(BarcodeRepository::class.java),
+        ) { _, method, _ -> error("Unexpected repository operation: ${method.name}") } as BarcodeRepository
+        val viewModel = ResultsViewModel(
+            imageRenderer = object : BarcodeImageRenderer {
+                override fun loadOrCreate(item: CodeItem, style: StyleSettings, dark: Boolean, density: Float): Bitmap? {
+                    if (item.text == "first") {
+                        firstRenderStarted.countDown()
+                        check(releaseFirstRender.await(5, TimeUnit.SECONDS))
+                    }
+                    return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+                }
+
+                override fun create(
+                    text: String,
+                    formatId: String,
+                    style: StyleSettings,
+                    dark: Boolean,
+                    density: Float,
+                    withBackground: Boolean,
+                ) = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            },
+            dataSession = LibraryDataSession(),
+            persistence = BarcodePersistenceCoordinator(repository, object : BarcodeDataMigration {
+                override suspend fun migrateIfNeeded() = Unit
+            }),
+            appLogger = AppLogger { _, _, _ -> },
+            generateEditor = GenerateEditorStateHolder(),
+            barcodeRepository = repository,
+            savedState = SavedStateHandle(),
+        )
+        var navigatedBatch: String? = null
+        val style = StyleSettings()
+
+        viewModel.showHistoryResult(
+            batch = listOf(CodeItem(1L, "first", "QR_CODE")),
+            style = style,
+            dark = false,
+            density = 1f,
+            onNotice = { error("Unexpected preparation failure: $it") },
+            onNavigateToResults = { navigatedBatch = viewModel.resultUiState.value.items.single().text },
+        )
+        assertTrue("first history batch should begin preparing", firstRenderStarted.await(5, TimeUnit.SECONDS))
+
+        viewModel.showHistoryResult(
+            batch = listOf(CodeItem(2L, "second", "QR_CODE")),
+            style = style,
+            dark = false,
+            density = 1f,
+            onNotice = { error("Unexpected preparation failure: $it") },
+            onNavigateToResults = { navigatedBatch = viewModel.resultUiState.value.items.single().text },
+        )
+        releaseFirstRender.countDown()
+
+        pumpMainUntil("latest selected history batch opens") { navigatedBatch != null }
+
+        assertEquals("second", navigatedBatch)
+        assertEquals(listOf("second"), viewModel.resultUiState.value.items.map { it.text })
     }
 
     @Test

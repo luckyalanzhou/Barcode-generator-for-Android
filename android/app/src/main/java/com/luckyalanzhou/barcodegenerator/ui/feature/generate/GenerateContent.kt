@@ -9,6 +9,8 @@ import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.CircularProgressIndicator
@@ -102,6 +104,7 @@ internal fun GenerateContent(
     var clearDialog by remember { mutableStateOf(false) }
     var batchPasteDialog by remember { mutableStateOf(false) }
     var batchPasteText by remember { mutableStateOf("") }
+    var batchPastePreview by remember { mutableStateOf<BatchBarcodePastePreview>(BatchBarcodePastePreview.Empty) }
     var formatButtonWidth by remember { mutableIntStateOf(0) }
     var formatButtonHeight by remember { mutableIntStateOf(0) }
     val formatInteractions = remember { MutableInteractionSource() }
@@ -128,6 +131,19 @@ internal fun GenerateContent(
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
+                val previewText = when (val preview = batchPastePreview) {
+                    BatchBarcodePastePreview.Empty -> "空行会自动跳过；确认后才会加入输入列表。"
+                    is BatchBarcodePastePreview.Ready -> "将添加 ${preview.addedCount} 条；添加后共 ${preview.totalCount} 条。"
+                    is BatchBarcodePastePreview.Invalid -> preview.line?.let { "第 $it 行：${preview.reason}" } ?: preview.reason
+                }
+                Text(
+                    previewText,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    color = if (batchPastePreview is BatchBarcodePastePreview.Invalid) themeColors.text.destructive else secondary,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -140,7 +156,10 @@ internal fun GenerateContent(
                 ) {
                     BasicTextField(
                         value = batchPasteText,
-                        onValueChange = { batchPasteText = it },
+                        onValueChange = {
+                            batchPasteText = it
+                            batchPastePreview = BatchBarcodeTextParser.preview(values.toList(), it)
+                        },
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                             .semantics { contentDescription = "多行条码内容" },
                         textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp),
@@ -177,6 +196,7 @@ internal fun GenerateContent(
                                         focusedIndex = values.lastIndex
                                         syncDraft()
                                         batchPasteText = ""
+                                        batchPastePreview = BatchBarcodePastePreview.Empty
                                         batchPasteDialog = false
                                     }
                                 }
@@ -184,6 +204,7 @@ internal fun GenerateContent(
                         },
                         modifier = Modifier.padding(start = 10.dp),
                         primary = true,
+                        enabled = batchPastePreview is BatchBarcodePastePreview.Ready,
                     )
                 }
             }
@@ -325,6 +346,7 @@ internal fun GenerateContent(
                 modifier = Modifier.weight(1f),
                 onClick = {
                     batchPasteText = ""
+                    batchPastePreview = BatchBarcodePastePreview.Empty
                     batchPasteDialog = true
                 },
             )

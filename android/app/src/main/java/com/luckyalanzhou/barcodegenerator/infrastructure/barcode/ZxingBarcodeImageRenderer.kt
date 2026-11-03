@@ -46,6 +46,7 @@ class ZxingBarcodeImageRenderer(
                 addQuietZone(
                     trim(encoded, foreground),
                     if (dark) BarcodeImageColors.background(dark) else Color.TRANSPARENT,
+                    foreground,
                 )
             } else encoded
             imageCache.writeImage(key, image)
@@ -76,6 +77,7 @@ class ZxingBarcodeImageRenderer(
             addQuietZone(
                 trim(encoded, foreground),
                 if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT,
+                foreground,
             )
         } else encoded
     }
@@ -137,23 +139,15 @@ class ZxingBarcodeImageRenderer(
         }
     }
 
-    private fun addQuietZone(source: Bitmap, backgroundColor: Int): Bitmap {
-        val quiet = maxOf(8, source.height / 4)
+    private fun addQuietZone(source: Bitmap, backgroundColor: Int, foregroundColor: Int): Bitmap {
+        // Code 128 静区按窄模块宽度计算，避免短码或高密度下固定条高留白不足。
+        val quiet = maxOf(8, narrowestModuleWidth(source, foregroundColor) * 10)
         val paddedWidth = source.width + quiet * 2
+        // 直接把条码行写入带静区的目标数组，避免同时保留源图和目标图两份整图像素数组。
         val pixels = IntArray(paddedWidth * source.height) { backgroundColor }
-        val sourcePixels = IntArray(source.width * source.height)
         var result: Bitmap? = null
         try {
-            source.getPixels(sourcePixels, 0, source.width, 0, 0, source.width, source.height)
-            for (row in 0 until source.height) {
-                System.arraycopy(
-                    sourcePixels,
-                    row * source.width,
-                    pixels,
-                    row * paddedWidth + quiet,
-                    source.width,
-                )
-            }
+            source.getPixels(pixels, quiet, paddedWidth, 0, 0, source.width, source.height)
             val padded = createBitmap(paddedWidth, source.height, Bitmap.Config.ARGB_8888)
             result = padded
             padded.setPixels(pixels, 0, paddedWidth, 0, 0, paddedWidth, source.height)
@@ -165,6 +159,27 @@ class ZxingBarcodeImageRenderer(
             if (!source.isRecycled) source.recycle()
         }
     }
+
+    private fun narrowestModuleWidth(source: Bitmap, foregroundColor: Int): Int {
+        val y = source.height / 2
+        var moduleWidth = 0
+        var runStart = 0
+        var runColor = source.getPixel(0, y)
+        for (x in 1 until source.width) {
+            val color = source.getPixel(x, y)
+            if (color != runColor) {
+                moduleWidth = greatestCommonDivisor(moduleWidth, x - runStart)
+                runStart = x
+                runColor = color
+            }
+        }
+        moduleWidth = greatestCommonDivisor(moduleWidth, source.width - runStart)
+        check(source.getPixel(0, y) == foregroundColor && source.getPixel(source.width - 1, y) == foregroundColor)
+        return moduleWidth.coerceAtLeast(1)
+    }
+
+    private tailrec fun greatestCommonDivisor(left: Int, right: Int): Int =
+        if (right == 0) left else greatestCommonDivisor(right, left % right)
 
     private fun zxingFormat(id: String): BarcodeFormat? = when (id) {
         BarcodeFormatIds.CODE_128 -> BarcodeFormat.CODE_128

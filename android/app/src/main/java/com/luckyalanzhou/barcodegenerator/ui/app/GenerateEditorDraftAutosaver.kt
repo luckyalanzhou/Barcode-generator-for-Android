@@ -57,17 +57,22 @@ internal class GenerateEditorDraftAutosaver(
                 }
                 val draft = payload.payload
                 val snapshot = withContext(ioDispatcher) {
-                    val encodedBytes = draft.inputs.sumOf { it.toByteArray(Charsets.UTF_8).size.toLong() + 8L } +
-                        draft.formatName.toByteArray(Charsets.UTF_8).size
-                    if (draft.inputs.size > GenerateEditorDraftStore.MAX_SAVED_ROWS ||
-                        encodedBytes <= GenerateEditorInstanceState.MAX_SAVED_DRAFT_BYTES ||
-                        encodedBytes > GenerateEditorDraftStore.MAX_DRAFT_FILE_BYTES
-                    ) {
+                    if (draft.inputs.size > GenerateEditorDraftStore.MAX_SAVED_ROWS) {
                         null
                     } else {
-                        val state = GenerateEditorState(draft.inputs, formatName = draft.formatName)
-                        if (GenerateEditorDraftStore(noBackupFilesDir, draftId).save(state)) {
-                            GenerateEditorDraftSnapshot(draftId, draft.inputs, draft.formatName, encodedBytes)
+                        val encodedDraft = GenerateEditorDraftStore.encode(draft.inputs, draft.formatName)
+                        if (encodedDraft == null ||
+                            encodedDraft.estimatedBytes <= GenerateEditorInstanceState.MAX_SAVED_DRAFT_BYTES ||
+                            encodedDraft.estimatedBytes > GenerateEditorDraftStore.MAX_DRAFT_FILE_BYTES
+                        ) {
+                            null
+                        } else if (GenerateEditorDraftStore(noBackupFilesDir, draftId).save(encodedDraft)) {
+                            GenerateEditorDraftSnapshot(
+                                draftId,
+                                draft.inputs,
+                                draft.formatName,
+                                encodedDraft.estimatedBytes,
+                            )
                         } else {
                             null
                         }

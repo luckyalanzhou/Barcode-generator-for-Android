@@ -97,8 +97,9 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             AppRoute.History -> {
-                val historyState by dependencies.historyViewModel.dataState.collectAsStateWithLifecycle()
-                val refreshGeneration by dependencies.historyViewModel.refreshGeneration.collectAsStateWithLifecycle()
+                val historyViewModel = dependencies.historyViewModel()
+                val historyState by historyViewModel.dataState.collectAsStateWithLifecycle()
+                val refreshGeneration by historyViewModel.refreshGeneration.collectAsStateWithLifecycle()
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
                 HistoryScreen(
@@ -120,7 +121,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onEdit = dependencies.actions::editHistory,
                     onDelete = { batch ->
                         dependencies.actions.confirm("删除历史记录", "确定删除这条历史记录吗？", "删除") {
-                            dependencies.historyViewModel.deleteHistoryBatch(batch)
+                            historyViewModel.deleteHistoryBatch(batch)
                         }
                     },
                     onRetry = ::retryLibraryLoad,
@@ -265,7 +266,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 )
             }
             AppRoute.LanShare -> {
-                val viewModel = dependencies.lanShareViewModel
+                val viewModel = dependencies.lanShareViewModel()
                 val lanState by viewModel.uiState.collectAsStateWithLifecycle()
                 val lanContentState = remember(lanState) {
                     LanShareContentState(

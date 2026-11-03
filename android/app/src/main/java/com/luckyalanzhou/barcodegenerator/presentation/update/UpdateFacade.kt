@@ -33,8 +33,8 @@ internal class UpdateFacade(
 
     fun setStartupCheckStarted(value: Boolean) = coordinator.setStartupCheckStarted(value)
     suspend fun checkForUpdates(): UpdateCheckResult = coordinator.checkForUpdates()
-    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?) =
-        coordinator.setAvailableUpdate(version, url, expectedSize, sha256)
+    fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?, ignoreKey: String? = version) =
+        coordinator.setAvailableUpdate(version, url, expectedSize, sha256, ignoreKey)
     fun clearAvailableUpdate() = coordinator.clearAvailableUpdate()
     fun setDialogShowing(value: Boolean) = coordinator.setDialogShowing(value)
     fun setDownloadRunning(value: Boolean) = coordinator.setDownloadRunning(value)

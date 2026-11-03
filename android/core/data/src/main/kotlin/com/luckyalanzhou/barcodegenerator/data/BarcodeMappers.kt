@@ -7,10 +7,10 @@ import com.luckyalanzhou.barcodegenerator.domain.BarcodeSnapshot
 
 /** Data 层唯一的 Entity/Domain 转换边界。 */
 internal fun CodeItemEntity.toDomain(): CodeItem =
-    CodeItem(id, text, format, createdAt, favorite, folder, inHistory)
+    CodeItem(id, text, format, createdAt, favorite, folder, inHistory, historyBatchId)
 
 internal fun CodeItem.toEntity(): CodeItemEntity =
-    CodeItemEntity(id, text, format, createdAt, favorite, folder, inHistory)
+    CodeItemEntity(id, text, format, createdAt, favorite, folder, inHistory, historyBatchId)
 
 internal fun BarcodeSnapshot.toTransferEntities(): TransferEntities = TransferEntities(
     items = items.map(CodeItem::toEntity),

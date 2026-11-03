@@ -8,11 +8,13 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryLoadMetadat
 import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryStateStore
 import dagger.hilt.android.scopes.ActivityRetainedScoped
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /** 让同一组查询游标与共享的普通列表和搜索结果存储保持一致。 */
 @ActivityRetainedScoped
@@ -48,15 +50,19 @@ class FavoritesQuerySession @Inject constructor(
     }
 
     internal suspend fun search(query: String) {
-        coordinator.search(query)
-        publishSearchState()
+        withContext(Dispatchers.IO) {
+            coordinator.search(query)
+            publishSearchState()
+        }
     }
 
     internal suspend fun loadMore(query: String): Boolean {
         // 分页会向共享快照追加数据；查询和追加期间不能与导入或其他写入交错。
-        val loaded = persistence.withLibraryMutation { coordinator.loadMore(query) }
+        val loaded = persistence.withLibraryMutation {
+            withContext(Dispatchers.IO) { coordinator.loadMore(query) }
+        }
         if (loaded) {
-            if (query.isNotBlank()) publishSearchState()
+            if (query.isNotBlank()) withContext(Dispatchers.IO) { publishSearchState() }
             dataSession.publishDataState()
         }
         return loaded
@@ -70,10 +76,17 @@ class FavoritesQuerySession @Inject constructor(
         publishSearchState()
     }
 
+    /** UI 发起的变更在主线程完成协调后，再到后台复制搜索结果快照。 */
+    internal suspend fun onLibraryMutationFromUi() = withContext(Dispatchers.IO) {
+        onLibraryMutation()
+    }
+
     /** 等待排队写入完成，再从持久化数据刷新当前搜索结果视图。 */
     internal suspend fun refreshSearchAfterMutation() {
         persistence.awaitPendingWrites()
-        if (coordinator.refreshActiveSearch()) publishSearchState()
+        withContext(Dispatchers.IO) {
+            if (coordinator.refreshActiveSearch()) publishSearchState()
+        }
     }
 
     internal suspend fun loadGroupContent(groupId: Long): FavoriteGroupContentLoadResult = groupContent.load(groupId)
@@ -86,11 +99,13 @@ class FavoritesQuerySession @Inject constructor(
         groupContent.isCurrent(groupId, savedAt, mutationGeneration)
 
     internal suspend fun onLibrarySnapshotLoaded(metadata: LibraryLoadMetadata) {
-        snapshotResetMutex.withLock {
-            if (metadata.generation <= appliedSnapshotGeneration) return@withLock
-            coordinator.resetPaging(metadata.lastFavoriteGroupCursor, metadata.hasMoreFavoriteGroups)
-            appliedSnapshotGeneration = metadata.generation
-            publishSearchState()
+        withContext(Dispatchers.IO) {
+            snapshotResetMutex.withLock {
+                if (metadata.generation <= appliedSnapshotGeneration) return@withLock
+                coordinator.resetPaging(metadata.lastFavoriteGroupCursor, metadata.hasMoreFavoriteGroups)
+                appliedSnapshotGeneration = metadata.generation
+                publishSearchState()
+            }
         }
     }
 }

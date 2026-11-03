@@ -275,6 +275,21 @@ class LanShareServerOpenAccessTest {
     }
 
     @Test
+    fun stoppedServerRejectsLocalMessages() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+        )
+        server.start(5_000, false)
+        server.stop()
+
+        val failure = runCatching { server.sendLocalMessage("late message") }.exceptionOrNull()
+
+        assertTrue("停止后的服务器不应接受本地消息", failure is IllegalStateException)
+        assertEquals("停止后的服务器应忽略旧浏览器连接消息", null, server.receiveBrowserMessage("browser123", "late browser message"))
+        assertTrue("停止后的服务器不应保存或广播消息", server.messagesSnapshot().isEmpty())
+    }
+
+    @Test
     fun realtimeEventFailureDoesNotReportCommittedLocalMessageAsFailed() {
         val server = LanShareServer(
             "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },

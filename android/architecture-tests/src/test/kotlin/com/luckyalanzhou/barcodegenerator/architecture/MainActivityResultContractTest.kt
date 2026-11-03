@@ -8,6 +8,23 @@ import org.junit.Test
 /** Activity 结果和路由桥接必须保留可恢复状态，并对异常回调明确处理。 */
 class MainActivityResultContractTest {
     @Test
+    fun rationaleDialogDoesNotPersistPermissionRequestBeforeUserContinues() {
+        val activity = File("app/src/main/java/com/luckyalanzhou/barcodegenerator/MainActivity.kt").readText()
+        val request = activity
+            .substringAfter("internal fun MainActivity.requestAppPermissions(")
+            .substringBefore("private fun launchPendingPermissionRequest(")
+
+        assertTrue(
+            "权限用途说明未确认前不应创建会跨 Activity 重建保留的待处理请求",
+            request.indexOf("permissionRequiringRationale") in 0 until request.indexOf("beginPermissionRequest"),
+        )
+        assertTrue(
+            "用户继续后才开始权限请求",
+            request.contains("onContinue = { beginAndLaunchPermissionRequest(permissions, requestCode, cameraRequestCode) }"),
+        )
+    }
+
+    @Test
     fun enteringLanSharePreservesTheExistingSettingsReturnRoute() {
         val bridge = File("app/src/main/java/com/luckyalanzhou/barcodegenerator/ui/app/lanshare/LanShareActivityBridge.kt")
             .readText()
@@ -113,7 +130,13 @@ class MainActivityResultContractTest {
             .substringAfter("fun startHostSessionAsync(")
             .substringBefore("fun joinSession(")
         assertTrue(startup.contains("captureRecoverableLanShareHostStart"))
-        assertTrue(startup.contains("rollback = { lanShareGateway.stop(clearSharedFiles = true) }"))
+        assertTrue(startup.contains("rollback = rollbackStartup"))
+        assertTrue(startup.contains("scheduleGatewayStop(clearSharedFiles = clearSharedFiles)"))
+        assertTrue(startup.contains("activeHostStartupRollbackClearsFiles"))
+        val join = viewModel.substringAfter("fun joinSession(").substringBefore("fun joinSessionFromAddress(")
+        assertTrue(join.contains("clearSharedFilesOnRollback = false"))
+        val close = viewModel.substringAfter("fun closeSession(").substringBefore("fun setQrVisible(")
+        assertTrue(close.contains("clearSharedFilesOnRollback = true"))
         assertTrue(startup.contains("onFailure = { recoverableFailure = it }"))
         assertTrue(enter.contains("navigateTo(AppRoute.Settings)"))
     }
