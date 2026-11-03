@@ -168,7 +168,7 @@ class ButtonRenderingContractTest {
         assertFalse("已移除显示与动效入口", settingsContent.contains("显示与动效"))
         assertFalse("已移除显示与动效偏好绑定", settingsContent.contains("effectsSettings"))
         assertFalse(source("ComposeSettingsSlider.kt").contains("fontSize = 15.sp"))
-        val format = source("GenerateContent.kt").substringAfter("onClick = { formatExpanded = true }").substringBefore("AnchoredDropdownMenu(")
+        val format = source("GenerateContent.kt").substringAfter("interactionSource = formatInteractions,").substringBefore("AnchoredDropdownMenu(")
         assertFalse(format.contains("globalButtonChrome"))
         assertTrue(format.contains("containerColor = Color.Transparent"))
         assertTrue(format.contains("Text(formatName, color = themeColors.text.secondary"))

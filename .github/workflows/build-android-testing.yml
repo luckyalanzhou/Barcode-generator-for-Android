@@ -145,7 +145,7 @@ jobs:
           VERSION_NAME: ${{ steps.app-version.outputs.version }}
         run: |
           set -euo pipefail
-          source_apk="app/build/outputs/apk/beta/release/app-beta-release.apk"
+          source_apk="app/build/outputs/apk/beta/release/BarcodeGenerator-Beta.apk"
           target_apk="app/build/outputs/apk/beta/release/BarcodeGeneratorBeta${VERSION_NAME}.apk"
           test -f "$source_apk" || { echo "::error::Testing APK not found"; exit 1; }
           mv "$source_apk" "$target_apk"
