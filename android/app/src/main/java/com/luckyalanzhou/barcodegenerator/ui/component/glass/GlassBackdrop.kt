@@ -4,6 +4,7 @@ import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
+import android.os.Trace
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
@@ -55,6 +56,19 @@ internal class GlassBackdropSource(val layer: GraphicsLayer) {
 
 internal val LocalGlassBackdrop = staticCompositionLocalOf<GlassBackdropSource?> { null }
 
+private fun shouldTraceBackdropDraw(): Boolean =
+    BuildConfig.PERFETTO_DRAW_TRACE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && Trace.isEnabled()
+
+private inline fun <T> withBackdropTraceSection(enabled: Boolean, name: String, block: () -> T): T {
+    if (!enabled) return block()
+    Trace.beginSection(name)
+    return try {
+        block()
+    } finally {
+        Trace.endSection()
+    }
+}
+
 @Composable
 internal fun glassBackdropAvailable(policy: com.luckyalanzhou.barcodegenerator.ui.theme.VisualEffectsPolicy, renderer: BackdropRenderer?): Boolean =
     glassGpuAvailable(Build.VERSION.SDK_INT, LocalView.current.isHardwareAccelerated,
@@ -80,22 +94,33 @@ internal fun rememberGlassBackdrop(): GlassBackdropSource {
     return remember(layer) { GlassBackdropSource(layer) }
 }
 
-internal fun Modifier.recordGlassBackdrop(source: GlassBackdropSource): Modifier =
+internal fun Modifier.recordGlassBackdrop(source: GlassBackdropSource, enabled: Boolean = true): Modifier =
     onGloballyPositioned {
         source.origin = it.localToWindow(Offset.Zero)
         source.screenOrigin = it.localToScreen(Offset.Zero)
         source.ready = true
     }.drawWithContent {
+        if (!enabled) {
+            drawContent()
+            return@drawWithContent
+        }
+        val traceDraw = shouldTraceBackdropDraw()
         if (!source.recording.compareAndSet(false, true)) {
 // 当前页面嵌套在 AnimatedContent 切换过程中。
 // 直接绘制到活动中的外层记录器，避免再次调用 RenderNode.beginRecording() 导致 Android 崩溃。
-            this@drawWithContent.drawContent()
+            withBackdropTraceSection(traceDraw, "GlassBackdrop.nestedFallback") {
+                this@drawWithContent.drawContent()
+            }
             return@drawWithContent
         }
         try {
-            source.layer.record { this@drawWithContent.drawContent() }
+            withBackdropTraceSection(traceDraw, "GlassBackdrop.recordContent") {
+                source.layer.record { this@drawWithContent.drawContent() }
+            }
             if (!source.hasFrame) source.hasFrame = true
-            drawLayer(source.layer)
+            withBackdropTraceSection(traceDraw, "GlassBackdrop.replayContent") {
+                drawLayer(source.layer)
+            }
         } finally {
             source.recording.set(false)
         }
@@ -145,14 +170,19 @@ internal fun GlassBackdropSurface(
     }.graphicsLayer {
         if (Build.VERSION.SDK_INT >= 33 && gpu && renderer != null && size.width > 0 && size.height > 0) {
             val thickness = thicknessProgress().coerceIn(0f, 1f)
-            renderEffect = renderer.effect(size, density, color, opacity, cornerDp, blurDp * (.45f + .55f * thickness),
-                if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
+            val traceEffectSetup = shouldTraceBackdropDraw()
+            renderEffect = withBackdropTraceSection(traceEffectSetup, "GlassBackdrop.shaderSetup") {
+                renderer.effect(size, density, color, opacity, cornerDp, blurDp * (.45f + .55f * thickness),
+                    if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
+            }
         } else renderEffect = null
     }) {
         if (gpu && source != null) {
             drawRect(color)
             val offset = backdropSampleOffset(source.origin, source.screenOrigin, origin, screenOrigin, screenCoordinates)
-            translate(offset.x, offset.y) { drawLayer(source.layer) }
+            withBackdropTraceSection(shouldTraceBackdropDraw(), "GlassBackdrop.sampleContent") {
+                translate(offset.x, offset.y) { drawLayer(source.layer) }
+            }
         } else if (drawFallback) {
             drawRoundRect(
                 color.copy(alpha = glassFallbackOpacity(opacity, capsule != null, policy.opaqueGlass)),

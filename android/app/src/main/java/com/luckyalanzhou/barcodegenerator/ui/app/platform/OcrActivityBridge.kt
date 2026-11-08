@@ -91,6 +91,6 @@ internal fun MainActivity.pickBarcodeImage() { launchExternalActivity(Intent(Int
 internal fun MainActivity.pickTextImage() { launchExternalActivity(Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*"; addCategory(Intent.CATEGORY_OPENABLE) }, 46) }
 
 
-internal fun MainActivity.recognizeText(bitmap: Bitmap) {
-    cameraOcrViewModel.recognizeText(bitmap, settingsViewModel.getOcrMask())
+internal fun MainActivity.recognizeText(bitmap: Bitmap, expectedDraft: List<String>? = null) {
+    cameraOcrViewModel.recognizeText(bitmap, settingsViewModel.getOcrMask(), expectedDraft)
 }

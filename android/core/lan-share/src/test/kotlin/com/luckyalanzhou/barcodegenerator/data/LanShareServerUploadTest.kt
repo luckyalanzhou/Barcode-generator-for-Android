@@ -5,6 +5,7 @@ import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_SOCKET_READ_TIMEOUT_MS
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -55,6 +56,43 @@ class LanShareServerUploadTest {
             val retry = upload(server.listeningPort, server.sessionToken, byteArrayOf(2), "retry.bin", "app", false)
             assertEquals(200, retry.first)
             assertEquals(roomFileLimit, server.filesSnapshot("peer").size)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun emptyFileUploadIsCommittedAndCanBeListedAndDownloaded() {
+        val folder = temporaryFolder.newFolder()
+        val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> })
+        try {
+            server.start(5_000, false)
+
+            val response = upload(
+                server.listeningPort,
+                server.sessionToken,
+                byteArrayOf(),
+                "empty.txt",
+                "app",
+                false,
+            )
+
+            assertEquals(200, response.first)
+            val file = server.filesSnapshot("peer").single()
+            assertEquals("empty.txt", file.name)
+            assertEquals(0L, file.size)
+            assertEquals("app", file.sender)
+
+            val encodedId = URLEncoder.encode(file.id, StandardCharsets.UTF_8.name())
+            val download = URL("http://127.0.0.1:${server.listeningPort}/dl/$encodedId")
+                .openConnection() as HttpURLConnection
+            try {
+                download.setRequestProperty("Authorization", "Bearer ${server.sessionToken}")
+                assertEquals(200, download.responseCode)
+                assertArrayEquals(byteArrayOf(), download.inputStream.use { it.readBytes() })
+            } finally {
+                download.disconnect()
+            }
         } finally {
             server.stop()
         }
@@ -641,6 +679,30 @@ class LanShareServerUploadTest {
     }
 
     @Test
+    fun browserUploadWithUnderscoresInClientAndNamePreservesFileIdentity() {
+        val folder = temporaryFolder.newFolder()
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            val uploaded = upload(
+                server.listeningPort,
+                server.sessionToken,
+                byteArrayOf(1, 2, 3),
+                "IMG_2026_11_06.jpg",
+                "cclient_123",
+                chunked = false,
+            )
+
+            assertEquals(200, uploaded.first)
+            val record = server.filesSnapshot("peer").single()
+            assertEquals("IMG_2026_11_06.jpg", record.name)
+            assertEquals("browser:cclient_123", record.sender)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun uploadedSvgIsServedAsAttachmentWithNosniff() {
         val folder = temporaryFolder.newFolder()
         val payload = "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>".toByteArray(StandardCharsets.UTF_8)
@@ -832,6 +894,70 @@ class LanShareServerUploadTest {
         } finally {
             server.stop()
         }
+    }
+
+    @Test
+    fun rejectedUploadLengthMismatchDoesNotDesynchronizeKeepAliveConnection() {
+        val folder = temporaryFolder.newFolder()
+        val server = newServer(folder)
+        try {
+            server.start(5_000, false)
+            Socket("127.0.0.1", server.listeningPort).use { socket ->
+                socket.soTimeout = 5_000
+                val output = socket.getOutputStream()
+                val input = socket.getInputStream()
+                output.write(
+                    ("PUT /upload?name=bad.bin&client=cbrowser123 HTTP/1.1\r\n" +
+                        "Host: 127.0.0.1\r\n" +
+                        "Authorization: Bearer ${server.sessionToken}\r\n" +
+                        "Content-Length: 4\r\n" +
+                        "X-File-Size: 3\r\n" +
+                        "Connection: keep-alive\r\n\r\n" +
+                        "abcd").toByteArray(StandardCharsets.US_ASCII),
+                )
+                output.flush()
+                assertEquals(400, readResponse(input)?.first)
+                runCatching {
+                    output.write(
+                        ("GET /api/session HTTP/1.1\r\n" +
+                            "Host: 127.0.0.1\r\n" +
+                            "Authorization: Bearer ${server.sessionToken}\r\n" +
+                            "Connection: close\r\n\r\n").toByteArray(StandardCharsets.US_ASCII),
+                    )
+                    output.flush()
+                }
+                val nextResponse = runCatching { readResponse(input) }.getOrNull()
+                assertTrue(
+                    "a rejected upload must close the connection or preserve it for a valid next request; got $nextResponse",
+                    nextResponse == null || nextResponse.first == 200,
+                )
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    private fun readResponse(input: java.io.InputStream): Pair<Int, String>? {
+        val header = ByteArrayOutputStream()
+        var suffix = 0
+        while (suffix != 0x0d0a0d0a) {
+            val value = input.read()
+            if (value < 0) return null
+            header.write(value)
+            suffix = ((suffix shl 8) or value) and 0xffff_ffff.toInt()
+        }
+        val lines = header.toString(StandardCharsets.US_ASCII.name()).split("\r\n")
+        val status = lines.first().split(' ').getOrNull(1)?.toIntOrNull() ?: return null
+        val length = lines.drop(1).firstOrNull { it.startsWith("Content-Length:", ignoreCase = true) }
+            ?.substringAfter(':')?.trim()?.toIntOrNull() ?: 0
+        val body = ByteArray(length)
+        var read = 0
+        while (read < length) {
+            val count = input.read(body, read, length - read)
+            if (count < 0) return null
+            read += count
+        }
+        return status to String(body, StandardCharsets.UTF_8)
     }
 
     private fun newServer(

@@ -64,7 +64,14 @@ data class UpdateUiState(
     val sha256: String? = null,
     val dialogShowing: Boolean = false,
     val downloadRunning: Boolean = false,
+    val activeDownloadRequest: UpdateDownloadRequest? = null,
     val pendingInstallPath: String? = null,
+)
+
+data class UpdateDownloadRequest(
+    val apkUrl: String,
+    val expectedSize: Long?,
+    val expectedSha256: String?,
 )
 
 data class UpdateDownloadUiState(

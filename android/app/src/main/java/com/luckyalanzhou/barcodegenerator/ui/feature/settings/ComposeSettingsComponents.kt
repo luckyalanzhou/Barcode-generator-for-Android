@@ -30,7 +30,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Icon
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import com.luckyalanzhou.barcodegenerator.icons.UnfoldMoreIcon
+import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
@@ -58,6 +60,32 @@ internal fun rememberSettingsColors(): AppColorScheme = LocalAppColorScheme.curr
 @Composable
 internal fun SettingsCard(color: Color, dark: Boolean, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth().groupedContentSurface(dark, color, RoundedCornerShape(16.dp)).padding(horizontal = SettingsCardHorizontalPadding, vertical = 2.dp), content = content)
+}
+
+/** 分组标题位于卡片外，卡片只承载同一用途的设置或动作。 */
+@Composable
+internal fun SettingsSection(title: String, dark: Boolean, content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalAppColorScheme.current
+    Column {
+        Text(title, color = colors.settingsText.secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(start = SettingsCardHorizontalPadding, top = 8.dp, bottom = 6.dp)
+                .semantics { heading() })
+        SettingsCard(colors.surfaces.card, dark, content)
+    }
+}
+
+/** 页面入口整行可点；右箭头表示进入页面，不表示立即执行操作。 */
+@Composable
+internal fun SettingsNavigationRow(title: String, onClick: () -> Unit) {
+    val colors = LocalAppColorScheme.current
+    val interactions = remember { MutableInteractionSource() }
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).iosPressFeedback(interactions)
+        .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = colors.settingsText.primary, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Icon(KeyboardArrowRightIcon, contentDescription = null, tint = colors.settingsText.secondary,
+            modifier = Modifier.padding(start = 12.dp).size(20.dp))
+    }
 }
 
 @Composable
@@ -104,7 +132,7 @@ internal fun SettingsButton(text: String, color: Color, contentColor: Color, onC
         }
         Text(text, color = contentColor, fontSize = 16.sp, maxLines = 1,
             style = settingsButtonTextStyle(LocalTextStyle.current))
-        if (showDisclosure) Icon(KeyboardArrowDownIcon, contentDescription = null,
+        if (showDisclosure) Icon(UnfoldMoreIcon, contentDescription = null,
             tint = LocalAppColorScheme.current.settingsText.secondary,
             modifier = Modifier.padding(start = 6.dp).size(16.dp))
     }

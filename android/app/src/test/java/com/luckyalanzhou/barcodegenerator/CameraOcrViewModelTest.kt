@@ -10,6 +10,11 @@ import com.luckyalanzhou.barcodegenerator.domain.OcrTextGateway
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -23,13 +28,75 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import android.os.Looper
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class CameraOcrViewModelTest {
+    @Test
+    fun olderOcrCompletionCannotReplaceNewerCaptureResult() {
+        val firstStarted = CompletableDeferred<Unit>()
+        val secondStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val releaseSecond = CompletableDeferred<Unit>()
+        val calls = AtomicInteger()
+        val messages = CopyOnWriteArrayList<String>()
+        val viewModel = createViewModel(
+            ocrTextGateway = object : OcrTextGateway {
+                override suspend fun recognize(image: ImagePayload, confusionMask: Int): List<String> =
+                    when (calls.incrementAndGet()) {
+                        1 -> {
+                            firstStarted.complete(Unit)
+                            releaseFirst.await()
+                            listOf("OLDER-CAPTURE")
+                        }
+                        2 -> {
+                            secondStarted.complete(Unit)
+                            releaseSecond.await()
+                            listOf("NEWER-CAPTURE")
+                        }
+                        else -> error("unexpected OCR call")
+                    }
+            },
+            logger = AppLogger { _, message, _ -> messages += message },
+        )
+        val firstBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+        val secondBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+
+        viewModel.recognizeText(firstBitmap, confusionMask = 0)
+        pumpMainUntil("first OCR request starts") { firstStarted.isCompleted }
+        viewModel.recognizeText(secondBitmap, confusionMask = 0)
+        pumpMainUntil("second OCR request starts") { secondStarted.isCompleted }
+
+        releaseSecond.complete(Unit)
+        pumpMainUntil("newer OCR result is emitted") { messages.any { "recognize success" in it } }
+        releaseFirst.complete(Unit)
+        pumpMainUntil("both OCR requests finish") {
+            messages.count { message ->
+                "recognize success" in message || "recognize superseded" in message ||
+                    "recognize cancelled" in message || "recognize failed" in message
+            } == 2
+        }
+
+        val events = runBlocking {
+            val latestResult = viewModel.events.take(1).toList()
+            val staleResult = withTimeoutOrNull(100) { viewModel.events.first() }
+            assertNull("a stale OCR result must not be emitted", staleResult)
+            latestResult
+        }
+
+        assertEquals(
+            listOf(
+                CameraOcrEvent.RecognizedText(listOf("NEWER-CAPTURE")),
+            ),
+            events,
+        )
+    }
+
     @Test
     fun cameraOutputCanBeConsumedAndRequestIdsAreOneShot() {
         val viewModel = createViewModel()
@@ -86,14 +153,17 @@ class CameraOcrViewModelTest {
         val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
 
         val events = runBlocking {
-            viewModel.performTextRecognition(bitmap, confusionMask = 0)
-            viewModel.events.take(2).toList()
+            viewModel.performTextRecognition(
+                bitmap,
+                confusionMask = 0,
+                expectedDraft = listOf("BEFORE-CAPTURE"),
+            )
+            viewModel.events.take(1).toList()
         }
 
         assertEquals(
             listOf(
-                CameraOcrEvent.RecognizedText(listOf("TEST-123")),
-                CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"),
+                CameraOcrEvent.RecognizedText(listOf("TEST-123"), listOf("BEFORE-CAPTURE")),
             ),
             events,
         )
@@ -304,4 +374,15 @@ class CameraOcrViewModelTest {
         savedState = SavedStateHandle(),
         logger = logger,
     )
+
+    private fun pumpMainUntil(description: String, condition: () -> Boolean) {
+        val mainLooper = shadowOf(Looper.getMainLooper())
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (!condition() && System.nanoTime() < deadline) {
+            mainLooper.idle()
+            Thread.sleep(5)
+        }
+        mainLooper.idle()
+        assertTrue("timed out waiting for $description", condition())
+    }
 }

@@ -21,6 +21,7 @@ internal data class LanShareContentState(
     val session: LanShareSession? = null,
     val isHost: Boolean = false,
     val isStartingHost: Boolean = false,
+    val hostSessionInvalidated: Boolean = false,
     val qrVisible: Boolean = false,
     val browserConnected: Boolean = false,
     val files: List<LanShareFile> = emptyList(),

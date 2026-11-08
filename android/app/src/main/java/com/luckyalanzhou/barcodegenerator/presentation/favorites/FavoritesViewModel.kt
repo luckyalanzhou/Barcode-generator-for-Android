@@ -60,6 +60,13 @@ class FavoritesViewModel @Inject constructor(
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
     internal val snapshotMetadata: StateFlow<LibraryLoadMetadata?> = dataSession.loadMetadata
 
+    internal suspend fun favoriteFileCountsByFolder(): Map<String, Int> = withContext(Dispatchers.Default) {
+        dataSession.store.favoriteIdentityFolderPathsSnapshot().groupingBy { it }.eachCount()
+    }
+
+    internal fun favoriteFolderDeletionCount(path: String): Int? =
+        if (dataState.value.isReady) dataSession.store.countFavoritesInFolderTree(path) else null
+
     internal fun favoriteGroupIdForIdentity(
         folder: String,
         name: String,

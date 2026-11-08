@@ -37,6 +37,8 @@ data class LanShareRealtimeState(
     val browserConnected: Boolean = false,
     val files: List<LanShareFile> = emptyList(),
     val messages: List<LanShareMessage> = emptyList(),
+    /** Host network changed and its bound HTTP listener/session is no longer usable. */
+    val hostSessionInvalidated: Boolean = false,
 ) {
     fun applying(event: LanShareRealtimeEvent): LanShareRealtimeState = when (event) {
         is LanShareRealtimeEvent.ConnectionChanged -> copy(browserConnected = event.connected)

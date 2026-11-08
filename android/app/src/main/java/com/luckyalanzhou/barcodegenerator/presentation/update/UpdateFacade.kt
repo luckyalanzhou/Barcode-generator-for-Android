@@ -47,6 +47,7 @@ internal class UpdateFacade(
     fun startDownload(scope: CoroutineScope, apkUrl: String, expectedSize: Long?, expectedSha256: String?) =
         coordinator.startDownload(scope, apkUrl, expectedSize, expectedSha256)
     fun cancelDownload() = coordinator.cancelDownload()
+    fun clearActiveDownloadRequest(expected: UpdateDownloadRequest? = null) = coordinator.clearActiveDownloadRequest(expected)
     fun setPendingInstallPath(path: String?) = coordinator.setPendingInstallPath(path)
     fun takePendingInstallPath(): String? = coordinator.takePendingInstallPath()
 }

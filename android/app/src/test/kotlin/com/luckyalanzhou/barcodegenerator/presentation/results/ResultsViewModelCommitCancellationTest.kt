@@ -335,7 +335,7 @@ class ResultsViewModelCommitCancellationTest {
             savedState = SavedStateHandle(),
         )
         val items = listOf(
-            CodeItem(2, "SECOND", "QR Code", 2L),
+            CodeItem(2, "SECOND", "Code 128-B", 2L),
             CodeItem(1, "FIRST", "Code 128-B", 1L),
         )
         var navigationSnapshot: com.luckyalanzhou.barcodegenerator.presentation.GenerateEditorState? = null
@@ -351,12 +351,82 @@ class ResultsViewModelCommitCancellationTest {
             )
             pumpMainUntil("result snapshot is ready") { viewModel.resultUiState.value.items.size == items.size }
 
-            viewModel.editCurrentResult { navigationSnapshot = editor.state.value }
+            viewModel.editCurrentResult(
+                onNavigateToGenerate = { navigationSnapshot = editor.state.value },
+                onNotice = { error("Unexpected edit rejection: $it") },
+            )
 
             val handedOff = requireNotNull(navigationSnapshot)
             assertEquals(listOf("FIRST", "SECOND"), handedOff.inputDraft)
             assertEquals("Code 128-B", handedOff.pendingFormat)
             assertEquals("Code 128-B", handedOff.formatName)
+        } finally {
+            renderedBitmaps.forEach { if (!it.isRecycled) it.recycle() }
+        }
+    }
+
+    @Test
+    fun editingMixedFormatResultDoesNotCollapseItsItemsToTheFirstFormat() {
+        val editor = GenerateEditorStateHolder().apply {
+            restoreDraft(listOf("keep-this-draft"), "QR Code")
+        }
+        val renderedBitmaps = CopyOnWriteArrayList<Bitmap>()
+        val repository = Proxy.newProxyInstance(
+            BarcodeRepository::class.java.classLoader,
+            arrayOf(BarcodeRepository::class.java),
+        ) { _, method, _ -> error("Unexpected repository operation: ${method.name}") } as BarcodeRepository
+        val viewModel = ResultsViewModel(
+            imageRenderer = object : BarcodeImageRenderer {
+                override fun loadOrCreate(item: CodeItem, style: StyleSettings, dark: Boolean, density: Float) =
+                    Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).also(renderedBitmaps::add)
+
+                override fun create(
+                    text: String,
+                    formatId: String,
+                    style: StyleSettings,
+                    dark: Boolean,
+                    density: Float,
+                    withBackground: Boolean,
+                ) = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            },
+            dataSession = LibraryDataSession(),
+            persistence = BarcodePersistenceCoordinator(repository, object : BarcodeDataMigration {
+                override suspend fun migrateIfNeeded() = Unit
+            }),
+            appLogger = AppLogger { _, _, _ -> },
+            generateEditor = editor,
+            barcodeRepository = repository,
+            savedState = SavedStateHandle(),
+        )
+        val mixedItems = listOf(
+            CodeItem(2, "MIXED-A", "Code 39", 2L),
+            CodeItem(1, "12345670", "EAN-8", 1L),
+        )
+        var navigated = false
+        var notice: String? = null
+
+        try {
+            viewModel.showHistoryResult(
+                batch = mixedItems,
+                style = StyleSettings(),
+                dark = false,
+                density = 1f,
+                onNotice = { error("Unexpected result preparation failure: $it") },
+                onNavigateToResults = {},
+            )
+            pumpMainUntil("mixed-format result snapshot is ready") {
+                viewModel.resultUiState.value.items.size == mixedItems.size
+            }
+
+            viewModel.editCurrentResult(
+                onNavigateToGenerate = { navigated = true },
+                onNotice = { notice = it },
+            )
+
+            assertFalse("mixed formats cannot be represented by the single-format editor", navigated)
+            assertEquals("这组条码包含多种格式，不能在生成页统一编辑；原数据未更改", notice)
+            assertEquals(listOf("keep-this-draft"), editor.state.value.inputDraft)
+            assertEquals("QR Code", editor.state.value.formatName)
         } finally {
             renderedBitmaps.forEach { if (!it.isRecycled) it.recycle() }
         }

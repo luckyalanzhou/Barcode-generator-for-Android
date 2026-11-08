@@ -18,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -30,11 +31,19 @@ class CameraOcrViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val logger: AppLogger,
 ) : ViewModel() {
+    private val barcodeDecodeGeneration = BarcodeDecodeGeneration()
+
+    fun beginBarcodeDecode(): Long = barcodeDecodeGeneration.begin()
+
+    fun isCurrentBarcodeDecode(requestId: Long): Boolean = barcodeDecodeGeneration.isCurrent(requestId)
+
     private val cameraOcr = CameraOcrFacade(ocrTextGateway, barcodeDecodeGateway, savedState)
     val cameraCaptureState: StateFlow<CameraCaptureState> = cameraOcr.cameraState
 
     private val _events = Channel<CameraOcrEvent>(Channel.BUFFERED)
     val events: Flow<CameraOcrEvent> = _events.receiveAsFlow()
+    private var latestRecognitionId = 0L
+    private var recognitionJob: Job? = null
 
     fun prepareCameraRequest(requestCode: Int) = cameraOcr.prepareCameraRequest(requestCode)
     fun setCameraOutput(uri: Uri?, file: File?) = cameraOcr.setCameraOutput(uri, file)
@@ -49,24 +58,49 @@ class CameraOcrViewModel @Inject constructor(
     internal fun consumePermissionRequest(result: Map<String, Boolean>): PermissionRequestResult = cameraOcr.consumePermissionRequest(result)
     internal fun cancelPermissionRequest() = cameraOcr.cancelPermissionRequest()
 
-    fun recognizeText(bitmap: Bitmap, confusionMask: Int) {
-        val job = viewModelScope.launch { performTextRecognition(bitmap, confusionMask) }
+    fun recognizeText(
+        bitmap: Bitmap,
+        confusionMask: Int,
+        expectedDraft: List<String>? = null,
+    ) {
+        val recognitionId = ++latestRecognitionId
+        recognitionJob?.cancel()
+        val job = viewModelScope.launch {
+            performTextRecognitionForCurrentRequest(bitmap, confusionMask, expectedDraft) {
+                recognitionId == latestRecognitionId
+            }
+        }
+        recognitionJob = job
         job.invokeOnCompletion { if (!bitmap.isRecycled) bitmap.recycle() }
     }
 
-    internal suspend fun performTextRecognition(bitmap: Bitmap, confusionMask: Int) {
+    internal suspend fun performTextRecognition(
+        bitmap: Bitmap,
+        confusionMask: Int,
+        expectedDraft: List<String>? = null,
+    ) = performTextRecognitionForCurrentRequest(bitmap, confusionMask, expectedDraft) { true }
+
+    private suspend fun performTextRecognitionForCurrentRequest(
+        bitmap: Bitmap,
+        confusionMask: Int,
+        expectedDraft: List<String>?,
+        isCurrentRecognition: () -> Boolean,
+    ) {
         val operation = System.nanoTime()
         try {
             logger.recordSafely("ocr", "recognize start operation=$operation width=${bitmap.width} height=${bitmap.height}")
             val lines = cameraOcr.recognizeText(bitmap, confusionMask)
+            if (!isCurrentRecognition()) {
+                logger.recordSafely("ocr", "recognize superseded operation=$operation")
+                return
+            }
             logger.recordSafely("ocr", "recognize success operation=$operation lineCount=${lines.size}")
             if (lines.isEmpty()) {
                 _events.send(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
             } else if (lines.size > MAX_GENERATE_INPUT_ROWS) {
                 _events.send(CameraOcrEvent.Notice("识别结果超过 $MAX_GENERATE_INPUT_ROWS 行，请分次拍摄"))
             } else {
-                _events.send(CameraOcrEvent.RecognizedText(lines))
-                _events.send(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框"))
+                _events.send(CameraOcrEvent.RecognizedText(lines, expectedDraft))
             }
         } catch (cancelled: CancellationException) {
             logger.recordSafely("ocr", "recognize cancelled operation=$operation", primaryError = cancelled)
@@ -77,7 +111,7 @@ class CameraOcrViewModel @Inject constructor(
             throw interrupted
         } catch (error: Exception) {
             logger.recordSafely("ocr", "recognize failed operation=$operation", error, error)
-            _events.send(CameraOcrEvent.Notice("文字识别失败，请重试"))
+            if (isCurrentRecognition()) _events.send(CameraOcrEvent.Notice("文字识别失败，请重试"))
         } finally {
             if (!bitmap.isRecycled) bitmap.recycle()
         }
@@ -105,6 +139,9 @@ class CameraOcrViewModel @Inject constructor(
 }
 
 sealed interface CameraOcrEvent {
-    data class RecognizedText(val lines: List<String>) : CameraOcrEvent
+    data class RecognizedText(
+        val lines: List<String>,
+        val expectedDraft: List<String>? = null,
+    ) : CameraOcrEvent
     data class Notice(val message: String) : CameraOcrEvent
 }

@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -49,6 +52,7 @@ internal fun HistoryScreen(
     isReady: Boolean = true,
     loadFailed: Boolean = false,
     onRetry: () -> Unit = {},
+    listBottomPadding: Dp = 8.dp,
 ) {
     val context = LocalContext.current
     var timeZoneChangeGeneration by remember { mutableLongStateOf(0L) }
@@ -96,6 +100,7 @@ internal fun HistoryScreen(
     }
 
     HistoryComposePage(
+        listBottomPadding = listBottomPadding,
         entries = entries,
         isReady = isReady,
         loadFailed = loadFailed,

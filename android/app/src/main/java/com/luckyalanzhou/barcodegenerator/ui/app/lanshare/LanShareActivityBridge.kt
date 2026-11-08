@@ -99,27 +99,11 @@ internal fun MainActivity.openLanShareCamera() {
     }
 }
 
-internal fun MainActivity.findRecentLanCameraMedia(startedAtMillis: Long): Uri? {
-    val threshold = (startedAtMillis - 2_000L).coerceAtLeast(0L) / 1_000L
-    val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-    return contentResolver.query(
-        collection,
-        arrayOf(android.provider.MediaStore.MediaColumns._ID, android.provider.MediaStore.MediaColumns.DATE_ADDED),
-        null,
-        null,
-        "${android.provider.MediaStore.MediaColumns.DATE_ADDED} DESC",
-    )?.use { cursor ->
-        if (cursor.moveToFirst() && cursor.getLong(1) >= threshold) {
-            android.content.ContentUris.withAppendedId(collection, cursor.getLong(0))
-        } else null
-    }
-}
-
 internal fun <T> resolveLanCameraCaptureTarget(
     output: T?,
     outputHasContent: Boolean,
-    findRecentMedia: () -> T?,
-): T? = output?.takeIf { outputHasContent } ?: findRecentMedia()
+    cameraResultUri: T?,
+): T? = output?.takeIf { outputHasContent } ?: cameraResultUri
 
 internal fun resolveLanShareAttachmentName(queryDisplayName: () -> String?): String =
     try {

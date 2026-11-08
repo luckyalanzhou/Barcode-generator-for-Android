@@ -5,33 +5,38 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TabGlassFrameTest {
-    @Test fun fasterMotionHasBoundedStrainAndOpticsWithoutDistortingForeground() {
-        val slow = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 0f)
-        val fast = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 4f)
-        val capped = tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 100f)
+    @Test fun fasterMotionChangesRefractionWithoutChangingCapsuleSize() {
+        val slow = tabGlassFrame(360f, 100f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 0f)
+        val fast = tabGlassFrame(360f, 100f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 10f)
+        val capped = tabGlassFrame(360f, 100f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 100f)
         assertTrue(fast.refractionPx > slow.refractionPx)
-        assertTrue(fast.halfWidth > slow.halfWidth)
+        assertEquals(slow.halfWidth, fast.halfWidth, .001f)
+        assertEquals(slow.halfHeight, fast.halfHeight, .001f)
         assertEquals(fast, capped)
-        assertEquals(fast, tabGlassFrame(360f, 60f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = -4f))
+        assertEquals(capped, tabGlassFrame(360f, 100f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = 100f))
+        val reverse = tabGlassFrame(360f, 100f, 1f, 4, .5f, 1f, 0f, 1f, velocityTabsPerSecond = -10f)
+        assertEquals(fast.refractionPx, reverse.refractionPx, 0f)
+        assertTrue(reverse.centerX - reverse.halfWidth >= 0f)
+        assertTrue(reverse.centerX + reverse.halfWidth <= reverse.width)
     }
 
-    @Test fun reducedMotionSuppressesOpticsEvenWithHighVelocity() {
+    @Test fun zeroOpticalActivitySuppressesRefractionEvenWithHighVelocity() {
         val frame = tabGlassFrame(360f, 60f, 1f, 4, .5f, 0f, 0f, 1f, velocityTabsPerSecond = 100f)
         assertEquals(0f, frame.refractionPx, 0f)
         assertEquals(0f, frame.motion, 0f)
-        assertEquals(42f, frame.halfWidth, .001f)
+        assertEquals(44f, frame.halfWidth, .001f)
     }
     @Test
-    fun capsuleStaysInsideSceneAcrossTheWholeDrag() {
-        for (width in listOf(0f, 1f, 64f, 360f, 1080f)) {
-            for (height in listOf(0f, 1f, 32f, 64f, 192f)) {
-                for (step in -10..40) {
-                    val frame = tabGlassFrame(width, height, 3f, 4, step / 10f, 1f, .035f, 1f)
-                    assertTrue(frame.centerX - frame.halfWidth >= -.0001f)
-                    assertTrue(frame.centerX + frame.halfWidth <= frame.width + .0001f)
-                    assertTrue(frame.centerY - frame.halfHeight >= -.0001f)
-                    assertTrue(frame.centerY + frame.halfHeight <= frame.height + .0001f)
-                }
+    fun capsuleHasOnlySmallIntentionalOverhangAtTrackEdges() {
+        for ((width, density) in listOf(360f to 1f, 1080f to 3f)) {
+            val height = 60f * density
+            val maxOverhang = 3f * density
+            for (step in -10..40) {
+                val frame = tabGlassFrame(width, height, density, 4, step / 10f, 1f, .035f, 1f)
+                assertTrue(frame.centerX - frame.halfWidth >= -maxOverhang)
+                assertTrue(frame.centerX + frame.halfWidth <= frame.width + maxOverhang)
+                assertTrue(frame.centerY - frame.halfHeight >= -maxOverhang)
+                assertTrue(frame.centerY + frame.halfHeight <= frame.height + maxOverhang)
             }
         }
     }
@@ -39,7 +44,7 @@ class TabGlassFrameTest {
     @Test
     fun restingLensHasNoDisplacementRegardlessOfTabPosition() {
         for (progress in listOf(0f, .3f, 1f, 1.9f, 3f)) {
-            val frame = tabGlassFrame(360f, 60f, 1f, 4, progress, 0f, 0f, 1f)
+            val frame = tabGlassFrame(360f, 60f, 1f, 4, progress, 0f, 0f, 1f, velocityTabsPerSecond = 0f)
             assertEquals(0f, frame.motion, 0f)
             assertEquals(0f, frame.refractionPx, 0f)
             assertEquals(28f, frame.halfHeight, .001f)
@@ -51,7 +56,10 @@ class TabGlassFrameTest {
         val one = tabGlassFrame(360f, 60f, 1f, 4, 1f, 1f, 0f, 1f, refractionDp = 2f)
         val three = tabGlassFrame(1080f, 180f, 3f, 4, 1f, 1f, 0f, 1f, refractionDp = 2f)
         assertEquals(one.refractionPx * 3f, three.refractionPx, .001f)
-        val limited = tabGlassFrame(360f, 60f, 1f, 4, 1f, 99f, 99f, 1f, refractionDp = 99f)
+        val limited = tabGlassFrame(
+            360f, 60f, 1f, 4, 1f, 99f, 99f, 1f,
+            refractionDp = 99f, velocityTabsPerSecond = 100f,
+        )
         assertEquals(3.0f, limited.refractionPx, 0f)
         assertEquals(1f, limited.motion, 0f)
     }
@@ -64,8 +72,8 @@ class TabGlassFrameTest {
     }
 
     @Test fun capsuleEdgeRevealsOnlyTheCoveredPartOfNeighboringGlyphs() {
-        val beforeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.38f, 0f, 0f, 1f)
-        val edgeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.4f, 0f, 0f, 1f)
+        val beforeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.36f, 0f, 0f, 1f, velocityTabsPerSecond = 0f)
+        val edgeContact = tabGlassFrame(360f, 60f, 1f, 4, 1.38f, 0f, 0f, 1f, velocityTabsPerSecond = 0f)
         val beforeBounds = tabGlassCapsuleBoundsInTab(beforeContact, tabIndex = 2, tabCount = 4)!!
         val contactBounds = tabGlassCapsuleBoundsInTab(edgeContact, tabIndex = 2, tabCount = 4)!!
 

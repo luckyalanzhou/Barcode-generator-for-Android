@@ -19,6 +19,8 @@ import com.luckyalanzhou.barcodegenerator.ui.animation.rememberContextMenuMotion
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.TabLongPressMenuState
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesRowsProjectionCache
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.FavoritesManagementMenu
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -33,15 +35,23 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +61,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -132,6 +144,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val pageTransition = updateTransition(currentRoute, label = "pageTransition")
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
+    val favoritesRowsProjectionCache = remember { FavoritesRowsProjectionCache() }
     val effects = rememberVisualEffectsPolicy()
     var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
     val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }
@@ -139,7 +152,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     // 相机识别属于跨页面动作；常驻监听可在生成 Tab 未选中时也更新生成草稿，不触发导航。
     CameraOcrEventCollector(
         events = dependencies.cameraOcrViewModel.events,
-        onRecognizedText = dependencies.generateViewModel::updateDraft,
+        onRecognizedText = { lines, expectedDraft ->
+            dependencies.generateViewModel.applyOcrResultIfDraftUnchanged(expectedDraft, lines)
+        },
         onNavigateToGenerate = {
             if (dependencies.navigationViewModel.uiState.value.page != AppRoute.Generate) {
                 dependencies.actions.selectTab(0, fromSwipe = false)
@@ -178,7 +193,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         dependencies.actions.syncBarcodeDisplaySettings(currentRoute == AppRoute.Results)
         if (currentRoute == AppRoute.LanShare) {
             val viewModel = dependencies.lanShareViewModel()
-            if (viewModel.uiState.value.session == null && !viewModel.uiState.value.isStartingHost) {
+            val lanState = viewModel.uiState.value
+            if (lanState.session == null && !lanState.isStartingHost && !lanState.hostSessionInvalidated) {
                 dependencies.actions.ensureLanShare()
             }
         }
@@ -207,15 +223,32 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         LaunchedEffect(dark) { dismissMenu() }
         val colors = LocalAppColorScheme.current
         val dimensions = LocalAppDimensions.current
+        val extendsToBottom = currentRoute.drawsBehindSystemNavigation
+        val navigationInsets = WindowInsets.navigationBars
+        val bottomChromeInset = navigationInsets.asPaddingValues().calculateBottomPadding() + dimensions.pageBottomPadding
+        val imeInsets = WindowInsets.ime
+        val insetDensity = LocalDensity.current
+        val imeVisible by remember(imeInsets, insetDensity) {
+            derivedStateOf { imeInsets.getBottom(insetDensity) > 0 }
+        }
         val backdrop = rememberGlassBackdrop()
-        CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalVisualEffectsPolicy provides effects,
+        val kyantTabBackdrop = rememberLayerBackdrop()
+        CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalLiquidGlassBackdrop provides kyantTabBackdrop,
+            LocalVisualEffectsPolicy provides effects,
             LocalLongPressMenuHost provides ::showMenu) {
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)
             .contextMenuGestures(menuGesture, onDismiss = { dismissMenu() }, onAction = { dismissMenu(it) })) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val blurPx = menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass || effects.reduceMotion)
-                    renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && blurPx > .1f) {
+                    val blurPx = if (android.os.Build.VERSION.SDK_INT >= 31) {
+                        menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass || effects.reduceMotion)
+                    } else 0f
+                    compositingStrategy = if (blurPx > .1f) {
+                        androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                    } else {
+                        androidx.compose.ui.graphics.CompositingStrategy.Auto
+                    }
+                    renderEffect = if (blurPx > .1f) {
                         BlurEffect(blurPx, blurPx, TileMode.Clamp)
                     } else null
                 }.background(colors.surfaces.background).then(if (tabMenu.menu != null) Modifier
@@ -231,14 +264,21 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     modifier = Modifier
                         .fillMaxSize()
                         .then(if (currentRoute == AppRoute.Results) Modifier else Modifier.statusBarsPadding())
-                        .navigationBarsPadding()
+                        .windowInsetsPadding(
+                            if (extendsToBottom) navigationInsets.only(WindowInsetsSides.Horizontal) else navigationInsets,
+                        )
                         .padding(
                             top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,
-                            bottom = dimensions.pageBottomPadding,
+                            bottom = if (extendsToBottom) 0.dp else dimensions.pageBottomPadding,
                         ),
                 ) {
                     Column(Modifier.fillMaxSize()
-                        .then(if (chromeVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(backdrop) else Modifier)
+                        .then(if (chromeVisible && !effects.opaqueGlass && android.os.Build.VERSION.SDK_INT >= 33)
+                            Modifier.layerBackdrop(kyantTabBackdrop) else Modifier)
+                        .then(if (chromeVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(
+                            backdrop,
+                            enabled = android.os.Build.VERSION.SDK_INT < 33 || tabMenu.menu != null,
+                        ) else Modifier)
                         .background(colors.surfaces.background)) {
                         if (chromeVisible) {
                             Box(
@@ -255,13 +295,25 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                     fontWeight = FontWeight.Medium,
                                     textAlign = TextAlign.Center,
                                 )
+                                if (currentRoute == AppRoute.Favorites) {
+                                    FavoritesManagementMenu(
+                                        dark = dark,
+                                        onImport = dependencies.actions::restoreFavorites,
+                                        onExport = dependencies.actions::exportFavorites,
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(end = dimensions.pageHorizontalPadding),
+                                    )
+                                }
                             }
                         }
 
-                        // 固定父容器裁切进入和离开的页面图层；旧页面销毁前继续保留其底部安全间距，包括生成页。
+                        val pageBottomInset = if (currentRoute.mainTabIndex != null) {
+                            pageContentBottomInset(currentRoute, dimensions.bottomTabBarHeight)
+                        } else pageTransitionBottomInset(
+                            pageTransition.currentState, pageTransition.targetState, dimensions.bottomTabBarHeight,
+                        )
                         Box(Modifier.fillMaxWidth().weight(1f)
-                                .padding(bottom = pageTransitionBottomInset(pageTransition.currentState,
-                                    pageTransition.targetState, dimensions.bottomTabBarHeight))
+                                .padding(bottom = pageBottomInset)
+                                .then(if (currentRoute == AppRoute.Favorites) Modifier.imePadding() else Modifier)
                                 .clipToBounds()
                                 .background(colors.surfaces.background)) {
                         AppPageTransitionHost(
@@ -293,6 +345,14 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                 dark = dark,
                                 pageStateHolder = pageStateHolder,
                                 horizontalPadding = dimensions.pageHorizontalPadding,
+                                listBottomPadding = if (targetPage == AppRoute.Favorites && imeVisible) {
+                                    8.dp
+                                } else pageListBottomPadding(
+                                    targetPage,
+                                    dimensions.bottomTabBarHeight,
+                                    bottomChromeInset.takeIf { extendsToBottom } ?: 0.dp,
+                                ),
+                                favoritesRowsProjectionCache = favoritesRowsProjectionCache,
                             )
                         }
                         }
@@ -311,6 +371,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             onLongPressActionMenuRequested = ::showMenu,
                             showSelectionIndicator = tabMenu.menu == null,
                             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                .then(
+                                    if (extendsToBottom) Modifier.windowInsetsPadding(navigationInsets.only(WindowInsetsSides.Bottom))
+                                        .padding(bottom = dimensions.pageBottomPadding) else Modifier,
+                                )
                                 .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                         )
                     }
@@ -344,6 +408,8 @@ private fun AppPageContent(
     dark: Boolean,
     pageStateHolder: SaveableStateHolder,
     horizontalPadding: Dp,
+    listBottomPadding: Dp,
+    favoritesRowsProjectionCache: FavoritesRowsProjectionCache,
 ) {
     val colors = LocalAppColorScheme.current
     Box(
@@ -353,7 +419,7 @@ private fun AppPageContent(
             .clipToBounds(),
     ) {
         pageStateHolder.SaveableStateProvider(route.pageName) {
-            ComposePageRenderer(dependencies, route, dark)
+            ComposePageRenderer(dependencies, route, dark, favoritesRowsProjectionCache, listBottomPadding)
         }
     }
 }
@@ -362,7 +428,7 @@ private fun AppPageContent(
 @Composable
 internal fun CameraOcrEventCollector(
     events: Flow<CameraOcrEvent>,
-    onRecognizedText: (List<String>) -> Unit,
+    onRecognizedText: (List<String>, List<String>?) -> Boolean,
     onNavigateToGenerate: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
@@ -373,8 +439,12 @@ internal fun CameraOcrEventCollector(
         events.collect { event ->
             when (event) {
                 is CameraOcrEvent.RecognizedText -> {
-                    currentOnRecognizedText(event.lines)
+                    val applied = currentOnRecognizedText(event.lines, event.expectedDraft)
                     currentOnNavigateToGenerate()
+                    currentOnNotice(
+                        if (applied) "文字识别成功，已按行添加到输入框"
+                        else "识别完成，但输入内容已更改，未覆盖当前草稿",
+                    )
                 }
                 is CameraOcrEvent.Notice -> currentOnNotice(event.message)
             }

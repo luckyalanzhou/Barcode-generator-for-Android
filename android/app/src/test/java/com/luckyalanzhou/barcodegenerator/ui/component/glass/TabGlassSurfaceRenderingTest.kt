@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.component.glass
 import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -51,12 +52,12 @@ class TabGlassSurfaceRenderingTest {
 
         val image = compose.onNodeWithTag("dark-tab-glass-probe").captureToImage()
         val pixels = image.toPixelMap()
-        val centerX = image.width / 8
+        // The frame keeps a 4dp inset on each side, so the first capsule center is 2/15 of scene width.
+        val centerX = image.width * 2 / 15
         val outsideBackground = pixels[0, image.height / 2].toArgb()
         val visibleTopRows = (0 until minOf(12, image.height / 4)).count { y ->
             colorDistance(pixels[centerX, y].toArgb(), outsideBackground) > 45
         }
-
         assertTrue(
             "Dark static Tab glass should show a one-to-two-pixel top rim; rows=$visibleTopRows",
             visibleTopRows in 1..2,
@@ -68,22 +69,25 @@ class TabGlassSurfaceRenderingTest {
 private fun DarkStaticTabGlassProbe() {
     val background = Color.Black
     val density = LocalDensity.current.density
-    val frame = tabGlassFrame(
-        width = with(LocalDensity.current) { 360.dp.toPx() },
-        height = with(LocalDensity.current) { 64.dp.toPx() },
-        density = density,
-        tabCount = 4,
-        progress = 0f,
-        motion = 0f,
-        impact = 0f,
-        direction = 0f,
-    )
-    Box(
+    BoxWithConstraints(
         Modifier
             .size(width = 360.dp, height = 64.dp)
             .background(background)
             .testTag("dark-tab-glass-probe"),
     ) {
+        val sceneWidth = with(LocalDensity.current) { maxWidth.toPx() }
+        val sceneHeight = with(LocalDensity.current) { maxHeight.toPx() }
+        val frame = tabGlassFrame(
+            width = sceneWidth,
+            height = sceneHeight,
+            density = density,
+            tabCount = 4,
+            progress = 0f,
+            motion = 0f,
+            impact = 0f,
+            direction = 0f,
+            velocityTabsPerSecond = 0f,
+        )
         TabGlassSurface(
             frameProvider = { frame },
             material = tabGlassMaterial(background, 64f),

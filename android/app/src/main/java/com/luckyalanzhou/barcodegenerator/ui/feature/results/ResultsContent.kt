@@ -1,5 +1,11 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.results
 
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.background
+
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
@@ -218,10 +224,12 @@ internal fun ResultsContent(
         androidx.compose.runtime.mutableStateOf(IntSize(0, toolbarInitialHeightPx))
     }
     val toolbarHeight = with(LocalDensity.current) { toolbarSize.height.toDp() }
+    val resultBackdrop = rememberLayerBackdrop()
     Box(Modifier.fillMaxSize()) {
         // 条码列表位于固定工具栏下方并独立滚动，顶部预留状态栏和工具栏高度以避免遮挡。
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().layerBackdrop(resultBackdrop)
+                .background(themeColors.surfaces.background),
             contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(style.margin.coerceIn(0, 10).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -238,6 +246,7 @@ internal fun ResultsContent(
             Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(top = statusBarInset)
                 .onSizeChanged { toolbarSize = it },
         ) {
+            CompositionLocalProvider(LocalLiquidGlassBackdrop provides resultBackdrop) {
             ResultToolbar(
                 exportAction = exportAction,
                 isFavorite = isFavorite,
@@ -246,6 +255,7 @@ internal fun ResultsContent(
                 onShare = onShare,
                 onSave = onSave,
             )
+            }
         }
     }
 }

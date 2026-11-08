@@ -11,9 +11,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,8 +25,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -38,7 +38,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +55,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 
@@ -74,6 +74,7 @@ internal fun SettingsContent(
     onShareDebugLog: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
+    listBottomPadding: Dp = 8.dp,
 ) {
     val colors = rememberSettingsColors()
     var schemeMenu by remember { mutableStateOf(false) }
@@ -88,170 +89,124 @@ internal fun SettingsContent(
     val schemeHeight = schemeButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrHeight = ocrButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val dimensions = LocalAppDimensions.current
-    val listState = rememberLazyListState()
-    val contentExceedsViewport by remember(listState) {
-        derivedStateOf {
-            // 内容视口被主界面限制在 Tab 栏上方；同时检测前后滚动能力，确保滚到底后仍可返回顶部。
-            listState.canScrollForward || listState.canScrollBackward
-        }
-    }
-
+    val scrollState = rememberScrollState()
     fun persist(next: StyleSettings = settings.style) = onStyleChange(next)
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        state = listState,
-        userScrollEnabled = contentExceedsViewport,
-        contentPadding = PaddingValues(bottom = 8.dp),
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = listBottomPadding),
         verticalArrangement = Arrangement.spacedBy(dimensions.settingsCardSpacing),
     ) {
-        // 外观分组：主题选择立即保存。
-        item("settings-appearance") {
-            SettingsCard(colors.surfaces.card, dark) {
-                    SettingsRow("外观", colors.settingsText.primary) {
-                        Box {
-                            SettingsDropdownButton(
-                                text = when (settings.style.colorScheme) {
-                                    "dark" -> "深色"
-                                    "light" -> "浅色"
-                                    else -> "跟随系统"
-                                },
-                                contentColor = colors.settingsText.secondary,
-                                onClick = { schemeMenu = true },
-                                onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
-                                pickerLabel = "外观",
-                                expanded = schemeMenu,
-                            )
-                            SettingsDropdown(
-                                dark = dark,
-                                expanded = schemeMenu,
-                                menuWidth = 160.dp,
-                                anchorWidth = schemeWidth,
-                                anchorHeight = schemeHeight,
-                                onDismiss = { schemeMenu = false },
-                            ) {
-                                listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
-                                    if (index > 0) ComposeDropdownDivider(dark)
-                                    val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
-                                    SingleChoiceMenuItem(label, value == selectedScheme, highlightSelection = false) {
-                                        schemeMenu = false
-                                        persist(settings.style.copy(colorScheme = value))
-                                    }
-                                }
+        SettingsSection("外观", dark) {
+            SettingsRow("主题", colors.settingsText.primary) {
+                Box {
+                    SettingsDropdownButton(
+                        text = when (settings.style.colorScheme) {
+                            "dark" -> "深色"
+                            "light" -> "浅色"
+                            else -> "跟随系统"
+                        },
+                        contentColor = colors.settingsText.secondary,
+                        onClick = { schemeMenu = true },
+                        onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
+                        pickerLabel = "外观",
+                        expanded = schemeMenu,
+                    )
+                    SettingsDropdown(dark, schemeMenu, 160.dp, schemeWidth, schemeHeight,
+                        onDismiss = { schemeMenu = false }) {
+                        listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
+                            if (index > 0) ComposeDropdownDivider(dark)
+                            val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
+                            SingleChoiceMenuItem(label, value == selectedScheme, highlightSelection = false) {
+                                schemeMenu = false
+                                persist(settings.style.copy(colorScheme = value))
                             }
                         }
                     }
+                }
             }
         }
-
-        // 条码分组：外观滑块与 OCR 选项分别只更新各自对应的设置字段。
-        item("settings-barcode") {
-            SettingsCard(colors.surfaces.card, dark) {
-                    SettingsSubgroupLabel("显示", colors.settingsText.secondary, topPadding = 5.dp)
-                    SettingsSliderRow("文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary) {
+        SettingsSection("条码样式", dark) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val stacked = useStackedSlider(maxWidth.value, LocalDensity.current.fontScale)
+                Column {
+                    SettingsSliderRow("条码文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary, stacked) {
                         persist(settings.style.copy(textSize = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSubgroupLabel("条码外观", colors.settingsText.secondary)
-                    SettingsSliderRow("条码高度", settings.style.barHeight.toFloat(), 30f..80f, "${settings.style.barHeight} dp", colors.settingsText.primary) {
+                    SettingsSliderRow("条码高度", settings.style.barHeight.toFloat(), 30f..80f, "${settings.style.barHeight} dp", colors.settingsText.primary, stacked) {
                         persist(settings.style.copy(barHeight = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码宽度", settings.style.barWidth, 120f..300f, "${settings.style.barWidth.toInt()} dp", colors.settingsText.primary) {
+                    SettingsSliderRow("条码宽度", settings.style.barWidth, 120f..300f, "${settings.style.barWidth.toInt()} dp", colors.settingsText.primary, stacked) {
                         persist(settings.style.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码间距", settings.style.margin.toFloat(), 0f..10f, "${settings.style.margin} dp", colors.settingsText.primary) {
+                    SettingsSliderRow("条码间距", settings.style.margin.toFloat(), 0f..10f, "${settings.style.margin} dp", colors.settingsText.primary, stacked) {
                         persist(settings.style.copy(margin = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSubgroupLabel("输入辅助", colors.settingsText.secondary)
-                    SettingsRow("OCR 字符纠错", colors.settingsText.primary) {
-                        val selected = ocrReplacementLabels.filter { (_, bit) -> settings.ocrMask and bit != 0 }.map { it.first }
-                        Box {
-                            SettingsDropdownButton(
-                                text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
-                                contentColor = colors.settingsText.secondary,
-                                onClick = { ocrMenu = true },
-                                onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },
-                                pickerLabel = "OCR 字符纠错",
-                                expanded = ocrMenu,
+                    SettingsActionRow("恢复条码默认样式", "恢复", colors.settingsText.primary, colors.controls.button) {
+                        persist(settings.style.copy(textSize = 14f, barHeight = 55, barWidth = 220f, margin = 4))
+                        onNotice("已恢复条码默认样式")
+                    }
+                }
+            }
+        }
+        SettingsSection("识别辅助", dark) {
+            SettingsRow("OCR 字符纠错", colors.settingsText.primary) {
+                val selected = ocrReplacementLabels.filter { (_, bit) -> settings.ocrMask and bit != 0 }.map { it.first }
+                Box {
+                    SettingsDropdownButton(
+                        text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
+                        contentColor = colors.settingsText.secondary,
+                        onClick = { ocrMenu = true },
+                        onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },
+                        pickerLabel = "OCR 字符纠错",
+                        expanded = ocrMenu,
+                    )
+                    SettingsDropdown(dark, ocrMenu, 140.dp, ocrWidth, ocrHeight,
+                        onDismiss = { ocrMenu = false }) {
+                        ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
+                            if (index > 0) ComposeDropdownDivider(dark)
+                            val checked = settings.ocrMask and bit != 0
+                            com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuChoiceItem(
+                                label = label, checked = checked, multiple = true,
+                                onClick = {
+                                    val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
+                                    onOcrMaskChange(mask)
+                                },
                             )
-                            SettingsDropdown(
-                                dark = dark,
-                                expanded = ocrMenu,
-                                menuWidth = 140.dp,
-                                anchorWidth = ocrWidth,
-                                anchorHeight = ocrHeight,
-                                onDismiss = { ocrMenu = false },
-                            ) {
-                                ocrReplacementLabels.forEachIndexed { index, (label, bit) ->
-                                    if (index > 0) ComposeDropdownDivider(dark)
-                                    val checked = settings.ocrMask and bit != 0
-                                    com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuChoiceItem(
-                                        label = label,
-                                        checked = checked,
-                                        multiple = true,
-                                        onClick = {
-                                            val mask = if (settings.ocrMask and bit == 0) settings.ocrMask or bit else settings.ocrMask and bit.inv()
-                                            onOcrMaskChange(mask)
-                                        },
-                                    )
-                                }
-                            }
                         }
                     }
-            }
-        }
-
-        // 工具分组：启动局域网分享和导出调试日志属于独立操作，不修改条码样式。
-        item("settings-tools") {
-            SettingsCard(colors.surfaces.card, dark) {
-                    SettingsRow("局域网文件分享", colors.settingsText.primary) {
-                        SettingsButton(
-                            text = "启动",
-                            // 强调色只用于“启动”文字，内部不染色，保留统一按钮外框。
-                            color = Color.Transparent,
-                            contentColor = colors.controls.accent,
-                            onClick = onEnterLanShare,
-                        )
-                    }
-                    SettingsDivider(dark)
-                    SettingsActionRow("恢复默认设置", "恢复", colors.settingsText.primary, colors.controls.button) {
-                        val defaults = settings.style.copy(
-                            textSize = 14f,
-                            barHeight = 55,
-                            barWidth = 220f,
-                            margin = 4,
-                        )
-                        persist(defaults)
-                        onNotice("已恢复条码默认设置")
-                    }
-                    if (BuildConfig.DEBUG_LOG_EXPORT) {
-                        SettingsDivider(dark)
-                        SettingsActionRow("导出调试日志", "分享", colors.settingsText.primary, colors.controls.button, onShareDebugLog)
-                    }
-            }
-        }
-
-        // 关于分组保留单独的检查更新按钮；检查中状态只影响按钮提示与可用状态。
-        item("settings-about") {
-            SettingsCard(colors.surfaces.card, dark) {
-                Text("关于", color = colors.settingsText.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 1.dp))
-                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("作者：Alan", color = colors.settingsText.secondary, fontSize = 13.sp)
-                        Text("版本：${BuildConfig.VERSION_NAME}", color = colors.settingsText.secondary, fontSize = 13.sp)
-                    }
-                    SettingsButton(
-                        text = if (checkingForUpdates) "检查中…" else "检查更新",
-                        busy = checkingForUpdates,
-                        color = colors.controls.button,
-                        contentColor = colors.controls.accent,
-                        onClick = onCheckForUpdates,
-                        modifier = Modifier.widthIn(min = 112.dp),
-                    )
                 }
+            }
+        }
+        SettingsSection("文件传输", dark) {
+            SettingsNavigationRow("局域网文件分享", onEnterLanShare)
+        }
+        if (BuildConfig.DEBUG_LOG_EXPORT) {
+            SettingsSection("诊断", dark) {
+                SettingsActionRow("导出调试日志", "分享", colors.settingsText.primary, colors.controls.button, onShareDebugLog)
+            }
+        }
+        SettingsSection("关于", dark) {
+            SettingsRow("版本", colors.settingsText.primary) {
+                Text(BuildConfig.VERSION_NAME, color = colors.settingsText.secondary, fontSize = 15.sp)
+            }
+            SettingsDivider(dark)
+            SettingsRow("作者", colors.settingsText.primary) {
+                Text("Alan", color = colors.settingsText.secondary, fontSize = 15.sp)
+            }
+            SettingsDivider(dark)
+            SettingsRow("应用更新", colors.settingsText.primary) {
+                SettingsButton(
+                    text = if (checkingForUpdates) "检查中…" else "检查更新",
+                    busy = checkingForUpdates,
+                    color = colors.controls.button,
+                    contentColor = colors.controls.accent,
+                    onClick = onCheckForUpdates,
+                    modifier = Modifier.widthIn(min = 112.dp),
+                )
             }
         }
     }

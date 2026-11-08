@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.FavoriteGroupRow
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.shouldAnimateFavoriteRowChanges
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeData
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesRowsProjectionCache
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.composeFavoriteRows
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.effectiveCollapsedFavoriteFolders
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.favoriteSearchExpandedPaths
@@ -53,8 +54,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -68,9 +73,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,11 +92,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
@@ -122,6 +131,10 @@ internal fun FavoritesContent(
     onShowRenameDialog: (FavoriteGroup) -> Unit,
     onConfirm: (String, String, String, suspend () -> Unit) -> Unit,
     onRetryLoad: () -> Unit = {},
+    rowsProjectionCache: FavoritesRowsProjectionCache? = null,
+    fileCounts: Map<String, Int>? = null,
+    folderDeletionCount: (String) -> Int? = { null },
+    listBottomPadding: Dp = 8.dp,
 ) {
     val favoritesState = state.favorites
     val searchState = state.searchResults
@@ -139,8 +152,12 @@ internal fun FavoritesContent(
     val rootFolderColor = themeColors.content.folder
     val childFolderColor = themeColors.content.childFolder
     val fileColor = themeColors.content.file
-    val listState = rememberLazyListState()
-    var listPositionRestored by remember { mutableStateOf(false) }
+    val favoriteListState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
+    val listState = if (query.trim().isEmpty()) favoriteListState else searchListState
+    var listPositionRestored by rememberSaveable { mutableStateOf(false) }
+    var rowAnimationActive by remember { mutableStateOf(false) }
+    var rowAnimationGeneration by remember { mutableIntStateOf(0) }
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val searchPending = searchStatus.isPending(normalizedQuery)
     val focusManager = LocalFocusManager.current
@@ -173,19 +190,28 @@ internal fun FavoritesContent(
     }
     LaunchedEffect(normalizedQuery, expandedSearchPaths) { onUpdateFavoriteSearch(expandedSearchPaths, normalizedQuery.isNotEmpty()) }
 
-    LaunchedEffect(listState, listPositionRestored, normalizedQuery) {
-        // 搜索结果使用同一个 LazyListState，但不能覆盖普通收藏树的恢复位置。
-        if (!listPositionRestored || normalizedQuery.isNotEmpty()) return@LaunchedEffect
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+    LaunchedEffect(favoriteListState, listPositionRestored) {
+        if (!listPositionRestored) return@LaunchedEffect
+        snapshotFlow { favoriteListState.firstVisibleItemIndex to favoriteListState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) -> onRememberListPosition(index, offset) }
     }
 
-    LaunchedEffect(listState, listPositionRestored, scrollToTopEvents, reduceMotion) {
+    LaunchedEffect(favoriteListState, listPositionRestored, scrollToTopEvents, reduceMotion) {
         if (!listPositionRestored) return@LaunchedEffect
         scrollToTopEvents.collect {
-            if (reduceMotion) listState.scrollToItem(0) else listState.animateScrollToItem(0)
+            if (reduceMotion) favoriteListState.scrollToItem(0) else favoriteListState.animateScrollToItem(0)
         }
+    }
+
+    LaunchedEffect(rowAnimationGeneration) {
+        if (rowAnimationGeneration == 0) return@LaunchedEffect
+        delay(maxOf(
+            ComposeAnimationConfig.favoriteRowFadeDurationMillis,
+            ComposeAnimationConfig.favoriteRowExpandDurationMillis,
+            ComposeAnimationConfig.favoriteRowCollapseDurationMillis,
+        ).toLong() + 32L)
+        rowAnimationActive = false
     }
 
     val visibleCollapsedFolders = effectiveCollapsedFavoriteFolders(
@@ -194,10 +220,23 @@ internal fun FavoritesContent(
         query = normalizedQuery,
         expandedSearchPaths = expandedSearchPaths,
     )
-    val rows by produceState<List<ComposeFavoriteRow>?>(null, displayTreeData, normalizedQuery, visibleCollapsedFolders) {
-        value = withContext(Dispatchers.Default) {
+    val cachedRows = rowsProjectionCache?.find(displayTreeData, normalizedQuery, visibleCollapsedFolders)
+    val rows by produceState<List<ComposeFavoriteRow>?>(
+        cachedRows,
+        displayTreeData,
+        normalizedQuery,
+        visibleCollapsedFolders,
+        rowsProjectionCache,
+    ) {
+        rowsProjectionCache?.find(displayTreeData, normalizedQuery, visibleCollapsedFolders)?.let {
+            value = it
+            return@produceState
+        }
+        val projectedRows = withContext(Dispatchers.Default) {
             composeFavoriteRows(displayTreeData, normalizedQuery, visibleCollapsedFolders)
         }
+        rowsProjectionCache?.store(displayTreeData, normalizedQuery, visibleCollapsedFolders, projectedRows)
+        value = projectedRows
     }
     val rowKey: (ComposeFavoriteRow) -> String = { row ->
         if (row.folder) "folder-${row.path}" else "group-${row.group?.id}"
@@ -211,14 +250,14 @@ internal fun FavoritesContent(
     }
     val rowsForDisplay = displayedRows ?: rows
 
-    LaunchedEffect(favoritesState.isReady, rows) {
+    LaunchedEffect(favoritesState.isReady, rows, normalizedQuery) {
+        if (!favoritesState.isReady) return@LaunchedEffect
+        if (listPositionRestored || normalizedQuery.isNotEmpty()) return@LaunchedEffect
         val targetRows = rows ?: return@LaunchedEffect
-        if (favoritesState.isReady && !listPositionRestored) {
-            val lastAvailableIndex = targetRows.lastIndex.coerceAtLeast(0)
-            val targetIndex = savedListPosition.first.coerceIn(0, lastAvailableIndex)
-            listState.scrollToItem(targetIndex, savedListPosition.second)
-            listPositionRestored = true
-        }
+        val lastAvailableIndex = targetRows.lastIndex.coerceAtLeast(0)
+        val targetIndex = savedListPosition.first.coerceIn(0, lastAvailableIndex)
+        favoriteListState.scrollToItem(targetIndex, savedListPosition.second)
+        listPositionRestored = true
     }
 
     LaunchedEffect(listState, rows, normalizedQuery, searchPending, searchStatus.failed) {
@@ -310,14 +349,22 @@ internal fun FavoritesContent(
                         IconButton(
                             onClick = { onQueryChange("") },
                             interactionSource = clearSearchInteractions,
-                            modifier = Modifier.iosPressFeedback(clearSearchInteractions),
+                            modifier = Modifier.size(48.dp).iosPressFeedback(clearSearchInteractions),
                         ) {
-                            Icon(
-                                imageVector = CloseSmallIcon,
-                                contentDescription = "清除搜索内容",
-                                tint = themeColors.text.secondary,
-                                modifier = Modifier.size(20.dp),
-                            )
+                            Box(
+                                Modifier.size(24.dp).background(
+                                    themeColors.text.secondary.copy(alpha = .20f),
+                                    androidx.compose.foundation.shape.CircleShape,
+                                ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = CloseSmallIcon,
+                                    contentDescription = "清除搜索内容",
+                                    tint = themeColors.text.primary,
+                                    modifier = Modifier.requiredSize(28.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -327,7 +374,7 @@ internal fun FavoritesContent(
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 8.dp),
+            contentPadding = PaddingValues(bottom = listBottomPadding),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
 
@@ -376,70 +423,97 @@ internal fun FavoritesContent(
                 key = rowKey,
                 contentType = { row -> if (row.folder) "folder" else "favorite-group" },
             ) { row ->
-                val animateRowChanges = shouldAnimateFavoriteRowChanges(listPositionRestored, reduceMotion)
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .animateItem(
-                            fadeInSpec = if (animateRowChanges) tween(
-                                durationMillis = ComposeAnimationConfig.favoriteRowFadeDurationMillis,
-                                easing = FastOutSlowInEasing,
-                            ) else null,
-                            placementSpec = if (animateRowChanges) tween(
-                                durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
-                                easing = FastOutSlowInEasing,
-                            ) else null,
-                            fadeOutSpec = if (animateRowChanges) tween(
-                                durationMillis = ComposeAnimationConfig.favoriteRowCollapseDurationMillis,
-                            ) else null,
-                        )
-                        .background(themeColors.surfaces.background)
-                        .padding(bottom = 6.dp),
-                ) {
-                    // 点击文件夹只切换展开状态；打开文件前先记住滚动位置，返回收藏树时恢复原位置。
-                    if (row.folder) {
-                        FavoriteFolderRow(
+                val animateRowChanges = shouldAnimateFavoriteRowChanges(rowAnimationActive, reduceMotion)
+                val rowModifier = Modifier
+                    .fillMaxWidth()
+                    .animateItem(
+                        fadeInSpec = if (animateRowChanges) tween(
+                            durationMillis = ComposeAnimationConfig.favoriteRowFadeDurationMillis,
+                            easing = FastOutSlowInEasing,
+                        ) else null,
+                        placementSpec = if (animateRowChanges) tween(
+                            durationMillis = ComposeAnimationConfig.favoriteRowExpandDurationMillis,
+                            easing = FastOutSlowInEasing,
+                        ) else null,
+                        fadeOutSpec = if (animateRowChanges) tween(
+                            durationMillis = ComposeAnimationConfig.favoriteRowCollapseDurationMillis,
+                        ) else null,
+                    )
+                    .background(themeColors.surfaces.background)
+                    .then(if (normalizedQuery.isEmpty() && row.treeBranches.isNotEmpty()) Modifier.drawBehind {
+                        val lineColor = secondary.copy(alpha = .28f)
+                        val middle = (size.height - 6.dp.toPx()) / 2
+                        val stroke = 1.dp.toPx()
+                        row.treeBranches.forEachIndexed { depth, continues ->
+                            val current = depth == row.treeBranches.lastIndex
+                            if (current || continues) {
+                                val start = (24.dp + 20.dp * depth).toPx()
+                                val rtl = layoutDirection == LayoutDirection.Rtl
+                                val x = if (rtl) size.width - start else start
+                                drawLine(lineColor, Offset(x, 0f), Offset(x, if (continues) size.height else middle), stroke)
+                                if (current) {
+                                    val end = if (rtl) x - 7.dp.toPx() else x + 7.dp.toPx()
+                                    drawLine(lineColor, Offset(x, middle), Offset(end, middle), stroke)
+                                }
+                            }
+                        }
+                    } else Modifier)
+                    .padding(bottom = 6.dp)
+                // 点击文件夹只切换展开状态；打开文件前先记住滚动位置，返回收藏树时恢复原位置。
+                if (row.folder) {
+                    FavoriteFolderRow(
+                        row = row,
+                        modifier = rowModifier,
+                        dark = dark,
+                        secondary = secondary,
+                        folderColor = if (row.level == 0) rootFolderColor else childFolderColor,
+                        animation = animation,
+                        animateTreeChanges = animateRowChanges,
+                        onClick = {
+                            if (!reduceMotion) {
+                                rowAnimationActive = true
+                                rowAnimationGeneration++
+                            }
+                            onToggleFolder(row.path, folderPaths)
+                        },
+                        onShowSubfolderEditor = onShowSubfolderEditor,
+                        onShowFolderEditor = onShowFolderEditor,
+                        onConfirm = onConfirm,
+                        onRenameFolder = onRenameFolder,
+                        onDeleteFolder = onDeleteFolder,
+                        fileCount = fileCounts?.getOrDefault(row.path, 0),
+                        folderDeletionCount = folderDeletionCount,
+                    )
+                } else {
+                    row.group?.let { group ->
+                        FavoriteGroupRow(
                             row = row,
+                            modifier = rowModifier,
+                            group = group,
                             dark = dark,
                             secondary = secondary,
-                            folderColor = if (row.level == 0) rootFolderColor else childFolderColor,
+                            fileColor = fileColor,
                             animation = animation,
-                            onClick = { onToggleFolder(row.path, folderPaths) },
-                            onShowSubfolderEditor = onShowSubfolderEditor,
-                            onShowFolderEditor = onShowFolderEditor,
+                            onClick = {
+                                if (normalizedQuery.isEmpty()) {
+                                    onRememberListPosition(
+                                        listState.firstVisibleItemIndex,
+                                        listState.firstVisibleItemScrollOffset,
+                                    )
+                                }
+                                onOpenGroup(group, style, dark, density)
+                            },
+                            onShowMoveDialog = onShowMoveDialog,
+                            onShowRenameDialog = onShowRenameDialog,
+                            onEdit = onEdit,
                             onConfirm = onConfirm,
-                            onRenameFolder = onRenameFolder,
-                            onDeleteFolder = onDeleteFolder,
+                            onDelete = onDeleteGroup,
+                            searchPath = group.folder.replace("/", " / ").takeIf { normalizedQuery.isNotEmpty() },
                         )
-                    } else {
-                        row.group?.let { group ->
-                            FavoriteGroupRow(
-                                row = row,
-                                group = group,
-                                dark = dark,
-                                secondary = secondary,
-                                fileColor = fileColor,
-                                animation = animation,
-                                onClick = {
-                                    if (normalizedQuery.isEmpty()) {
-                                        onRememberListPosition(
-                                            listState.firstVisibleItemIndex,
-                                            listState.firstVisibleItemScrollOffset,
-                                        )
-                                    }
-                                    onOpenGroup(group, style, dark, density)
-                                },
-                                onShowMoveDialog = onShowMoveDialog,
-                                onShowRenameDialog = onShowRenameDialog,
-                                onEdit = onEdit,
-                                onConfirm = onConfirm,
-                                onDelete = onDeleteGroup,
-                            )
+                    }
                         }
                     }
                 }
-            }
-        }
         if (searchStatus.paginationFailed) {
             item(key = "favorite-pagination-retry") {
                 TextButton(

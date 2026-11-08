@@ -2,7 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
 import androidx.compose.runtime.Immutable
 import kotlin.math.abs
-import kotlin.math.sin
+import kotlin.math.max
 
 /** Tab 场景局部坐标中的物理像素尺寸，供着色器和兼容绘制共用。 */
 @Immutable
@@ -84,23 +84,33 @@ internal fun tabGlassFrame(
     contactSpread: Float = 1f,
     refractionDp: Float = 2.25f,
     velocityTabsPerSecond: Float = 4f,
+    pressScaleX: Float = 1f + (64f / 56f - 1f) * motion.coerceIn(0f, 1f),
+    pressScaleY: Float = 1f + (64f / 56f - 1f) * motion.coerceIn(0f, 1f),
+    edgePull: Float = 0f,
 ): TabGlassFrame {
     val safeWidth = width.coerceAtLeast(1f)
     val safeHeight = height.coerceAtLeast(1f)
     val safeDensity = density.coerceAtLeast(.1f)
     val safeProgress = progress.coerceIn(0f, (tabCount.coerceAtLeast(1) - 1).toFloat())
-    val strength = motion.coerceIn(0f, 1f)
-    val speed = if (velocityTabsPerSecond.isFinite()) (abs(velocityTabsPerSecond) / 4f).coerceIn(0f, 1f) else 0f
+    // pulse() is an impulse, so keep its short tail visible in both the lens and capsule shape.
+    val impactStrength = if (impact.isFinite()) (impact / .035f).coerceIn(0f, 1f) else 0f
+    val strength = max(motion.coerceIn(0f, 1f), impactStrength)
+    val speed = if (velocityTabsPerSecond.isFinite()) (abs(velocityTabsPerSecond) / 5f).coerceIn(0f, 1f) else 0f
     val opticalStrength = strength * (.80f + .20f * speed)
-    val fraction = safeProgress - safeProgress.toInt()
-    val handoff = sin(fraction * Math.PI).toFloat().coerceIn(0f, 1f) * strength * (.45f + .55f * speed)
-    val cellWidth = safeWidth / tabCount.coerceAtLeast(1)
-    val strain = tabContactStrain(touchX, cellWidth * (safeProgress + .5f), cellWidth, strength)
-    val halfWidth = ((cellWidth * .5f - 3f * safeDensity).coerceAtLeast(1f) *
-        (1f + impact.coerceIn(0f, .035f) + handoff * .05f + strain)).coerceAtMost(safeWidth * .5f)
-    val halfHeight = (safeHeight * .5f - 2f * safeDensity).coerceAtLeast(.5f) *
-        (1f - handoff * .03f - strain * .65f)
-    val centerX = (cellWidth * (safeProgress + .5f)).coerceIn(halfWidth, safeWidth - halfWidth)
+    val horizontalInset = 4f * safeDensity
+    val contentWidth = (safeWidth - horizontalInset * 2f).coerceAtLeast(1f)
+    val cellWidth = contentWidth / tabCount.coerceAtLeast(1)
+    val baseHalfWidth = (cellWidth * .5f).coerceAtLeast(1f)
+    val pulseScale = 1f + .08f * impactStrength
+    // Swipe speed changes optical refraction, not the capsule's outer size.
+    val halfWidth = (baseHalfWidth * max(pressScaleX.coerceAtLeast(1f), pulseScale))
+        .coerceAtMost(minOf(safeWidth * .5f, cellWidth * .9f))
+    val baseHalfHeight = minOf(28f * safeDensity, safeHeight * .5f)
+    val halfHeight = (baseHalfHeight * max(pressScaleY.coerceAtLeast(1f), pulseScale))
+        .coerceAtMost(safeHeight * .75f)
+    // The reference capsule deliberately grows past the track at its two ends.
+    val safeEdgePull = edgePull.takeIf(Float::isFinite)?.coerceIn(-1f, 1f) ?: 0f
+    val centerX = horizontalInset + cellWidth * (safeProgress + .5f) + cellWidth * .16f * safeEdgePull
     val centerY = safeHeight * .5f
     return TabGlassFrame(
         width = safeWidth,
@@ -108,7 +118,7 @@ internal fun tabGlassFrame(
         centerX = centerX,
         centerY = centerY,
         halfWidth = halfWidth,
-        halfHeight = halfHeight.coerceAtMost(safeHeight * .5f),
+        halfHeight = halfHeight,
         motion = opticalStrength,
         refractionPx = refractionDp.coerceIn(0f, GlassControlDefaults.MaxBackdropRefractionDp) * safeDensity * opticalStrength,
         density = safeDensity,

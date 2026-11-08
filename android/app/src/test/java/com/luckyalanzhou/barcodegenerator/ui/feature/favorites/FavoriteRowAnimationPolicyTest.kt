@@ -4,15 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FavoriteRowAnimationPolicyTest {
-    @Test fun rowChangesAnimateAfterInitialListPositionRestore() {
-        assertTrue(shouldAnimateFavoriteRowChanges(listPositionRestored = true, reduceMotion = false))
+    @Test fun rowChangesAnimateOnlyWhileAnExplicitTreeChangeIsActive() {
+        assertTrue(shouldAnimateFavoriteRowChanges(rowAnimationActive = true, reduceMotion = false))
     }
 
-    @Test fun initialListRestoreDoesNotAnimateRows() {
-        assertFalse(shouldAnimateFavoriteRowChanges(listPositionRestored = false, reduceMotion = false))
+    @Test fun ordinaryListStateDoesNotAnimateRows() {
+        assertFalse(shouldAnimateFavoriteRowChanges(rowAnimationActive = false, reduceMotion = false))
     }
 
     @Test fun reducedMotionDisablesRowTransitions() {
-        assertFalse(shouldAnimateFavoriteRowChanges(listPositionRestored = true, reduceMotion = true))
+        assertFalse(shouldAnimateFavoriteRowChanges(rowAnimationActive = true, reduceMotion = true))
     }
 }

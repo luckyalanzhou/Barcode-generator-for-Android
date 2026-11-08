@@ -63,6 +63,7 @@ data class LanShareUiState(
     val session: LanShareSession? = null,
     val isHost: Boolean = false,
     val isStartingHost: Boolean = false,
+    val hostSessionInvalidated: Boolean = false,
     val qrVisible: Boolean = false,
     val browserConnected: Boolean = false,
     val files: List<LanShareFile> = emptyList(),
@@ -223,6 +224,7 @@ class LanShareViewModel @Inject constructor(
             state.copy(
                 session = snapshot.session,
                 isHost = true,
+                hostSessionInvalidated = false,
                 qrVisible = true,
                 browserConnected = snapshot.browserConnected,
                 files = snapshot.files,
@@ -238,7 +240,7 @@ class LanShareViewModel @Inject constructor(
         synchronized(hostStartupLock) {
             if (_uiState.value.session != null || _uiState.value.isStartingHost) return
             activeHostStartupRollbackClearsFiles = true
-            _uiState.update { it.copy(isStartingHost = true) }
+            _uiState.update { it.copy(isStartingHost = true, hostSessionInvalidated = false) }
         }
         lateinit var startupJob: Job
         startupJob = viewModelScope.launch(start = CoroutineStart.LAZY) {
@@ -330,6 +332,7 @@ class LanShareViewModel @Inject constructor(
             it.copy(
                 session = session,
                 isHost = false,
+                hostSessionInvalidated = false,
                 qrVisible = false,
                 browserConnected = false,
                 files = emptyList(),
@@ -369,6 +372,7 @@ class LanShareViewModel @Inject constructor(
                 session = null,
                 isHost = false,
                 isStartingHost = hostStartupPending,
+                hostSessionInvalidated = false,
                 qrVisible = false,
                 browserConnected = false,
                 files = emptyList(),
@@ -477,6 +481,49 @@ class LanShareViewModel @Inject constructor(
     }
 
     private fun applyRealtimeState(snapshot: LanShareRealtimeState) {
+        if (snapshot.hostSessionInvalidated) {
+            val currentState = _uiState.value
+            val previousSession = currentState.takeIf { it.isHost }?.session
+            if (previousSession != null) {
+                invalidateRoomRefresh()
+                previewFilesById = emptyMap()
+                _uiState.update { state ->
+                    if (state.session != previousSession || !state.isHost) state else state.copy(
+                        session = null,
+                        isHost = false,
+                        hostSessionInvalidated = true,
+                        qrVisible = false,
+                        browserConnected = false,
+                        files = emptyList(),
+                        messages = emptyList(),
+                        ownFileIds = emptySet(),
+                        previewFileIds = emptySet(),
+                    )
+                }
+                _events.trySend(LanShareEvent.Error("Wi-Fi 已断开，分享房间已关闭，请重新创建"))
+            } else if (currentState.isStartingHost) {
+                cancelPendingHostStartup(
+                    reason = "Wi-Fi session was invalidated during startup",
+                    clearSharedFilesOnRollback = true,
+                )
+                invalidateRoomRefresh()
+                previewFilesById = emptyMap()
+                _uiState.update { state ->
+                    if (state.session != null || !state.isStartingHost) state else state.copy(
+                        isStartingHost = false,
+                        hostSessionInvalidated = true,
+                        qrVisible = false,
+                        browserConnected = false,
+                        files = emptyList(),
+                        messages = emptyList(),
+                        ownFileIds = emptySet(),
+                        previewFileIds = emptySet(),
+                    )
+                }
+                _events.trySend(LanShareEvent.Error("Wi-Fi 已断开，分享房间已关闭，请重新创建"))
+            }
+            return
+        }
         _uiState.update { state ->
             if (!state.isHost) state else state.copy(
                 browserConnected = snapshot.browserConnected,
@@ -540,14 +587,20 @@ class LanShareViewModel @Inject constructor(
                 }
                 currentCoroutineContext().ensureActive()
                 var lastProgressPercent = 0
+                var resolvedSize = source.size
                 val id = lanShareGateway.upload(session, uploadId, source) { uploadedBytes, totalBytes ->
+                    val sizeChanged = totalBytes >= 0L && totalBytes != resolvedSize
+                    if (totalBytes >= 0L) resolvedSize = totalBytes
                     val percent = if (totalBytes <= 0L) 0 else
                         ((uploadedBytes.coerceIn(0L, totalBytes) * 100L) / totalBytes).toInt()
-                    if (percent != lastProgressPercent) {
+                    if (percent != lastProgressPercent || sizeChanged) {
                         lastProgressPercent = percent
                         refreshGuard.update(session, ticket) { state ->
                             state.copy(uploadingFiles = state.uploadingFiles.map { current ->
-                                if (current.id == uploadId) current.copy(uploadedBytes = uploadedBytes) else current
+                                if (current.id == uploadId) current.copy(
+                                    size = totalBytes.takeIf { it >= 0L } ?: current.size,
+                                    uploadedBytes = uploadedBytes,
+                                ) else current
                             })
                         }
                     }
@@ -556,7 +609,7 @@ class LanShareViewModel @Inject constructor(
                 val completedFile = LanShareFile(
                     id = id,
                     name = source.name,
-                    size = source.size,
+                    size = resolvedSize,
                     modifiedAt = System.currentTimeMillis(),
                     sender = "app",
                     mimeType = source.mimeType,
@@ -803,6 +856,14 @@ class LanShareViewModel @Inject constructor(
         val uri = current.pendingUploadUri ?: return null
         setPendingUpload(null, null, null)
         return uri to current.pendingUploadTempFile
+    }
+
+    fun discardPendingUpload() {
+        val temporaryFile = _uiState.value.pendingUploadTempFile
+        setPendingUpload(null, null, null)
+        if (temporaryFile != null && temporaryFile.exists() && !temporaryFile.delete()) {
+            logger.recordSafely("lan_ui", "pending attachment cleanup failed")
+        }
     }
 
     override fun onCleared() {

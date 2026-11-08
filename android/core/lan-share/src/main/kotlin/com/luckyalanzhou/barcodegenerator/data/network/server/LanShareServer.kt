@@ -104,6 +104,8 @@ internal class LanShareServer(
     @Volatile private var stopped = false
     private val chatMessages = mutableListOf<LanShareMessage>()
     private val uploadedMimeTypes = ConcurrentHashMap<String, String>()
+    private data class UploadedFileIdentity(val displayName: String, val sender: String)
+    private val uploadedFileIdentities = ConcurrentHashMap<String, UploadedFileIdentity>()
     private val clientHandlerRunner = BoundedNanoHttpdAsyncRunner(maxConcurrentClientConnections)
     private val webImagePreviewCache = LanShareWebImagePreviewCache(previewCacheFolder)
     private data class PairingAttempts(val windowStartedAtMs: Long, val failures: Int)
@@ -147,8 +149,21 @@ internal class LanShareServer(
                 currentClientSocket.set(socket)
                 currentClientInput.set(guardedInput)
                 try {
-                    super.run()
+                    // NanoHTTPD's default handler resolves the peer hostname before reading HTTP.
+                    // A LAN transfer needs only the numeric address; offline DNS can otherwise
+                    // hold this handler until the client's response deadline expires.
+                    val session = HTTPSession(
+                        tempFileManagerFactory.create(), guardedInput, socket.getOutputStream(),
+                        numericLanPeerAddress(socket.inetAddress),
+                    )
+                    while (!socket.isClosed) session.execute()
+                } catch (error: IOException) {
+                    if (!socket.isClosed && error !is java.net.SocketTimeoutException &&
+                        !(error is java.net.SocketException && error.message == "NanoHttpd Shutdown")) {
+                        logger.recordSafely("lan-server", "client connection ended with IO error", error, error)
+                    }
                 } finally {
+                    try { close() } finally { clientHandlerRunner.closed(this) }
                     currentClientInput.remove()
                     currentClientSocket.remove()
                 }
@@ -309,6 +324,8 @@ internal class LanShareServer(
         target: File,
         reservation: Long,
         mimeType: String,
+        displayName: String,
+        fileSender: String,
         transferId: String?,
         source: String,
     ) {
@@ -362,6 +379,7 @@ internal class LanShareServer(
                 check(stagingFile.renameTo(target)) { "无法保存上传文件" }
                 committed = true
                 uploadedMimeTypes[target.name] = mimeType
+                uploadedFileIdentities[target.name] = UploadedFileIdentity(displayName, fileSender)
                 reservedUploadBytes = (reservedUploadBytes - reservation).coerceAtLeast(0L)
                 reservedUploadFiles = (reservedUploadFiles - 1).coerceAtLeast(0)
                 reservationHeld = false
@@ -867,10 +885,16 @@ internal class LanShareServer(
         super.stop()
     }
 
+    private fun fileRecord(file: File, sender: String): LanShareFile {
+        val parsed = toLanShareFile(file, sender, uploadedMimeTypes[file.name])
+        val uploadedIdentity = uploadedFileIdentities[file.name] ?: return parsed
+        return parsed.copy(name = uploadedIdentity.displayName, sender = uploadedIdentity.sender)
+    }
+
     private fun fileRecordsSnapshot(sender: String) = folder.listFiles().orEmpty()
         .filter(::isCommittedSharedFile)
         .sortedBy { it.lastModified() }
-        .map { file -> toLanShareFile(file, sender, uploadedMimeTypes[file.name]) }
+        .map { file -> fileRecord(file, sender) }
 
     fun filesSnapshot(sender: String) = fileRecordsSnapshot(sender)
 
@@ -880,7 +904,7 @@ internal class LanShareServer(
         file?.let { uploaded ->
             emitRealtimeEventSafely(
                 LanShareRealtimeEvent.FileAdded(
-                    toLanShareFile(uploaded, "peer", uploadedMimeTypes[uploaded.name]),
+                    fileRecord(uploaded, "peer"),
                 ),
                 "file",
             )
@@ -888,7 +912,7 @@ internal class LanShareServer(
         if (webSockets.isEmpty()) return
         val event = JSONObject().put("type", "files").toString()
         val eventWithFile = file?.let { uploaded ->
-            val record = toLanShareFile(uploaded, "peer", uploadedMimeTypes[uploaded.name])
+            val record = fileRecord(uploaded, "peer")
             val payload = JSONObject(event).put("file", JSONObject()
                 .put("id", record.id)
                 .put("name", record.name)
@@ -993,8 +1017,10 @@ internal class LanShareServer(
                 session.method == Method.PUT && requestPath == "/upload" -> {
                     val body = uploadBody(session)
                         ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "上传请求长度无效")
-                    if (body.expectedBytes !in 1..LanShareLimits.MAX_FILE_BYTES) {
+                            .apply { closeConnection(true) }
+                    if (body.expectedBytes !in 0..LanShareLimits.MAX_FILE_BYTES) {
                         return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "单个文件不能超过 10 GiB")
+                            .apply { closeConnection(true) }
                     }
                     val submittedName = session.parameters["name"]?.firstOrNull().orEmpty().ifBlank { "附件" }
                     val client = session.parameters["client"]?.firstOrNull().orEmpty()
@@ -1003,10 +1029,16 @@ internal class LanShareServer(
                     val name = safeFileName(submittedName)
                     val mimeType = uploadedMimeType(name, session.headers["content-type"])
                     val targetPrefix = System.nanoTime()
+                    val browserClientId = if (client == APP_UPLOAD_CLIENT) null else safeBrowserClientId(client)
                     val target = if (client == APP_UPLOAD_CLIENT) {
                         File(folder, "app_${targetPrefix}_$name")
                     } else {
-                        File(folder, "web_${targetPrefix}_${safeBrowserClientId(client)}_$name")
+                        File(folder, "web_${targetPrefix}_${requireNotNull(browserClientId)}_$name")
+                    }
+                    val fileSender = if (client == APP_UPLOAD_CLIENT) {
+                        "app"
+                    } else {
+                        browserClientId?.takeUnless { it == "clegacy" }?.let { "browser:$it" } ?: "browser"
                     }
                     val rejection = reserveUploadCapacity(body.expectedBytes)
                     if (rejection != null) {
@@ -1034,6 +1066,8 @@ internal class LanShareServer(
                         target = target,
                         reservation = body.expectedBytes,
                         mimeType = mimeType,
+                        displayName = name,
+                        fileSender = fileSender,
                         transferId = transferId,
                         source = if (client == APP_UPLOAD_CLIENT) "app" else "browser",
                     )
@@ -1071,7 +1105,7 @@ internal class LanShareServer(
                         addHeader("X-Content-Type-Options", "nosniff")
                         addHeader(
                             "Content-Disposition",
-                            "attachment; filename=\"${toLanShareFile(file, "peer", fileMimeType(file)).name}\""
+                            "attachment; filename=\"${fileRecord(file, "peer").name}\""
                         )
                     }
                 }
@@ -1107,6 +1141,7 @@ internal class LanShareServer(
         MIME_PLAINTEXT,
         "需要有效的局域网会话凭据",
     ).apply {
+        closeConnection(true)
         addHeader("WWW-Authenticate", "Bearer realm=\"lan-share\"")
         addHeader("Cache-Control", "no-store")
     }
@@ -1150,6 +1185,10 @@ internal class LanShareServer(
         newFixedLengthResponse(status, MIME_PLAINTEXT, message).apply { addHeader("Cache-Control", "no-store") }
 
 }
+
+/** Preserve the peer bytes while supplying a known numeric hostname, so getHostName never does DNS. */
+internal fun numericLanPeerAddress(address: java.net.InetAddress): java.net.InetAddress =
+    java.net.InetAddress.getByAddress(address.hostAddress, address.address)
 
 /** 将 URL 路径段解码；格式错误保留原值，程序级错误必须继续传播。 */
 internal fun decodeLanSharePathSegment(

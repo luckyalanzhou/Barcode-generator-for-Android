@@ -5,7 +5,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
+import com.luckyalanzhou.barcodegenerator.icons.UnfoldMoreIcon
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
@@ -18,11 +18,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 import com.luckyalanzhou.barcodegenerator.domain.MAX_GENERATE_INPUT_ROWS
 
-import com.luckyalanzhou.barcodegenerator.icons.AddIcon
-import com.luckyalanzhou.barcodegenerator.icons.DeleteIcon
-import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -38,6 +36,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -55,16 +55,23 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +79,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.BoxWithConstraints
+
+private data class DeletedGenerateInput(val index: Int, val text: String, val key: Long, val placeholderKey: Long? = null)
 
 /**
  * 生成页的输入与操作界面：编辑多行内容、选择条码格式，并将确认后的输入交给生成流程。
@@ -92,15 +106,35 @@ internal fun GenerateContent(
     onNotice: (String) -> Unit,
     isDataLoadFailed: Boolean = false,
     onRetryDataLoad: () -> Unit = {},
+    validationError: GenerateInputError? = null,
 ) {
+    val batchPasteFocusRequester = remember { FocusRequester() }
     val values = remember {
         mutableStateListOf<String>().apply {
             addAll(inputDraft.ifEmpty { listOf("") })
         }
     }
-    var focusedIndex by remember { mutableIntStateOf(-1) }
+    var focusedIndex by rememberSaveable { mutableIntStateOf(-1) }
+    val rowKeys = remember { mutableStateListOf<Long>().apply { addAll(values.indices.map { it.toLong() }) } }
+    var nextRowKey by remember { mutableStateOf(values.size.toLong()) }
+    var focusRequest by remember { mutableIntStateOf(0) }
+    var focusRequestRowKey by remember { mutableStateOf<Long?>(null) }
+    var deletedInput by remember { mutableStateOf<DeletedGenerateInput?>(null) }
+    fun resetRowKeys() {
+        rowKeys.clear()
+        rowKeys.addAll(values.map { nextRowKey++ })
+        deletedInput = null
+    }
+    LaunchedEffect(validationError) {
+        validationError?.takeIf { it.rowIndex in values.indices }?.let {
+            focusedIndex = it.rowIndex
+            focusRequestRowKey = rowKeys[it.rowIndex]
+            focusRequest++
+        }
+    }
     var formatName by remember(initialFormat) { mutableStateOf(initialFormat) }
     var formatExpanded by remember { mutableStateOf(false) }
+    var openFormatAfterImeDismiss by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var batchPasteDialog by remember { mutableStateOf(false) }
     var batchPasteText by remember { mutableStateOf("") }
@@ -111,11 +145,24 @@ internal fun GenerateContent(
     val themeColors = LocalAppColorScheme.current
     val textColor = themeColors.text.primary
     val secondary = themeColors.text.secondary
-    val cardColor = themeColors.surfaces.panel
     val inputColor = themeColors.surfaces.input
     val inputBorder = themeColors.borders.input
     val focusedInputBorder = themeColors.borders.focusedInput
     val density = LocalDensity.current
+    val imeInsets = WindowInsets.ime
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // 输入法收起会改变可用窗口高度；先等尺寸稳定，再创建 Popup，避免菜单按旧窗口位置定位。
+    LaunchedEffect(openFormatAfterImeDismiss) {
+        if (!openFormatAfterImeDismiss) return@LaunchedEffect
+        focusManager.clearFocus()
+        keyboardController?.hide()
+        snapshotFlow { imeInsets.getBottom(density) }.first { it == 0 }
+        withFrameNanos { }
+        formatExpanded = true
+        openFormatAfterImeDismiss = false
+    }
     val formatAnchorWidth = formatButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
 
     fun syncDraft() { onDraftChanged(values.toList()) }
@@ -152,6 +199,9 @@ internal fun GenerateContent(
                         .clip(RoundedCornerShape(14.dp))
                         .background(inputColor)
                         .border(1.dp, inputBorder, RoundedCornerShape(14.dp))
+                        .pointerInput(batchPasteFocusRequester) {
+                            detectTapGestures { batchPasteFocusRequester.requestFocus() }
+                        }
                         .padding(12.dp),
                 ) {
                     BasicTextField(
@@ -160,7 +210,8 @@ internal fun GenerateContent(
                             batchPasteText = it
                             batchPastePreview = BatchBarcodeTextParser.preview(values.toList(), it)
                         },
-                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                        modifier = Modifier.fillMaxWidth().focusRequester(batchPasteFocusRequester)
+                            .verticalScroll(rememberScrollState())
                             .semantics { contentDescription = "多行条码内容" },
                         textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp),
                         cursorBrush = SolidColor(textColor),
@@ -193,7 +244,10 @@ internal fun GenerateContent(
                                     is BatchBarcodeAppendResult.Success -> {
                                         values.clear()
                                         values.addAll(appended.values)
+                                        resetRowKeys()
                                         focusedIndex = values.lastIndex
+                                        focusRequestRowKey = rowKeys.last()
+                                        focusRequest++
                                         syncDraft()
                                         batchPasteText = ""
                                         batchPastePreview = BatchBarcodePastePreview.Empty
@@ -216,11 +270,13 @@ internal fun GenerateContent(
         if (values.toList() != incoming) {
             values.clear()
             values.addAll(incoming)
+            resetRowKeys()
+            focusRequestRowKey = null
             focusedIndex = focusedIndex.coerceIn(-1, values.lastIndex)
         }
     }
 
-    // 长按输入行的删除操作会进入二次确认；确认后清空内容，但保留一个可继续输入的空行。
+    // 明确的清空全部入口进入确认；单行删除另有撤销。
     if (clearDialog) {
         Dialog(
             onDismissRequest = { clearDialog = false },
@@ -232,17 +288,22 @@ internal fun GenerateContent(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                 )
+                Text("将移除全部 ${values.size} 行输入，并保留一个空行。", color = secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
                     DialogAction("取消", dark, { clearDialog = false })
                     DialogAction(
-                        "确定",
+                        "清空全部",
                         dark,
                         {
                             values.clear()
                             values.add("")
+                            resetRowKeys()
+                            focusedIndex = -1
+                            focusRequestRowKey = null
+                            focusManager.clearFocus()
                             syncDraft()
                             clearDialog = false
                         },
@@ -254,147 +315,150 @@ internal fun GenerateContent(
         }
     }
 
-    Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        // 修改、上下移动和删除输入行都会同步草稿，保证离开页面后可恢复。
-        ComposeGenerateInputPanel(
-            values = values,
-            dark = dark,
-            focusedIndex = focusedIndex,
-            onValueChange = { index, value ->
-                if (index in values.indices) {
-                    values[index] = value
-                    syncDraft()
+    BoxWithConstraints(Modifier.fillMaxWidth().imePadding()) {
+        val panelMaxHeight = (maxHeight * .4f).coerceIn(52.dp, 264.dp)
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("条码内容", modifier = Modifier.weight(1f), color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                TextButton(onClick = { clearDialog = true }, enabled = values.size > 1 || values.any { it.isNotEmpty() }) {
+                    Text("清空全部", color = if (values.size > 1 || values.any { it.isNotEmpty() }) themeColors.text.destructive else themeColors.text.disabled, fontSize = 14.sp)
                 }
-            },
-            onFocus = { focusedIndex = it },
-            onMoveUp = {
-                index ->
-                if (index in 1 until values.size) {
-                    val other = values[index - 1]
-                    values[index - 1] = values[index]
-                    values[index] = other
-                    focusedIndex = when (focusedIndex) {
-                        index -> index - 1
-                        index - 1 -> index
-                        else -> focusedIndex
+            }
+            // 修改、上下移动和删除输入行都会同步草稿，保证离开页面后可恢复。
+            ComposeGenerateInputPanel(
+                maxPanelHeight = panelMaxHeight,
+                values = values,
+                dark = dark,
+                focusedIndex = focusedIndex,
+                rowKeys = rowKeys,
+                focusRequest = focusRequest,
+                focusRequestRowKey = focusRequestRowKey,
+                validationError = validationError,
+                onValueChange = { index, value ->
+                    if (index in values.indices) {
+                        values[index] = value
+                        syncDraft()
                     }
-                    syncDraft()
-                }
-            },
-            onMoveDown = {
-                index ->
-                if (index in 0 until values.lastIndex) {
-                    val other = values[index + 1]
-                    values[index + 1] = values[index]
-                    values[index] = other
-                    focusedIndex = when (focusedIndex) {
-                        index -> index + 1
-                        index + 1 -> index
-                        else -> focusedIndex
-                    }
-                    syncDraft()
-                }
-            },
-            onDelete = {
-                index ->
-                if (index in values.indices) {
-                    if (values.size == 1) {
-                        values[0] = ""
-                        focusedIndex = 0
-                    } else {
-                        values.removeAt(index)
-                        focusedIndex = when {
-                            focusedIndex == index -> (index - 1).coerceAtLeast(0).coerceAtMost(values.lastIndex)
-                            focusedIndex > index -> focusedIndex - 1
+                },
+                onFocus = { focusedIndex = it },
+                onMoveUp = {
+                    index ->
+                    if (index in 1 until values.size) {
+                        val other = values[index - 1]
+                        values[index - 1] = values[index]
+                        values[index] = other
+                        val otherKey = rowKeys[index - 1]
+                        rowKeys[index - 1] = rowKeys[index]
+                        rowKeys[index] = otherKey
+                        focusRequestRowKey = null
+                        focusedIndex = when (focusedIndex) {
+                            index -> index - 1
+                            index - 1 -> index
                             else -> focusedIndex
                         }
+                        syncDraft()
                     }
-                    syncDraft()
-                }
-            },
-            onDeleteLongClick = { clearDialog = true },
-        )
-
-        val count = values.count { it.trim().isNotEmpty() }
-        val generateEnabled = count > 0 && isDataReady && !isPreparingResult
-        val generateContainer = if (generateEnabled) themeColors.controls.primaryAction else themeColors.controls.disabledContainer
-        val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
-        // 次要操作：添加行、一次导入多行，或使用相机识别填充。
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ComposeGenerateActionButton(
-                icon = AddIcon,
-                iconDescription = "添加一行",
-                label = "添加一行",
-                containerColor = themeColors.controls.button,
-                contentColor = textColor,
-                modifier = Modifier.weight(1f),
-                iconSize = 20.dp,
-                contentSpacing = 4.dp,
-                onClick = {
-                    if (values.size >= MAX_GENERATE_INPUT_ROWS) onNotice("最多保留 $MAX_GENERATE_INPUT_ROWS 行输入框")
-                    else { val at = (focusedIndex + 1).coerceIn(0, values.size); values.add(at, ""); focusedIndex = at; syncDraft() }
+                },
+                onMoveDown = {
+                    index ->
+                    if (index in 0 until values.lastIndex) {
+                        val other = values[index + 1]
+                        values[index + 1] = values[index]
+                        values[index] = other
+                        val otherKey = rowKeys[index + 1]
+                        rowKeys[index + 1] = rowKeys[index]
+                        rowKeys[index] = otherKey
+                        focusRequestRowKey = null
+                        focusedIndex = when (focusedIndex) {
+                            index -> index + 1
+                            index + 1 -> index
+                            else -> focusedIndex
+                        }
+                        syncDraft()
+                    }
+                },
+                onDelete = { index ->
+                    if (index in values.indices) {
+                        val removed = DeletedGenerateInput(index, values[index], rowKeys[index])
+                        values.removeAt(index)
+                        rowKeys.removeAt(index)
+                        var placeholder: Long? = null
+                        if (values.isEmpty()) {
+                            values.add("")
+                            placeholder = nextRowKey++
+                            rowKeys.add(placeholder)
+                        }
+                        deletedInput = removed.copy(placeholderKey = placeholder)
+                        focusedIndex = index.coerceAtMost(values.lastIndex)
+                        focusRequestRowKey = rowKeys[focusedIndex]
+                        focusRequest++
+                        syncDraft()
+                    }
                 },
             )
-            ComposeGenerateActionButton(
-                iconDescription = "批量粘贴条码",
-                label = "批量粘贴",
-                containerColor = themeColors.controls.button,
-                contentColor = secondary,
-                modifier = Modifier.weight(1f),
-                onClick = {
+            deletedInput?.let { deleted ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("已删除第 ${deleted.index + 1} 行", color = secondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        val placeholder = deleted.placeholderKey?.let { rowKeys.indexOf(it) }?.takeIf { it >= 0 && values[it].isEmpty() }
+                        if (values.size - (if (placeholder != null) 1 else 0) >= MAX_GENERATE_INPUT_ROWS) {
+                            onNotice("输入行已达上限，无法撤销删除")
+                        } else {
+                            if (placeholder != null) { values.removeAt(placeholder); rowKeys.removeAt(placeholder) }
+                            val at = deleted.index.coerceIn(0, values.size)
+                            values.add(at, deleted.text)
+                            rowKeys.add(at, deleted.key)
+                            focusedIndex = at
+                            focusRequestRowKey = null
+                            focusManager.clearFocus()
+                            deletedInput = null
+                            syncDraft()
+                        }
+                    }) { Text("撤销", color = themeColors.controls.accent, fontSize = 14.sp) }
+                }
+            }
+
+            val count = values.count { it.trim().isNotEmpty() }
+            val generateEnabled = count > 0 && isDataReady && !isPreparingResult
+            val generateContainer = if (generateEnabled) themeColors.controls.primaryAction else themeColors.controls.disabledContainer
+            val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
+            GlassGenerateActionBar(
+                onAddRow = {
+                    if (values.size >= MAX_GENERATE_INPUT_ROWS) onNotice("最多保留 $MAX_GENERATE_INPUT_ROWS 行输入框")
+                    else {
+                        val at = (focusedIndex + 1).coerceIn(0, values.size)
+                        values.add(at, "")
+                        val key = nextRowKey++
+                        rowKeys.add(at, key)
+                        focusedIndex = at
+                        focusRequestRowKey = key
+                        focusRequest++
+                        syncDraft()
+                    }
+                },
+                onBatchPaste = {
                     batchPasteText = ""
                     batchPastePreview = BatchBarcodePastePreview.Empty
                     batchPasteDialog = true
                 },
+                onCaptureText = onCaptureText,
             )
-            ComposeGenerateActionButton(
-                icon = PhotoCameraIcon,
-                iconDescription = "拍照填充",
-                label = "拍照填充",
-                // 强调色只用于图标和文字，按钮内部透明，外框仍使用统一主题描边。
-                containerColor = Color.Transparent,
-                contentColor = themeColors.controls.accent,
-                modifier = Modifier.weight(1f),
-                iconSize = 18.dp,
-                contentSpacing = 3.dp,
-                onClick = onCaptureText,
-            )
-        }
-
-        // 条码类型按钮只负责展开菜单；选中后同步更新本地显示和上层保存的格式。
-        Box {
+            // 条码类型按钮只负责展开菜单；选中后同步更新本地显示和上层保存的格式。
             val formatDescription = barcodeFormats.firstOrNull { it.displayName == formatName }?.description.orEmpty()
             Row(
-                Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(18.dp)).background(cardColor).padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
-                ) {
-                    Text(
-                        "\u6761\u7801\u7c7b\u578b",
-                        color = textColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        style = LocalTextStyle.current.copy(background = Color.Transparent),
-                    )
-                    Text(
-                        formatDescription,
-                        color = themeColors.text.secondary,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                        style = LocalTextStyle.current.copy(background = Color.Transparent),
-                    )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("条码类型", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(formatDescription, color = secondary, fontSize = 12.sp, lineHeight = 16.sp)
                 }
                 Box {
                     Button(
-                        onClick = { formatExpanded = true },
+                        onClick = { openFormatAfterImeDismiss = true },
                         interactionSource = formatInteractions,
                         modifier = Modifier.iosPressFeedback(formatInteractions).onGloballyPositioned {
                             formatButtonWidth = it.size.width
@@ -420,7 +484,7 @@ internal fun GenerateContent(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                     ) {
                         Text(formatName, color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1, softWrap = false, style = LocalTextStyle.current.copy(background = Color.Transparent))
-                        Icon(KeyboardArrowDownIcon, contentDescription = null, tint = themeColors.text.secondary,
+                        Icon(UnfoldMoreIcon, contentDescription = null, tint = themeColors.text.secondary,
                             modifier = Modifier.padding(start = 6.dp).size(16.dp))
                     }
                     AnchoredDropdownMenu(
@@ -449,46 +513,46 @@ internal fun GenerateContent(
                     }
                 }
             }
-        }
 
-        // 主操作满足前置条件后才提交输入；准备期间显示进度并阻止重复提交。
-        val generateInteraction = remember { MutableInteractionSource() }
-        Box(
-            modifier = Modifier.fillMaxWidth().iosPressFeedback(generateInteraction)
-                .globalButtonChrome(RoundedCornerShape(18.dp)).heightIn(min = 52.dp)
-                .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled,
-                    interactionSource = generateInteraction, indication = null, role = Role.Button) {
-                onGenerate(values.toList(), formatName)
-            },
-            contentAlignment = Alignment.Center
-        ) {
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (isPreparingResult) CircularProgressIndicator(Modifier.size(18.dp), color = generateContent, strokeWidth = 2.dp)
-            Text(
-                if (isPreparingResult) "正在准备全部条码…" else "\u751f\u6210 $count \u4e2a\u6761\u7801",
-                color = generateContent,
-                fontSize = 16.sp,
-                style = LocalTextStyle.current.copy(background = Color.Transparent),
-            )
+            // 主操作满足前置条件后才提交输入；准备期间显示进度并阻止重复提交。
+            val generateInteraction = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier.fillMaxWidth().iosPressFeedback(generateInteraction)
+                    .globalButtonChrome(RoundedCornerShape(18.dp)).heightIn(min = 52.dp)
+                    .clip(RoundedCornerShape(18.dp)).background(generateContainer).clickable(enabled = generateEnabled,
+                        interactionSource = generateInteraction, indication = null, role = Role.Button) {
+                    onGenerate(values.toList(), formatName)
+                },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isPreparingResult) CircularProgressIndicator(Modifier.size(18.dp), color = generateContent, strokeWidth = 2.dp)
+                Text(
+                    if (isPreparingResult) "正在准备全部条码…" else if (validationError != null) "重新生成" else if (count == 0) "生成条码" else "生成 $count 个条码",
+                    color = generateContent,
+                    fontSize = 16.sp,
+                    style = LocalTextStyle.current.copy(background = Color.Transparent),
+                )
+                }
             }
-        }
 
-        if (isDataLoadFailed) {
-            Text(
-                "数据读取失败，暂时无法生成条码",
-                color = themeColors.text.primary,
-                fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
-            DialogAction(
-                "重试读取",
-                dark,
-                onRetryDataLoad,
-                modifier = Modifier.align(Alignment.End),
-                primary = true,
-            )
+            if (isDataLoadFailed) {
+                Text(
+                    "数据读取失败，暂时无法生成条码",
+                    color = themeColors.text.primary,
+                    fontSize = 14.sp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                DialogAction(
+                    "重试读取",
+                    dark,
+                    onRetryDataLoad,
+                    modifier = Modifier.align(Alignment.End),
+                    primary = true,
+                )
+            }
         }
     }
 }

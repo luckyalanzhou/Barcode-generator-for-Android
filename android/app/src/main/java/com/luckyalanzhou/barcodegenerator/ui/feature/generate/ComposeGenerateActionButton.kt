@@ -7,7 +7,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +45,7 @@ internal fun ComposeGenerateActionButton(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = modifier.iosPressFeedback(interactionSource).height(52.dp).globalButtonChrome(shape).semantics { role = Role.Button },
+        modifier = modifier.iosPressFeedback(interactionSource).heightIn(min = 48.dp).semantics { role = Role.Button },
         shape = shape,
         color = containerColor,
         contentColor = contentColor,

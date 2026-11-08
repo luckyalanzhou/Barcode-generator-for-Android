@@ -16,13 +16,20 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 
-internal val Context.settingsDataStore by preferencesDataStore(name = "barcode_settings")
+internal val Context.settingsDataStore by preferencesDataStore(
+    name = "barcode_settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { error ->
+        android.util.Log.e("SettingsStore", "Corrupted preferences replaced with defaults", error)
+        emptyPreferences()
+    },
+)
 
 /**
  * DataStore 设置实现：统一读取和保存条码样式、外观选项、OCR 与更新状态。

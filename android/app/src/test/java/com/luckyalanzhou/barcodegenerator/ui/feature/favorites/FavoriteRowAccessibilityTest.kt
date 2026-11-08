@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 import android.app.Application
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -37,10 +38,12 @@ class FavoriteRowAccessibilityTest {
                 CompositionLocalProvider(LocalLongPressMenuHost provides {}) {
                     FavoriteFolderRow(
                         row = ComposeFavoriteRow("Docs", "文档", 0, 0, true, true),
+                        modifier = Modifier,
                         dark = false,
                         secondary = Color.Gray,
                         folderColor = Color.Blue,
                         animation = ComposeAnimationConfig,
+                        animateTreeChanges = false,
                         onClick = {},
                         onShowSubfolderEditor = {},
                         onShowFolderEditor = { _, _ -> },
@@ -65,6 +68,7 @@ class FavoriteRowAccessibilityTest {
                 CompositionLocalProvider(LocalLongPressMenuHost provides {}) {
                     FavoriteGroupRow(
                         row = ComposeFavoriteRow("Docs/Manual", "Manual", 1, 0, false, false, group),
+                        modifier = Modifier,
                         group = group,
                         dark = false,
                         secondary = Color.Gray,

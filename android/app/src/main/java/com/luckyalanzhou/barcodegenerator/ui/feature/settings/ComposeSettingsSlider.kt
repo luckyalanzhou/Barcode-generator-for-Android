@@ -65,6 +65,7 @@ internal fun SettingsSliderRow(
     range: ClosedFloatingPointRange<Float>,
     valueText: String,
     color: Color,
+    stacked: Boolean,
     onChange: (Float) -> Unit,
 ) {
     val warningInteractions = remember { MutableInteractionSource() }
@@ -144,16 +145,15 @@ internal fun SettingsSliderRow(
             modifier = Modifier.width((74f * fontScale.coerceAtLeast(1f)).dp).heightIn(min = 48.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
                 .semantics { contentDescription = "$title，$shownValue，点击输入数值" }
-                .padding(end = 8.dp).offset(x = 6.dp),
-            // 只将数值显示整体右移 6.dp，利用预留尾部空间，不改变滑块或整行测量宽度。
-            horizontalArrangement = Arrangement.Start,
+                .padding(end = 2.dp),
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BasicTextField(
                 value = if (editing || warning) input else TextFieldValue(draft.roundToInt().toString()),
                 onValueChange = { input = it }, singleLine = true,
                 textStyle = TextStyle(color = if ((editing || warning) && parseSliderValue(input.text, range) == null)
-                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 16.sp),
+                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 16.sp, textAlign = TextAlign.End),
                 cursorBrush = SolidColor(valueColor),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
@@ -170,30 +170,28 @@ internal fun SettingsSliderRow(
                         }
                     }.semantics { contentDescription = "$title，范围 ${range.start.toInt()} 到 ${range.endInclusive.toInt()}" },
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(4.dp))
             Text(
                 valueParts.getOrNull(1).orEmpty(),
-                style = TextStyle(color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.End,
+                style = TextStyle(color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp),
+                textAlign = TextAlign.Start,
                 modifier = Modifier.width((20f * fontScale.coerceAtLeast(1f)).dp),
             )
         }
     }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (useStackedSlider(maxWidth.value, fontScale)) {
-            Column {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                    valueDisplay()
-                }
-                slider(Modifier.fillMaxWidth())
-            }
-        } else {
-            Row(Modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(88.dp))
-                slider(Modifier.weight(1f))
+    if (stacked) {
+        Column {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f))
                 valueDisplay()
             }
+            slider(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(Modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(112.dp))
+            slider(Modifier.weight(1f))
+            valueDisplay()
         }
     }
     if (warning) {

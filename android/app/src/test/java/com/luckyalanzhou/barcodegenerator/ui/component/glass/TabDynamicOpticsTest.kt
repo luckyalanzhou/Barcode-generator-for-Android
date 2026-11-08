@@ -15,10 +15,11 @@ class TabDynamicOpticsTest {
     }
 
     @Test fun dispersionUsesPhysicalPixelsAndRemainsBounded() {
-        val fast = tabDynamicOptics(frame(4f))
+        // Dynamic optics saturate at 5 tabs/s; use the saturation point for max-value assertions.
+        val fast = tabDynamicOptics(frame(5f))
         assertEquals(1.25f, fast.dispersionPx, 0f)
         assertEquals(.08f, fast.edgeColorStrength, 0f)
-        assertEquals(fast, tabDynamicOptics(frame(-4f)))
+        assertEquals(fast, tabDynamicOptics(frame(-5f)))
         assertEquals(fast, tabDynamicOptics(frame(100f, density = 3f)))
         assertTrue(tabDynamicOptics(frame(.00001f)).dispersionPx < .001f)
     }
@@ -42,14 +43,23 @@ class TabDynamicOpticsTest {
             tabContactStrain(80f, 100f, 90f, 1f), 0f)
     }
 
-    @Test fun strainedFrameStaysInsideViewportAndSharesOneShape() {
+    @Test fun strainedFrameKeepsOneShapeWithSmallTrackEdgeOverhang() {
+        val maxOverhang = 3f
         for (progress in listOf(0f, .5f, 3f)) {
-            val rest = tabGlassFrame(360f, 60f, 1f, 4, progress, 0f, 0f, 1f, touchX = 10000f)
-            val pressed = tabGlassFrame(360f, 60f, 1f, 4, progress, 1f, 0f, 1f, touchX = 10000f)
+            val rest = tabGlassFrame(
+                360f, 60f, 1f, 4, progress, 0f, 0f, 1f, touchX = 10000f,
+                velocityTabsPerSecond = 0f,
+            )
+            val pressed = tabGlassFrame(
+                360f, 60f, 1f, 4, progress, 1f, 0f, 1f, touchX = 10000f,
+                velocityTabsPerSecond = 0f,
+            )
             assertTrue(pressed.halfWidth > rest.halfWidth)
-            assertTrue(pressed.halfHeight < rest.halfHeight)
-            assertTrue(pressed.centerX - pressed.halfWidth >= 0f)
-            assertTrue(pressed.centerX + pressed.halfWidth <= pressed.width)
+            assertTrue(pressed.halfHeight > rest.halfHeight)
+            assertTrue(pressed.centerX - pressed.halfWidth >= -maxOverhang)
+            assertTrue(pressed.centerX + pressed.halfWidth <= pressed.width + maxOverhang)
+            assertTrue(pressed.centerY - pressed.halfHeight >= -maxOverhang)
+            assertTrue(pressed.centerY + pressed.halfHeight <= pressed.height + maxOverhang)
         }
     }
 }

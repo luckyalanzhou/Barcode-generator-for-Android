@@ -36,6 +36,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,10 +63,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 
 /**
- * 渲染可编辑的多行条码输入区。每行支持输入、调整顺序和删除；长按删除入口用于请求清空全部输入。
+ * 渲染可编辑的多行条码输入区。每行支持输入、调整顺序和删除；仅选中行右侧显示直接操作图标。
  * 业务数据由父级回调维护，本组件只呈现输入状态和行操作。
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -72,7 +82,11 @@ internal fun ComposeGenerateInputPanel(
     onMoveUp: (Int) -> Unit,
     onMoveDown: (Int) -> Unit,
     onDelete: (Int) -> Unit,
-    onDeleteLongClick: () -> Unit,
+    rowKeys: List<Long> = values.indices.map { it.toLong() },
+    focusRequest: Int = 0,
+    focusRequestRowKey: Long? = null,
+    validationError: GenerateInputError? = null,
+    maxPanelHeight: Dp = 264.dp,
     modifier: Modifier = Modifier,
 ) {
     val themeColors = LocalAppColorScheme.current
@@ -84,27 +98,34 @@ internal fun ComposeGenerateInputPanel(
 
     Column(
         modifier = modifier
-            .heightIn(min = 72.dp, max = 296.dp)
+            .testTag("generate-inputs")
+            .heightIn(min = 52.dp, max = maxPanelHeight.coerceAtLeast(52.dp))
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             // 输入框及排序/删除按钮占满一整行，与下方“添加一行/拍照填充”操作区保持对齐。
-            .padding(vertical = 10.dp),
+            .padding(vertical = 2.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         values.forEachIndexed { index, value ->
+            key(rowKeys.getOrElse(index) { index.toLong() }) {
                 val focusRequester = remember { FocusRequester() }
-                LaunchedEffect(focusedIndex, values.size) {
+                val bringIntoView = remember { BringIntoViewRequester() }
+                LaunchedEffect(focusRequest, focusRequestRowKey) {
+                    if (focusedIndex == index && focusRequest > 0 && focusRequestRowKey == rowKeys.getOrElse(index) { index.toLong() }) focusRequester.requestFocus()
+                }
+                LaunchedEffect(focusedIndex, focusRequest) {
                     if (focusedIndex == index) {
-                        focusRequester.requestFocus()
+                        withFrameNanos { }
+                        bringIntoView.bringIntoView()
                     }
                 }
-                Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.fillMaxWidth().bringIntoViewRequester(bringIntoView)) {
                     Surface(
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("generate-row-$index"),
                         shape = RoundedCornerShape(14.dp),
                         color = inputColor,
                         contentColor = textColor,
-                        border = BorderStroke(1.dp, if (focusedIndex == index) focusedInputBorder else inputBorder),
+                        border = BorderStroke(1.dp, if (validationError?.rowIndex == index) themeColors.text.destructive else if (focusedIndex == index) focusedInputBorder else inputBorder),
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
                     ) {
@@ -115,7 +136,7 @@ internal fun ComposeGenerateInputPanel(
                             Text(
                                 text = (index + 1).toString(),
                                 // 三位序号需随文字宽度扩展，避免大字体时折行并挤压输入内容。
-                                modifier = Modifier.widthIn(min = 32.dp),
+                                modifier = Modifier.widthIn(min = 40.dp).clickable(onClickLabel = "选中第 ${index + 1} 行") { focusRequester.requestFocus(); onFocus(index) },
                                 color = textColor,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
@@ -140,7 +161,10 @@ internal fun ComposeGenerateInputPanel(
                                 modifier = Modifier.weight(1f).height(48.dp)
                                     .focusRequester(focusRequester)
                                     .onFocusChanged { if (it.isFocused) onFocus(index) }
-                                    .semantics { contentDescription = "第 ${index + 1} 行条码内容" }
+                                    .semantics {
+                                        contentDescription = "第 ${index + 1} 行条码内容"
+                                        validationError?.takeIf { it.rowIndex == index }?.let { error(it.message) }
+                                    }
                                     .padding(horizontal = 6.dp),
                                 decorationBox = { field ->
                                     Box(
@@ -150,6 +174,8 @@ internal fun ComposeGenerateInputPanel(
                                         if (value.isEmpty()) {
                                             Text(
                                                 text = "输入一行条码内容",
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                 style = LocalTextStyle.current.copy(
                                                     color = themeColors.text.secondary,
                                                     fontSize = 14.sp,
@@ -167,51 +193,38 @@ internal fun ComposeGenerateInputPanel(
                                     }
                                 },
                             )
+                    if (focusedIndex == index) {
+                        GenerateInputAction(ArrowUpwardIcon, "上移", index > 0) { onMoveUp(index) }
+                        GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex) { onMoveDown(index) }
+                        GenerateInputAction(DeleteIcon, "删除", values.size > 1 || value.isNotEmpty()) { onDelete(index) }
+                    }
                         }
                     }
-                    if (values.size > 1) {
-                        Spacer(Modifier.width(4.dp))
-                        GenerateInputAction(ArrowUpwardIcon, "上移", index > 0, 27.dp) { onMoveUp(index) }
-                        GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex, 27.dp) { onMoveDown(index) }
-                        GenerateInputAction(DeleteIcon, "删除", true, 24.dp, onLongClick = onDeleteLongClick) { onDelete(index) }
+                    if (validationError?.rowIndex == index) {
+                        Text("第 ${index + 1} 行：${validationError.message}", color = themeColors.text.destructive,
+                            fontSize = 13.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
                     }
+
                 }
+            }
         }
     }
 }
 
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
 private fun GenerateInputAction(
     icon: ImageVector,
     description: String,
     enabled: Boolean,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
-    val themeColors = LocalAppColorScheme.current
+    val colors = LocalAppColorScheme.current
+    val tint = if (description == "删除") colors.text.destructive else colors.text.primary
     val interactions = remember { MutableInteractionSource() }
-    val tint = if (enabled) {
-        if (description == "删除") themeColors.content.deleteIcon else themeColors.controls.accent
-    } else themeColors.text.disabled.copy(alpha = 0.42f)
-    Surface(
-        // 图标保持原尺寸；外层 48dp 让狭小图标仍有足够的触控范围。
-        modifier = Modifier.size(48.dp).unframedActionPressFeedback(interactions).clip(RoundedCornerShape(10.dp)).combinedClickable(
-            enabled = enabled,
-            interactionSource = interactions,
-            indication = null,
-            onClick = onClick,
-            onLongClick = onLongClick,
-        ).semantics { role = Role.Button },
-        shape = RoundedCornerShape(10.dp),
-        color = Color.Transparent,
-        contentColor = tint,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+    androidx.compose.material3.IconButton(onClick = onClick, enabled = enabled, interactionSource = interactions,
+        modifier = Modifier.size(48.dp).unframedActionPressFeedback(interactions),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, description, tint = tint, modifier = Modifier.size(iconSize))
-        }
+        Icon(icon, description, tint = if (enabled) tint else colors.text.disabled,
+            modifier = Modifier.size(if (description == "删除") 20.dp else 22.dp))
     }
 }

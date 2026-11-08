@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.luckyalanzhou.barcodegenerator.barcodeFormatOption
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeRepository
@@ -200,10 +201,18 @@ class ResultsViewModel @Inject constructor(
     }
 
     /** 将完整结果一次性写入生成页编辑状态，再导航回生成页，避免页面观察到半更新数据。 */
-    fun editCurrentResult(onNavigateToGenerate: () -> Unit) {
+    fun editCurrentResult(onNavigateToGenerate: () -> Unit, onNotice: (String) -> Unit) {
         val items = results.current().items
         if (items.isEmpty()) {
             appLogger.recordSafely("results", "edit ignored because result list is empty")
+            return
+        }
+        val formatIds = items.map { item ->
+            barcodeFormatOption(item.format)?.id ?: item.format.trim().lowercase()
+        }.distinct()
+        if (formatIds.size > 1) {
+            appLogger.recordSafely("results", "edit ignored because result contains mixed barcode formats count=${items.size}")
+            onNotice("这组条码包含多种格式，不能在生成页统一编辑；原数据未更改")
             return
         }
         // 在切换页面前一次性发布完整的编辑快照。分两次写入 StateFlow 时，生成页可能在输入列表替换期间

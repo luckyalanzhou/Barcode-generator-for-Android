@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.presentation.update
 import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.*
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadRequest
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.*
@@ -35,10 +36,15 @@ class UpdateCancellationTest {
             coordinator.startDownload(scope, "https://example.test/update.apk", null, null)
 
             assertFalse(coordinator.uiState.value.downloadRunning)
+            val request = UpdateDownloadRequest("https://example.test/update.apk", null, null)
+            assertEquals(request, coordinator.uiState.value.activeDownloadRequest)
             assertEquals(
                 UpdateEvent.DownloadReady(File("ready.apk").absolutePath),
                 withTimeout(1000) { coordinator.events.first() },
             )
+            assertEquals(request, coordinator.uiState.value.activeDownloadRequest)
+            coordinator.clearActiveDownloadRequest(request)
+            assertNull(coordinator.uiState.value.activeDownloadRequest)
         } finally {
             scope.cancel()
         }
@@ -108,10 +114,14 @@ class UpdateCancellationTest {
         try {
             coordinator.startDownload(scope, "https://example.test/update.apk", null, null)
 
+            val request = UpdateDownloadRequest("https://example.test/update.apk", null, null)
             val event = withTimeoutOrNull(1000) { coordinator.events.first() }
             assertTrue(event is UpdateEvent.DownloadFailed)
+            assertEquals(request, coordinator.uiState.value.activeDownloadRequest)
             assertTrue(uncaught.isEmpty())
             assertFalse(coordinator.uiState.value.downloadRunning)
+            coordinator.clearActiveDownloadRequest(request)
+            assertNull(coordinator.uiState.value.activeDownloadRequest)
         } finally {
             scope.cancel()
         }
@@ -162,6 +172,7 @@ class UpdateCancellationTest {
             assertNull(withTimeoutOrNull(50) { coordinator.events.first() })
             assertTrue(uncaught.isEmpty())
             assertFalse(coordinator.uiState.value.downloadRunning)
+            assertNull(coordinator.uiState.value.activeDownloadRequest)
             assertEquals(1, cancellations)
         } finally {
             scope.cancel()

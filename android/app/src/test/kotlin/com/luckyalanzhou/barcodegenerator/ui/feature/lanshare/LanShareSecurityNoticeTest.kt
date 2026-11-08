@@ -26,8 +26,8 @@ class LanShareSecurityNoticeTest {
             }
         }
 
-        compose.onNodeWithText(
-            "配对令牌用于限制访问，但 HTTP/WebSocket 仍未加密；请仅在可信 Wi-Fi 下使用。",
-        ).assertIsDisplayed()
+        compose.onNodeWithText("可信 Wi-Fi", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("限制访问", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("未加密", substring = true).assertIsDisplayed()
     }
 }

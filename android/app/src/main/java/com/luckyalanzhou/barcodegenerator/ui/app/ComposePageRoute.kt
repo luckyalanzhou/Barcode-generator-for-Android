@@ -11,6 +11,7 @@ import com.luckyalanzhou.barcodegenerator.ui.feature.generate.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
+import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesRowsProjectionCache
 import com.luckyalanzhou.barcodegenerator.ui.feature.history.*
 import com.luckyalanzhou.barcodegenerator.ui.feature.lanshare.*
 
@@ -19,10 +20,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareEvent
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
@@ -33,12 +36,24 @@ import kotlinx.coroutines.CancellationException
 
 /** 页面渲染入口：由导航状态选择页面，并把 ViewModel 状态与界面操作回调连接起来。 */
 @Composable
-internal fun ComposePageRenderer(dependencies: ComposeAppShellDependencies, displayPage: AppRoute, dark: Boolean) {
-    ComposePageRoute(dependencies, displayPage, dark)
+internal fun ComposePageRenderer(
+    dependencies: ComposeAppShellDependencies,
+    displayPage: AppRoute,
+    dark: Boolean,
+    favoritesRowsProjectionCache: FavoritesRowsProjectionCache,
+    listBottomPadding: Dp,
+) {
+    ComposePageRoute(dependencies, displayPage, dark, favoritesRowsProjectionCache, listBottomPadding)
 }
 
 @Composable
-private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePage: AppRoute, dark: Boolean) {
+private fun ComposePageRoute(
+    dependencies: ComposeAppShellDependencies,
+    routePage: AppRoute,
+    dark: Boolean,
+    favoritesRowsProjectionCache: FavoritesRowsProjectionCache,
+    listBottomPadding: Dp,
+) {
     val retryScope = rememberCoroutineScope()
     fun retryLibraryLoad() {
         retryScope.launch {
@@ -55,6 +70,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
         when (routePage) {
             AppRoute.Generate -> {
                 val editorState by dependencies.generateViewModel.uiState.collectAsStateWithLifecycle()
+                val validationError by dependencies.generateViewModel.validationError.collectAsStateWithLifecycle()
                 val barcodeData by dependencies.favoritesViewModel.dataState.collectAsStateWithLifecycle()
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val isPreparingResult by dependencies.resultsViewModel.isPreparingResult.collectAsStateWithLifecycle()
@@ -65,6 +81,9 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dependencies.generateViewModel.updateFormat(initialFormat)
                 }
                 GenerateContent(
+                    validationError = validationError?.let {
+                        GenerateInputError(rowIndex = it.rowIndex, message = it.message, attempt = it.attempt)
+                    },
                     inputDraft = editorState.inputDraft,
                     initialFormat = initialFormat,
                     dark = dark,
@@ -75,12 +94,12 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onFormatChanged = dependencies.generateViewModel::updateFormat,
                     onGenerate = { values, format ->
                         val result = dependencies.generateViewModel.generate(values, format, barcodeData.items)
-                        if (!result.isValid) {
+                        if (!result.isValid && result.errorIndex !in values.indices) {
                             val message = result.errorMessage
                             dependencies.actions.notice(
                                 if (message == "请输入内容") message else "第 ${result.errorIndex + 1} 行：$message",
                             )
-                        } else {
+                        } else if (result.isValid) {
                             dependencies.resultsViewModel.commitGeneratedBarcodes(
                                 items = result.items,
                                 style = settings.style,
@@ -103,6 +122,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
                 HistoryScreen(
+                    listBottomPadding = listBottomPadding,
                     items = historyState.items,
                     isReady = historyState.isReady,
                     loadFailed = historyState.loadFailed,
@@ -135,7 +155,11 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val favoriteSearchStatus by dependencies.favoritesViewModel.searchStatus.collectAsStateWithLifecycle()
                 val favoriteQuery by dependencies.favoritesViewModel.query.collectAsStateWithLifecycle()
                 val favoriteTree by dependencies.favoritesViewModel.treeState.collectAsStateWithLifecycle()
+                val fileCounts by produceState<Map<String, Int>?>(null, favoriteData, favoriteSnapshotMetadata?.generation) {
+                    value = if (favoriteData.isReady) dependencies.favoritesViewModel.favoriteFileCountsByFolder() else null
+                }
                 FavoritesContent(
+                    listBottomPadding = listBottomPadding,
                     state = FavoritesContentState(
                         favorites = FavoritesListContentState(
                             items = favoriteData.items,
@@ -195,6 +219,8 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     },
                     onRenameFolder = dependencies.favoritesViewModel::renameFavoriteFolder,
                     onDeleteFolder = dependencies.favoritesViewModel::deleteFavoriteFolder,
+                    fileCounts = fileCounts,
+                    folderDeletionCount = dependencies.favoritesViewModel::favoriteFolderDeletionCount,
                     onDeleteGroup = { dependencies.favoritesViewModel.deleteFavoriteGroup(it.id) },
                     onShowSubfolderEditor = dependencies.actions::showSubfolderEditor,
                     onShowFolderEditor = dependencies.actions::showFolderEditor,
@@ -203,6 +229,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onShowRenameDialog = dependencies.actions::showRenameDialog,
                     onConfirm = dependencies.actions::confirmDurable,
                     onRetryLoad = ::retryLibraryLoad,
+                    rowsProjectionCache = favoritesRowsProjectionCache,
                 )
             }
             AppRoute.Results -> {
@@ -220,14 +247,17 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     dark = dark,
                     onEdit = {
                         DebugLog.actionStarted("result_edit", "count=${resultState.items.size}")
-                        dependencies.resultsViewModel.editCurrentResult {
-                            // 先完成工具栏点击，再替换根页面。工具栏属于即将移除的组合树，
-                            // 将导航放到下一轮消息队列，避免点击回调中重入页面切换。
-                            Handler(Looper.getMainLooper()).post {
-                                DebugLog.actionSucceeded("result_edit", "to=Generate")
-                                dependencies.actions.navigateTo(AppRoute.Generate)
-                            }
-                        }
+                        dependencies.resultsViewModel.editCurrentResult(
+                            onNavigateToGenerate = {
+                                // 先完成工具栏点击，再替换根页面。工具栏属于即将移除的组合树，
+                                // 将导航放到下一轮消息队列，避免点击回调中重入页面切换。
+                                Handler(Looper.getMainLooper()).post {
+                                    DebugLog.actionSucceeded("result_edit", "to=Generate")
+                                    dependencies.actions.navigateTo(AppRoute.Generate)
+                                }
+                            },
+                            onNotice = dependencies.actions::notice,
+                        )
                     },
                     onSaveFavorite = dependencies.actions::saveFavorite,
                     onShare = dependencies.actions::shareResult,
@@ -244,6 +274,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                 val update by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
                 val scope = rememberCoroutineScope()
                 SettingsContent(
+                    listBottomPadding = listBottomPadding,
                     checkingForUpdates = update.checking,
                     settings = SettingsContentState(style = settings.style, ocrMask = settings.ocrMask),
                     dark = dark,
@@ -273,6 +304,7 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                         session = lanState.session,
                         isHost = lanState.isHost,
                         isStartingHost = lanState.isStartingHost,
+                        hostSessionInvalidated = lanState.hostSessionInvalidated,
                         qrVisible = lanState.qrVisible,
                         browserConnected = lanState.browserConnected,
                         files = lanState.files,
@@ -316,6 +348,8 @@ private fun ComposePageRoute(dependencies: ComposeAppShellDependencies, routePag
                     onCopyAddress = dependencies.actions::copyLanShareAddress,
                     createQrBitmap = dependencies.lanShareQrBitmapFactory::create,
                     onSetQrVisible = viewModel::setQrVisible,
+                    onRemovePendingUpload = viewModel::discardPendingUpload,
+                    onRetryHostSession = dependencies.actions::ensureLanShare,
                     onCancelUpload = viewModel::cancelUpload,
                     onLoadImagePreview = viewModel::loadImagePreview,
                     onLoadFullImagePreview = viewModel::loadFullImagePreview,

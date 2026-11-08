@@ -16,6 +16,14 @@ class GenerateEditorStateHolder @Inject constructor() {
     val state: StateFlow<GenerateEditorState> = mutableState.asStateFlow()
 
     fun updateDraft(values: List<String>) = mutableState.update { it.copy(inputDraft = values.toList()) }
+    /** OCR 结果只在拍摄开始时的草稿仍然存在时提交，避免覆盖用户等待期间的编辑。 */
+    fun updateDraftIfUnchanged(expected: List<String>, values: List<String>): Boolean {
+        while (true) {
+            val current = mutableState.value
+            if (current.inputDraft != expected) return false
+            if (mutableState.compareAndSet(current, current.copy(inputDraft = values.toList()))) return true
+        }
+    }
     fun updateFormat(format: String) = mutableState.update { it.copy(formatName = format) }
     fun setPendingFormat(format: String?) = mutableState.update { it.copy(pendingFormat = format) }
     /** 原子恢复编辑器中需要持久保留的部分；待处理的导航状态不会恢复。 */

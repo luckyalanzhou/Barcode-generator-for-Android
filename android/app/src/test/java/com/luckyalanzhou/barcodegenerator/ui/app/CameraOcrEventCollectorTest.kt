@@ -32,7 +32,7 @@ class CameraOcrEventCollectorTest {
             // 此 collector 独立于生成页路由，模拟从其他 Tab 长按后执行拍照填充。
             CameraOcrEventCollector(
                 events = events,
-                onRecognizedText = { generateDraft.value = it },
+                onRecognizedText = { lines, _ -> generateDraft.value = lines; true },
                 onNavigateToGenerate = { selectedTab = 0; navigationCount++ },
                 onNotice = notices::add,
             )
@@ -41,7 +41,6 @@ class CameraOcrEventCollectorTest {
         val recognizedLines = listOf("first line", "second line")
         compose.runOnIdle {
             assertTrue(events.tryEmit(CameraOcrEvent.RecognizedText(recognizedLines)))
-            assertTrue(events.tryEmit(CameraOcrEvent.Notice("文字识别成功，已按行添加到输入框")))
         }
         compose.waitUntil(timeoutMillis = 5_000) {
             generateDraft.value == recognizedLines && notices.size == 1
@@ -52,6 +51,41 @@ class CameraOcrEventCollectorTest {
             assertEquals(0, selectedTab)
             assertEquals(1, navigationCount)
             assertEquals(listOf("文字识别成功，已按行添加到输入框"), notices)
+        }
+    }
+
+    @Test
+    fun rejectedOcrResultPreservesDraftAndExplainsWhyItWasNotApplied() {
+        val events = MutableSharedFlow<CameraOcrEvent>(extraBufferCapacity = 1)
+        val generateDraft = mutableStateOf(listOf("MANUAL-EDIT"))
+        val notices = mutableListOf<String>()
+        var selectedTab = 2
+
+        compose.setContent {
+            CameraOcrEventCollector(
+                events = events,
+                onRecognizedText = { _, _ -> false },
+                onNavigateToGenerate = { selectedTab = 0 },
+                onNotice = notices::add,
+            )
+        }
+
+        compose.runOnIdle {
+            assertTrue(
+                events.tryEmit(
+                    CameraOcrEvent.RecognizedText(
+                        lines = listOf("OCR-RESULT"),
+                        expectedDraft = listOf("BEFORE-CAPTURE"),
+                    ),
+                ),
+            )
+        }
+        compose.waitUntil(timeoutMillis = 5_000) { notices.isNotEmpty() }
+
+        compose.runOnIdle {
+            assertEquals(listOf("MANUAL-EDIT"), generateDraft.value)
+            assertEquals(0, selectedTab)
+            assertEquals(listOf("识别完成，但输入内容已更改，未覆盖当前草稿"), notices)
         }
     }
 }

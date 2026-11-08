@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -30,6 +32,121 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class LanShareViewModelStartupRealtimeTest {
+    @Test
+    fun hostNetworkLossDuringStartupDoesNotPublishTheInvalidatedSession() {
+        val session = LanShareSession("http://192.168.1.2:8080", accessToken = "stale-token")
+        val startEntered = CountDownLatch(1)
+        val releaseStart = CountDownLatch(1)
+        val startFinished = CountDownLatch(1)
+        val realtimeState = MutableStateFlow(LanShareRealtimeState())
+        val gateway = Proxy.newProxyInstance(
+            LanShareGateway::class.java.classLoader,
+            arrayOf(LanShareGateway::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "isOnLocalNetwork" -> true
+                "isRouterLanHost", "browserConnected" -> false
+                "localFile" -> null
+                "start" -> {
+                    startEntered.countDown()
+                    check(releaseStart.await(5, TimeUnit.SECONDS))
+                    startFinished.countDown()
+                    session
+                }
+                "stop", "cancelUpload", "downloadToFile", "downloadPreview" -> Unit
+                "localFiles" -> emptyList<LanShareFile>()
+                "localMessages" -> emptyList<LanShareMessage>()
+                "observeRealtimeState" -> realtimeState
+                "list" -> emptyList<LanShareFile>()
+                else -> error("Unexpected gateway operation: ${method.name}")
+            }
+        } as LanShareGateway
+        val viewModel = LanShareViewModel(
+            lanShareGateway = gateway,
+            previewDecoder = object : LanShareBitmapPreviewDecoder {
+                override val maxDecodeEdge = 1
+
+                override suspend fun decode(file: File, maxEdge: Int, isTiff: Boolean): Bitmap? = null
+            },
+            appContext = RuntimeEnvironment.getApplication(),
+            logger = AppLogger { _, _, _ -> },
+        )
+
+        try {
+            viewModel.startHostSessionAsync {}
+            assertTrue("host startup should reach the gateway", startEntered.await(5, TimeUnit.SECONDS))
+
+            realtimeState.value = LanShareRealtimeState(hostSessionInvalidated = true)
+            val mainLooper = shadowOf(Looper.getMainLooper())
+            repeat(10) {
+                mainLooper.idle()
+                Thread.sleep(5)
+            }
+            releaseStart.countDown()
+            assertTrue("the blocked gateway start should return", startFinished.await(5, TimeUnit.SECONDS))
+            pumpMainUntilStartupSettles(viewModel)
+
+            assertEquals("an invalidated address must not become the visible QR session", null, viewModel.uiState.value.session)
+            assertFalse("the invalidated server must not leave host mode active", viewModel.uiState.value.isHost)
+            assertTrue("the page must retain the recovery affordance", viewModel.uiState.value.hostSessionInvalidated)
+        } finally {
+            releaseStart.countDown()
+            viewModel.closeSession()
+        }
+    }
+
+    @Test
+    fun invalidatedHostNetworkClearsOldQrSessionAndNotifiesUserToRecreateRoom() {
+        val session = LanShareSession("http://192.168.1.2:8080", accessToken = "old-token")
+        val realtimeState = MutableStateFlow(LanShareRealtimeState())
+        val gateway = Proxy.newProxyInstance(
+            LanShareGateway::class.java.classLoader,
+            arrayOf(LanShareGateway::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "isOnLocalNetwork" -> true
+                "isRouterLanHost", "browserConnected" -> false
+                "localFile" -> null
+                "start" -> session
+                "stop", "cancelUpload", "downloadToFile", "downloadPreview" -> Unit
+                "localFiles" -> emptyList<LanShareFile>()
+                "localMessages" -> emptyList<LanShareMessage>()
+                "observeRealtimeState" -> realtimeState
+                "list" -> emptyList<LanShareFile>()
+                else -> error("Unexpected gateway operation: ${method.name}")
+            }
+        } as LanShareGateway
+        val viewModel = LanShareViewModel(
+            lanShareGateway = gateway,
+            previewDecoder = object : LanShareBitmapPreviewDecoder {
+                override val maxDecodeEdge = 1
+
+                override suspend fun decode(file: File, maxEdge: Int, isTiff: Boolean): Bitmap? = null
+            },
+            appContext = RuntimeEnvironment.getApplication(),
+            logger = AppLogger { _, _, _ -> },
+        )
+
+        try {
+            viewModel.startHostSession()
+            assertEquals(session, viewModel.uiState.value.session)
+            assertTrue(viewModel.uiState.value.isHost)
+
+            realtimeState.value = LanShareRealtimeState(hostSessionInvalidated = true)
+            pumpMainUntil(viewModel) { viewModel.uiState.value.session == null }
+
+            assertFalse("a stale QR session must not remain visible", viewModel.uiState.value.isHost)
+            assertFalse("a stale QR must be hidden", viewModel.uiState.value.qrVisible)
+            assertTrue("the UI must expose a re-create action state", viewModel.uiState.value.hostSessionInvalidated)
+            assertEquals(
+                LanShareEvent.Error("Wi-Fi 已断开，分享房间已关闭，请重新创建"),
+                runBlocking { viewModel.events.first() },
+            )
+        } finally {
+            viewModel.closeSession()
+        }
+    }
+
     @Test
     fun closingWhileHostStartIsBlockedStopsTheLateStartedServer() =
         assertLateHostStartupIsRolledBack(expectedSession = null) { viewModel, _ -> viewModel.closeSession() }
@@ -196,5 +313,16 @@ class LanShareViewModelStartupRealtimeTest {
             Thread.sleep(5)
         }
         mainLooper.idle()
+    }
+
+    private fun pumpMainUntil(viewModel: LanShareViewModel, condition: () -> Boolean) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        val mainLooper = shadowOf(Looper.getMainLooper())
+        while (!condition() && System.nanoTime() < deadline) {
+            mainLooper.idle()
+            Thread.sleep(5)
+        }
+        mainLooper.idle()
+        assertTrue("expected ViewModel state transition to finish", condition())
     }
 }

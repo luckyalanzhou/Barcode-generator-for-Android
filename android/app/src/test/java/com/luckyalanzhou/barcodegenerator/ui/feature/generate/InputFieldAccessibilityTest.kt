@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
@@ -54,7 +57,6 @@ class InputFieldAccessibilityTest {
                     onMoveUp = {},
                     onMoveDown = {},
                     onDelete = {},
-                    onDeleteLongClick = {},
                 )
             }
         }
@@ -78,7 +80,6 @@ class InputFieldAccessibilityTest {
                             onMoveUp = {},
                             onMoveDown = {},
                             onDelete = {},
-                            onDeleteLongClick = {},
                         )
                     }
                 }
@@ -114,6 +115,34 @@ class InputFieldAccessibilityTest {
 
         compose.onNodeWithText("批量粘贴").performClick()
         compose.onNodeWithContentDescription("多行条码内容").performTextInput("TEST-123")
+    }
+
+    @Test
+    fun tappingBlankSpaceBelowBatchPastePlaceholderFocusesTheField() {
+        compose.setContent {
+            AppTheme("light") {
+                GenerateContent(
+                    inputDraft = listOf(""),
+                    initialFormat = "Code 128-B",
+                    dark = false,
+                    isPreparingResult = false,
+                    isDataReady = true,
+                    onDraftChanged = {},
+                    onFormatChanged = {},
+                    onGenerate = { _, _ -> },
+                    onCaptureText = {},
+                    onNotice = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("批量粘贴").performClick()
+        val field = compose.onNodeWithContentDescription("多行条码内容")
+        field.performTouchInput {
+            down(Offset(center.x, center.y + 60.dp.toPx()))
+            up()
+        }
+        field.assertIsFocused()
     }
 
     @Test

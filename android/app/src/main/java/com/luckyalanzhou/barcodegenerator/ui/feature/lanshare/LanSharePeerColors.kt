@@ -1,10 +1,15 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
 
 private const val PEER_COLOR_COUNT = 8
+
+/** 白色附件文字使用实色底，深色主题将强调色压暗以保持对比度。 */
+internal fun lanShareSentBubbleColor(accent: Color, dark: Boolean): Color =
+    if (dark) lerp(accent, Color.Black, .45f) else accent
 
 private val lightPeerColors = listOf(
     Color(0xFFE7F0FF), Color(0xFFE7F5EC), Color(0xFFFFF0DF), Color(0xFFF1E9FA),

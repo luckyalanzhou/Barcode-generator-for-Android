@@ -144,10 +144,11 @@ internal class UpdateCoordinator(
 
     fun startDownload(scope: CoroutineScope, apkUrl: String, expectedSize: Long?, expectedSha256: String?) {
         if (_uiState.value.downloadRunning) return
+        val request = UpdateDownloadRequest(apkUrl, expectedSize, expectedSha256)
         val generation = downloadGeneration.incrementAndGet()
         logger.recordSafely("update", "download start operation=$generation expectedBytes=$expectedSize")
         resetDownloadState()
-        setDownloadRunning(true)
+        _uiState.update { it.copy(downloadRunning = true, activeDownloadRequest = request) }
         downloadJob = scope.launch {
             try {
                 val file = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
@@ -191,7 +192,17 @@ internal class UpdateCoordinator(
         downloadJob?.cancel()
         updateDownloadGateway.cancel()
         downloadJob = null
-        setDownloadRunning(false)
+        _uiState.update { it.copy(downloadRunning = false, activeDownloadRequest = null) }
+    }
+
+    fun clearActiveDownloadRequest(expected: UpdateDownloadRequest? = null) {
+        _uiState.update { state ->
+            if (expected == null || state.activeDownloadRequest == expected) {
+                state.copy(activeDownloadRequest = null)
+            } else {
+                state
+            }
+        }
     }
 
     fun setPendingInstallPath(path: String?) {

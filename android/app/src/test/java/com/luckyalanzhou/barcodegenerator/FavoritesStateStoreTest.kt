@@ -13,6 +13,19 @@ import org.junit.Test
 
 class LibraryStateStoreTest {
     @Test
+    fun folderDeletionCountIncludesUnloadedDescendantsAndExcludesSimilarNames() {
+        val store = LibraryStateStore()
+        val loaded = FavoriteGroup(1, "Docs", "First", 0, mutableListOf())
+        val unloaded = FavoriteGroup(2, "Docs/Manuals", "Second", 0, mutableListOf())
+        val unrelated = FavoriteGroup(3, "DocsArchive", "Third", 0, mutableListOf())
+        store.replace(emptyList(), listOf(loaded), listOf("Docs", "Docs/Manuals", "DocsArchive"),
+            identityGroups = listOf(loaded, unloaded, unrelated))
+
+        assertEquals(2, store.countFavoritesInFolderTree("Docs"))
+        assertEquals(1, store.countFavoritesInFolderTree("Docs/Manuals"))
+    }
+
+    @Test
     fun unloadedGroupsAreNotMarkedAsAuthoritativeLinkSnapshots() {
         val store = LibraryStateStore()
         val group = FavoriteGroup(7L, "一级", "文件", 7L, mutableListOf())

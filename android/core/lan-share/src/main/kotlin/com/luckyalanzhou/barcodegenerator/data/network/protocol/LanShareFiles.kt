@@ -48,12 +48,15 @@ internal fun listFiles(folder: File, sender: String) = folder.listFiles().orEmpt
     .map { file -> toLanShareFile(file, sender) }
 
 fun toLanShareFile(file: File, sender: String, mimeType: String? = null): LanShareFile {
-    val browserMatch = Regex("^web_-?\\d+_(c[a-zA-Z0-9_-]{8,63})_(.*)$").matchEntire(file.name)
+    // `safeBrowserClientId` uses clegacy when an older client omits its ID. Parse that
+    // storage segment for the original filename, but keep the sender generic.
+    val browserMatch = Regex("^web_-?\\d+_(c[a-zA-Z0-9_-]{8,63}?|clegacy)_(.*)$").matchEntire(file.name)
+    val browserClientId = browserMatch?.groupValues?.get(1)?.takeUnless { it == "clegacy" }
     val fromBrowser = file.name.startsWith("web_")
     val fromApp = file.name.startsWith("app_")
     val displayName = browserMatch?.groupValues?.get(2)
         ?: if (fromBrowser || fromApp) file.name.substringAfter('_').substringAfter('_', file.name) else file.name.substringAfter('_', file.name)
-    val source = browserMatch?.groupValues?.get(1)?.let { "browser:$it" }
+    val source = browserClientId?.let { "browser:$it" }
         ?: if (fromBrowser) "browser" else if (fromApp) "app" else sender
     return LanShareFile(file.name, displayName, file.length(), file.lastModified(), source, mimeType ?: mimeTypeForName(file.name))
 }

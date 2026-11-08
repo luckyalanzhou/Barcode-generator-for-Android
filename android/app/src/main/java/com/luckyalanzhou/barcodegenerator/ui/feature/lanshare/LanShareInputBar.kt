@@ -41,13 +41,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextOverflow
+import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
+import com.luckyalanzhou.barcodegenerator.icons.AttachFileIcon
 
 /**
  * 固定在分享页底部的输入栏：加号打开拍照/图库/文件选择，发送按钮提交文字或待传文件。
  * 有待上传文件时允许空文字发送；上传状态与网络服务由上层协调。
  */
 @Composable
-internal fun BoxScope.LanShareInputBar(
+internal fun LanShareInputBar(
     dark: Boolean,
     panel: Color,
     inputPanel: Color,
@@ -65,21 +70,39 @@ internal fun BoxScope.LanShareInputBar(
     onOpenCamera: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenFiles: () -> Unit,
+    onRemovePendingUpload: () -> Unit = {},
 ) {
     val themeColors = LocalAppColorScheme.current
     val attachmentInteraction = remember { MutableInteractionSource() }
     val sendInteraction = remember { MutableInteractionSource() }
     val sendEnabled = canSendLanContent(message, pendingUploadName) && !isSendingText
     Surface(
-        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         color = panel,
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, themeColors.borders.input),
         shape = RoundedCornerShape(18.dp),
     ) {
-        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(8.dp)) {
+        if (pendingUploadName != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(AttachFileIcon, null, tint = accent, modifier = Modifier.size(22.dp))
+                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Text(pendingUploadName, color = primary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("待发送附件 · 文字草稿保留", color = secondary, fontSize = 12.sp)
+                }
+                IconButton(onClick = onRemovePendingUpload, modifier = Modifier.size(48.dp)) {
+                    Icon(CloseSmallIcon, "移除待发送附件", tint = secondary, modifier = Modifier.size(22.dp))
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
             // 选择附件后先关闭菜单，再启动对应的系统入口，避免菜单遮挡系统选择界面。
             Box {
-                IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp).resultActionEdgeChrome(RoundedCornerShape(10.dp))) {
+                IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp)) {
                     Icon(AddIcon, "添加附件", tint = accent, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
@@ -95,17 +118,18 @@ internal fun BoxScope.LanShareInputBar(
                     DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
                 }
             }
+            Spacer(Modifier.width(8.dp))
             BasicTextField(
-                value = message, onValueChange = onMessageChange, singleLine = true, enabled = !isSendingText,
+                value = message, onValueChange = onMessageChange, singleLine = true, enabled = !isSendingText && pendingUploadName == null,
                 textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp),
                 cursorBrush = SolidColor(primary),
-                modifier = Modifier.weight(1f).height(44.dp).background(inputPanel, RoundedCornerShape(24.dp))
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).background(inputPanel, RoundedCornerShape(24.dp))
                     .semantics { contentDescription = "消息内容" }
                     .padding(horizontal = 14.dp),
                 decorationBox = { field ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
                         if (message.isEmpty()) {
-                            Text(pendingUploadName?.let { "已选择：$it" } ?: "输入文字", color = themeColors.text.secondary, fontSize = 15.sp)
+                            Text(if (pendingUploadName != null) "先发送附件" else "输入文字", color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1)
                         }
                         field()
                     }
@@ -113,7 +137,7 @@ internal fun BoxScope.LanShareInputBar(
             )
             Spacer(Modifier.width(8.dp))
             // 空文字且没有待上传文件时禁用发送，避免产生无内容的消息。
-            Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(72.dp).height(48.dp).resultActionEdgeChrome(RoundedCornerShape(22.dp)), contentPadding = PaddingValues(horizontal = 8.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = themeColors.content.sentContent,
+            Button(onClick = onSend, enabled = sendEnabled, interactionSource = sendInteraction, modifier = Modifier.iosPressFeedback(sendInteraction).width(72.dp).height(48.dp).resultActionEdgeChrome(RoundedCornerShape(22.dp)), contentPadding = PaddingValues(horizontal = 8.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = themeColors.controls.primaryAction, contentColor = themeColors.content.sentContent,
                 disabledContainerColor = themeColors.controls.disabledContainer, disabledContentColor = themeColors.text.disabled)) {
                 if (isSendingText) {
                     androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = themeColors.content.sentContent, strokeWidth = 2.dp)
@@ -121,6 +145,7 @@ internal fun BoxScope.LanShareInputBar(
                     Text("发送中", fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 } else Text("发送", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
+        }
         }
     }
 }

@@ -12,6 +12,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadUiState
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateUiState
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadRequest
 import com.luckyalanzhou.barcodegenerator.presentation.shared.recordSafely
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
@@ -175,6 +176,8 @@ class UpdateViewModel @Inject constructor(
     fun startDownload(apkUrl: String, expectedSize: Long?, expectedSha256: String?) =
         updateFacade.startDownload(viewModelScope, apkUrl, expectedSize, expectedSha256)
     fun cancelDownload() = updateFacade.cancelDownload()
+    fun clearActiveDownloadRequest(expected: UpdateDownloadRequest? = null) =
+        updateFacade.clearActiveDownloadRequest(expected)
     fun setPendingInstallPath(path: String?) = updateFacade.setPendingInstallPath(path)
     fun takePendingInstallPath(): String? = updateFacade.takePendingInstallPath()
 }

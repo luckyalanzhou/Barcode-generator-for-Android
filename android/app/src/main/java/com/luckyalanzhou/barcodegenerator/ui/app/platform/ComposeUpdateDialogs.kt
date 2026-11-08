@@ -171,14 +171,18 @@ internal fun MainActivity.downloadAndInstallCompose(
     expectedSize: Long? = updateViewModel.uiState.value.expectedSize,
     expectedSha256: String? = updateViewModel.uiState.value.sha256,
 ) {
-    if (updateViewModel.uiState.value.downloadRunning) {
+    val request = UpdateDownloadRequest(apkUrl, expectedSize, expectedSha256)
+    val currentDownload = updateViewModel.uiState.value
+    val isResuming = currentDownload.activeDownloadRequest == request
+    if (currentDownload.downloadRunning && !isResuming) {
         DebugLog.record("update", "download ignored because another download is running")
         return
     }
-    updateViewModel.resetDownloadState()
+    if (!isResuming) updateViewModel.resetDownloadState()
     var dismissDialog: (() -> Unit)? = null
     lateinit var cancelDownload: () -> Unit
     cancelDownload = {
+        updateViewModel.clearActiveDownloadRequest(request)
         cancelUpdateDownload()
         dismissDialog?.invoke()
     }
@@ -192,6 +196,7 @@ internal fun MainActivity.downloadAndInstallCompose(
             updateViewModel.events.collect { event ->
                 when (event) {
                     is UpdateEvent.DownloadReady -> {
+                        updateViewModel.clearActiveDownloadRequest(request)
                         dismiss()
                         try {
                             val file = File(event.filePath)
@@ -209,6 +214,9 @@ internal fun MainActivity.downloadAndInstallCompose(
                         }
                     }
                     is UpdateEvent.DownloadFailed -> {
+                        updateViewModel.clearActiveDownloadRequest(
+                            UpdateDownloadRequest(event.apkUrl, event.expectedSize, event.expectedSha256),
+                        )
                         dismiss()
                         showDownloadFailedCompose(
                             event.apkUrl,
@@ -223,7 +231,7 @@ internal fun MainActivity.downloadAndInstallCompose(
         ComposeDownloadProgressDialog(downloadState, isDark(), cancelDownload)
     }
     DebugLog.record("update", "download dialog shown expectedSize=$expectedSize shaPresent=${expectedSha256 != null}")
-    updateViewModel.startDownload(apkUrl, expectedSize, expectedSha256)
+    if (!isResuming) updateViewModel.startDownload(apkUrl, expectedSize, expectedSha256)
 }
 
 internal fun MainActivity.showDownloadFailedCompose(

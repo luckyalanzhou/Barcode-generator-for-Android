@@ -92,7 +92,7 @@ class DebugLogContractTest {
             .readText()
         val uploadTrace = lanClient.lineSequence().first { it.contains("file uploaded") }
         assertFalse("文件名属于用户数据，不写入可导出的调试日志", uploadTrace.contains("name=\$name"))
-        assertTrue(uploadTrace.contains("size=\$size"))
+        assertTrue(uploadTrace.contains("size=\${resolvedSource.size}"))
     }
 
     @Test

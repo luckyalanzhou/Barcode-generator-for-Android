@@ -44,8 +44,8 @@ internal fun AppPageTransitionHost(
         transition.AnimatedContent(
             modifier = Modifier.fillMaxSize(),
             transitionSpec = transitionSpec,
-        ) { targetRoute ->
-            content(targetRoute)
+        ) { route ->
+            content(route)
         }
     }
 }

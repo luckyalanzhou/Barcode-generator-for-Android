@@ -64,11 +64,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -125,7 +120,6 @@ internal fun BarcodeComposeBottomTabBar(
     val hapticView = LocalView.current
     val density = LocalDensity.current.density
     var lastTabHapticAt by remember { mutableLongStateOf(0L) }
-    var lastTarget by remember { mutableIntStateOf(selectedIndex) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
@@ -146,8 +140,12 @@ internal fun BarcodeComposeBottomTabBar(
 
     fun handleTabClick(index: Int) {
         if (index != selectedIndex) performTabSwitchHaptic()
-        motion.select(index)
         motion.pulse(if (index == selectedIndex) .014f else .03f)
+        if (index == selectedIndex) {
+            motion.select(index)
+        } else {
+            motion.animateTapTo(index)
+        }
         onTabSelected(index, false)
         tapPulseTab = if (effects.reduceMotion) -1 else index
         tapPulseGeneration += 1
@@ -161,7 +159,7 @@ internal fun BarcodeComposeBottomTabBar(
     Box(
         modifier = modifier.fillMaxSize()
             .then(if (effects.opaqueGlass) Modifier.background(themeColors.surfaces.background) else Modifier)
-            .padding(horizontal = 4.dp, vertical = 5.dp)
+            .padding(horizontal = 4.dp)
             .pointerInput(motion, showSelectionIndicator, density) {
                 if (!showSelectionIndicator) return@pointerInput
                 // 读取手指实际触点以驱动玻璃反馈，不消费事件，确保点击和长按仍由对应控件处理。
@@ -201,17 +199,16 @@ internal fun BarcodeComposeBottomTabBar(
                     } ?: return@awaitEachGesture
                     motion.beginDrag(start.position, start.uptimeMillis)
                     motion.pulse(.014f)
-                    lastTarget = motion.progress.roundToInt().coerceIn(tabs.indices)
+                    var lastTarget = motion.targetProgress.roundToInt().coerceIn(tabs.indices)
                     fun move(change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: Float) {
                         change.consume()
                         val tabWidth = (size.width.toFloat() / tabs.size).coerceAtLeast(1f)
                         motion.drag(dragAmount / tabWidth, change.position, change.uptimeMillis)
-                        val target = motion.progress.roundToInt().coerceIn(tabs.indices)
+                        val target = motion.targetProgress.roundToInt().coerceIn(tabs.indices)
                         if (target != lastTarget) {
                             lastTarget = target
                             motion.pulse(.025f)
                             performTabSwitchHaptic()
-                            currentOnTabSelected(target, true)
                         }
                     }
                     move(start, overSlop)
@@ -221,6 +218,9 @@ internal fun BarcodeComposeBottomTabBar(
                     if (completed) {
                         motion.release(lastTarget)
                         motion.pulse(.018f)
+                        if (lastTarget != currentSelectedIndex) {
+                            currentOnTabSelected(lastTarget, true)
+                        }
                     } else {
                         motion.release(currentSelectedIndex)
                     }
@@ -233,9 +233,31 @@ internal fun BarcodeComposeBottomTabBar(
             accent = selectedColor,
             background = themeColors.surfaces.background,
             visible = showSelectionIndicator,
+            foregroundBackdropContent = { scaleProvider ->
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    tabs.forEach { tab ->
+                        Box(
+                            Modifier.weight(1f).fillMaxHeight(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(
+                                Modifier.padding(vertical = 3.dp).graphicsLayer {
+                                    scaleX = scaleProvider()
+                                    scaleY = scaleProvider()
+                                },
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Icon(tab.icon, contentDescription = null, tint = selectedColor, modifier = Modifier.size(26.dp))
+                                Text(tab.label, color = selectedColor, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            },
         ) { frameProvider ->
             Row(
-                modifier = Modifier.fillMaxSize().selectableGroup(),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp).selectableGroup(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 tabs.forEachIndexed { index, tab ->
@@ -305,7 +327,7 @@ internal fun BarcodeComposeBottomTabBar(
                                         anchorBoundsOnScreen = tabBoundsOnScreen[index],
                                         focusIcon = tab.icon,
                                         focusLabel = tab.label,
-                                        focusTint = if (selected) selectedColor else unselectedColor,
+                                        focusTint = if (!showSelectionIndicator && selected) selectedColor else unselectedColor,
                                         dark = dark,
                                         actions = actions,
                                         restoreFocus = { if (tabPlaced) tabFocus[index].requestFocus() },
@@ -365,57 +387,10 @@ internal fun BarcodeComposeBottomTabBar(
                                 tab.label,
                                 color = itemColor,
                                 fontSize = 12.sp,
+                                lineHeight = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                             )
-                        }
-                        if (showSelectionIndicator) {
-                            Box(
-                                modifier = Modifier.matchParentSize().drawWithContent {
-                                    val frame = frameProvider()
-                                    val cellWidth = frame.width / tabs.size
-                                    val localCapsule = Rect(
-                                        left = frame.centerX - frame.halfWidth - index * cellWidth,
-                                        top = frame.centerY - frame.halfHeight,
-                                        right = frame.centerX + frame.halfWidth - index * cellWidth,
-                                        bottom = frame.centerY + frame.halfHeight,
-                                    )
-                                    val radius = CornerRadius(minOf(frame.halfWidth, frame.halfHeight))
-                                    val capsulePath = Path().apply {
-                                        addRoundRect(RoundRect(localCapsule, radius))
-                                    }
-                                    clipPath(capsulePath) { this@drawWithContent.drawContent() }
-                                },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
-                                        scaleX = menuPressScale.value
-                                        scaleY = menuPressScale.value
-                                    },
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = null,
-                                        tint = selectedColor,
-                                        modifier = Modifier.size(26.dp).graphicsLayer {
-                                            val squash = 1f - tapScale.value
-                                            scaleX = 1f + squash * .34f
-                                            scaleY = tapScale.value
-                                            translationY = squash * 12.dp.toPx()
-                                        },
-                                    )
-                                    Text(
-                                        tab.label,
-                                        color = selectedColor,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
                         }
                     }
                 }

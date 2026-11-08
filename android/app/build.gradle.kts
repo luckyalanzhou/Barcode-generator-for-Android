@@ -74,10 +74,14 @@ android {
     buildTypes {
         debug {
             manifestPlaceholders["appLabel"] = "@string/app_name_debug"
+            // Temporary local profiling build: remove debugger overhead while retaining Debug identity.
+            isDebuggable = false
+            buildConfigField("Boolean", "PERFETTO_DRAW_TRACE", "true")
         }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
+            buildConfigField("Boolean", "PERFETTO_DRAW_TRACE", "false")
         }
     }
     buildFeatures {
@@ -135,6 +139,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.animation.core)
     implementation(libs.compose.material3)
+    implementation(libs.kyant.backdrop)
+    implementation(libs.kyant.shapes)
     testImplementation(libs.junit)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)

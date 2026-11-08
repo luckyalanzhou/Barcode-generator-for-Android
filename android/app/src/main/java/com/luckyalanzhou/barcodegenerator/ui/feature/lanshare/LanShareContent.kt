@@ -47,6 +47,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,6 +73,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -114,6 +123,8 @@ internal fun LanShareContent(
     onSaveFile: (LanShareFile) -> Unit,
     onCopyAddress: (String) -> Unit,
     createQrBitmap: (String, Int, Int, Int) -> Bitmap,
+    onRemovePendingUpload: () -> Unit = {},
+    onRetryHostSession: () -> Unit = {},
 ) {
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
@@ -138,17 +149,29 @@ internal fun LanShareContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            androidx.compose.material3.CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                color = accent,
-                strokeWidth = 2.dp,
-            )
-            Text(
-                "正在启动分享房间…",
-                color = secondary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
+            if (lanState.hostSessionInvalidated) {
+                Text(
+                    "Wi-Fi 已断开，分享房间已关闭。连接 Wi-Fi 后可重新创建。",
+                    color = secondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                Button(onClick = onRetryHostSession) {
+                    Text("重新创建房间")
+                }
+            } else {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = accent,
+                    strokeWidth = 2.dp,
+                )
+                Text(
+                    if (lanState.isStartingHost) "正在启动分享房间…" else "准备分享房间…",
+                    color = secondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
         }
         return
     }
@@ -165,6 +188,58 @@ internal fun LanShareContent(
         }.sortedWith(compareBy<LanShareTimelineEntry> { it.timestamp }.thenBy { it.key })
     }
     val background = themeColors.surfaces.background
+    val scope = rememberCoroutineScope()
+    var followLatest by rememberSaveable { mutableStateOf(true) }
+    var userDragStarted by remember { mutableStateOf(false) }
+    val dragged by listState.interactionSource.collectIsDraggedAsState()
+    val atLatest by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val last = info.visibleItemsInfo.lastOrNull()
+            info.totalItemsCount == 0 || (last != null && last.index == info.totalItemsCount - 1 &&
+                last.offset + last.size <= info.viewportEndOffset)
+        }
+    }
+    LaunchedEffect(dragged) {
+        if (dragged) {
+            userDragStarted = true
+            followLatest = false
+        } else if (userDragStarted) {
+            snapshotFlow { listState.isScrollInProgress }.first { !it }
+            if (listState.layoutInfo.totalItemsCount > 0) followLatest = atLatest
+            userDragStarted = false
+        }
+    }
+    val listGeometry by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            Triple(info.totalItemsCount, info.viewportEndOffset, info.visibleItemsInfo.lastOrNull()?.let { it.key to it.size })
+        }
+    }
+    var previousTimelineKeys by remember { mutableStateOf<Set<String>?>(null) }
+    val latestKey = timeline.lastOrNull()?.key
+    LaunchedEffect(latestKey) {
+        val previousKeys = previousTimelineKeys
+        val newOwnContent = previousKeys != null && timeline.any { entry ->
+            entry.key !in previousKeys && when (entry) {
+                is LanShareTimelineEntry.FileEntry -> entry.file.id in lanState.ownFileIds
+                is LanShareTimelineEntry.MessageEntry -> entry.message.sender == "app"
+                is LanShareTimelineEntry.UploadEntry -> true
+            }
+        }
+        if (newOwnContent) followLatest = true
+        previousTimelineKeys = timeline.mapTo(mutableSetOf()) { it.key }
+    }
+    LaunchedEffect(latestKey, followLatest, if (followLatest) listGeometry else null) {
+        if (timeline.isNotEmpty() && followLatest && !dragged) {
+            // Header entries are included in the list index.
+            listState.scrollToItem(timeline.lastIndex + if (lanState.isHost) 2 else 1)
+            val info = listState.layoutInfo
+            info.visibleItemsInfo.lastOrNull()?.let { last ->
+                listState.scrollBy((last.offset + last.size - info.viewportEndOffset + info.afterContentPadding).coerceAtLeast(0).toFloat())
+            }
+        }
+    }
     val toggleQr: () -> Unit = {
         if (!qrOpen && lanState.isHost) {
             onSetQrVisible(true)
@@ -173,91 +248,111 @@ internal fun LanShareContent(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(background)) {
-        // 时间线只滚动消息区域；连接信息在列表头部，输入栏固定在底部。
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item(key = "header", contentType = "header") {
-                LanShareHeader(primary, accent, showQr = lanState.isHost, onQrClick = toggleQr)
-            }
-            item(key = "connection", contentType = "connection") {
-                LanShareConnectionStatus(lanState.browserConnected)
-            }
-            if (lanState.isHost) {
-                item(key = "security-notice", contentType = "security-notice") {
-                    LanShareSecurityNotice(
-                        secondary = secondary,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
-                    )
+    Column(Modifier.fillMaxSize().background(background).imePadding().padding(top = 8.dp)) {
+        // 标题和二维码入口固定，消息列表与底部输入栏使用剩余空间。
+        LanShareHeader(primary, accent, showQr = lanState.isHost, onQrClick = toggleQr)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            // 连接信息随消息列表滚动；标题和输入栏不参与列表滚动。
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item(key = "connection", contentType = "connection") {
+                    LanShareConnectionStatus(lanState.browserConnected)
                 }
-            }
-            items(timeline, key = { it.key }, contentType = {
-                when (it) {
-                    is LanShareTimelineEntry.FileEntry, is LanShareTimelineEntry.UploadEntry -> "file"
-                    is LanShareTimelineEntry.MessageEntry -> "message"
-                }
-            }) { entry ->
-                when (entry) {
-                    is LanShareTimelineEntry.FileEntry -> {
-                        val file = entry.file
-                        LanShareMessageBubble(
-                            ownFileIds = lanState.ownFileIds,
-                            file = file,
-                            previewReady = file.id in lanState.previewFileIds,
-                            loadPreview = onLoadImagePreview,
-                            dark = dark,
-                            primary = primary,
+                if (lanState.isHost) {
+                    item(key = "security-notice", contentType = "security-notice") {
+                        LanShareSecurityNotice(
                             secondary = secondary,
-                            onSaveFile = onSaveFile,
-                            isDownloading = file.id in lanState.downloadingFileIds,
-                            peerColorIndex = peerColorIndices[file.sender],
-                            onPreviewImage = { bitmap ->
-                                imagePreview = file.name to bitmap
-                                imagePreviewFile = file
-                            },
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
                         )
-                    }
-                    // 取消只针对尚未完成的当前上传任务；已完成文件使用独立的预览和下载入口。
-                    is LanShareTimelineEntry.UploadEntry -> {
-                        LanShareUploadingBubble(entry.upload) { onCancelUpload(entry.upload.id) }
-                    }
-                    is LanShareTimelineEntry.MessageEntry -> {
-                        val chatMessage = entry.message
-                        LanShareTextMessageBubble(
-                            message = chatMessage,
-                            dark = dark,
-                            primary = primary,
-                            peerColorIndex = peerColorIndices[chatMessage.sender],
-                        )
+                        if (!lanState.browserConnected) {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("让另一台设备扫码，或在浏览器打开分享地址", color = secondary, fontSize = 14.sp, textAlign = TextAlign.Center)
+                                androidx.compose.material3.TextButton(onClick = toggleQr) { Text("显示连接二维码", color = accent) }
+                            }
+                        }
                     }
                 }
+                items(timeline, key = { it.key }, contentType = {
+                    when (it) {
+                        is LanShareTimelineEntry.FileEntry, is LanShareTimelineEntry.UploadEntry -> "file"
+                        is LanShareTimelineEntry.MessageEntry -> "message"
+                    }
+                }) { entry ->
+                    when (entry) {
+                        is LanShareTimelineEntry.FileEntry -> {
+                            val file = entry.file
+                            LanShareMessageBubble(
+                                ownFileIds = lanState.ownFileIds,
+                                file = file,
+                                previewReady = file.id in lanState.previewFileIds,
+                                loadPreview = onLoadImagePreview,
+                                dark = dark,
+                                primary = primary,
+                                secondary = secondary,
+                                onSaveFile = onSaveFile,
+                                isDownloading = file.id in lanState.downloadingFileIds,
+                                peerColorIndex = peerColorIndices[file.sender],
+                                onPreviewImage = { bitmap ->
+                                    imagePreview = file.name to bitmap
+                                    imagePreviewFile = file
+                                },
+                            )
+                        }
+                        // 取消只针对尚未完成的当前上传任务；已完成文件使用独立的预览和下载入口。
+                        is LanShareTimelineEntry.UploadEntry -> {
+                            LanShareUploadingBubble(entry.upload) { onCancelUpload(entry.upload.id) }
+                        }
+                        is LanShareTimelineEntry.MessageEntry -> {
+                            val chatMessage = entry.message
+                            LanShareTextMessageBubble(
+                                message = chatMessage,
+                                dark = dark,
+                                primary = primary,
+                                peerColorIndex = peerColorIndices[chatMessage.sender],
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (!atLatest && timeline.isNotEmpty()) {
+                androidx.compose.material3.FilledTonalButton(
+                    onClick = { followLatest = true; scope.launch {
+                        listState.animateScrollToItem(timeline.lastIndex + if (lanState.isHost) 2 else 1)
+                        val info = listState.layoutInfo
+                        info.visibleItemsInfo.lastOrNull()?.let { last ->
+                            listState.scrollBy((last.offset + last.size - info.viewportEndOffset + info.afterContentPadding).coerceAtLeast(0).toFloat())
+                        }
+                    } },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
+                ) { Text("查看最新内容") }
             }
         }
-
-        // 文字或待传文件由同一个发送入口提交；附件菜单负责打开拍照、图库或文件选择器。
-        LanShareInputBar(
-            dark = dark,
-            panel = panel,
-            inputPanel = inputPanel,
-            primary = primary,
-            secondary = secondary,
-            accent = accent,
-            pendingUploadName = lanState.pendingUploadName,
-            message = message,
-            isSendingText = lanState.isSendingText,
-            onMessageChange = onMessageChange,
-            onSend = { onSend(message) },
-            onOpenAttachmentMenu = { attachmentMenu = true },
-            attachmentMenu = attachmentMenu,
-            onDismissAttachmentMenu = { attachmentMenu = false },
-            onOpenCamera = onOpenCamera,
-            onOpenGallery = onOpenGallery,
-            onOpenFiles = onOpenFiles,
-        )
+            // 单独测量输入栏，附件与大字体不会覆盖时间线。
+            LanShareInputBar(
+                dark = dark,
+                panel = panel,
+                inputPanel = inputPanel,
+                primary = primary,
+                secondary = secondary,
+                accent = accent,
+                pendingUploadName = lanState.pendingUploadName,
+                message = message,
+                isSendingText = lanState.isSendingText,
+                onMessageChange = onMessageChange,
+                onSend = { onSend(message) },
+                onOpenAttachmentMenu = { attachmentMenu = true },
+                attachmentMenu = attachmentMenu,
+                onDismissAttachmentMenu = { attachmentMenu = false },
+                onOpenCamera = onOpenCamera,
+                onOpenGallery = onOpenGallery,
+                onOpenFiles = onOpenFiles,
+                onRemovePendingUpload = onRemovePendingUpload,
+            )
     }
 
     if (qrOpen) {

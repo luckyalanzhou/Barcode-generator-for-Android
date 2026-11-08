@@ -1,48 +1,49 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.lanshare
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LanShareCameraCaptureUriTest {
     @Test
     fun nonEmptyExplicitOutputSkipsRecentMediaLookup() {
-        var fallbackCalled = false
         val output = "camera-output"
 
-        val result = resolveLanCameraCaptureTarget(output, outputHasContent = true) {
-            fallbackCalled = true
-            "recent-media"
-        }
+        val result = resolveLanCameraCaptureTarget(output, outputHasContent = true, cameraResultUri = "camera-result")
 
         assertEquals(output, result)
-        assertFalse(fallbackCalled)
     }
 
     @Test
-    fun emptyExplicitOutputUsesRecentMediaLookup() {
-        val recent = "recent-media"
-        var fallbackCalled = false
-
+    fun emptyExplicitOutputUsesUriReturnedByCamera() {
         val result = resolveLanCameraCaptureTarget(
             "camera-output",
             outputHasContent = false,
-        ) {
-            fallbackCalled = true
-            recent
-        }
+            cameraResultUri = "camera-result",
+        )
 
-        assertEquals(recent, result)
-        assertTrue(fallbackCalled)
+        assertEquals("camera-result", result)
     }
 
     @Test
-    fun missingExplicitOutputUsesRecentMediaLookup() {
-        val recent = "recent-media"
+    fun emptyExplicitOutputWithoutReturnedUriHasNoImplicitGalleryTarget() {
+        val result = resolveLanCameraCaptureTarget(
+            "camera-output",
+            outputHasContent = false,
+            cameraResultUri = null,
+        )
 
-        val result = resolveLanCameraCaptureTarget(null, outputHasContent = false) { recent }
+        assertNull(result)
+    }
 
-        assertEquals(recent, result)
+    @Test
+    fun missingExplicitOutputWithoutReturnedUriHasNoImplicitGalleryTarget() {
+        val result = resolveLanCameraCaptureTarget(
+            null,
+            outputHasContent = false,
+            cameraResultUri = null,
+        )
+
+        assertNull(result)
     }
 }

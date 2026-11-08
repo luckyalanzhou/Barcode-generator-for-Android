@@ -16,7 +16,7 @@ internal fun LanShareSecurityNotice(
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = "配对令牌用于限制访问，但 HTTP/WebSocket 仍未加密；请仅在可信 Wi-Fi 下使用。",
+        text = "请在可信 Wi-Fi 下传输。配对令牌限制访问，传输内容未加密。",
         color = secondary,
         fontSize = 14.sp,
         lineHeight = 19.sp,

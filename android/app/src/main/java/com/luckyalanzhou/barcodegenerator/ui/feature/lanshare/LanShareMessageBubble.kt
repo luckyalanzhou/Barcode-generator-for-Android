@@ -28,6 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -72,15 +73,15 @@ internal fun LanShareMessageBubble(
         preview?.let { fitLanSharePreviewSize(it.width, it.height) }
     }
     val bubbleColor = when {
-        mine -> themeColors.controls.accent.copy(alpha = .44f)
+        mine -> lanShareSentBubbleColor(themeColors.controls.primaryAction, dark)
         peerColorIndex != null -> lanSharePeerBubbleColor(peerColorIndex, dark)
         else -> themeColors.surfaces.overlay
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         if (preview != null && previewSize != null) {
             Surface(
-                modifier = Modifier.width((maxOf(previewSize.widthDp, 48) + 16).dp),
-                shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp,
+                modifier = Modifier.width((maxOf(previewSize.widthDp, 164) + 16).dp),
+                shape = RoundedCornerShape(18.dp), color = themeColors.surfaces.overlay, shadowElevation = 0.dp,
             ) {
                 Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     val bitmap = preview
@@ -95,18 +96,18 @@ internal fun LanShareMessageBubble(
                         )
                     }
                     Spacer(Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .clickable(enabled = !isDownloading, role = Role.Button) { onSaveFile(file) },
-                        contentAlignment = Alignment.Center,
-                    ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
                         Text(
                             middleEllipsize(file.name),
-                            color = if (mine) themeColors.content.sentContent else primary,
-                            fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Clip,
-                            textAlign = TextAlign.Center,
-                            textDecoration = TextDecoration.Underline,
+                            color = primary,
+                            fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
+                        Text(formatLanShareSize(file.size), color = secondary, fontSize = 12.sp, maxLines = 1)
+                        }
+                        TextButton(onClick = { onSaveFile(file) }, enabled = !isDownloading, modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text(if (isDownloading) "保存中" else "保存", color = themeColors.text.link, fontSize = 13.sp, maxLines = 1)
+                        }
                     }
                     if (isDownloading) {
                         Row(
@@ -116,18 +117,12 @@ internal fun LanShareMessageBubble(
                         ) {
                             androidx.compose.material3.CircularProgressIndicator(
                                 modifier = Modifier.size(12.dp),
-                                color = if (mine) themeColors.content.sentContent else themeColors.controls.accent,
+                                color = themeColors.controls.accent,
                                 strokeWidth = 1.5.dp,
                             )
-                            Text("正在下载…", color = if (mine) themeColors.content.sentContent else secondary, fontSize = 12.sp)
+                            Text("正在保存…", color = secondary, fontSize = 12.sp)
                         }
                     }
-                    Text(
-                        formatLanShareSize(file.size),
-                        color = if (mine) themeColors.content.sentContent.copy(alpha = .78f) else secondary,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                    )
                 }
             }
         } else {
@@ -139,8 +134,8 @@ internal fun LanShareMessageBubble(
                     Icon(AttachFileIcon, "文件附件", tint = if (mine) themeColors.content.sentContent else themeColors.content.icon, modifier = Modifier.size(26.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(middleEllipsize(file.name), color = if (mine) themeColors.content.sentContent else primary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Clip, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
-                        Text(formatLanShareSize(file.size), color = if (mine) themeColors.barcode.qrBackground else secondary, fontSize = 12.sp, maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                        Text(middleEllipsize(file.name), color = if (mine) themeColors.content.sentContent else primary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+                        Text(formatLanShareSize(file.size), color = if (mine) themeColors.content.sentContent.copy(alpha = .90f) else secondary, fontSize = 12.sp, maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
                     }
                     Spacer(Modifier.width(8.dp))
                     val downloadShape = RoundedCornerShape(12.dp)
@@ -164,16 +159,16 @@ internal fun LanShareMessageBubble(
                             .padding(horizontal = 10.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (isDownloading) {
+                        if (isDownloading) Row(verticalAlignment = Alignment.CenterVertically) {
                             androidx.compose.material3.CircularProgressIndicator(
                                 modifier = Modifier.size(14.dp),
                                 color = if (mine) themeColors.content.sentContent else themeColors.controls.accent,
                                 strokeWidth = 1.5.dp,
                             )
                             Spacer(Modifier.width(5.dp))
-                            Text("下载中", color = if (mine) themeColors.content.sentContent else themeColors.text.link, fontSize = 12.sp, maxLines = 1)
+                            Text("保存中", color = if (mine) themeColors.content.sentContent else themeColors.text.link, fontSize = 12.sp, maxLines = 1)
                         } else Text(
-                            "下载",
+                            "保存",
                             color = if (mine) themeColors.content.sentContent else themeColors.text.link,
                             fontSize = 12.sp,
                             maxLines = 1,

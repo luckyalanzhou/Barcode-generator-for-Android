@@ -84,6 +84,11 @@ internal class LibraryStateStore {
         favoriteIdentities.values.map { it.folder }.filter { it.isNotBlank() }
     }
 
+    fun countFavoritesInFolderTree(path: String): Int = synchronized(lock) {
+        val descendantPrefix = "$path/"
+        favoriteIdentities.values.count { it.folder == path || it.folder.startsWith(descendantPrefix) }
+    }
+
     fun maxFavoriteGroupId(): Long = synchronized(lock) { favoriteIdentities.keys.maxOrNull() ?: 0L }
 
     fun setFavoriteIdentity(groupId: Long, folder: String, name: String) = synchronized(lock) {

@@ -89,9 +89,13 @@ internal fun CornerDropdownMenu(
     val density = LocalDensity.current
     val visualHeight = with(density) { anchorHeight?.toPx() ?: 0f }
     val dismiss by rememberUpdatedState(onDismiss)
+    val hostView = androidx.compose.ui.platform.LocalView.current
     if (state.currentState || state.targetState || !state.isIdle) {
         val reserve = with(density) { position.anchor.height.toDp() }
         Popup(position, onDismiss, PopupProperties(focusable = true)) {
+            DisposableEffect(hostView) {
+                onDispose { hostView.postInvalidateOnAnimation() }
+            }
             // 窗口同时包含来源与最终菜单，避免展开初期在 Popup 边缘被裁掉。
             // 来源预留区也是空白关闭区域；菜单项消费自己的点击，不触发这里。
             Box(modifier.pointerInput(Unit) { detectTapGestures { dismiss() } }.graphicsLayer {
@@ -113,6 +117,7 @@ internal fun CornerDropdownMenu(
                     shape = shape,
                     color = color,
                     dynamicBackdrop = true,
+                    screenSpaceBackdrop = true,
                     backdropRenderer = backdropRenderer,
                 ) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)

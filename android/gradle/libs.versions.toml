@@ -21,6 +21,8 @@ nanohttpd = "2.3.1"
 konsist = "0.17.3"
 roborazzi = "1.77.0"
 composePreviewScanner = "0.9.3"
+kyantBackdrop = "2.0.1"
+kyantShapes = "1.2.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -54,6 +56,8 @@ roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = 
 roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
 roborazzi-compose-preview-scanner-support = { module = "io.github.takahirom.roborazzi:roborazzi-compose-preview-scanner-support", version.ref = "roborazzi" }
 compose-preview-scanner-android = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composePreviewScanner" }
+kyant-backdrop = { module = "io.github.kyant0:backdrop", version.ref = "kyantBackdrop" }
+kyant-shapes = { module = "io.github.kyant0:shapes", version.ref = "kyantShapes" }
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
 nanohttpd-websocket = { module = "org.nanohttpd:nanohttpd-websocket", version.ref = "nanohttpd" }

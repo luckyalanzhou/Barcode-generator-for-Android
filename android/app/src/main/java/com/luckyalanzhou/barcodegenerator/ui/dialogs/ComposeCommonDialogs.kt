@@ -64,6 +64,7 @@ internal fun AnchoredDropdownMenu(
     val resolvedMenuWidth = menuWidth?.coerceAtMost(maxWidth)
     val widthModifier = if (menuWidth != null) Modifier.width(resolvedMenuWidth ?: maxWidth) else Modifier.widthIn(max = maxWidth)
     val horizontalOffset = if (alignEndWithAnchor && anchorWidth != null && resolvedMenuWidth != null) anchorWidth - resolvedMenuWidth else 0.dp
+    val hostView = androidx.compose.ui.platform.LocalView.current
     if (cornerReveal) {
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
@@ -77,10 +78,19 @@ internal fun AnchoredDropdownMenu(
         offset = DpOffset(horizontalOffset, 0.dp),
         modifier = modifier.then(widthModifier).heightIn(max = maxHeight),
         shape = shape,
-        containerColor = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
-        tonalElevation = tonalElevation,
-        shadowElevation = shadowElevation,
-    ) { content() }
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        androidx.compose.runtime.DisposableEffect(hostView) {
+            onDispose { hostView.postInvalidateOnAnimation() }
+        }
+        com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface(
+            shape = shape,
+            screenSpaceBackdrop = true,
+            color = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
+        ) { Column(content = content) }
+    }
 }
 
 @Composable

@@ -11,8 +11,8 @@ internal object AppColorTokens {
         val input = Color(0xfff5f7fa)
         val inputPanel = Color(0xffeef2f7)
         val primaryText = Color(0xff171b22)
-        // 统一操作蓝，并满足浅色表面的普通文字对比度。
-        val accent = Color(0xff0066cc)
+        // SenPlayer 原始强调蓝；玻璃层分别生成深浅显示色，避免重复叠色。
+        val accent = Color(0xff0080f4)
         val primaryAction = Color(0xff0066cc)
         val link = Color(0xff0066cc)
         val favoriteActive = Color(0xffd97706)
@@ -52,7 +52,8 @@ internal object AppColorTokens {
         val inputPanel = surface
         val overlay = Color(0xff2c2c2e)
         val primaryText = Color(0xfff2f4f8)
-        val accent = Color(0xff66a9ff)
+        // 与浅色使用同一原始蓝，由深色玻璃层生成最终显示色。
+        val accent = Color(0xff0080f4)
         val primaryAction = Color(0xff2673c7)
         val link = Color(0xff8abcf5)
         val favoriteActive = Color(0xffffbf55)

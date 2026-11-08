@@ -8,26 +8,29 @@ import org.junit.Test
 
 /** 本地渲染边界约束不是截图测试：防止已知危险组合再次引入，真机观感仍需独立验收。 */
 class ButtonRenderingContractTest {
-    @Test fun `round result actions keep static optics without press animations`() {
+    @Test fun `round result actions enhance glass optics while pressed`() {
         val button = source("GlassRoundActionButton.kt")
-        for (forbidden in listOf("animateFloatAsState", "PressInteraction",
-            "pressPosition", "scaleX =", "scaleY =", "translationY =", "radialGradient")) {
-            assertFalse("静态圆按钮不可引入 $forbidden", button.contains(forbidden))
-        }
+        assertTrue(button.contains("interaction.collectIsPressedAsState()"))
+        assertTrue(button.contains("animateFloatAsState("))
+        assertTrue(button.contains("if (effects.reduceMotion) snap() else spring("))
+        assertTrue(button.contains("lens(24f * density, (16f + 8f * strength) * density"))
+        assertTrue(button.contains("Highlight.Default.copy(alpha = .32f + .56f * pressProgress)"))
+        assertTrue(button.contains("Shadow(alpha = .14f + .28f * pressProgress)"))
+        assertFalse(button.contains("RuntimeShader("))
         assertFalse(button.contains("rememberGlassBackdropRenderer"))
         assertFalse(button.contains("GlassBackdropSurface("))
         val results = source("ResultsContent.kt")
         assertFalse(results.contains("recordGlassBackdrop"))
         assertFalse(results.contains("rememberGlassBackdrop"))
     }
-    @Test fun `press feedback affects only the round action foreground`() {
+    @Test fun `round action press updates material and keeps foreground readable`() {
         val button = source("GlassRoundActionButton.kt")
-        val feedback = button.substringAfter("// 反馈只作用于前景图标")
-        assertTrue(feedback.contains("alpha = if (pressed && enabled && !busy)"))
-        assertTrue(feedback.contains("content(contentTint)"))
-        assertFalse(feedback.contains("GlassBackdropSurface("))
-        assertFalse(feedback.contains("resultActionShadow("))
-        assertFalse(feedback.contains("roundActionGlassFrame("))
+        assertTrue(button.contains("targetValue = if (pressed && enabled && !busy) 1f else 0f"))
+        assertTrue(button.contains("lens(24f * density, (16f + 8f * strength) * density"))
+        assertTrue(button.contains("InnerShadow(radius = 4f.dp * progress"))
+        assertTrue(button.contains("content(contentTint)"))
+        assertFalse(button.contains("GlassBackdropSurface("))
+        assertFalse(button.contains("RuntimeShader("))
     }
     @Test fun `round action appearance stays separate from functionality and GPU samplers`() {
         val button = source("GlassRoundActionButton.kt")
@@ -56,13 +59,22 @@ class ButtonRenderingContractTest {
         assertTrue(action.contains("SettingsRow(title, color)"))
         assertTrue(action.contains("SettingsButton(action, buttonColor, LocalAppColorScheme.current.controls.accent"))
     }
-    @Test fun `capture and LAN launch emphasize content without tinted containers`() {
-        val camera = source("GenerateContent.kt").substringAfter("label = \"拍照填充\"").substringBefore("onClick = onCaptureText")
-        assertTrue(camera.contains("containerColor = Color.Transparent"))
-        assertTrue(camera.contains("contentColor = themeColors.controls.accent"))
-        val launch = source("SettingsContent.kt").substringAfter("text = \"启动\"").substringBefore("onClick = onEnterLanShare")
-        assertTrue(launch.contains("color = Color.Transparent"))
-        assertTrue(launch.contains("contentColor = colors.controls.accent"))
+    @Test fun `photo fill uses the glass action bar and LAN entry is an accessible navigation row`() {
+        val actions = source("GlassGenerateActionBar.kt")
+        assertTrue(actions.contains("GenerateActionButton(\"添加一行\", AddIcon"))
+        assertTrue(actions.contains("GenerateActionButton(\"批量粘贴\", ContentPasteIcon"))
+        assertTrue(actions.contains("GenerateActionButton(\"拍照填充\", PhotoCameraIcon"))
+        assertTrue(actions.contains("onClick = onClick"))
+        assertTrue(actions.contains("role = Role.Button"))
+        assertTrue(actions.contains("drawBackdrop("))
+        val settings = source("SettingsContent.kt")
+        assertTrue(settings.contains("SettingsNavigationRow(\"局域网文件分享\", onEnterLanShare)"))
+        val navigation = source("ComposeSettingsComponents.kt")
+            .substringAfter("internal fun SettingsNavigationRow(")
+            .substringBefore("internal fun SettingsRow(")
+        assertTrue(navigation.contains("clickable("))
+        assertTrue(navigation.contains("role = Role.Button"))
+        assertTrue(navigation.contains("onClick = onClick"))
     }
     @Test fun `filled primary actions use their contrast paired semantic color`() {
         val generate = source("GenerateContent.kt")
@@ -91,7 +103,7 @@ class ButtonRenderingContractTest {
     }
 
     @Test fun `ordinary action entry points share the same static outline`() {
-        for (name in listOf("ComposeGenerateActionButton.kt", "ComposeSettingsComponents.kt",
+        for (name in listOf("ComposeSettingsComponents.kt",
             "ComposeCommonDialogs.kt", "EditorChoiceField.kt", "FavoriteSaveForm.kt",
             "LanShareInputBar.kt",
             "LanShareContent.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",

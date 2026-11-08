@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.graphics.Bitmap
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 
@@ -29,8 +30,10 @@ internal fun LanShareScreen(
     onLoadImagePreview: suspend (LanShareFile) -> Bitmap?,
     onLoadFullImagePreview: suspend (LanShareFile) -> Bitmap?,
     onSend: (String) -> Unit,
+    onRemovePendingUpload: () -> Unit = {},
+    onRetryHostSession: () -> Unit = {},
 ) {
-    var message by remember { mutableStateOf("") }
+    var message by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(clearInputGeneration) {
         if (clearInputGeneration > 0) message = ""
     }
@@ -44,11 +47,13 @@ internal fun LanShareScreen(
         onLoadImagePreview = onLoadImagePreview,
         onLoadFullImagePreview = onLoadFullImagePreview,
         onSend = onSend,
+        onRemovePendingUpload = onRemovePendingUpload,
         onOpenCamera = onOpenCamera,
         onOpenGallery = onOpenGallery,
         onOpenFiles = onOpenFiles,
         onSaveFile = onSaveFile,
         onCopyAddress = onCopyAddress,
         createQrBitmap = createQrBitmap,
+        onRetryHostSession = onRetryHostSession,
     )
 }

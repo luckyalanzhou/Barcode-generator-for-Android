@@ -66,6 +66,26 @@ class LanShareClientUploadReceiptTest {
     }
 
     @Test
+    fun uploadAcceptsEmptyFileAndStoresItOnServer() {
+        val sharedFolder = temporaryFolder.newFolder("empty-shared")
+        val payload = byteArrayOf()
+        val server = LanShareServer("127.0.0.1", 0, sharedFolder, AppLogger { _, _, _ -> })
+
+        try {
+            server.start(5_000, false)
+            val session = LanShareSession("http://127.0.0.1:${server.listeningPort}", server.sessionToken)
+
+            val receipt = client.upload(session, "empty-upload-test", uploadSource(payload)) { _, _ -> }
+
+            assertTrue("server receipt must identify the committed empty file", receipt.isNotBlank())
+            assertArrayEquals(payload, sharedFolder.resolve(receipt).readBytes())
+            assertEquals(0L, sharedFolder.resolve(receipt).length())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun loggerFailureDoesNotDiscardSuccessfulUploadReceipt() {
         val sharedFolder = temporaryFolder.newFolder("logger-failure-shared")
         val payload = "uploaded despite diagnostic failure".toByteArray(StandardCharsets.UTF_8)

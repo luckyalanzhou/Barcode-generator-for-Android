@@ -35,12 +35,12 @@ import com.luckyalanzhou.barcodegenerator.ui.app.buildComposeShell
 import com.luckyalanzhou.barcodegenerator.ui.app.finishPendingResultImageDocument
 import com.luckyalanzhou.barcodegenerator.ui.app.restorePendingResultExportAction
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.cancelUpdateDownload
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.downloadAndInstallCompose
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.runDocumentProviderCleanupResult
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.cleanupInterruptedCameraCaptureFiles
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.shareableCacheDirectory
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.SHAREABLE_CAMERA_DIRECTORY
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.closeLanShare
-import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.findRecentLanCameraMedia
 import com.luckyalanzhou.barcodegenerator.ui.app.lanshare.resolveLanCameraCaptureTarget
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.installApkCompose
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.observeManualUpdateCheckResults
@@ -249,6 +249,16 @@ class MainActivity : AppCompatActivity() {
             it.observe(lifecycleScope, generateViewModel.uiState)
         }
         buildComposeShell()
+        val activeDownloadRequest = updateViewModel.uiState.value.activeDownloadRequest
+        if (activeDownloadRequest != null) {
+            window.decorView.post {
+                downloadAndInstallCompose(
+                    activeDownloadRequest.apkUrl,
+                    activeDownloadRequest.expectedSize,
+                    activeDownloadRequest.expectedSha256,
+                )
+            }
+        }
         observeManualUpdateCheckResults()
 
         // ViewModelLazy/Hilt ViewModel 的创建和清理必须在主线程执行。
@@ -587,7 +597,7 @@ class MainActivity : AppCompatActivity() {
                 if (resultCode == RESULT_OK) {
                     val uri = data?.data
                     if (uri != null) lifecycleScope.launch {
-                        selectLanShareAttachment(uri, autoUpload = true)
+                        selectLanShareAttachment(uri)
                     }
                     else {
                         DebugLog.record("lan_share", "upload_picker_returned_without_uri")
@@ -630,29 +640,32 @@ class MainActivity : AppCompatActivity() {
                 captureFile?.delete()
                 return
             }
-            retainCameraCapture(captureFile)
+            val captureHasContent = captureFile?.length()?.let { it > 0L } == true
+            val captureUri = resolveLanCameraCaptureTarget(
+                output = captureState.outputUri,
+                outputHasContent = captureHasContent,
+                cameraResultUri = data?.data,
+            )
+            if (captureUri == null) {
+                captureFile?.delete()
+                DebugLog.record("lan_share", "camera_output_missing_opening_photo_picker")
+                openLanShareGalleryPicker()
+                return
+            }
+            val retainedCaptureFile = captureFile.takeIf { captureHasContent && captureUri == captureState.outputUri }
+            if (retainedCaptureFile != null) retainCameraCapture(retainedCaptureFile) else captureFile?.delete()
             lifecycleScope.launch {
                 try {
-                    val captureUri = withContext(Dispatchers.IO) {
-                        resolveLanCameraCaptureTarget(
-                            output = captureState.outputUri,
-                            outputHasContent = captureFile?.length()?.let { it > 0L } == true,
-                        ) { findRecentLanCameraMedia(captureState.startedAtMillis) }
-                    }
-                    if (captureUri != null) {
-                        selectLanShareAttachment(captureUri, captureFile, autoUpload = true)
-                    } else {
-                        captureFile?.delete()
-                    }
+                    selectLanShareAttachment(captureUri, retainedCaptureFile)
                 } catch (cancelled: CancellationException) {
-                    captureFile?.delete()
+                    retainedCaptureFile?.delete()
                     throw cancelled
                 } catch (error: Exception) {
-                    captureFile?.delete()
-                    DebugLog.record("lan_share", "camera_media_lookup_failed", error)
+                    retainedCaptureFile?.delete()
+                    DebugLog.record("lan_share", "camera_capture_handoff_failed", error)
                     toast("无法读取刚拍摄的照片")
                 } finally {
-                    releaseCameraCapture(captureFile)
+                    releaseCameraCapture(retainedCaptureFile)
                 }
             }
             return
@@ -689,6 +702,16 @@ class MainActivity : AppCompatActivity() {
         } else {
             BARCODE_RECOGNITION_MAX_EDGE
         }
+        val expectedOcrDraft = if (requestCode == 45 || requestCode == 46) {
+            generateViewModel.uiState.value.inputDraft
+        } else {
+            null
+        }
+        val barcodeDecodeRequestId = if (requestCode == 43 || requestCode == 44 || requestCode == 51) {
+            cameraOcrViewModel.beginBarcodeDecode()
+        } else {
+            null
+        }
         retainCameraCapture(cameraFile)
         cameraOcrViewModel.clearCameraOutput()
         val cameraThumbnail = if (isCameraRequest) {
@@ -720,6 +743,10 @@ class MainActivity : AppCompatActivity() {
                             pendingBitmap.compareAndSet(bitmap, null)
                             if (!bitmap.isRecycled) bitmap.recycle()
                         }
+                        if (!cameraOcrViewModel.isCurrentBarcodeDecode(checkNotNull(barcodeDecodeRequestId))) {
+                            DebugLog.record("barcode", "decode result ignored as stale requestCode=$requestCode")
+                            return@launch
+                        }
                         // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
                         if (decoded != null) {
                             generateViewModel.updateDraft(listOf(decoded))
@@ -735,11 +762,15 @@ class MainActivity : AppCompatActivity() {
                             pendingBitmap.compareAndSet(bitmap, null)
                             if (!bitmap.isRecycled) bitmap.recycle()
                         }
+                        if (!cameraOcrViewModel.isCurrentBarcodeDecode(checkNotNull(barcodeDecodeRequestId))) {
+                            DebugLog.record("barcode", "decode result ignored as stale requestCode=$requestCode")
+                            return@launch
+                        }
                         if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
                     }
                     45, 46 -> {
                         pendingBitmap.compareAndSet(bitmap, null)
-                        recognizeText(bitmap)
+                        recognizeText(bitmap, expectedOcrDraft)
                     }
                 }
             } finally {

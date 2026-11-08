@@ -31,8 +31,28 @@ class LanShareFileIdentityTest {
     }
 
     @Test
+    fun browserFileKeepsUnderscoresInOriginalName() {
+        val file = File("web_123456_cclient123_IMG_2026_11_06.jpg")
+
+        val record = toLanShareFile(file, "peer")
+
+        assertEquals("browser:cclient123", record.sender)
+        assertEquals("IMG_2026_11_06.jpg", record.name)
+    }
+
+    @Test
     fun legacyBrowserFileRetainsBrowserSenderWithoutClientIdentity() {
         val file = File("web_123456_photo.jpg")
+
+        val record = toLanShareFile(file, "peer")
+
+        assertEquals("browser", record.sender)
+        assertEquals("photo.jpg", record.name)
+    }
+
+    @Test
+    fun browserFileWithFallbackClientIdKeepsOriginalName() {
+        val file = File("web_123456_clegacy_photo.jpg")
 
         val record = toLanShareFile(file, "peer")
 

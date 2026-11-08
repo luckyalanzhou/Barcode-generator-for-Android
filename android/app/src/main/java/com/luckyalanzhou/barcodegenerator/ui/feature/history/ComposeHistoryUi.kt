@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -95,6 +96,7 @@ internal fun HistoryComposePage(
     isReady: Boolean = true,
     loadFailed: Boolean = false,
     onRetry: () -> Unit = {},
+    listBottomPadding: Dp = 8.dp,
 ) {
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
@@ -114,7 +116,7 @@ internal fun HistoryComposePage(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 8.dp),
+        contentPadding = PaddingValues(bottom = listBottomPadding),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (!isReady) {

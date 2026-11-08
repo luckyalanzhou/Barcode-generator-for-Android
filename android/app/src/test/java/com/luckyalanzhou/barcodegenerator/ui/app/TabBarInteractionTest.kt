@@ -80,7 +80,7 @@ class TabBarInteractionTest {
         }
     }
 
-    @Test fun tabIconsAndLabelsRemainVisibleWhilePressedAndDragged() {
+    @Test fun tabIconsAndLabelsRemainVisibleAndDragSwitchesOnce() {
         val canvas = Color(0xFFF0F0F0)
         val selected = mutableIntStateOf(0)
         var swipeReachedAnotherTab = false
@@ -122,21 +122,29 @@ class TabBarInteractionTest {
         }
         val start = tabBounds[0].center
         val next = tabBounds[1].center
-        root.performTouchInput { down(start) }
         assertTabPixelsVisible(canvas, tabBounds)
+        compose.mainClock.autoAdvance = false
         root.performTouchInput {
+            down(start)
             advanceEventTime(24)
             moveTo(next)
-            advanceEventTime(24)
         }
+        compose.runOnIdle { assertEquals(emptyList<Int>(), swipeSelections) }
+        root.performTouchInput {
+            advanceEventTime(24)
+            up()
+        }
+        compose.runOnIdle { assertEquals(listOf(1), swipeSelections) }
+        compose.onNodeWithContentDescription("设置").performClick()
+        compose.runOnIdle { assertEquals(3, selected.intValue) }
+        compose.mainClock.autoAdvance = true
         compose.runOnIdle {
             assertTrue("The test gesture must exercise the production drag-to-switch path", swipeReachedAnotherTab)
             assertTrue("The page backdrop must be recorded during the Tab swipe", recordedBackdrop.ready && recordedBackdrop.hasFrame)
         }
         assertTabPixelsVisible(canvas, tabBounds)
-        root.performTouchInput { up() }
         compose.runOnIdle {
-            assertEquals("A drag crossing should commit its target once, not again on release", listOf(1), swipeSelections)
+            assertEquals("A completed drag should commit its target once", listOf(1), swipeSelections)
         }
     }
 

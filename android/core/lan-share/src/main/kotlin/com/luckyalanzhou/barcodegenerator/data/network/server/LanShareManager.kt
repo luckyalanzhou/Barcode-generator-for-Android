@@ -21,6 +21,9 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkAddress
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.Network
+import android.net.LinkProperties
 import java.io.File
 import java.net.Inet4Address
 import java.util.concurrent.atomic.AtomicLong
@@ -34,6 +37,7 @@ private class LanShareManagerOverrides(
     val isRouterLanHost: ((String?) -> Boolean)? = null,
     val localIpv4Address: (() -> Inet4Address?)? = null,
     val deleteSharedFile: ((File) -> Boolean)? = null,
+    val registerWifiNetworkCallback: ((onNetworkLost: () -> Unit) -> (() -> Unit))? = null,
 )
 
 class LanShareManager private constructor(
@@ -57,10 +61,16 @@ class LanShareManager private constructor(
         isRouterLanHost: (String?) -> Boolean,
         localIpv4Address: () -> Inet4Address?,
         deleteSharedFile: (File) -> Boolean,
+        registerWifiNetworkCallback: ((onNetworkLost: () -> Unit) -> (() -> Unit))? = null,
     ) : this(
         context,
         logger,
-        LanShareManagerOverrides(isRouterLanHost, localIpv4Address, deleteSharedFile),
+        LanShareManagerOverrides(
+            isRouterLanHost,
+            localIpv4Address,
+            deleteSharedFile,
+            registerWifiNetworkCallback,
+        ),
     )
 
     companion object {
@@ -82,12 +92,15 @@ class LanShareManager private constructor(
 
     private val folder = File(context.filesDir, "lan-share").apply { mkdirs() }
     private val webPreviewFolder = File(context.cacheDir, WEB_PREVIEW_CACHE_DIRECTORY_NAME)
-    private var server: LanShareServer? = null
+    @Volatile private var server: LanShareServer? = null
+    private var unregisterWifiNetworkCallback: (() -> Unit)? = null
     private var lastPort: Int? = null
     private val serverGeneration = AtomicLong(0L)
     private val realtimeStateLock = Any()
     private val realtimeState = MutableStateFlow(LanShareRealtimeState())
-    private val client by lazy { LanShareClient(this::isRouterLanHost, logger) }
+    private val uploadStagingFolder = File(context.cacheDir, "lan-share-upload-staging")
+    private val client by lazy { LanShareClient(this::isRouterLanHost, logger, uploadStagingFolder) }
+    private val lifecycleLock = Any()
 
     /** 分享服务只使用 Wi-Fi 默认网关所在子网的 IPv4 地址。 */
     override fun isOnLocalNetwork(): Boolean = routerIpv4Addresses().isNotEmpty()
@@ -127,7 +140,9 @@ class LanShareManager private constructor(
     }
 
     /** 开始新的分享会话：停止旧服务、按需清理会话文件，并在当前 Wi-Fi 子网随机端口启动服务。 */
-    override fun start(): LanShareSession = start(clearSharedFiles = true)
+    override fun start(): LanShareSession = synchronized(lifecycleLock) {
+        start(clearSharedFiles = true)
+    }
 
     private fun start(clearSharedFiles: Boolean): LanShareSession {
         val address = testOverrides.localIpv4Address?.invoke()?.hostAddress
@@ -169,8 +184,64 @@ class LanShareManager private constructor(
             accessToken = running.sessionToken,
             pairingCode = running.pairingCode,
         )
+        observeHostWifiNetwork(generation, address)
         logger.recordSafely("lan", "server started address=${session.baseUrl}")
         return session
+    }
+
+    private fun observeHostWifiNetwork(generation: Long, hostAddress: String) {
+        val onNetworkLost = { reason: String ->
+            invalidateHostSession(generation, reason)
+        }
+        val unregister = testOverrides.registerWifiNetworkCallback?.invoke {
+            onNetworkLost("Wi-Fi network disconnected")
+        } ?: run {
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onLost(network: Network) {
+                    onNetworkLost("Wi-Fi network disconnected")
+                }
+
+                override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
+                    if (linkProperties.linkAddresses.none { it.address.hostAddress == hostAddress }) {
+                        onNetworkLost("Wi-Fi host address changed")
+                    }
+                }
+            }
+            val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            connectivity.registerNetworkCallback(
+                NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                    .build(),
+                callback,
+            )
+            val unregisterCallback: () -> Unit = { connectivity.unregisterNetworkCallback(callback) }
+            unregisterCallback
+        }
+        synchronized(realtimeStateLock) {
+            if (serverGeneration.get() == generation && server != null) {
+                unregisterWifiNetworkCallback = unregister
+            } else {
+                runCatching(unregister)
+            }
+        }
+    }
+
+    private fun invalidateHostSession(generation: Long, reason: String) {
+        synchronized(lifecycleLock) {
+            val detached = synchronized(realtimeStateLock) {
+                if (serverGeneration.get() != generation || server == null) return
+                serverGeneration.incrementAndGet()
+                realtimeState.value = LanShareRealtimeState(hostSessionInvalidated = true)
+                val running = server
+                server = null
+                val unregister = unregisterWifiNetworkCallback
+                unregisterWifiNetworkCallback = null
+                running to unregister
+            }
+            runCatching { detached.second?.invoke() }
+            runCatching { detached.first?.stop() }
+            logger.recordSafely("lan", "host session invalidated: $reason")
+        }
     }
 
     override fun browserConnected() = server?.browserConnected() == true
@@ -182,14 +253,21 @@ class LanShareManager private constructor(
 
     /** 关闭 HTTP/WebSocket 服务并清空实时状态；是否删除会话文件由调用方明确指定。 */
     override fun stop(clearSharedFiles: Boolean) {
-        synchronized(realtimeStateLock) {
-            serverGeneration.incrementAndGet()
-            realtimeState.value = LanShareRealtimeState()
-        }
-        server?.stop()
-        server = null
-        if (clearSharedFiles && !clearFiles()) {
-            logger.recordSafely("lan", "share files could not be cleared on close")
+        synchronized(lifecycleLock) {
+            val detached = synchronized(realtimeStateLock) {
+                serverGeneration.incrementAndGet()
+                realtimeState.value = LanShareRealtimeState()
+                val running = server
+                server = null
+                val unregister = unregisterWifiNetworkCallback
+                unregisterWifiNetworkCallback = null
+                running to unregister
+            }
+            runCatching { detached.second?.invoke() }
+            detached.first?.stop()
+            if (clearSharedFiles && !clearFiles()) {
+                logger.recordSafely("lan", "share files could not be cleared on close")
+            }
         }
     }
 

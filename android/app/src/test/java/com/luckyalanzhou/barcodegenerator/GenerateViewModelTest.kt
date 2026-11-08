@@ -3,11 +3,50 @@ package com.luckyalanzhou.barcodegenerator
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GenerateViewModelTest {
+    @Test
+    fun delayedOcrDoesNotReplaceDraftChangedAfterCaptureStarted() {
+        val editor = GenerateEditorStateHolder()
+        val viewModel = GenerateViewModel(editor, GenerateBarcodesUseCase())
+        val capturedDraft = listOf("BEFORE-CAPTURE")
+        viewModel.updateDraft(capturedDraft)
+
+        viewModel.updateDraft(listOf("MANUAL-EDIT"))
+        val applied = viewModel.applyOcrResultIfDraftUnchanged(
+            expectedDraft = capturedDraft,
+            recognizedLines = listOf("OCR-RESULT"),
+        )
+
+        assertFalse(applied)
+        assertEquals(listOf("MANUAL-EDIT"), viewModel.uiState.value.inputDraft)
+    }
+
+    @Test
+    fun generationErrorIdentifiesOriginalInputRowAndIsClearedByEditing() {
+        val viewModel = GenerateViewModel(GenerateEditorStateHolder(), GenerateBarcodesUseCase())
+        val invalid = viewModel.generate(listOf("4006381333931", "1234"), "EAN-13", emptyList())
+        assertTrue(!invalid.isValid)
+        assertEquals(1, viewModel.validationError.value?.rowIndex)
+        assertEquals(invalid.errorMessage, viewModel.validationError.value?.message)
+        viewModel.updateDraft(listOf("4006381333931", "5901234123457"))
+        assertEquals(null, viewModel.validationError.value)
+        assertTrue(viewModel.generate(viewModel.uiState.value.inputDraft, "EAN-13", emptyList()).isValid)
+    }
+
+    @Test
+    fun changingFormatClearsStaleValidationFeedback() {
+        val viewModel = GenerateViewModel(GenerateEditorStateHolder(), GenerateBarcodesUseCase())
+        viewModel.generate(listOf("ABC"), "EAN-13", emptyList())
+        assertEquals(0, viewModel.validationError.value?.rowIndex)
+        viewModel.updateFormat("Code 128-B")
+        assertEquals(null, viewModel.validationError.value)
+    }
+
     @Test
     fun resultEditingPublishesDraftAndFormatAsOneEditorSnapshot() {
         val editor = GenerateEditorStateHolder()

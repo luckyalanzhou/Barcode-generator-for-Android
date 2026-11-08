@@ -17,6 +17,8 @@ import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import android.net.Uri
 import org.json.JSONArray
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -86,6 +88,7 @@ internal fun readLanShareUploadReceipt(input: InputStream): String {
 internal class LanShareClient(
     private val isRouterLanHost: (String?) -> Boolean,
     private val logger: AppLogger,
+    private val uploadStagingDirectory: File = File(System.getProperty("java.io.tmpdir") ?: "."),
 ) {
     private class ActiveUpload {
         var connection: HttpURLConnection? = null
@@ -123,25 +126,80 @@ internal class LanShareClient(
         onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
     ): String {
         val name = source.name.ifBlank { "附件" }
-        val size = source.size
-        if (size < 0) error("无法确定文件大小，请先将文件保存到本机")
-        require(size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
+        require(source.size <= LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
         requireRouterLanHost(session)
         val activeUpload = ActiveUpload()
         synchronized(uploadLock) {
             check(transferId !in activeUploads) { "上传任务标识已存在" }
             activeUploads[transferId] = activeUpload
         }
+        var stagedFile: File? = null
         try {
-            return uploadRaw(session, transferId, activeUpload, name, size, source.mimeType, onProgress) {
-                source.openStream()
+            val resolvedSource = if (source.size >= 0L) {
+                source
+            } else {
+                val staged = stageUnknownLengthSource(source, activeUpload, onProgress)
+                stagedFile = staged
+                source.copy(size = staged.length()) { FileInputStream(staged) }
+            }
+            return uploadRaw(
+                session,
+                transferId,
+                activeUpload,
+                name,
+                resolvedSource.size,
+                resolvedSource.mimeType,
+                onProgress,
+            ) {
+                resolvedSource.openStream()
             }.also {
-                logger.recordSafely("lan", "file uploaded size=$size")
+                logger.recordSafely("lan", "file uploaded size=${resolvedSource.size}")
             }
         } finally {
+            stagedFile?.delete()
             synchronized(uploadLock) {
                 if (activeUploads[transferId] === activeUpload) activeUploads.remove(transferId)
             }
+        }
+    }
+
+    /** 未知长度的 SAF 流先落入缓存临时文件，得到准确长度后继续现有定长上传协议。 */
+    private fun stageUnknownLengthSource(
+        source: LanShareUploadSource,
+        activeUpload: ActiveUpload,
+        onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
+    ): File {
+        check(uploadStagingDirectory.isDirectory || uploadStagingDirectory.mkdirs()) {
+            "无法创建上传临时目录"
+        }
+        val stagedFile = File.createTempFile("lan-share-upload-", ".part", uploadStagingDirectory)
+        try {
+            val input = source.openStream() ?: error("无法读取附件")
+            input.use { sourceStream ->
+                FileOutputStream(stagedFile).buffered(LAN_SHARE_STREAM_BUFFER_SIZE).use { output ->
+                    val buffer = ByteArray(LAN_SHARE_STREAM_BUFFER_SIZE)
+                    var copied = 0L
+                    onProgress(0L, -1L)
+                    while (true) {
+                        if (activeUpload.cancelled) throw CancellationException("上传已取消")
+                        val read = sourceStream.read(buffer)
+                        if (read < 0) break
+                        if (read == 0) continue
+                        if (activeUpload.cancelled) throw CancellationException("上传已取消")
+                        require(read.toLong() <= LanShareLimits.MAX_FILE_BYTES - copied) {
+                            "单个文件不能超过 10 GiB"
+                        }
+                        output.write(buffer, 0, read)
+                        copied += read
+                        onProgress(copied, -1L)
+                    }
+                }
+            }
+            onProgress(0L, stagedFile.length())
+            return stagedFile
+        } catch (error: Exception) {
+            stagedFile.delete()
+            throw error
         }
     }
 
@@ -163,7 +221,7 @@ internal class LanShareClient(
         onProgress: (uploadedBytes: Long, totalBytes: Long) -> Unit,
         openStream: () -> java.io.InputStream?,
     ): String {
-        require(size in 1..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
+        require(size in 0..LanShareLimits.MAX_FILE_BYTES) { "单个文件不能超过 10 GiB" }
         val url = URL(session.baseUrl + "/upload?name=${Uri.encode(name)}&client=app")
         val connection = (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
