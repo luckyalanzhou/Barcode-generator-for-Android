@@ -324,12 +324,14 @@ internal fun GenerateContent(
         val keyboardVisible = imeInsets.getBottom(density) > 0
         val keyboardGap = if (keyboardVisible) 12.dp else 0.dp
         val editingHeight = (maxHeight - keyboardGap).coerceAtLeast(0.dp)
-        val panelMaxHeight = if (keyboardVisible) editingHeight else (maxHeight * .4f).coerceIn(52.dp, 264.dp)
         Column(
             Modifier.fillMaxWidth()
                 .padding(bottom = keyboardGap)
                 .verticalScroll(rememberScrollState())
-                .heightIn(min = if (keyboardVisible) editingHeight else 0.dp)
+                .heightIn(
+                    min = if (keyboardVisible) editingHeight else 0.dp,
+                    max = editingHeight,
+                )
                 .padding(bottom = if (keyboardVisible) 0.dp else 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -341,8 +343,9 @@ internal fun GenerateContent(
             }
             // 修改、上下移动和删除输入行都会同步草稿，保证离开页面后可恢复。
             ComposeGenerateInputPanel(
-                modifier = if (keyboardVisible) Modifier.weight(1f, fill = false) else Modifier,
-                maxPanelHeight = panelMaxHeight,
+                modifier = Modifier.weight(1f, fill = false),
+                maxPanelHeight = editingHeight,
+                fitWholeRows = !keyboardVisible,
                 values = values,
                 dark = dark,
                 focusedIndex = focusedIndex,
@@ -514,6 +517,7 @@ internal fun GenerateContent(
                         alignEndWithAnchor = true,
                         // 与外观/字符纠错一致：整个菜单从按钮边界展开，不走 Material 默认动画。
                         cornerReveal = true,
+                        clearerGlass = true,
                     ) {
                         barcodeFormats.forEachIndexed { index, option ->
                             if (index > 0) ComposeDropdownDivider(dark)

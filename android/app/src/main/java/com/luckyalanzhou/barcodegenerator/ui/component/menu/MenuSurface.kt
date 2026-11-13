@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawOutline
@@ -23,6 +24,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.geometry.Size
@@ -55,12 +60,16 @@ internal fun MenuSurface(
     color: Color = LocalAppColorScheme.current.surfaces.panel,
     dynamicBackdrop: Boolean = true,
     screenSpaceBackdrop: Boolean = false,
+    clearerGlass: Boolean = false,
     backdropRenderer: BackdropRenderer? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val policy = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current
-    val backdrop = if (screenSpaceBackdrop) rememberScreenGlassBackdrop() else LocalLiquidGlassBackdrop.current
+    val screenBackdrop = if (screenSpaceBackdrop && dynamicBackdrop && !policy.opaqueGlass &&
+        android.os.Build.VERSION.SDK_INT >= 33) rememberScreenGlassBackdrop(softenBackdropColor = clearerGlass) else null
+    val backdrop = if (screenSpaceBackdrop) screenBackdrop else LocalLiquidGlassBackdrop.current
+    var screenBounds by remember { mutableStateOf(Rect.Zero) }
     val useKyant = android.os.Build.VERSION.SDK_INT >= 33 && backdrop != null && dynamicBackdrop && !policy.opaqueGlass
     var pressed by remember { mutableStateOf(false) }
     val press by animateFloatAsState(if (pressed) 1f else 0f,
@@ -68,6 +77,16 @@ internal fun MenuSurface(
     val layoutDirection = LocalLayoutDirection.current
     var heightDp by remember { mutableFloatStateOf(80f) }
     val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp, policy.highContrast)
+    val thickness = ((heightDp - 80f) / 240f).coerceIn(0f, 1f)
+    val surfaceLuminance = color.luminance()
+    val backgroundLuminance = remember(screenBackdrop, screenBounds) {
+        androidx.compose.runtime.derivedStateOf { screenBackdrop?.averageLuminance(screenBounds) }
+    }.value
+    val contrastTint by animateFloatAsState(
+        kotlin.math.abs((backgroundLuminance ?: surfaceLuminance) - surfaceLuminance) * .35f,
+        if (policy.reduceMotion) snap() else spring(1f, 400f),
+        label = "menu-background-contrast",
+    )
     val renderer = if (dynamicBackdrop && !useKyant) {
         backdropRenderer ?: rememberGlassBackdropRenderer(menuMaterial = true)
     } else null
@@ -75,19 +94,41 @@ internal fun MenuSurface(
     var measuredSize by remember { mutableStateOf(IntSize.Zero) }
     val measuredOutline = shape.createOutline(Size(measuredSize.width.toFloat(), measuredSize.height.toFloat()), layoutDirection, density)
     val cornerDp = ((measuredOutline as? androidx.compose.ui.graphics.Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f) / density.density
-    Box(modifier.graphicsLayer {
+    Box(modifier.then(if (screenBackdrop != null) Modifier.onGloballyPositioned { coordinates ->
+        val windowOrigin = coordinates.localToScreen(Offset.Zero) - coordinates.localToWindow(Offset.Zero)
+        if (windowOrigin.x.isFinite() && windowOrigin.y.isFinite()) {
+            screenBounds = coordinates.boundsInWindow().translate(windowOrigin)
+        }
+    } else Modifier).graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
     }.then(if (useKyant) Modifier.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
         effects = {
             vibrancy()
-            blur(8.dp.toPx())
-            lens(24.dp.toPx(), (16f + 8f * press).dp.toPx(), chromaticAberration = true)
+            blur((if (clearerGlass) 2f else 3f + 2f * thickness).dp.toPx())
+            val rim = if (clearerGlass) 16.dp else 12.dp
+            lens(rim.toPx(), (10f + 3f * press).dp.toPx())
         },
-        highlight = { Highlight.Default.copy(alpha = .45f + .5f * press) },
-        shadow = { Shadow(alpha = .15f + .15f * press) },
-        onDrawSurface = { drawRect(color.copy(alpha = .42f + .06f * press)) },
+        highlight = { Highlight.Default.copy(alpha = .36f + .16f * press) },
+        shadow = { Shadow(alpha = .16f) },
+        onDrawSurface = {
+            val tint = if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
+            val edgeTint = (tint + contrastTint).coerceIn(0f, 1f)
+            if (clearerGlass) {
+                val rimFraction = (16.dp.toPx() / size.height).coerceIn(.01f, .45f)
+                val edge = color.copy(alpha = edgeTint)
+                val center = color.copy(alpha = (edgeTint + .30f).coerceAtMost(.92f))
+                drawRect(Brush.verticalGradient(
+                    0f to edge,
+                    rimFraction to center,
+                    1f - rimFraction to center,
+                    1f to edge,
+                ))
+            } else {
+                drawRect(color.copy(alpha = edgeTint))
+            }
+        },
     ) else Modifier).clip(shape).pointerInput(Unit) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -117,7 +158,6 @@ internal fun MenuSurface(
     }) {
         if (!useKyant) Box(Modifier.matchParentSize().background(color))
         if (dynamicBackdrop && !useKyant) {
-            // 仅下拉菜单采样背景；长按上下文菜单不创建渲染器，也不执行模糊或折射。
             GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = spec.opacity,
                 cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f },
                 drawFallback = false, screenCoordinates = true, renderer = renderer)

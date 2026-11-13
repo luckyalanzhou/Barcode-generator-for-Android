@@ -73,8 +73,16 @@ class GenerateFinalLayoutTest {
         compose.runOnIdle { draft.value = List(5) { "item-$it" } }
         val fifthHeight = compose.onNodeWithTag("generate-inputs").fetchSemanticsNode().boundsInRoot.height
         compose.runOnIdle { draft.value = List(15) { "item-$it" } }
-        assertEquals(fifthHeight, compose.onNodeWithTag("generate-inputs").fetchSemanticsNode().boundsInRoot.height, .1f)
-        compose.onNodeWithText("生成 15 个条码").assertIsDisplayed()
+        val fifteenthHeight = compose.onNodeWithTag("generate-inputs").fetchSemanticsNode().boundsInRoot.height
+        assertTrue("输入区应继续增长到设备可用高度", fifteenthHeight > fifthHeight)
+        compose.runOnIdle { draft.value = List(30) { "item-$it" } }
+        assertEquals(
+            "输入区达到可用高度后应停止增长",
+            fifteenthHeight,
+            compose.onNodeWithTag("generate-inputs").fetchSemanticsNode().boundsInRoot.height,
+            .1f,
+        )
+        compose.onNodeWithText("生成 30 个条码").assertExists()
     }
 
     @Test fun draggingAcrossIndependentActionsDoesNotExecuteThem() {

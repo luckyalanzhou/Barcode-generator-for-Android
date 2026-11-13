@@ -70,6 +70,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.layout
+
+private val GenerateInputRowHeight = 48.dp
+private val GenerateInputRowSpacing = 6.dp
+private val GenerateInputPanelPadding = 2.dp
 
 /**
  * 渲染可编辑的多行条码输入区。每行支持输入、调整顺序和删除；仅选中行右侧显示直接操作图标。
@@ -91,6 +96,7 @@ internal fun ComposeGenerateInputPanel(
     focusRequestRowKey: Long? = null,
     validationError: GenerateInputError? = null,
     maxPanelHeight: Dp = 264.dp,
+    fitWholeRows: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val themeColors = LocalAppColorScheme.current
@@ -101,11 +107,24 @@ internal fun ComposeGenerateInputPanel(
     val focusedInputBorder = themeColors.borders.focusedInput
     val scrollState = rememberScrollState()
     val background = themeColors.surfaces.background
-
     Column(
         modifier = modifier
             .testTag("generate-inputs")
             .heightIn(min = 52.dp, max = maxPanelHeight.coerceAtLeast(52.dp))
+            .layout { measurable, constraints ->
+                // Use the rounded pixel sizes that Column uses to measure each row and gap.
+                val rowHeight = GenerateInputRowHeight.roundToPx()
+                val spacing = GenerateInputRowSpacing.roundToPx()
+                val padding = GenerateInputPanelPadding.roundToPx() * 2
+                val rows = (constraints.maxHeight - padding + spacing) / (rowHeight + spacing)
+                val height = if (fitWholeRows && rows > 0) {
+                    (rows * (rowHeight + spacing) - spacing + padding).coerceAtLeast(constraints.minHeight)
+                } else {
+                    constraints.maxHeight
+                }
+                val panel = measurable.measure(constraints.copy(maxHeight = height))
+                layout(panel.width, panel.height) { panel.placeRelative(0, 0) }
+            }
             .fillMaxWidth()
             .drawWithCache {
                 val edge = 10.dp.toPx().coerceAtMost(size.height / 2f)
@@ -125,8 +144,8 @@ internal fun ComposeGenerateInputPanel(
             }
             .verticalScroll(scrollState)
             // 输入框及排序/删除按钮占满一整行，与下方“添加一行/拍照填充”操作区保持对齐。
-            .padding(vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(vertical = GenerateInputPanelPadding),
+        verticalArrangement = Arrangement.spacedBy(GenerateInputRowSpacing),
     ) {
         values.forEachIndexed { index, value ->
             key(rowKeys.getOrElse(index) { index.toLong() }) {
@@ -143,7 +162,7 @@ internal fun ComposeGenerateInputPanel(
                 }
                 Column(Modifier.fillMaxWidth().bringIntoViewRequester(bringIntoView)) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("generate-row-$index"),
+                        modifier = Modifier.fillMaxWidth().height(GenerateInputRowHeight).testTag("generate-row-$index"),
                         shape = RoundedCornerShape(14.dp),
                         color = inputColor,
                         contentColor = textColor,
@@ -152,7 +171,7 @@ internal fun ComposeGenerateInputPanel(
                         shadowElevation = 0.dp,
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(GenerateInputRowHeight),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(

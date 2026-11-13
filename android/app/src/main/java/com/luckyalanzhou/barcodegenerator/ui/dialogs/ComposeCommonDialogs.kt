@@ -55,6 +55,7 @@ internal fun AnchoredDropdownMenu(
     anchorHeight: Dp? = null,
     alignEndWithAnchor: Boolean = false,
     cornerReveal: Boolean = false,
+    clearerGlass: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val containerSize = LocalWindowInfo.current.containerSize
@@ -69,7 +70,7 @@ internal fun AnchoredDropdownMenu(
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
             containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
-            anchorHeight, content)
+            anchorHeight, clearerGlass, content)
         return
     }
     DropdownMenu(
@@ -88,6 +89,7 @@ internal fun AnchoredDropdownMenu(
         com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface(
             shape = shape,
             screenSpaceBackdrop = true,
+            clearerGlass = clearerGlass,
             color = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
         ) { Column(content = content) }
     }

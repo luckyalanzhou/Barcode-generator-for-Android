@@ -173,8 +173,8 @@ internal fun LanShareImagePreviewDialog(
                         },
                         highlight = { Highlight.Default.copy(alpha = .30f) },
                         shadow = { Shadow(alpha = .20f) },
-                        onDrawSurface = { drawRect(Color.Black.copy(alpha = .24f)) },
-                    ) else Modifier.background(Color.Black.copy(alpha = .30f), RoundedCornerShape(28.dp)))
+                        onDrawSurface = { drawRect(Color.Black.copy(alpha = .60f)) },
+                    ) else Modifier.background(Color.Black.copy(alpha = .60f), RoundedCornerShape(28.dp)))
                     .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -207,7 +207,7 @@ internal fun LanShareImagePreviewDialog(
                         },
                         highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
                         shadow = { Shadow(alpha = .12f + .20f * closePress) },
-                        onDrawSurface = { drawRect(Color.White.copy(alpha = .10f + .08f * closePress)) },
+                        onDrawSurface = { drawRect(Color.Black.copy(alpha = .58f + .06f * closePress)) },
                     ) else Modifier.background(Color.White.copy(alpha = .16f), RoundedCornerShape(10.dp))).semantics {
                         contentDescription = "关闭图片预览"
                     },

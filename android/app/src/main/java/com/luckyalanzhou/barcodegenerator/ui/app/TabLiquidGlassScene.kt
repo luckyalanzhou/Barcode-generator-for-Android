@@ -75,7 +75,8 @@ internal fun TabLiquidGlassScene(
     } else {
         Color(0xFF121212).copy(alpha = .4f)
     }
-    val sampledContainerColor = containerColor.copy(alpha = .27f)
+    val sampledContainerColor = containerColor.copy(alpha = .22f)
+    val backdropBlurPx = 2.5f * density
     val active = !policy.reduceMotion && visible && motion.pressed
     val activity = animateFloatAsState(
         targetValue = if (active) 1f else 0f,
@@ -128,7 +129,7 @@ internal fun TabLiquidGlassScene(
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
-                        blur(4f * density)
+                        blur(backdropBlurPx)
                         lens(18f * density, 24f * density)
                     },
                     layerBlock = {
@@ -156,7 +157,7 @@ internal fun TabLiquidGlassScene(
                         effects = {
                             val progress = frameProvider().motion.coerceIn(0f, 1f)
                             vibrancy()
-                            blur(4f * density)
+                            blur(backdropBlurPx)
                             lens(24f * density * progress, 24f * density * progress)
                         },
                         highlight = { Highlight.Default.copy(alpha = frameProvider().motion.coerceIn(0f, 1f)) },

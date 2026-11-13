@@ -6,6 +6,12 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
 import android.app.Activity
 import android.content.ContextWrapper
@@ -25,7 +31,7 @@ import com.kyant.backdrop.Backdrop
 
 /** Popup 与主窗口使用屏幕坐标对齐，避免 positionInWindow 跨窗口采样错位。 */
 @Composable
-internal fun rememberScreenGlassBackdrop(): Backdrop? {
+internal fun rememberScreenGlassBackdrop(softenBackdropColor: Boolean = false): ScreenGlassBackdrop? {
     val source = LocalGlassBackdrop.current ?: return null
     val context = LocalContext.current
     val activity = remember(context) {
@@ -55,8 +61,30 @@ internal fun rememberScreenGlassBackdrop(): Backdrop? {
             }, Handler(Looper.getMainLooper()))
         }
     }
-    return remember(source) {
-        object : Backdrop {
+    return remember(source, softenBackdropColor) {
+        val colorFilter = if (softenBackdropColor) {
+            ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(.22f) })
+        } else null
+        object : ScreenGlassBackdrop {
+            override fun averageLuminance(bounds: Rect): Float? {
+                val bitmap = snapshot.value?.asAndroidBitmap() ?: return null
+                val position = origin.value
+                val left = (bounds.left - position.x).toInt().coerceIn(0, bitmap.width)
+                val top = (bounds.top - position.y).toInt().coerceIn(0, bitmap.height)
+                val right = (bounds.right - position.x).toInt().coerceIn(0, bitmap.width)
+                val bottom = (bounds.bottom - position.y).toInt().coerceIn(0, bitmap.height)
+                if (right <= left || bottom <= top) return null
+                var luminance = 0f
+                for (row in 0 until 5) {
+                    for (column in 0 until 5) {
+                        val x = left + (2 * column + 1) * (right - left) / 10
+                        val y = top + (2 * row + 1) * (bottom - top) / 10
+                        luminance += Color(bitmap.getPixel(x, y)).luminance()
+                    }
+                }
+                return luminance / 25f
+            }
+
             override val isCoordinatesDependent = true
             override fun DrawScope.drawBackdrop(
                 density: Density,
@@ -66,8 +94,12 @@ internal fun rememberScreenGlassBackdrop(): Backdrop? {
                 val image = snapshot.value ?: return
                 if (coordinates?.isAttached != true) return
                 val offset = origin.value - coordinates.localToScreen(Offset.Zero)
-                translate(offset.x, offset.y) { drawImage(image) }
+                translate(offset.x, offset.y) { drawImage(image, colorFilter = colorFilter) }
             }
         }
     }
+}
+
+internal interface ScreenGlassBackdrop : Backdrop {
+    fun averageLuminance(bounds: Rect): Float?
 }

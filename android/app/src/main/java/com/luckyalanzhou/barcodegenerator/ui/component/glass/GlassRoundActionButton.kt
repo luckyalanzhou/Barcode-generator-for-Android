@@ -102,7 +102,7 @@ internal fun GlassRoundActionButton(
                         vibrancy()
                         val strength = pressProgress.coerceIn(0f, 1f)
                         // Keep passing barcode edges visible, with refraction concentrated near the rim.
-                        blur(3.5f * density)
+                        blur(1.5f * density)
                         lens(
                             (11f + 4f * strength) * density,
                             (18f + 6f * strength) * density,
