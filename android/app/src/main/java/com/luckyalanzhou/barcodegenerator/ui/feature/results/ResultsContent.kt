@@ -31,7 +31,9 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -113,6 +115,8 @@ internal fun ResultsContent(
     val primary = themeColors.text.primary
     val secondary = themeColors.text.secondary
     val items = state.items
+    // 收藏结果的滚动位置只在本次打开期间保留。
+    val listState = if (state.restoreScrollPosition) rememberLazyListState() else remember { LazyListState() }
     val density = LocalDensity.current.density
     val fontScale = LocalDensity.current.fontScale
     val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -228,6 +232,7 @@ internal fun ResultsContent(
     Box(Modifier.fillMaxSize()) {
         // 条码列表位于固定工具栏下方并独立滚动，顶部预留状态栏和工具栏高度以避免遮挡。
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().layerBackdrop(resultBackdrop)
                 .background(themeColors.surfaces.background),
             contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),

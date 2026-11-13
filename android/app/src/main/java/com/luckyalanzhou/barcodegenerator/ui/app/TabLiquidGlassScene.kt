@@ -75,6 +75,7 @@ internal fun TabLiquidGlassScene(
     } else {
         Color(0xFF121212).copy(alpha = .4f)
     }
+    val sampledContainerColor = containerColor.copy(alpha = .27f)
     val active = !policy.reduceMotion && visible && motion.pressed
     val activity = animateFloatAsState(
         targetValue = if (active) 1f else 0f,
@@ -127,15 +128,15 @@ internal fun TabLiquidGlassScene(
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
-                        blur(8f * density)
-                        lens(24f * density, 24f * density)
+                        blur(4f * density)
+                        lens(18f * density, 24f * density)
                     },
                     layerBlock = {
                         val scale = 1f + 16f * density / size.width.coerceAtLeast(1f) * frameProvider().motion
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = { drawRect(containerColor) },
+                    onDrawSurface = { drawRect(sampledContainerColor) },
             ),
             )
 
@@ -155,11 +156,11 @@ internal fun TabLiquidGlassScene(
                         effects = {
                             val progress = frameProvider().motion.coerceIn(0f, 1f)
                             vibrancy()
-                            blur(8f * density)
+                            blur(4f * density)
                             lens(24f * density * progress, 24f * density * progress)
                         },
                         highlight = { Highlight.Default.copy(alpha = frameProvider().motion.coerceIn(0f, 1f)) },
-                        onDrawSurface = { drawRect(containerColor) },
+                        onDrawSurface = { drawRect(sampledContainerColor) },
                     )
                     .padding(horizontal = 4.dp)
                     .graphicsLayer { colorFilter = ColorFilter.tint(accent) },
@@ -178,7 +179,12 @@ internal fun TabLiquidGlassScene(
                     effects = {
                         val frame = frameProvider()
                         val movement = frame.motion.coerceIn(0f, 1f)
-                        lens(10f * density * movement, 14f * density * movement, chromaticAberration = true)
+                        // Keep a shallow lens at rest, then deepen it during the gesture.
+                        lens(
+                            (5f + 5f * movement) * density,
+                            (7f + 7f * movement) * density,
+                            chromaticAberration = true,
+                        )
                     },
                     layerBlock = {
                         val frame = frameProvider()
@@ -186,17 +192,23 @@ internal fun TabLiquidGlassScene(
                         scaleY = frame.halfHeight / (size.height / 2f).coerceAtLeast(1f)
                     },
                     highlight = {
-                        Highlight.Default.copy(alpha = frameProvider().motion.coerceIn(0f, 1f))
+                        val movement = frameProvider().motion.coerceIn(0f, 1f)
+                        Highlight.Default.copy(alpha = .46f + .54f * movement)
                     },
-                    shadow = { Shadow(alpha = frameProvider().motion.coerceIn(0f, 1f)) },
+                    shadow = {
+                        val movement = frameProvider().motion.coerceIn(0f, 1f)
+                        Shadow(alpha = .16f + .84f * movement)
+                    },
                     innerShadow = {
                         val motionAmount = frameProvider().motion.coerceIn(0f, 1f)
-                        InnerShadow(radius = 8f.dp * motionAmount, alpha = motionAmount)
+                        InnerShadow(
+                            radius = (3f + 5f * motionAmount).dp,
+                            alpha = .22f + .78f * motionAmount,
+                        )
                     },
                     onDrawSurface = {
                         val motionAmount = frameProvider().motion.coerceIn(0f, 1f)
-                        val surfaceTint = if (background.luminance() < .35f) Color.White else Color.Black
-                        drawRect(surfaceTint.copy(alpha = .04f * (1f - motionAmount)))
+                        drawRect(Color.White.copy(alpha = .025f * (1f - motionAmount)))
                         drawRect(Color.Black.copy(alpha = .03f * motionAmount))
                     },
                 ).height(56.dp).fillMaxWidth(1f / tabCount),

@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
@@ -169,61 +168,67 @@ internal fun GenerateContent(
 
     if (batchPasteDialog) {
         Dialog(onDismissRequest = { batchPasteDialog = false }) {
+            val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+            androidx.compose.runtime.SideEffect {
+                window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            }
             ComposeGlassDialogCard(dark) {
                 Text("批量粘贴", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                Text(
-                    "每行一个条码；复制表格时请只选一列。含逗号的条码值可按 CSV 规则用双引号括起。",
-                    modifier = Modifier.padding(top = 6.dp),
-                    color = secondary,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
-                val previewText = when (val preview = batchPastePreview) {
-                    BatchBarcodePastePreview.Empty -> "空行会自动跳过；确认后才会加入输入列表。"
-                    is BatchBarcodePastePreview.Ready -> "将添加 ${preview.addedCount} 条；添加后共 ${preview.totalCount} 条。"
-                    is BatchBarcodePastePreview.Invalid -> preview.line?.let { "第 $it 行：${preview.reason}" } ?: preview.reason
-                }
-                Text(
-                    previewText,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                    color = if (batchPastePreview is BatchBarcodePastePreview.Invalid) themeColors.text.destructive else secondary,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .heightIn(min = 144.dp, max = 240.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(inputColor)
-                        .border(1.dp, inputBorder, RoundedCornerShape(14.dp))
-                        .pointerInput(batchPasteFocusRequester) {
-                            detectTapGestures { batchPasteFocusRequester.requestFocus() }
-                        }
-                        .padding(12.dp),
-                ) {
-                    BasicTextField(
-                        value = batchPasteText,
-                        onValueChange = {
-                            batchPasteText = it
-                            batchPastePreview = BatchBarcodeTextParser.preview(values.toList(), it)
-                        },
-                        modifier = Modifier.fillMaxWidth().focusRequester(batchPasteFocusRequester)
-                            .verticalScroll(rememberScrollState())
-                            .semantics { contentDescription = "多行条码内容" },
-                        textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp),
-                        cursorBrush = SolidColor(textColor),
-                        decorationBox = { field ->
-                            Box {
-                                if (batchPasteText.isEmpty()) {
-                                    Text("在此粘贴多行条码内容", color = secondary, fontSize = 15.sp)
-                                }
-                                field()
-                            }
-                        },
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    Text(
+                        "每行一个条码；复制表格时请只选一列。含逗号的条码值可按 CSV 规则用双引号括起。",
+                        modifier = Modifier.padding(top = 6.dp),
+                        color = secondary,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
                     )
+                    val previewText = when (val preview = batchPastePreview) {
+                        BatchBarcodePastePreview.Empty -> "空行会自动跳过；确认后才会加入输入列表。"
+                        is BatchBarcodePastePreview.Ready -> "将添加 ${preview.addedCount} 条；添加后共 ${preview.totalCount} 条。"
+                        is BatchBarcodePastePreview.Invalid -> preview.line?.let { "第 $it 行：${preview.reason}" } ?: preview.reason
+                    }
+                    Text(
+                        previewText,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                        color = if (batchPastePreview is BatchBarcodePastePreview.Invalid) themeColors.text.destructive else secondary,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .heightIn(min = 120.dp, max = 200.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(inputColor)
+                            .border(1.dp, inputBorder, RoundedCornerShape(14.dp))
+                            .pointerInput(batchPasteFocusRequester) {
+                                detectTapGestures { batchPasteFocusRequester.requestFocus() }
+                            }
+                            .padding(12.dp),
+                    ) {
+                        BasicTextField(
+                            value = batchPasteText,
+                            onValueChange = {
+                                batchPasteText = it
+                                batchPastePreview = BatchBarcodeTextParser.preview(values.toList(), it)
+                            },
+                            modifier = Modifier.fillMaxWidth().focusRequester(batchPasteFocusRequester)
+                                .verticalScroll(rememberScrollState())
+                                .semantics { contentDescription = "多行条码内容" },
+                            textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp),
+                            cursorBrush = SolidColor(textColor),
+                            decorationBox = { field ->
+                                Box {
+                                    if (batchPasteText.isEmpty()) {
+                                        Text("在此粘贴多行条码内容", color = secondary, fontSize = 15.sp)
+                                    }
+                                    field()
+                                }
+                            },
+                        )
+                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
@@ -316,9 +321,16 @@ internal fun GenerateContent(
     }
 
     BoxWithConstraints(Modifier.fillMaxWidth().imePadding()) {
-        val panelMaxHeight = (maxHeight * .4f).coerceIn(52.dp, 264.dp)
+        val keyboardVisible = imeInsets.getBottom(density) > 0
+        val keyboardGap = if (keyboardVisible) 12.dp else 0.dp
+        val editingHeight = (maxHeight - keyboardGap).coerceAtLeast(0.dp)
+        val panelMaxHeight = if (keyboardVisible) editingHeight else (maxHeight * .4f).coerceIn(52.dp, 264.dp)
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 4.dp),
+            Modifier.fillMaxWidth()
+                .padding(bottom = keyboardGap)
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = if (keyboardVisible) editingHeight else 0.dp)
+                .padding(bottom = if (keyboardVisible) 0.dp else 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -329,6 +341,7 @@ internal fun GenerateContent(
             }
             // 修改、上下移动和删除输入行都会同步草稿，保证离开页面后可恢复。
             ComposeGenerateInputPanel(
+                modifier = if (keyboardVisible) Modifier.weight(1f, fill = false) else Modifier,
                 maxPanelHeight = panelMaxHeight,
                 values = values,
                 dark = dark,

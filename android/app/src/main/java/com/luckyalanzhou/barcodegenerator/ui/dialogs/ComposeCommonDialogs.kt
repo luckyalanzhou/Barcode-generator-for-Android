@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
@@ -94,13 +94,13 @@ internal fun AnchoredDropdownMenu(
 }
 
 @Composable
-internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 18.dp, content: @Composable ColumnScope.() -> Unit) {
+internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 20.dp, content: @Composable ColumnScope.() -> Unit) {
     val card = LocalAppColorScheme.current.surfaces.surface
     Box(
         modifier = Modifier
             .widthIn(min = 280.dp, max = 400.dp)
             .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
-            .padding(horizontal = horizontalPadding, vertical = 16.dp),
+            .padding(horizontal = horizontalPadding, vertical = 20.dp),
     ) { Column(content = content) }
 }
 
@@ -127,6 +127,7 @@ internal fun DialogAction(
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
+            .widthIn(min = 48.dp)
             .iosPressFeedback(interactionSource)
             .resultActionEdgeChrome(RoundedCornerShape(12.dp))
             .background(background, RoundedCornerShape(12.dp))
@@ -134,7 +135,8 @@ internal fun DialogAction(
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = foreground, fontSize = 15.sp, maxLines = 1, style = LocalTextStyle.current.copy(background = Color.Transparent))
+        Text(text, color = foreground, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            style = LocalTextStyle.current.copy(background = Color.Transparent))
     }
 }
 

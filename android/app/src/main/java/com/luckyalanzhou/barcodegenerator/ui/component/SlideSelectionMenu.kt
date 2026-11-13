@@ -67,6 +67,8 @@ internal class ContextMenuGestureSession {
     var menuOpen = false
     var ready = false
     var continuation = false
+    var awaitingSourceDrag = false
+        private set
     var moved = false
     var origin = Offset.Zero
     var sourceBounds = Rect.Zero
@@ -90,8 +92,19 @@ internal class ContextMenuGestureSession {
         if (continuation) gesture.arm() else gesture.cancel()
     }
 
+    fun beginSourceTouch(point: Offset) {
+        origin = point
+        awaitingSourceDrag = true
+    }
+
     fun move(point: Offset, touchSlop: Float, bounds: Map<Int, Rect> = selection.bounds()) {
         if ((point - origin).getDistance() > touchSlop) moved = true
+        if (awaitingSourceDrag) {
+            if (!moved) return
+            awaitingSourceDrag = false
+            continuation = true
+            gesture.arm()
+        }
         if (ready) gesture.move(point, bounds)
         if (moved || selection.selected != null || gesture.selected != null) feedbackPoint = point
     }
@@ -101,6 +114,7 @@ internal class ContextMenuGestureSession {
         selection.confirmed = chosen
         val result = when {
             chosen != null -> ContextMenuRelease.Select(chosen)
+            awaitingSourceDrag -> ContextMenuRelease.Dismiss
             // 从来源卡片拖入菜单后松手，只结束来源拖动，不关闭操作菜单。
             continuation -> ContextMenuRelease.KeepOpen
             !ready -> ContextMenuRelease.KeepOpen
@@ -115,6 +129,7 @@ internal class ContextMenuGestureSession {
         selection.selected = null
         feedbackPoint = null
         continuation = false
+        awaitingSourceDrag = false
         moved = false
     }
 
@@ -163,10 +178,11 @@ internal fun Modifier.contextMenuGestures(
             session.origin = start
             session.sourceDragMarginPx = 48.dp.toPx()
             if (session.menuOpen && session.ready && !down.isConsumed) {
+                val panelBounds = session.selection.coordinates
+                    ?.takeIf { it.isAttached }?.boundsOnScreen()
                 if (session.sourceBounds.inflate(session.sourceDragMarginPx).contains(start) &&
-                    session.selection.bounds().values.none { it.contains(start) }) {
-                    session.continuation = true
-                    session.gesture.arm()
+                    panelBounds?.contains(start) != true) {
+                    session.beginSourceTouch(start)
                     down.consume()
                 } else if (session.gesture.begin(start, session.selection.bounds())) {
                     down.consume()
@@ -184,7 +200,7 @@ internal fun Modifier.contextMenuGestures(
                         session.cancelTouch()
                         break
                     }
-                    if (session.menuOpen && session.gesture.active) {
+                    if (session.menuOpen && (session.gesture.active || session.awaitingSourceDrag)) {
                         if (change.isConsumed) break
                         change.consume()
                         if (!change.pressed) {

@@ -8,4 +8,5 @@ internal data class ResultsContentState(
     val isRestoring: Boolean,
     val restoreFailed: Boolean,
     val hasSavedFavoriteFile: Boolean,
+    val restoreScrollPosition: Boolean = true,
 )

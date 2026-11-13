@@ -53,6 +53,7 @@ class FavoritesViewModel @Inject constructor(
         onMutationStarted = querySession::invalidateGroupContentLoads,
     )
     private var searchJob: Job? = null
+    private var lastSearchRequest: Pair<String, Long>? = null
     private var groupLoadJob: Job? = null
     private var groupLoadRequest = 0L
     private val scrollToTopRequests = Channel<Unit>(Channel.BUFFERED)
@@ -87,9 +88,12 @@ class FavoritesViewModel @Inject constructor(
         }
     }
 
-    fun searchFavoriteContent(query: String) {
-        searchJob?.cancel()
+    fun searchFavoriteContent(query: String, snapshotGeneration: Long) {
         val normalizedQuery = query.trim().lowercase(Locale.ROOT)
+        val request = normalizedQuery to snapshotGeneration
+        if (request == lastSearchRequest) return
+        lastSearchRequest = request
+        searchJob?.cancel()
         mutableSearchStatus.value = FavoriteSearchStatus(normalizedQuery, busy = normalizedQuery.isNotEmpty())
         searchJob = viewModelScope.launch {
             try {

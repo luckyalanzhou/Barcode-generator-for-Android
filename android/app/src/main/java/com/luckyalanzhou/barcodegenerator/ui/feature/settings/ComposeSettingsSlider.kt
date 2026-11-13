@@ -1,8 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
-import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import androidx.compose.foundation.Canvas
@@ -23,8 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
@@ -68,7 +65,6 @@ internal fun SettingsSliderRow(
     stacked: Boolean,
     onChange: (Float) -> Unit,
 ) {
-    val warningInteractions = remember { MutableInteractionSource() }
     val sliderColors = LocalAppColorScheme.current.sliders
     val valueColor = LocalAppColorScheme.current.text.primary
     var draft by remember { mutableFloatStateOf(value) }
@@ -98,7 +94,7 @@ internal fun SettingsSliderRow(
     fun applyInput() {
         val parsed = parseSliderValue(input.text, range)
         if (parsed == null) warning = true
-        else { draft = parsed; commitDraft() }
+        else { warning = false; draft = parsed; commitDraft() }
     }
     val slider: @Composable (Modifier) -> Unit = { sliderModifier ->
         Slider(
@@ -151,7 +147,7 @@ internal fun SettingsSliderRow(
         ) {
             BasicTextField(
                 value = if (editing || warning) input else TextFieldValue(draft.roundToInt().toString()),
-                onValueChange = { input = it }, singleLine = true,
+                onValueChange = { input = it; warning = false }, singleLine = true,
                 textStyle = TextStyle(color = if ((editing || warning) && parseSliderValue(input.text, range) == null)
                     LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 16.sp, textAlign = TextAlign.End),
                 cursorBrush = SolidColor(valueColor),
@@ -163,7 +159,7 @@ internal fun SettingsSliderRow(
                 modifier = Modifier.width((38f * fontScale.coerceAtLeast(1f)).dp).heightIn(min = 48.dp)
                     .onFocusChanged { state ->
                         if (state.isFocused && !editing) {
-                            val text = draft.roundToInt().toString()
+                            val text = if (warning) input.text else draft.roundToInt().toString()
                             input = TextFieldValue(text, TextRange(0, text.length)); editing = true
                         } else if (!state.isFocused && editing) {
                             editing = false; applyInput()
@@ -195,14 +191,12 @@ internal fun SettingsSliderRow(
         }
     }
     if (warning) {
-        AlertDialog(
-            onDismissRequest = { warning = false; input = TextFieldValue(draft.roundToInt().toString()) },
-            title = { Text("数值超出范围") },
-            text = { Text("$title 请输入 ${range.start.toInt()}～${range.endInclusive.toInt()} 的整数，未保存无效数值。") },
-            confirmButton = { TextButton(interactionSource = warningInteractions,
-                modifier = Modifier.iosPressFeedback(warningInteractions).resultActionEdgeChrome(), onClick = {
-                warning = false; input = TextFieldValue(draft.roundToInt().toString())
-            }) { Text("知道了") } },
+        Text(
+            "$title 请输入 ${range.start.toInt()}～${range.endInclusive.toInt()} 的整数，未保存无效数值。",
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+            color = LocalAppColorScheme.current.text.destructive,
+            fontSize = 14.sp,
         )
     }
 }

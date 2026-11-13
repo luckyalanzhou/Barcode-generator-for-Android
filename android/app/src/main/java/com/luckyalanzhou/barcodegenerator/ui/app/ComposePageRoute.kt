@@ -193,7 +193,12 @@ private fun ComposePageRoute(
                     dark = dark,
                     style = settings.style,
                     onQueryChange = dependencies.favoritesViewModel::updateQuery,
-                    onSearchFavoriteContent = dependencies.favoritesViewModel::searchFavoriteContent,
+                    onSearchFavoriteContent = { query ->
+                        dependencies.favoritesViewModel.searchFavoriteContent(
+                            query,
+                            favoriteSnapshotMetadata?.generation ?: 0L,
+                        )
+                    },
                     onSyncFavoriteTree = dependencies.favoritesViewModel::syncTree,
                     onUpdateFavoriteSearch = dependencies.favoritesViewModel::updateSearch,
                     onRememberListPosition = dependencies.favoritesViewModel::rememberPosition,
@@ -242,6 +247,7 @@ private fun ComposePageRoute(
                         isRestoring = resultState.isRestoring,
                         restoreFailed = resultState.restoreFailed,
                         hasSavedFavoriteFile = resultState.hasSavedFavoriteFile,
+                        restoreScrollPosition = resultState.returnPage != AppRoute.Favorites,
                     ),
                     style = settings.style,
                     dark = dark,

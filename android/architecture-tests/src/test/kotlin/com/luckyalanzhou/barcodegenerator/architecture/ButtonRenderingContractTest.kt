@@ -13,9 +13,10 @@ class ButtonRenderingContractTest {
         assertTrue(button.contains("interaction.collectIsPressedAsState()"))
         assertTrue(button.contains("animateFloatAsState("))
         assertTrue(button.contains("if (effects.reduceMotion) snap() else spring("))
-        assertTrue(button.contains("lens(24f * density, (16f + 8f * strength) * density"))
-        assertTrue(button.contains("Highlight.Default.copy(alpha = .32f + .56f * pressProgress)"))
-        assertTrue(button.contains("Shadow(alpha = .14f + .28f * pressProgress)"))
+        assertTrue(button.contains("(11f + 4f * strength) * density"))
+        assertTrue(button.contains("(18f + 6f * strength) * density"))
+        assertTrue(button.contains("Highlight.Default.copy(alpha = .48f + .40f * progress)"))
+        assertTrue(button.contains("Shadow(alpha = .18f + .24f * progress)"))
         assertFalse(button.contains("RuntimeShader("))
         assertFalse(button.contains("rememberGlassBackdropRenderer"))
         assertFalse(button.contains("GlassBackdropSurface("))
@@ -26,8 +27,7 @@ class ButtonRenderingContractTest {
     @Test fun `round action press updates material and keeps foreground readable`() {
         val button = source("GlassRoundActionButton.kt")
         assertTrue(button.contains("targetValue = if (pressed && enabled && !busy) 1f else 0f"))
-        assertTrue(button.contains("lens(24f * density, (16f + 8f * strength) * density"))
-        assertTrue(button.contains("InnerShadow(radius = 4f.dp * progress"))
+        assertTrue(button.contains("InnerShadow(radius = (2f + 2f * progress).dp"))
         assertTrue(button.contains("content(contentTint)"))
         assertFalse(button.contains("GlassBackdropSurface("))
         assertFalse(button.contains("RuntimeShader("))
@@ -107,7 +107,7 @@ class ButtonRenderingContractTest {
             "ComposeCommonDialogs.kt", "EditorChoiceField.kt", "FavoriteSaveForm.kt",
             "LanShareInputBar.kt",
             "LanShareContent.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
-            "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt",
+            "ComposeLanShareQrDialog.kt",
             "LanShareImagePreviewDialog.kt")) {
             val buttonSource = source(name)
             assertTrue("$name 必须使用统一静态按钮框", buttonSource.contains(".globalButtonChrome(") || buttonSource.contains(".resultActionEdgeChrome("))
@@ -136,7 +136,7 @@ class ButtonRenderingContractTest {
 
     @Test fun `requested controls reuse result action rim while unframed pickers stay unframed`() {
         for (name in listOf("ComposeSettingsComponents.kt", "ComposeCommonDialogs.kt", "EditorChoiceField.kt",
-            "FavoriteSaveForm.kt", "ComposeLanShareQrDialog.kt", "ComposeSettingsSlider.kt",
+            "FavoriteSaveForm.kt", "ComposeLanShareQrDialog.kt",
             "LanShareImagePreviewDialog.kt", "LanShareContent.kt", "LanShareInputBar.kt",
             "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt")) {
             assertTrue("$name 的既有外框必须复用结果页边缘高光", source(name).contains(".resultActionEdgeChrome("))
@@ -201,7 +201,7 @@ class ButtonRenderingContractTest {
     @Test fun `ordinary buttons share explicit press feedback without taking over callbacks`() {
         for (name in listOf("GenerateContent.kt", "ComposeGenerateActionButton.kt", "EditorChoiceField.kt",
             "FavoriteSaveForm.kt", "FavoritesContent.kt", "ComposeLanShareQrDialog.kt",
-            "ComposeSettingsSlider.kt", "LanShareImagePreviewDialog.kt", "ComposeSettingsComponents.kt",
+            "LanShareImagePreviewDialog.kt", "ComposeSettingsComponents.kt",
             "LanShareInputBar.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
             "ComposeCommonDialogs.kt")) {
             val button = source(name)

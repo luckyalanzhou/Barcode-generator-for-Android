@@ -47,10 +47,14 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
@@ -95,13 +99,31 @@ internal fun ComposeGenerateInputPanel(
     val inputColor = themeColors.surfaces.input
     val inputBorder = themeColors.borders.input
     val focusedInputBorder = themeColors.borders.focusedInput
+    val scrollState = rememberScrollState()
+    val background = themeColors.surfaces.background
 
     Column(
         modifier = modifier
             .testTag("generate-inputs")
             .heightIn(min = 52.dp, max = maxPanelHeight.coerceAtLeast(52.dp))
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            .drawWithCache {
+                val edge = 10.dp.toPx().coerceAtMost(size.height / 2f)
+                val transparent = background.copy(alpha = 0f)
+                val top = Brush.verticalGradient(listOf(background, transparent), endY = edge)
+                val bottom = Brush.verticalGradient(listOf(transparent, background),
+                    startY = size.height - edge, endY = size.height)
+                onDrawWithContent {
+                    drawContent()
+                    if (edge > 0f && scrollState.canScrollBackward) {
+                        drawRect(top, size = Size(size.width, edge))
+                    }
+                    if (edge > 0f && scrollState.canScrollForward) {
+                        drawRect(bottom, topLeft = Offset(0f, size.height - edge), size = Size(size.width, edge))
+                    }
+                }
+            }
+            .verticalScroll(scrollState)
             // 输入框及排序/删除按钮占满一整行，与下方“添加一行/拍照填充”操作区保持对齐。
             .padding(vertical = 2.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

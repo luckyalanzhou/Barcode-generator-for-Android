@@ -98,11 +98,23 @@ class ContextMenuGestureSessionTest {
         val session = longPress()
         session.move(Offset(500f, 400f), 8f, bounds)
         assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(500f, 400f), bounds))
-        session.continuation = true
-        session.gesture.arm()
+        session.beginSourceTouch(Offset(100f, 250f))
+        assertFalse(session.gesture.active)
         session.move(Offset(100f, 170f), 8f, bounds)
         assertEquals(ContextMenuRelease.Select(1), session.release(Offset(100f, 170f), bounds))
         assertFalse(session.release(Offset(100f, 170f), bounds) is ContextMenuRelease.Select)
+    }
+
+    @Test fun freshTapNearSourceDismissesEvenWithSmallJitter() {
+        val session = longPress()
+        val source = Offset(100f, 250f)
+        assertEquals(ContextMenuRelease.KeepOpen, session.release(source, bounds))
+        session.beginSourceTouch(source)
+        val jitter = Offset(103f, 251f)
+        session.move(jitter, 8f, bounds)
+        assertFalse(session.gesture.active)
+        assertEquals(ContextMenuRelease.Dismiss, session.release(jitter, bounds))
+        assertFalse(session.awaitingSourceDrag)
     }
 
     @Test fun releaseBeforeMeasurementDoesNotRunUnmeasuredAction() {

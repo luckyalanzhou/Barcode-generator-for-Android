@@ -101,25 +101,36 @@ internal fun GlassRoundActionButton(
                     effects = {
                         vibrancy()
                         val strength = pressProgress.coerceIn(0f, 1f)
-                        blur(8f * density)
-                        lens(24f * density, (16f + 8f * strength) * density, chromaticAberration = true)
+                        // Keep passing barcode edges visible, with refraction concentrated near the rim.
+                        blur(3.5f * density)
+                        lens(
+                            (11f + 4f * strength) * density,
+                            (18f + 6f * strength) * density,
+                            chromaticAberration = true,
+                        )
                     },
                     layerBlock = {
                         val scale = 1f + (4f / 48f) * pressProgress.coerceIn(0f, 1f)
                         scaleX = scale
                         scaleY = scale
                     },
-                    highlight = { Highlight.Default.copy(alpha = .32f + .56f * pressProgress) },
-                    shadow = { Shadow(alpha = .14f + .28f * pressProgress) },
+                    highlight = {
+                        val progress = pressProgress.coerceIn(0f, 1f)
+                        Highlight.Default.copy(alpha = .48f + .40f * progress)
+                    },
+                    shadow = {
+                        val progress = pressProgress.coerceIn(0f, 1f)
+                        Shadow(alpha = .18f + .24f * progress)
+                    },
                     innerShadow = {
                         val progress = pressProgress.coerceIn(0f, 1f)
-                        InnerShadow(radius = 4f.dp * progress, alpha = .25f * progress)
+                        InnerShadow(radius = (2f + 2f * progress).dp, alpha = .12f + .13f * progress)
                     },
                     onDrawSurface = {
                         val lightSurface = colors.surfaces.background.luminance() > .5f
                         val press = pressProgress.coerceIn(0f, 1f)
                         drawCircle((if (lightSurface) Color.White else Color(0xFF121212))
-                            .copy(alpha = .28f + .06f * press))
+                            .copy(alpha = .18f + .16f * press))
                     },
                 ) else Modifier.clip(CircleShape)),
             contentAlignment = Alignment.Center,

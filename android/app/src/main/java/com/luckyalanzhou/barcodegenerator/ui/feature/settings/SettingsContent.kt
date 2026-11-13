@@ -129,10 +129,6 @@ internal fun SettingsContent(
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val stacked = useStackedSlider(maxWidth.value, LocalDensity.current.fontScale)
                 Column {
-                    SettingsSliderRow("条码文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary, stacked) {
-                        persist(settings.style.copy(textSize = it))
-                    }
-                    SettingsDivider(dark)
                     SettingsSliderRow("条码高度", settings.style.barHeight.toFloat(), 30f..80f, "${settings.style.barHeight} dp", colors.settingsText.primary, stacked) {
                         persist(settings.style.copy(barHeight = it.toInt()))
                     }
@@ -143,6 +139,10 @@ internal fun SettingsContent(
                     SettingsDivider(dark)
                     SettingsSliderRow("条码间距", settings.style.margin.toFloat(), 0f..10f, "${settings.style.margin} dp", colors.settingsText.primary, stacked) {
                         persist(settings.style.copy(margin = it.toInt()))
+                    }
+                    SettingsDivider(dark)
+                    SettingsSliderRow("条码文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary, stacked) {
+                        persist(settings.style.copy(textSize = it))
                     }
                     SettingsDivider(dark)
                     SettingsActionRow("恢复条码默认样式", "恢复", colors.settingsText.primary, colors.controls.button) {

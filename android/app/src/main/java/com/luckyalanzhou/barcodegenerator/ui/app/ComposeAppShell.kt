@@ -231,6 +231,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val imeVisible by remember(imeInsets, insetDensity) {
             derivedStateOf { imeInsets.getBottom(insetDensity) > 0 }
         }
+        val generateWithKeyboard = currentRoute == AppRoute.Generate && imeVisible
         val backdrop = rememberGlassBackdrop()
         val kyantTabBackdrop = rememberLayerBackdrop()
         CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalLiquidGlassBackdrop provides kyantTabBackdrop,
@@ -269,7 +270,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         )
                         .padding(
                             top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,
-                            bottom = if (extendsToBottom) 0.dp else dimensions.pageBottomPadding,
+                            bottom = if (extendsToBottom || generateWithKeyboard) 0.dp else dimensions.pageBottomPadding,
                         ),
                 ) {
                     Column(Modifier.fillMaxSize()
@@ -306,7 +307,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             }
                         }
 
-                        val pageBottomInset = if (currentRoute.mainTabIndex != null) {
+                        val pageBottomInset = if (generateWithKeyboard) {
+                            0.dp
+                        } else if (currentRoute.mainTabIndex != null) {
                             pageContentBottomInset(currentRoute, dimensions.bottomTabBarHeight)
                         } else pageTransitionBottomInset(
                             pageTransition.currentState, pageTransition.targetState, dimensions.bottomTabBarHeight,
