@@ -182,7 +182,7 @@ internal fun TabLongPressActionOverlay(
     ) {
             Box(
                 Modifier.fillMaxSize()
-                    // 弱黑色遮罩只分离焦点层，深色模式不混入白色，关闭时连续恢复原背景。
+                    // 轻微降低背景对比度；整页模糊仍负责隐藏可辨认的底层内容。
                     .drawWithContent {
                         drawContent()
                         drawRect(Color.Black.copy(alpha = menuBackdropDimAlpha(progress.value, dark)))
@@ -256,8 +256,14 @@ internal fun TabLongPressActionOverlay(
                         .size(focusWidth, focusHeight)
                         .graphicsLayer {
                             val exit = actionExit.value
-                            alpha = if (actionClosing) 1f - exit else if (effects.reduceMotion)
-                                opacity.value else if (interactive) 1f else (progress.value / .15f).coerceIn(0f, 1f)
+                            // Tab 本身已在整页模糊层下；不再在模糊层上方绘制一份清晰的底栏图标和文字。
+                            alpha = when {
+                                state.tabAnchor -> 0f
+                                actionClosing -> 1f - exit
+                                effects.reduceMotion -> opacity.value
+                                interactive -> 1f
+                                else -> (progress.value / .15f).coerceIn(0f, 1f)
+                            }
                             val pop = contextMenuSourceScale(sourceProgress.value,
                                 if (actionClosing) exit else 0f, effects.reduceMotion, focusScale)
                             scaleX = pop

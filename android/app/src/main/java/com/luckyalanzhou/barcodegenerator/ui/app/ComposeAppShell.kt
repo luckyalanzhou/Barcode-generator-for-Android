@@ -232,6 +232,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             derivedStateOf { imeInsets.getBottom(insetDensity) > 0 }
         }
         val generateWithKeyboard = currentRoute == AppRoute.Generate && imeVisible
+        val shellInsets = pageShellInsets(currentRoute, generateWithKeyboard, dimensions.pageBottomPadding)
         val backdrop = rememberGlassBackdrop()
         val kyantTabBackdrop = rememberLayerBackdrop()
         CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalLiquidGlassBackdrop provides kyantTabBackdrop,
@@ -270,10 +271,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         )
                         .padding(
                             top = if (currentRoute == AppRoute.Results) 0.dp else dimensions.pageTopPadding,
-                            bottom = if (extendsToBottom || generateWithKeyboard) 0.dp else dimensions.pageBottomPadding,
                         ),
                 ) {
                     Column(Modifier.fillMaxSize()
+                        .padding(bottom = shellInsets.contentBottomPadding)
                         .then(if (chromeVisible && !effects.opaqueGlass && android.os.Build.VERSION.SDK_INT >= 33)
                             Modifier.layerBackdrop(kyantTabBackdrop) else Modifier)
                         .then(if (chromeVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(
@@ -374,10 +375,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             onLongPressActionMenuRequested = ::showMenu,
                             showSelectionIndicator = tabMenu.menu == null,
                             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                                .then(
-                                    if (extendsToBottom) Modifier.windowInsetsPadding(navigationInsets.only(WindowInsetsSides.Bottom))
-                                        .padding(bottom = dimensions.pageBottomPadding) else Modifier,
-                                )
+                                .then(if (extendsToBottom) Modifier.windowInsetsPadding(navigationInsets.only(WindowInsetsSides.Bottom)) else Modifier)
+                                .padding(bottom = shellInsets.tabBarBottomPadding)
                                 .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
                         )
                     }

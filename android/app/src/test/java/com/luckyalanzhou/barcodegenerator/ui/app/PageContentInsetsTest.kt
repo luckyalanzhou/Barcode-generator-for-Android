@@ -7,6 +7,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PageContentInsetsTest {
+    @Test fun imeChangesPagePaddingWithoutMovingTheTabBarAnchor() {
+        val keyboardVisible = pageShellInsets(AppRoute.Generate, generateWithKeyboard = true, pageBottomPadding = 10.dp)
+        val keyboardHidden = pageShellInsets(AppRoute.Generate, generateWithKeyboard = false, pageBottomPadding = 10.dp)
+
+        assertEquals(0.dp, keyboardVisible.contentBottomPadding)
+        assertEquals(10.dp, keyboardHidden.contentBottomPadding)
+        assertEquals(10.dp, keyboardVisible.tabBarBottomPadding)
+        assertEquals(keyboardHidden.tabBarBottomPadding, keyboardVisible.tabBarBottomPadding)
+    }
+
     @Test fun leavingAListForGenerateKeepsClearanceUntilTheTransitionEnds() {
         listOf(AppRoute.History, AppRoute.Favorites, AppRoute.Settings).forEach { route ->
             assertEquals(80.dp, pageTransitionBottomInset(route, AppRoute.Generate, 72.dp))
