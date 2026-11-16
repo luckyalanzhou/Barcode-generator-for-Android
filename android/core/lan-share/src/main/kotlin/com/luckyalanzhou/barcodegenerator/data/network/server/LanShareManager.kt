@@ -13,6 +13,8 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_SOCKET_READ_TIMEOUT_MS
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
+import com.luckyalanzhou.barcodegenerator.data.network.web.defaultLanShareWebLocaleProvider
 
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
@@ -44,8 +46,15 @@ class LanShareManager private constructor(
     private val context: Context,
     private val logger: AppLogger,
     private val testOverrides: LanShareManagerOverrides,
+    private val webLocaleProvider: LanShareWebLocaleProvider = defaultLanShareWebLocaleProvider,
 ) : LanShareGateway {
     constructor(context: Context, logger: AppLogger) : this(context, logger, LanShareManagerOverrides())
+
+    constructor(
+        context: Context,
+        logger: AppLogger,
+        webLocaleProvider: LanShareWebLocaleProvider,
+    ) : this(context, logger, LanShareManagerOverrides(), webLocaleProvider)
 
     /** 测试专用构造器用于通过 App 侧公开网关验证真实上传与取消调用链。 */
     internal constructor(
@@ -162,6 +171,7 @@ class LanShareManager private constructor(
             folder,
             logger,
             webPreviewFolder,
+            webLocaleProvider = webLocaleProvider,
             emitRealtimeEvent = { event ->
                 synchronized(realtimeStateLock) {
                     if (serverGeneration.get() == generation) {

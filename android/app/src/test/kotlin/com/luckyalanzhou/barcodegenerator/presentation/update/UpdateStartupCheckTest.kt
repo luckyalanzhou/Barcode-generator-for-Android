@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
@@ -269,12 +270,12 @@ class UpdateStartupCheckTest {
             viewModel.setAvailableUpdate("1.2.3", "https://example.test/update.apk", 123L, "a".repeat(64))
             viewModel.setDialogShowing(true)
 
-            var surfacedError: String? = null
+            var surfacedError: Int? = null
             viewModel.ignoreAvailableUpdate(scope, onFailure = { surfacedError = it })
 
             assertTrue(viewModel.uiState.value.dialogShowing)
             assertTrue(logs.any { it.contains("ignore failed") })
-            assertEquals("忽略更新失败，请重试", surfacedError)
+            assertEquals(R.string.ignore_update_failed, surfacedError)
         } finally {
             scope.cancel()
         }
@@ -357,7 +358,7 @@ class UpdateStartupCheckTest {
                 apkUrl: String,
                 expectedSize: Long?,
                 expectedSha256: String?,
-                onProgress: (Int, Boolean, String) -> Unit,
+                onProgress: (Int, Boolean, Long) -> Unit,
             ): File = error("Not used in update startup tests")
         },
         updateCatalogGateway = object : UpdateCatalogGateway {

@@ -6,6 +6,18 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 internal object LanShareWebScript {
     fun render() = """<script>
 const MAX_UPLOAD_BYTES = ${LanShareLimits.MAX_FILE_BYTES};
+const strings = JSON.parse(document.getElementById('lan-share-strings').textContent);
+const pageLocale = document.documentElement.lang;
+const sizeNumber = new Intl.NumberFormat(pageLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const wholeNumber = new Intl.NumberFormat(pageLocale);
+const percentNumber = new Intl.NumberFormat(pageLocale, { style: 'percent' });
+
+function formatText(template, ...values) {
+    return template.replace(/\{([0-9]+)\}/g, (_, index) => values[index]);
+}
+
+class LanShareDisplayError extends Error {}
+
 const fileList = document.getElementById('files');
 const uploadForm = document.getElementById('upload-form');
 const messageInput = document.getElementById('message');
@@ -51,7 +63,7 @@ function showPairing() {
 
 async function validateAccessToken(token) {
     const response = await fetch('/api/session', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
-    if (!response.ok) throw new Error('会话令牌无效，请重新配对');
+    if (!response.ok) throw new LanShareDisplayError(strings.INVALID_SESSION);
     accessToken = token;
     writeBrowserStorage('sessionStorage', accessTokenKey, token);
     document.body.classList.remove('unpaired');
@@ -65,7 +77,7 @@ pairingForm.addEventListener('submit', async event => {
     pairingError.textContent = '';
     const code = pairingCodeInput.value.trim();
     if (!/^[0-9]{8}$/.test(code)) {
-        pairingError.textContent = '请输入 8 位数字配对码';
+        pairingError.textContent = strings.ENTER_PAIRING_CODE;
         return;
     }
     try {
@@ -74,11 +86,15 @@ pairingForm.addEventListener('submit', async event => {
             headers: { 'X-Lan-Pairing-Code': code },
             cache: 'no-store'
         });
-        if (!response.ok) throw new Error(response.status === 429 ? '尝试次数过多，请稍后再试' : '配对码错误');
+        if (!response.ok) {
+            const message = response.status === 429 ? strings.PAIRING_TOO_MANY_ATTEMPTS
+                : response.status === 401 ? strings.INVALID_PAIRING_CODE : strings.PAIRING_FAILED;
+            throw new LanShareDisplayError(message);
+        }
         const result = await response.json();
         await validateAccessToken(result.token);
     } catch (error) {
-        pairingError.textContent = error.message || '配对失败，请重试';
+        pairingError.textContent = error instanceof LanShareDisplayError ? error.message : strings.PAIRING_FAILED;
     }
 });
 
@@ -140,14 +156,14 @@ function isBrowserSender(sender) {
 
 function formatSize(bytes) {
     const value = Number(bytes) || 0;
-    if (value >= 1024 * 1024 * 1024) return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
-    if (value >= 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + ' MB';
-    if (value >= 1024) return Math.floor(value / 1024) + ' KB';
-    return value + ' B';
+    if (value >= 1024 * 1024 * 1024) return sizeNumber.format(value / (1024 * 1024 * 1024)) + ' GB';
+    if (value >= 1024 * 1024) return sizeNumber.format(value / (1024 * 1024)) + ' MB';
+    if (value >= 1024) return wholeNumber.format(Math.floor(value / 1024)) + ' KB';
+    return wholeNumber.format(value) + ' B';
 }
 
 function setConnectionState(connected) {
-    connectionStatus.textContent = connected ? '● 已连接到设备' : '○ 正在连接设备...';
+    connectionStatus.textContent = connected ? strings.CONNECTED : strings.CONNECTING;
     connectionStatus.classList.toggle('connected', connected);
 }
 
@@ -194,7 +210,7 @@ function createFileItem(file) {
         preview.decoding = 'async';
         preview.tabIndex = 0;
         preview.setAttribute('role', 'button');
-        preview.setAttribute('aria-label', '预览图片：' + (file.name || '图片'));
+        preview.setAttribute('aria-label', formatText(strings.PREVIEW_IMAGE_NAMED, file.name || strings.IMAGE));
         preview.dataset.fullSrc = previewUrl(file);
         preview.addEventListener('error', () => {
             preview.remove();
@@ -213,10 +229,10 @@ function createFileItem(file) {
     const imageFile = isImageFile(file);
     const name = document.createElement(imageFile ? 'a' : 'span');
     name.className = 'file-name';
-    name.textContent = file.name || '未命名';
+    name.textContent = file.name || strings.UNNAMED;
     if (imageFile) {
         name.href = url;
-        name.download = file.name || '附件';
+        name.download = file.name || strings.ATTACHMENT;
     }
     item.appendChild(name);
 
@@ -227,10 +243,10 @@ function createFileItem(file) {
     if (!imageFile) {
         const download = document.createElement('a');
         download.href = url;
-        download.download = file.name || '附件';
+        download.download = file.name || strings.ATTACHMENT;
         download.className = 'download';
-        download.setAttribute('aria-label', '下载 ' + (file.name || '附件'));
-        download.textContent = '下载';
+        download.setAttribute('aria-label', formatText(strings.DOWNLOAD_NAMED, file.name || strings.ATTACHMENT));
+        download.textContent = strings.DOWNLOAD;
         item.appendChild(download);
     }
     return item;
@@ -302,8 +318,8 @@ fileList.addEventListener('click', event => {
     event.preventDefault();
     previewOrigin = image;
     imageViewerImage.src = image.dataset.fullSrc || image.currentSrc || image.src;
-    imageViewerImage.alt = image.alt || '图片预览';
-    imageViewerTitle.textContent = image.alt || '图片预览';
+    imageViewerImage.alt = image.alt || strings.IMAGE_PREVIEW;
+    imageViewerTitle.textContent = image.alt || strings.IMAGE_PREVIEW;
     resetPreviewTransform();
     imageViewer.hidden = false;
     document.body.classList.add('preview-open');
@@ -439,8 +455,8 @@ function createUploadItem(upload) {
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.className = 'upload-cancel';
-    cancel.setAttribute('aria-label', '取消上传 ' + (upload.name || '附件'));
-    cancel.textContent = '取消';
+    cancel.setAttribute('aria-label', formatText(strings.CANCEL_UPLOAD_NAMED, upload.name || strings.ATTACHMENT));
+    cancel.textContent = strings.CANCEL;
     item.append(fill, name, size, percent, cancel);
     updateUploadItem(item, upload);
     return item;
@@ -453,10 +469,11 @@ function updateUploadItem(item, upload) {
     item.style.setProperty('--upload-progress', percent + '%');
     const progress = item.querySelector('.upload-percent');
     progress.setAttribute('aria-valuenow', String(percent));
-    progress.setAttribute('aria-label', '正在上传 ' + upload.name + '，' + percent + '%');
-    item.querySelector('.upload-name').textContent = upload.name || '附件';
+    const displayPercent = percentNumber.format(percent / 100);
+    progress.setAttribute('aria-label', formatText(strings.UPLOAD_PROGRESS, upload.name || strings.ATTACHMENT, displayPercent));
+    item.querySelector('.upload-name').textContent = upload.name || strings.ATTACHMENT;
     item.querySelector('.upload-size').textContent = formatSize(loaded) + ' / ' + formatSize(total);
-    item.querySelector('.upload-percent').textContent = percent + '%';
+    item.querySelector('.upload-percent').textContent = displayPercent;
 }
 
 function renderTimeline() {
@@ -520,16 +537,16 @@ function renderTimeline() {
             const size = item.querySelector('small');
             const url = fileUrl(file);
             if (name) {
-                name.textContent = file.name || '未命名';
+                name.textContent = file.name || strings.UNNAMED;
                 if (name.tagName === 'A') {
                     name.href = url;
-                    name.download = file.name || '附件';
+                    name.download = file.name || strings.ATTACHMENT;
                 }
             }
             if (download) {
                 download.href = url;
-                download.download = file.name || '附件';
-                download.setAttribute('aria-label', '下载 ' + (file.name || '附件'));
+                download.download = file.name || strings.ATTACHMENT;
+                download.setAttribute('aria-label', formatText(strings.DOWNLOAD_NAMED, file.name || strings.ATTACHMENT));
             }
             if (size) size.textContent = formatSize(file.size);
             const preview = item.querySelector('img');
@@ -552,17 +569,17 @@ function setPeerBubbleColor(item, file, peerColorIndices, usePeerColors) {
 async function uploadFile(file) {
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
-        alert('单个文件不能超过 10 GiB');
+        alert(strings.FILE_TOO_LARGE);
         return;
     }
     const transferId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
-    const upload = { id: transferId, name: file.name || '附件', total: file.size, loaded: 0, startedAt: Date.now() };
+    const upload = { id: transferId, name: file.name, total: file.size, loaded: 0, startedAt: Date.now() };
     uploadRecords.set(transferId, upload);
     renderTimeline();
     try {
         const storedId = await new Promise((resolve, reject) => {
             const request = new XMLHttpRequest();
-            const url = '/upload?name=' + encodeURIComponent(file.name || '附件') +
+            const url = '/upload?name=' + encodeURIComponent(file.name || '') +
                 '&client=' + encodeURIComponent(clientId) + '&transfer=' + encodeURIComponent(transferId);
             request.open('PUT', url, true);
             request.setRequestHeader('authorization', 'Bearer ' + accessToken);
@@ -579,10 +596,10 @@ async function uploadFile(file) {
             });
             request.addEventListener('load', () => {
                 if (request.status >= 200 && request.status < 300) resolve(request.responseText.trim());
-                else reject(new Error(request.responseText || ('HTTP ' + request.status)));
+                else reject(new LanShareDisplayError(request.responseText || formatText(strings.HTTP_ERROR, request.status)));
             });
-            request.addEventListener('error', () => reject(new Error('网络连接失败')));
-            request.addEventListener('abort', () => reject(new Error('上传已取消')));
+            request.addEventListener('error', () => reject(new LanShareDisplayError(strings.NETWORK_FAILURE)));
+            request.addEventListener('abort', () => reject(new LanShareDisplayError(strings.UPLOAD_CANCELLED)));
             activeUploads.set(transferId, request);
             request.send(file);
         });
@@ -592,7 +609,7 @@ async function uploadFile(file) {
             rememberOwnFile(storedId);
             upsertFile({
                 id: storedId,
-                name: file.name || '附件',
+                name: file.name,
                 size: file.size,
                 modifiedAt: Date.now(),
                 sender: 'browser:' + clientId,
@@ -607,7 +624,8 @@ async function uploadFile(file) {
         uploadRecords.delete(transferId);
         renderTimeline();
         if (!cancelledUploads.delete(transferId)) {
-            alert('发送失败：' + (error.message || '请刷新页面后重试'));
+            const message = error instanceof LanShareDisplayError ? error.message : strings.REFRESH_AND_RETRY;
+            alert(formatText(strings.SEND_FAILED, message));
         }
     } finally {
         activeUploads.delete(transferId);
@@ -623,11 +641,11 @@ uploadForm.onsubmit = event => {
         return;
     }
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-        alert('设备连接尚未就绪，请稍后重试');
+        alert(strings.CONNECTION_NOT_READY);
         return;
     }
     if (new TextEncoder().encode(text).length > 64 * 1024) {
-        alert('单条文字消息不能超过 64 KB');
+        alert(strings.MESSAGE_TOO_LARGE);
         return;
     }
     socket.send(JSON.stringify({ type: 'message', text }));
@@ -699,7 +717,7 @@ function connectSocket() {
                     reconcileMessages(payload.messages);
                 } else if (payload.type === 'message') appendChatMessage(payload.message);
                 else if (payload.type === 'files' && payload.file) upsertFile(payload.file, payload.transferId);
-                else if (payload.type === 'error') alert(payload.message || '消息发送失败');
+                else if (payload.type === 'error') alert(payload.message || strings.MESSAGE_FAILED);
             } catch (_) {}
         };
         socket.onclose = () => {

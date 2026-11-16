@@ -1,12 +1,12 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeDurableConfirmDialog
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogCompose
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
-import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.FAVORITE_ROOT_ONLY_OPTION
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderChildren
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderRoots
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderDestination
@@ -48,7 +48,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
         var value by remember { mutableStateOf(group.name) }
         var renaming by remember { mutableStateOf(false) }
         ComposeGlassDialogCard(dark) {
-            Text("重命名收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.favorite_rename), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -62,13 +62,13 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
                     unfocusedLabelColor = LocalAppColorScheme.current.text.primary,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("收藏文件名", color = LocalAppColorScheme.current.text.primary) },
+                label = { Text(getString(R.string.favorite_filename), color = LocalAppColorScheme.current.text.primary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, { if (!renaming) dismiss() })
-                DialogAction(if (renaming) "保存中…" else "保存", dark, {
+                DialogAction(getString(R.string.action_cancel), dark, { if (!renaming) dismiss() })
+                DialogAction(if (renaming) getString(R.string.saving) else getString(R.string.action_save), dark, {
                     val name = value.trim()
-                    if (name.isBlank()) toast("请输入收藏文件名")
+                    if (name.isBlank()) toast(getString(R.string.favorite_filename_required))
                     else if (!renaming) {
                         renaming = true
                         operationInProgress = true
@@ -78,13 +78,13 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
                                     dismiss()
                                     onNavigateFavorites()
                                 } else {
-                                    toast("该文件夹下已有同名收藏，请更换名称")
+                                    toast(getString(R.string.favorite_duplicate_name))
                                 }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
                             } catch (error: Exception) {
                                 DebugLog.record("favorites", "重命名收藏提交失败", error)
-                                toast("收藏重命名失败，请重试")
+                                toast(getString(R.string.favorite_rename_failed))
                             } finally {
                                 renaming = false
                                 operationInProgress = false
@@ -109,7 +109,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
         if (roots.isEmpty()) {
             LaunchedEffect(Unit) {
                 dismiss()
-                showIos26NoticeDialogCompose("请先创建文件夹")
+                showIos26NoticeDialogCompose(getString(R.string.favorite_create_folder_first))
             }
             return@showComposeDialog
         }
@@ -124,12 +124,12 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
         val childOptions = favoriteFolderChildren(folderPaths, selectedRoot)
         val targetFolder = favoriteFolderDestination(selectedRoot, selectedChild)
         ComposeGlassDialogCard(dark) {
-            Text("移动收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.favorite_move), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("① 一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp)
+                Text(getString(R.string.favorite_root_folder_step), color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp)
                 ComposeChoiceField(
                     value = selectedRoot,
                     options = roots,
@@ -139,25 +139,24 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
                         selectedChild = ""
                     },
                 )
-                Text("② 二级文件夹（可选）", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp)
+                Text(getString(R.string.favorite_nested_folder_optional), color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp)
                 ComposeChoiceField(
-                    value = selectedChild.ifBlank { FAVORITE_ROOT_ONLY_OPTION },
-                    options = listOf(FAVORITE_ROOT_ONLY_OPTION) + childOptions,
+                    value = selectedChild,
+                    options = listOf("") + childOptions,
                     dark = dark,
                     enabled = true,
-                    onSelected = { child ->
-                        selectedChild = child.takeUnless { it == FAVORITE_ROOT_ONLY_OPTION }.orEmpty()
-                    },
+                    optionLabel = { it.ifBlank { getString(R.string.favorite_root_only) } },
+                    onSelected = { selectedChild = it },
                 )
                 Text(
-                    "目标位置：$targetFolder",
+                    getString(R.string.favorite_move_destination, targetFolder),
                     color = LocalAppColorScheme.current.text.secondary,
                     fontSize = 13.sp,
                 )
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, { if (!moving) dismiss() })
-                DialogAction(if (moving) "移动中…" else "移动", dark, {
+                DialogAction(getString(R.string.action_cancel), dark, { if (!moving) dismiss() })
+                DialogAction(if (moving) getString(R.string.moving) else getString(R.string.action_move), dark, {
                     if (!moving) {
                         moving = true
                         operationInProgress = true
@@ -167,13 +166,13 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
                                     dismiss()
                                     onNavigateFavorites()
                                 } else {
-                                    toast("目标文件夹下已有同名收藏，请先重命名或更换文件夹")
+                                    toast(getString(R.string.favorite_destination_duplicate))
                                 }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
                             } catch (error: Exception) {
                                 DebugLog.record("favorites", "移动收藏提交失败", error)
-                                toast("收藏移动失败，请重试")
+                                toast(getString(R.string.favorite_move_failed))
                             } finally {
                                 moving = false
                                 operationInProgress = false
@@ -198,8 +197,8 @@ internal fun MainActivity.showGroupEditorCompose(
         var name by remember { mutableStateOf(group.name) }
         var folder by remember { mutableStateOf(group.folder) }
         ComposeGlassDialogCard(dark) {
-            Text("编辑收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = LocalAppColorScheme.current.text.primary, unfocusedTextColor = LocalAppColorScheme.current.text.primary, focusedLabelColor = LocalAppColorScheme.current.text.primary, unfocusedLabelColor = LocalAppColorScheme.current.text.primary, cursorColor = LocalAppColorScheme.current.text.primary), label = { Text("收藏文件名", color = LocalAppColorScheme.current.text.primary) })
+            Text(getString(R.string.favorite_edit), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().padding(top = 12.dp), singleLine = true, shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = LocalAppColorScheme.current.text.primary, unfocusedTextColor = LocalAppColorScheme.current.text.primary, focusedLabelColor = LocalAppColorScheme.current.text.primary, unfocusedLabelColor = LocalAppColorScheme.current.text.primary, cursorColor = LocalAppColorScheme.current.text.primary), label = { Text(getString(R.string.favorite_filename), color = LocalAppColorScheme.current.text.primary) })
             OutlinedTextField(
                 folder,
                 { folder = it },
@@ -212,26 +211,26 @@ internal fun MainActivity.showGroupEditorCompose(
                     unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("文件夹", color = LocalAppColorScheme.current.text.secondary) },
+                label = { Text(getString(R.string.folder), color = LocalAppColorScheme.current.text.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
-                DialogAction("删除", dark, {
+                DialogAction(getString(R.string.action_cancel), dark, dismiss)
+                DialogAction(getString(R.string.action_delete), dark, {
                     dismiss()
-                    showComposeDurableConfirmDialog("删除收藏", "确定删除“${group.name}”吗？", "删除") {
+                    showComposeDurableConfirmDialog(getString(R.string.favorite_delete), getString(R.string.favorite_delete_confirm, group.name), getString(R.string.action_delete)) {
                         onDelete(group.id)
                         onClearSelection()
                         onNavigateFavorites()
                     }
                 }, modifier = Modifier.padding(start = 20.dp), destructive = true)
-                DialogAction("保存", dark, {
+                DialogAction(getString(R.string.action_save), dark, {
                     val cleanName = name.trim()
                     val cleanFolder = folder.trim().ifEmpty { "默认" }
-                    if (cleanName.isBlank()) toast("请输入收藏文件名")
-                    else if (!isValidFavoriteFolderPath(cleanFolder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
+                    if (cleanName.isBlank()) toast(getString(R.string.favorite_filename_required))
+                    else if (!isValidFavoriteFolderPath(cleanFolder)) toast(getString(R.string.favorite_invalid_folder))
                     else {
                         if (onUpdate(group.id, cleanName, cleanFolder)) dismiss()
-                        else toast("该文件夹下已有同名收藏，请更换名称或文件夹")
+                        else toast(getString(R.string.favorite_duplicate_name_or_folder))
                     }
                 }, modifier = Modifier.padding(start = 20.dp))
             }
@@ -244,7 +243,7 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem, onPersist: (CodeIt
         val dark = isDark()
         var value by remember { mutableStateOf(item.folder) }
         ComposeGlassDialogCard(dark) {
-            Text("移动到文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.favorite_move_to_folder), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -259,14 +258,14 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem, onPersist: (CodeIt
                     unfocusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("文件夹", color = LocalAppColorScheme.current.text.secondary) },
-                placeholder = { Text("例如：工作、商品、旅行", color = LocalAppColorScheme.current.text.secondary) },
+                label = { Text(getString(R.string.folder), color = LocalAppColorScheme.current.text.secondary) },
+                placeholder = { Text(getString(R.string.favorite_folder_examples), color = LocalAppColorScheme.current.text.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
-                DialogAction("保存", dark, {
+                DialogAction(getString(R.string.action_cancel), dark, dismiss)
+                DialogAction(getString(R.string.action_save), dark, {
                     val folder = value.trim().ifEmpty { "默认" }
-                    if (!isValidFavoriteFolderPath(folder)) toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
+                    if (!isValidFavoriteFolderPath(folder)) toast(getString(R.string.favorite_invalid_folder))
                     else {
                         item.folder = folder
                         onPersist(item)

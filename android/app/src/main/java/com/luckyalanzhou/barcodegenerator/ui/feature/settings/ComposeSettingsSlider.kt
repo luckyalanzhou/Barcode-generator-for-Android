@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
 import androidx.compose.foundation.Canvas
@@ -17,6 +19,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -28,8 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
@@ -63,6 +70,7 @@ internal fun SettingsSliderRow(
     valueText: String,
     color: Color,
     stacked: Boolean,
+    leading: (@Composable () -> Unit)? = null,
     onChange: (Float) -> Unit,
 ) {
     val sliderColors = LocalAppColorScheme.current.sliders
@@ -76,6 +84,21 @@ internal fun SettingsSliderRow(
     val keyboard = LocalSoftwareKeyboardController.current
     val latestValue by rememberUpdatedState(value)
     val latestOnChange by rememberUpdatedState(onChange)
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val titleTextStyle = LocalTextStyle.current.copy(color = color, fontSize = 16.sp)
+    val textMeasurer = rememberTextMeasurer()
+    val titleWidthPx = remember(title, titleTextStyle, density, layoutDirection, textMeasurer) {
+        textMeasurer.measure(
+            text = AnnotatedString(title),
+            style = titleTextStyle,
+            softWrap = false,
+            maxLines = 1,
+            layoutDirection = layoutDirection,
+            density = density,
+        ).size.width
+    }
+    val titleWidth = with(density) { titleWidthPx.toDp() }.coerceAtLeast(1.dp)
     LaunchedEffect(value) { if (!dragging) draft = value
         if (!editing && !warning) input = TextFieldValue(value.roundToInt().toString()) }
     DisposableEffect(Unit) {
@@ -86,7 +109,10 @@ internal fun SettingsSliderRow(
     }
     val unit = valueText.substringAfter(' ', "")
     val shownValue = "${draft.roundToInt()} $unit"
-    val fontScale = LocalDensity.current.fontScale
+    val fontScale = density.fontScale
+    val valueWidth = (74f * fontScale.coerceAtLeast(1f)).dp
+    val leadingWidth = if (leading == null) 0.dp else 40.dp
+    val minimumSliderWidth = 64.dp
     fun commitDraft() {
         dragging = false
         if (draft != latestValue) latestOnChange(draft)
@@ -136,11 +162,13 @@ internal fun SettingsSliderRow(
         )
     }
     val valueDisplay: @Composable () -> Unit = {
+        val valueDescription = stringResource(R.string.slider_edit_value_description, title, shownValue)
+        val rangeDescription = stringResource(R.string.slider_range_description, title, range.start.toInt(), range.endInclusive.toInt())
         val valueParts = shownValue.split(' ', limit = 2)
         Row(
-            modifier = Modifier.width((74f * fontScale.coerceAtLeast(1f)).dp).heightIn(min = 48.dp)
+            modifier = Modifier.width(valueWidth).heightIn(min = 48.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                .semantics { contentDescription = "$title，$shownValue，点击输入数值" }
+                .semantics { contentDescription = valueDescription }
                 .padding(end = 2.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
@@ -149,7 +177,8 @@ internal fun SettingsSliderRow(
                 value = if (editing || warning) input else TextFieldValue(draft.roundToInt().toString()),
                 onValueChange = { input = it; warning = false }, singleLine = true,
                 textStyle = TextStyle(color = if ((editing || warning) && parseSliderValue(input.text, range) == null)
-                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 16.sp, textAlign = TextAlign.End),
+                    LocalAppColorScheme.current.content.deleteIcon else valueColor, fontSize = 16.sp,
+                    fontFamily = MiSansFontFamily, textAlign = TextAlign.End),
                 cursorBrush = SolidColor(valueColor),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
@@ -164,35 +193,84 @@ internal fun SettingsSliderRow(
                         } else if (!state.isFocused && editing) {
                             editing = false; applyInput()
                         }
-                    }.semantics { contentDescription = "$title，范围 ${range.start.toInt()} 到 ${range.endInclusive.toInt()}" },
+                    }.semantics { contentDescription = rangeDescription },
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 valueParts.getOrNull(1).orEmpty(),
-                style = TextStyle(color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp),
+                style = TextStyle(color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp,
+                    fontFamily = MiSansFontFamily),
                 textAlign = TextAlign.Start,
                 modifier = Modifier.width((20f * fontScale.coerceAtLeast(1f)).dp),
             )
         }
     }
-    if (stacked) {
-        Column {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f))
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val availableWidth = maxWidth
+        val titleAndValueWidth = leadingWidth + titleWidth + valueWidth
+        val showInline = !stacked && availableWidth >= titleAndValueWidth + minimumSliderWidth
+        if (showInline) {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (leading != null) {
+                    leading()
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    title,
+                    style = titleTextStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.width(titleWidth),
+                )
+                slider(Modifier.weight(1f).widthIn(min = minimumSliderWidth))
                 valueDisplay()
             }
-            slider(Modifier.fillMaxWidth())
-        }
-    } else {
-        Row(Modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, color = color, fontSize = 16.sp, modifier = Modifier.width(112.dp))
-            slider(Modifier.weight(1f))
-            valueDisplay()
+        } else {
+            Column {
+                if (availableWidth >= titleAndValueWidth) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        if (leading != null) {
+                            leading()
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            title,
+                            style = titleTextStyle,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.width(titleWidth),
+                        )
+                        valueDisplay()
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        if (leading != null) {
+                            leading()
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            title,
+                            style = titleTextStyle,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        valueDisplay()
+                    }
+                }
+                slider(Modifier.fillMaxWidth())
+            }
         }
     }
     if (warning) {
         Text(
-            "$title 请输入 ${range.start.toInt()}～${range.endInclusive.toInt()} 的整数，未保存无效数值。",
+            stringResource(R.string.slider_value_prompt, title, range.start.toInt(), range.endInclusive.toInt()),
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
             color = LocalAppColorScheme.current.text.destructive,

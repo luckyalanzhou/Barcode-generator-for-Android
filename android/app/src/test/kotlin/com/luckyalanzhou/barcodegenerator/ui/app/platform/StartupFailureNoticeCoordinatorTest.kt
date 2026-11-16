@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -13,7 +14,7 @@ class StartupFailureNoticeCoordinatorTest {
 
         assertNull(coordinator.reportSettingsLoad(failed = true))
         assertEquals(
-            "设置加载失败，已使用默认设置启动",
+            R.string.startup_settings_load_failed,
             coordinator.reportLibraryLoad(failed = false),
         )
     }
@@ -24,7 +25,7 @@ class StartupFailureNoticeCoordinatorTest {
 
         assertNull(coordinator.reportSettingsLoad(failed = false))
         assertEquals(
-            "收藏和历史数据加载失败，已使用默认内容启动",
+            R.string.startup_library_load_failed,
             coordinator.reportLibraryLoad(failed = true),
         )
     }
@@ -35,7 +36,7 @@ class StartupFailureNoticeCoordinatorTest {
 
         assertNull(coordinator.reportSettingsLoad(failed = true))
         assertEquals(
-            "设置、收藏和历史数据加载失败，已使用默认设置和默认内容启动",
+            R.string.startup_all_load_failed,
             coordinator.reportLibraryLoad(failed = true),
         )
     }
@@ -46,7 +47,7 @@ class StartupFailureNoticeCoordinatorTest {
 
         assertNull(coordinator.reportLibraryLoad(failed = true))
         assertEquals(
-            "收藏和历史数据加载失败，已使用默认内容启动",
+            R.string.startup_library_load_failed,
             coordinator.reportSettingsLoad(failed = false),
         )
         assertNull(coordinator.reportSettingsLoad(failed = true))
@@ -56,7 +57,7 @@ class StartupFailureNoticeCoordinatorTest {
     fun concurrentStartupResultsEmitAtMostOneNotice() {
         val coordinator = StartupFailureNoticeCoordinator()
         val start = CountDownLatch(1)
-        val notices = Collections.synchronizedList(mutableListOf<String>())
+        val notices = Collections.synchronizedList(mutableListOf<Int>())
         val settingsThread = Thread {
             start.await()
             coordinator.reportSettingsLoad(failed = true)?.let(notices::add)
@@ -73,6 +74,6 @@ class StartupFailureNoticeCoordinatorTest {
         libraryThread.join()
 
         assertEquals(1, notices.size)
-        assertEquals("设置、收藏和历史数据加载失败，已使用默认设置和默认内容启动", notices.single())
+        assertEquals(R.string.startup_all_load_failed, notices.single())
     }
 }

@@ -1,9 +1,16 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.MiSansFontFamily
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuLineStyle
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionLineHeight
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import androidx.compose.foundation.background
@@ -72,6 +79,7 @@ internal fun LanShareInputBar(
     onOpenFiles: () -> Unit,
     onRemovePendingUpload: () -> Unit = {},
 ) {
+    val localizedResources = LocalResources.current
     val themeColors = LocalAppColorScheme.current
     val attachmentInteraction = remember { MutableInteractionSource() }
     val sendInteraction = remember { MutableInteractionSource() }
@@ -92,10 +100,10 @@ internal fun LanShareInputBar(
                 Icon(AttachFileIcon, null, tint = accent, modifier = Modifier.size(22.dp))
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text(pendingUploadName, color = primary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("待发送附件 · 文字草稿保留", color = secondary, fontSize = 12.sp)
+                    Text(stringResource(R.string.pending_attachment), color = secondary, fontSize = 12.sp)
                 }
                 IconButton(onClick = onRemovePendingUpload, modifier = Modifier.size(48.dp)) {
-                    Icon(CloseSmallIcon, "移除待发送附件", tint = secondary, modifier = Modifier.size(22.dp))
+                    Icon(CloseSmallIcon, stringResource(R.string.pending_attachment_remove), tint = secondary, modifier = Modifier.size(22.dp))
                 }
             }
         }
@@ -103,33 +111,33 @@ internal fun LanShareInputBar(
             // 选择附件后先关闭菜单，再启动对应的系统入口，避免菜单遮挡系统选择界面。
             Box {
                 IconButton(onClick = onOpenAttachmentMenu, interactionSource = attachmentInteraction, modifier = Modifier.iosPressFeedback(attachmentInteraction).size(48.dp)) {
-                    Icon(AddIcon, "添加附件", tint = accent, modifier = Modifier.size(28.dp))
+                    Icon(AddIcon, stringResource(R.string.attachment_add), tint = accent, modifier = Modifier.size(28.dp))
                 }
                 AnchoredDropdownMenu(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
                     containerColor = themeColors.surfaces.overlay,
                     tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 120.dp,
                 ) {
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("拍摄图片", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
+                    DropdownMenuItem(modifier = Modifier.heightIn(min = MenuMetrics.minimumActionItemHeight), text = { Text(stringResource(R.string.take_picture), color = themeColors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight, style = MenuLineStyle) }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("照片图库", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
+                    DropdownMenuItem(modifier = Modifier.heightIn(min = MenuMetrics.minimumActionItemHeight), text = { Text(stringResource(R.string.photo_gallery), color = themeColors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight, style = MenuLineStyle) }, onClick = { onDismissAttachmentMenu(); onOpenGallery() })
                     ComposeDropdownDivider(dark)
-                    DropdownMenuItem(modifier = Modifier.height(40.dp), text = { Text("选择文件", color = themeColors.text.primary) }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
+                    DropdownMenuItem(modifier = Modifier.heightIn(min = MenuMetrics.minimumActionItemHeight), text = { Text(stringResource(R.string.choose_file), color = themeColors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight, style = MenuLineStyle) }, onClick = { onDismissAttachmentMenu(); onOpenFiles() })
                 }
             }
             Spacer(Modifier.width(8.dp))
             BasicTextField(
                 value = message, onValueChange = onMessageChange, singleLine = true, enabled = !isSendingText && pendingUploadName == null,
-                textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp),
+                textStyle = androidx.compose.ui.text.TextStyle(color = primary, fontSize = 15.sp, fontFamily = MiSansFontFamily),
                 cursorBrush = SolidColor(primary),
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp).background(inputPanel, RoundedCornerShape(24.dp))
-                    .semantics { contentDescription = "消息内容" }
+                    .semantics { contentDescription = localizedResources.getString(R.string.message_content) }
                     .padding(horizontal = 14.dp),
                 decorationBox = { field ->
                     Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
                         if (message.isEmpty()) {
-                            Text(if (pendingUploadName != null) "先发送附件" else "输入文字", color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1)
+                            Text(if (pendingUploadName != null) stringResource(R.string.attachment_send_first) else stringResource(R.string.message_placeholder), color = themeColors.text.secondary, fontSize = 15.sp, maxLines = 1)
                         }
                         field()
                     }
@@ -142,8 +150,8 @@ internal fun LanShareInputBar(
                 if (isSendingText) {
                     androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = themeColors.content.sentContent, strokeWidth = 2.dp)
                     Spacer(Modifier.width(5.dp))
-                    Text("发送中", fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                } else Text("发送", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.sending), fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                } else Text(stringResource(R.string.action_send), fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
         }

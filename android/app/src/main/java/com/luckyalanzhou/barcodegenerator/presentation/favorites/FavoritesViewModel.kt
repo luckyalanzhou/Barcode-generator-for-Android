@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.favorites
 
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -307,7 +308,7 @@ class FavoritesViewModel @Inject constructor(
     internal fun loadFavoriteGroupContent(
         group: FavoriteGroup,
         onLoaded: (FavoriteGroupContentLoadResult.Loaded) -> Unit,
-        onNotice: (String) -> Unit,
+        onNotice: (Int) -> Unit,
     ) {
         groupLoadJob?.cancel()
         val request = ++groupLoadRequest
@@ -327,11 +328,11 @@ class FavoritesViewModel @Inject constructor(
                     is FavoriteGroupContentLoadResult.Rejected -> when (result.failure) {
                         FavoriteGroupContentLoadFailure.GROUP_NOT_CACHED -> {
                             appLogger.recordSafely("favorites", "open skipped groupId=${group.id} reason=group_not_loaded")
-                            onNotice("收藏文件已变化，请刷新收藏列表后重试")
+                            onNotice(R.string.favorite_changed)
                         }
                         FavoriteGroupContentLoadFailure.GROUP_NOT_FOUND -> {
                             appLogger.recordSafely("favorites", "open failed groupId=${group.id} reason=group_missing_in_room")
-                            onNotice("收藏文件已不存在，请刷新收藏列表")
+                            onNotice(R.string.favorite_gone)
                         }
                         FavoriteGroupContentLoadFailure.GROUP_CHANGED ->
                             appLogger.recordSafely("favorites", "open discarded groupId=${group.id} reason=group_changed_during_read")
@@ -340,11 +341,11 @@ class FavoritesViewModel @Inject constructor(
                                 "favorites",
                                 "open integrity failure groupId=${group.id} linked=${result.linkedCount} loaded=${result.loadedCount} invalid=${result.invalidCount}",
                             )
-                            onNotice("收藏文件数据不完整，已阻止打开空结果；请先导出备份并联系支持")
+                            onNotice(R.string.favorite_incomplete)
                         }
                         FavoriteGroupContentLoadFailure.EMPTY -> {
                             appLogger.recordSafely("favorites", "open empty groupId=${group.id} linked=0")
-                            onNotice("该收藏文件没有条码内容，未进入结果页")
+                            onNotice(R.string.favorite_empty)
                         }
                     }
                 }
@@ -352,7 +353,7 @@ class FavoritesViewModel @Inject constructor(
                 throw error
             } catch (error: Exception) {
                 appLogger.recordSafely("favorites", "open failed groupId=${group.id}", error, error)
-                onNotice("读取收藏文件失败，数据未被修改；请重试")
+                onNotice(R.string.favorite_read_failed)
             }
         }
     }

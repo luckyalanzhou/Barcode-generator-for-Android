@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
@@ -25,9 +27,9 @@ internal fun UpdateAvailableDialogContent(
 ) {
     ComposeGlassDialogCard(dark) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text("发现新版本", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.update_available), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             Text(
-                "检测到版本 $latest，是否立即更新？",
+                stringResource(R.string.update_version_prompt, latest),
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 color = LocalAppColorScheme.current.text.secondary,
                 fontSize = 15.sp,
@@ -37,9 +39,9 @@ internal fun UpdateAvailableDialogContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                DialogAction("立即更新", dark, primary = true, onClick = onUpdate)
-                DialogAction("稍后更新", dark, onClick = onLater)
-                DialogAction("忽略更新", dark, onClick = onIgnore)
+                DialogAction(stringResource(R.string.update_now), dark, primary = true, onClick = onUpdate)
+                DialogAction(stringResource(R.string.update_later), dark, onClick = onLater)
+                DialogAction(stringResource(R.string.update_ignore), dark, onClick = onIgnore)
             }
         }
     }

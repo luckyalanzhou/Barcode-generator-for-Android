@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
@@ -37,8 +38,8 @@ internal fun MainActivity.observeManualUpdateCheckResults() {
             when (result) {
                 UpdateCheckResult.InProgress -> Unit
                 is UpdateCheckResult.Available -> DebugLog.record("update", "latest=${result.version} available=true")
-                UpdateCheckResult.UpToDate -> showIos26NoticeDialog("当前已是最新版本")
-                is UpdateCheckResult.Failed -> toast(result.reason)
+                UpdateCheckResult.UpToDate -> showIos26NoticeDialog(getString(R.string.latest_version_installed))
+                is UpdateCheckResult.Failed -> toast(resources.updateFailureMessage(result.reason, result.httpStatus))
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
@@ -50,12 +51,12 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                         request.name,
                     )
                     if (saved) onCommitted()
-                    else toast("该文件夹下已有同名收藏，或保存失败；请检查名称后重试")
+                    else toast(getString(R.string.favorite_save_duplicate_or_failed))
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
                     DebugLog.record("favorites", "保存收藏提交失败", error)
-                    toast("收藏保存失败，输入已保留，请重试")
+                    toast(getString(R.string.favorite_save_failed))
                 } finally {
                     saving = false
                     saveInProgress = false
@@ -69,7 +70,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
             dismiss()
             window.decorView.post {
                 if (!isFinishing && !isDestroyed) {
-                    toast("已保存到 $folder")
+                    toast(getString(R.string.favorite_saved_to, folder))
                     onSaved()
                 }
             }
@@ -103,7 +104,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                 )
             },
             onShowOverwriteConfirmation = { title, message, onConfirm ->
-                showComposeConfirmDialog(title, message, "覆盖", onConfirm)
+                showComposeConfirmDialog(title, message, getString(R.string.action_overwrite), onConfirm)
             },
             onValidationMessage = { toast(it) },
             onCancel = { if (!saving) dismiss() },

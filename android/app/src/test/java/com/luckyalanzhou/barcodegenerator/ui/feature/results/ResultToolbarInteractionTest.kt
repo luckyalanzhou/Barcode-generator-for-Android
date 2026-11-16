@@ -27,7 +27,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** 在真实 Compose 语义树中验证四个入口，不用源码字符串代替点击行为。不是真机 GPU 验收。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ResultToolbarInteractionTest {
     @get:Rule val compose = createComposeRule()

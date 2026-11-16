@@ -88,7 +88,7 @@ class LanShareViewModelUploadCleanupTest {
 
         try {
             viewModel.startHostSession()
-            viewModel.uploadFile(session, Uri.fromFile(uploadFile), uploadFile)
+            viewModel.uploadFile(session, Uri.fromFile(uploadFile), uploadFile, fallbackName = "Attachment")
             assertTrue("upload did not enter the blocking gateway", uploadEntered.await(5, TimeUnit.SECONDS))
 
             viewModel.closeSession()
@@ -150,7 +150,7 @@ class LanShareViewModelUploadCleanupTest {
 
         try {
             viewModel.startHostSession()
-            viewModel.uploadFile(session, Uri.fromFile(capturedPhoto), capturedPhoto)
+            viewModel.uploadFile(session, Uri.fromFile(capturedPhoto), capturedPhoto, fallbackName = "Attachment")
             assertTrue("upload did not enter the blocking gateway", uploadEntered.await(5, TimeUnit.SECONDS))
 
             viewModel.closeSession()

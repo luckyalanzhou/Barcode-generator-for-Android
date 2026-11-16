@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.data
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_SOCKET_READ_TIMEOUT_MS
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
 import java.io.ByteArrayOutputStream
@@ -192,12 +193,24 @@ class LanShareServerUploadTest {
     @Test
     fun insufficientStorageRejectsBeforeCreatingPartialFile() {
         val folder = temporaryFolder.newFolder()
-        val server = LanShareServer("127.0.0.1", 0, folder, AppLogger { _, _, _ -> }, availableUploadBytes = { 0L })
+        val locale = AtomicReference("zh-Hans")
+        val server = LanShareServer(
+            "127.0.0.1", 0, folder, AppLogger { _, _, _ -> },
+            availableUploadBytes = { 0L },
+            webLocaleProvider = LanShareWebLocaleProvider { locale.get() },
+        )
         try {
             server.start(5_000, false)
             val response = upload(server.listeningPort, server.sessionToken, byteArrayOf(1, 2, 3), "small.bin", "app", false)
             assertEquals(503, response.first)
             assertTrue(response.second.contains("存储空间不足"))
+
+            locale.set("es")
+            val browserResponse = upload(
+                server.listeningPort, server.sessionToken, byteArrayOf(1, 2, 3), "small.bin", "cbrowser123", false,
+            )
+            assertEquals(503, browserResponse.first)
+            assertEquals("No hay suficiente espacio en el dispositivo. Libera espacio e inténtalo de nuevo.", browserResponse.second)
             assertTrue(folder.listFiles().orEmpty().isEmpty())
         } finally { server.stop() }
     }

@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 
 /** 主机可管理分享二维码；客户端状态不显示无效的二维码入口。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 class LanShareQrEntryTest {
     @get:Rule val compose = createComposeRule()
 

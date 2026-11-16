@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -105,14 +108,13 @@ internal fun BarcodeComposeBottomTabBar(
     modifier: Modifier = Modifier,
     showSelectionIndicator: Boolean = true,
 ) {
-    val tabs = remember {
-        listOf(
-            ComposeTabSpec("\u751f\u6210", "\u751f\u6210\u6761\u7801", BarcodeIcon),
-            ComposeTabSpec("\u5386\u53f2", "\u5386\u53f2\u8bb0\u5f55", HistoryIcon),
-            ComposeTabSpec("\u6536\u85cf", "\u6536\u85cf\u5939", FavoriteIcon),
-            ComposeTabSpec("\u8bbe\u7f6e", "\u8bbe\u7f6e", SettingsIcon)
-        )
-    }
+    val localizedResources = LocalResources.current
+    val tabs = listOf(
+        ComposeTabSpec(stringResource(R.string.tab_generate), stringResource(R.string.generate_barcode), BarcodeIcon),
+        ComposeTabSpec(stringResource(R.string.tab_history), stringResource(R.string.title_history), HistoryIcon),
+        ComposeTabSpec(stringResource(R.string.title_favorites), stringResource(R.string.tab_favorites_description), FavoriteIcon),
+        ComposeTabSpec(stringResource(R.string.title_settings), stringResource(R.string.title_settings), SettingsIcon),
+    )
     val themeColors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val selectedColor = if (effects.highContrast) lerp(themeColors.controls.accent, themeColors.text.primary, .55f) else themeColors.controls.accent
@@ -284,38 +286,38 @@ internal fun BarcodeComposeBottomTabBar(
                                 val actions = when (index) {
                                     0 -> listOf(
                                         TabLongPressAction(
-                                            label = "拍照填充",
+                                            label = localizedResources.getString(R.string.ocr_take_photo),
                                             icon = PhotoCameraIcon,
                                             onClick = onGeneratePhotoFill,
                                         ),
                                     )
                                     1 -> listOf(
                                         TabLongPressAction(
-                                            label = "清空历史记录",
+                                            label = localizedResources.getString(R.string.history_clear),
                                             icon = DeleteIcon,
                                             onClick = onHistoryClear,
                                         ),
                                     )
                                     2 -> listOf(
                                         TabLongPressAction(
-                                            label = "导入收藏",
+                                            label = localizedResources.getString(R.string.favorite_import),
                                             icon = CloudDownloadIcon,
                                             onClick = onFavoritesImport,
                                         ),
                                         TabLongPressAction(
-                                            label = "导出收藏",
+                                            label = localizedResources.getString(R.string.favorite_export),
                                             icon = CloudUploadIcon,
                                             onClick = onFavoritesExport,
                                         ),
                                         TabLongPressAction(
-                                            label = "清空收藏",
+                                            label = localizedResources.getString(R.string.favorite_clear),
                                             icon = DeleteIcon,
                                             onClick = onFavoritesClear,
                                         ),
                                     )
                                     3 -> listOf(
                                         TabLongPressAction(
-                                            label = "检查更新",
+                                            label = localizedResources.getString(R.string.check_for_updates),
                                             icon = UpgradeIcon,
                                             onClick = onCheckForUpdates,
                                         ),
@@ -339,7 +341,7 @@ internal fun BarcodeComposeBottomTabBar(
                             indication = null,
                             role = Role.Tab,
                             onClick = { handleTabClick(index) },
-                            onLongClickLabel = "打开${tab.label}操作菜单",
+                            onLongClickLabel = stringResource(R.string.open_action_menu, tab.label),
                             onLongClick = openMenu,
                             hapticFeedbackEnabled = false,
                         )

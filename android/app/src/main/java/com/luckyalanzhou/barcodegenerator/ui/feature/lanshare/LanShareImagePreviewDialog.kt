@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -82,6 +85,7 @@ internal fun LanShareImagePreviewDialog(
     bitmap: Bitmap,
     onDismiss: () -> Unit,
 ) {
+    val localizedResources = LocalResources.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -209,7 +213,7 @@ internal fun LanShareImagePreviewDialog(
                         shadow = { Shadow(alpha = .12f + .20f * closePress) },
                         onDrawSurface = { drawRect(Color.Black.copy(alpha = .58f + .06f * closePress)) },
                     ) else Modifier.background(Color.White.copy(alpha = .16f), RoundedCornerShape(10.dp))).semantics {
-                        contentDescription = "关闭图片预览"
+                        contentDescription = localizedResources.getString(R.string.close_image_preview)
                     },
                     shape = RoundedCornerShape(10.dp),
                     color = Color.Transparent,

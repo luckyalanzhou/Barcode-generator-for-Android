@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailureCause
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.domain.UPDATE_FAILURE_SUMMARY
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
@@ -35,11 +38,10 @@ import androidx.compose.ui.unit.sp
 internal fun reportApkInstallFailure(
     error: Exception,
     recordUpdateError: (String) -> Unit,
-    showToast: (String) -> Unit,
+    showToast: (UpdateFailure?) -> Unit,
 ) {
-    val reason = error.message ?: "未知安装错误"
     recordUpdateError(UPDATE_FAILURE_SUMMARY)
-    showToast("安装失败：$reason")
+    showToast((error as? UpdateFailureCause)?.failure)
 }
 
 internal fun MainActivity.installApkCompose(file: File) {
@@ -49,7 +51,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                 updateViewModel.setPendingInstallPath(null)
             }
             installPermissionDialogShowing = false
-            toast("更新文件不存在，请重新下载")
+            toast(getString(R.string.update_file_missing))
             return
         }
         val shareableFile = moveLegacyPendingApkToShareableCache(cacheDir, file)
@@ -67,12 +69,12 @@ internal fun MainActivity.installApkCompose(file: File) {
                 val dark = isDark()
                 ComposeGlassDialogCard(dark) {
                     Text(
-                        "需要允许安装未知应用",
+                        getString(R.string.update_allow_unknown_apps_title),
                         color = LocalAppColorScheme.current.text.primary,
                         fontSize = 18.sp,
                     )
                     Text(
-                        "为了安装应用更新，请在系统设置中允许“条码生成器”安装未知应用。开启后返回本应用，将自动继续安装。",
+                        getString(R.string.update_allow_unknown_apps_help),
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                         color = LocalAppColorScheme.current.text.secondary,
                         fontSize = 14.sp,
@@ -81,13 +83,13 @@ internal fun MainActivity.installApkCompose(file: File) {
                         Modifier.fillMaxWidth().padding(top = 14.dp),
                         horizontalArrangement = Arrangement.End,
                     ) {
-                        DialogAction("取消", dark, {
+                        DialogAction(getString(R.string.action_cancel), dark, {
                             installPermissionDialogShowing = false
                             updateViewModel.setPendingInstallPath(null)
                             dismiss()
                         })
                         DialogAction(
-                            "去设置",
+                            getString(R.string.open_settings),
                             dark,
                             {
                                 installPermissionDialogShowing = false
@@ -100,7 +102,7 @@ internal fun MainActivity.installApkCompose(file: File) {
                                         ),
                                     )
                                 } catch (_: Exception) {
-                                    toast("无法打开安装设置")
+                                    toast(getString(R.string.update_install_settings_failed))
                                     installApkCompose(shareableFile)
                                 }
                             },
@@ -124,7 +126,11 @@ internal fun MainActivity.installApkCompose(file: File) {
         reportApkInstallFailure(
             error = error,
             recordUpdateError = { settingsViewModel.recordUpdateError(it) },
-            showToast = { toast(it) },
+            showToast = { failure ->
+                val reason = failure?.let(resources::updateFailureMessage)
+                    ?: getString(R.string.install_unknown_error)
+                toast(getString(R.string.install_failed_detail, reason))
+            },
         )
     }
 }
@@ -144,7 +150,7 @@ internal fun MainActivity.showUpdateAvailableDialogCompose(
             dark = isDark(),
             // 只有版本忽略状态成功落盘后才关闭宿主 Dialog。
             onIgnore = {
-                updateViewModel.ignoreAvailableUpdate(onIgnored = dismiss, onFailure = { toast(it) })
+                updateViewModel.ignoreAvailableUpdate(onIgnored = dismiss, onFailure = { toast(getString(it)) })
             },
             onLater = {
                 updateViewModel.setDialogShowing(false)
@@ -209,7 +215,7 @@ internal fun MainActivity.downloadAndInstallCompose(
                                 apkUrl,
                                 expectedSize,
                                 expectedSha256,
-                                error.message ?: "APK 校验失败",
+                                resources.updateFailureMessage((error as? UpdateFailureCause)?.failure ?: UpdateFailure.InvalidApk),
                             )
                         }
                     }
@@ -222,7 +228,7 @@ internal fun MainActivity.downloadAndInstallCompose(
                             event.apkUrl,
                             event.expectedSize,
                             event.expectedSha256,
-                            event.reason,
+                            resources.updateFailureMessage(event.reason),
                         )
                     }
                 }
@@ -243,10 +249,10 @@ internal fun MainActivity.showDownloadFailedCompose(
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("更新下载失败", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.update_download_failed), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             Text(reason, Modifier.fillMaxWidth().padding(top = 10.dp), color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("重新下载", dark, {
+                DialogAction(getString(R.string.update_download_again), dark, {
                     dismiss()
                     downloadAndInstallCompose(apkUrl, expectedSize, expectedSha256)
                 })

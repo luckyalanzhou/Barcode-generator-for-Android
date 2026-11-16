@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeInputError
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.canonicalBarcodeFormatName
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
@@ -54,6 +58,8 @@ private fun ComposePageRoute(
     favoritesRowsProjectionCache: FavoritesRowsProjectionCache,
     listBottomPadding: Dp,
 ) {
+    val localizedResources = LocalResources.current
+    val onResourceNotice = { id: Int -> dependencies.actions.notice(localizedResources.getString(id)) }
     val retryScope = rememberCoroutineScope()
     fun retryLibraryLoad() {
         retryScope.launch {
@@ -62,7 +68,7 @@ private fun ComposePageRoute(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                dependencies.actions.notice("收藏数据读取失败，请稍后重试")
+                dependencies.actions.notice(localizedResources.getString(R.string.favorites_load_retry))
             }
         }
     }
@@ -82,7 +88,7 @@ private fun ComposePageRoute(
                 }
                 GenerateContent(
                     validationError = validationError?.let {
-                        GenerateInputError(rowIndex = it.rowIndex, message = it.message, attempt = it.attempt)
+                        GenerateInputError(rowIndex = it.rowIndex, message = localizedResources.barcodeInputError(it.reason), attempt = it.attempt)
                     },
                     inputDraft = editorState.inputDraft,
                     initialFormat = initialFormat,
@@ -95,9 +101,11 @@ private fun ComposePageRoute(
                     onGenerate = { values, format ->
                         val result = dependencies.generateViewModel.generate(values, format, barcodeData.items)
                         if (!result.isValid && result.errorIndex !in values.indices) {
-                            val message = result.errorMessage
+                            val error = checkNotNull(result.error)
+                            val message = localizedResources.barcodeInputError(error)
                             dependencies.actions.notice(
-                                if (message == "请输入内容") message else "第 ${result.errorIndex + 1} 行：$message",
+                                if (error == BarcodeInputError.MissingInput) message
+                                else localizedResources.getString(R.string.row_error, result.errorIndex + 1, message),
                             )
                         } else if (result.isValid) {
                             dependencies.resultsViewModel.commitGeneratedBarcodes(
@@ -105,7 +113,7 @@ private fun ComposePageRoute(
                                 style = settings.style,
                                 dark = dark,
                                 density = density,
-                                onNotice = dependencies.actions::notice,
+                                onNotice = onResourceNotice,
                                 onNavigateToResults = { dependencies.actions.navigateTo(AppRoute.Results) },
                             )
                         }
@@ -134,13 +142,13 @@ private fun ComposePageRoute(
                             style = settings.style,
                             dark = dark,
                             density = density,
-                            onNotice = dependencies.actions::notice,
+                            onNotice = onResourceNotice,
                             onNavigateToResults = { dependencies.actions.navigateTo(AppRoute.Results) },
                         )
                     },
                     onEdit = dependencies.actions::editHistory,
                     onDelete = { batch ->
-                        dependencies.actions.confirm("删除历史记录", "确定删除这条历史记录吗？", "删除") {
+                        dependencies.actions.confirm(localizedResources.getString(R.string.history_delete), localizedResources.getString(R.string.history_delete_confirm), localizedResources.getString(R.string.action_delete)) {
                             historyViewModel.deleteHistoryBatch(batch)
                         }
                     },
@@ -216,10 +224,10 @@ private fun ComposePageRoute(
                                     density = density,
                                     isCurrent = dependencies.favoritesViewModel::isFavoriteGroupCurrent,
                                     onNavigateToResults = { dependencies.actions.navigateTo(AppRoute.Results) },
-                                    onNotice = dependencies.actions::notice,
+                                    onNotice = onResourceNotice,
                                 )
                             },
-                            onNotice = dependencies.actions::notice,
+                            onNotice = onResourceNotice,
                         )
                     },
                     onRenameFolder = dependencies.favoritesViewModel::renameFavoriteFolder,
@@ -262,7 +270,7 @@ private fun ComposePageRoute(
                                     dependencies.actions.navigateTo(AppRoute.Generate)
                                 }
                             },
-                            onNotice = dependencies.actions::notice,
+                            onNotice = onResourceNotice,
                         )
                     },
                     onSaveFavorite = dependencies.actions::saveFavorite,
@@ -281,6 +289,7 @@ private fun ComposePageRoute(
                 val scope = rememberCoroutineScope()
                 SettingsContent(
                     listBottomPadding = listBottomPadding,
+                    languageRow = { AppLanguageSettingsRow(dark) },
                     checkingForUpdates = update.checking,
                     settings = SettingsContentState(style = settings.style, ocrMask = settings.ocrMask),
                     dark = dark,
@@ -296,10 +305,31 @@ private fun ComposePageRoute(
                         }
                     },
                     onOcrMaskChange = { dependencies.settingsViewModel.setOcrMaskPersisted(it) },
+                    onEnterAbout = { dependencies.actions.navigateTo(AppRoute.AboutUs) },
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                     onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onNotice = dependencies.actions::notice,
+                )
+            }
+            AppRoute.AboutUs -> {
+                val update by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
+                AboutUsContent(
+                    appVersion = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_NAME,
+                    versionCode = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_CODE,
+                    checkingForUpdates = update.checking,
+                    dark = dark,
+                    onBack = { dependencies.actions.navigateTo(AppRoute.Settings) },
+                    onOpenLicenses = { dependencies.actions.navigateTo(AppRoute.Licenses) },
+                    onCheckForUpdates = dependencies.actions::checkForUpdates,
+                )
+            }
+            AppRoute.Licenses -> {
+                LicensesContent(
+                    dark = dark,
+                    onBack = { dependencies.actions.navigateTo(AppRoute.AboutUs) },
+                    onShowOpenSourceLicenses = { dependencies.actions.showOpenSourceLicenses(dark) },
+                    onOpenMiSansLicense = dependencies.actions::openMiSansLicense,
                 )
             }
             AppRoute.LanShare -> {
@@ -335,10 +365,10 @@ private fun ComposePageRoute(
                 LaunchedEffect(viewModel) {
                     viewModel.events.collect { event ->
                         when (event) {
-                            is LanShareEvent.Error -> dependencies.actions.notice(event.message)
+                            is LanShareEvent.Error -> dependencies.actions.notice(localizedResources.getString(event.messageResId))
                             is LanShareEvent.Notice -> {
                                 if (event.clearInput) clearInputGeneration += 1
-                                dependencies.actions.notice(event.message)
+                                dependencies.actions.notice(localizedResources.getString(event.messageResId))
                             }
                         }
                     }
@@ -363,7 +393,9 @@ private fun ComposePageRoute(
                         val state = viewModel.uiState.value
                         if (state.pendingUploadUri != null) {
                             viewModel.takePendingUpload()?.let { (uri, temporaryFile) ->
-                                state.session?.let { session -> viewModel.uploadFile(session, uri, temporaryFile) }
+                                state.session?.let { session ->
+                                    viewModel.uploadFile(session, uri, temporaryFile, localizedResources.getString(R.string.attachment))
+                                }
                             }
                         } else text.takeIf { it.isNotBlank() }?.let { value ->
                             state.session?.let { session -> viewModel.sendText(session, value) }

@@ -32,7 +32,7 @@ class GenerateViewModelTest {
         val invalid = viewModel.generate(listOf("4006381333931", "1234"), "EAN-13", emptyList())
         assertTrue(!invalid.isValid)
         assertEquals(1, viewModel.validationError.value?.rowIndex)
-        assertEquals(invalid.errorMessage, viewModel.validationError.value?.message)
+        assertEquals(invalid.error, viewModel.validationError.value?.reason)
         viewModel.updateDraft(listOf("4006381333931", "5901234123457"))
         assertEquals(null, viewModel.validationError.value)
         assertTrue(viewModel.generate(viewModel.uiState.value.inputDraft, "EAN-13", emptyList()).isValid)

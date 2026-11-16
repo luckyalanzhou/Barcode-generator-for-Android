@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -31,14 +32,14 @@ internal fun MainActivity.createFavoritesExportCompose() {
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("导出收藏", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
-            Text("备份为 ZIP 文件，可用于恢复收藏。", color = LocalAppColorScheme.current.text.secondary,
+            Text(getString(R.string.favorite_export), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.favorite_backup_export_help), color = LocalAppColorScheme.current.text.secondary,
                 fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
-            ComposeDialogChoice("分享备份", dark) {
+            ComposeDialogChoice(getString(R.string.backup_share), dark) {
                 dismiss()
                 shareFavoritesExportForCompose()
             }
-            ComposeDialogChoice("保存备份", dark) {
+            ComposeDialogChoice(getString(R.string.backup_save), dark) {
                 dismiss()
                 createFavoritesDocumentExportForCompose()
             }
@@ -68,15 +69,15 @@ internal fun MainActivity.confirmImportFavoritesCompose(uri: android.net.Uri, ba
                         showFavoriteImportConflictDialog(backup, conflicts)
                     } else {
                         showComposeConfirmDialog(
-                            title = "导入跨平台收藏？",
-                            message = "将导入 ${backup.favorites.size} 个收藏，并保留一级文件夹、二级文件夹和收藏文件名。",
-                            positive = "导入",
+                            title = getString(R.string.favorite_import_platform_title),
+                            message = resources.getQuantityString(R.plurals.favorite_import_platform_detail, backup.favorites.size, backup.favorites.size),
+                            positive = getString(R.string.action_import),
                         ) { importFavoritesForCompose(backup, overwriteConflicts = false) }
                     }
                 }
                 .onFailure { error ->
                     DebugLog.actionFailed("favorites_backup_conflict_inspection", error)
-                    toast("无法检查收藏冲突：${error.message ?: "请稍后重试"}")
+                    toast(getString(R.string.favorite_conflict_check_failed))
                 }
         }
     }
@@ -90,12 +91,12 @@ private fun MainActivity.showFavoriteImportConflictDialog(
         val dark = isDark()
         val colors = LocalAppColorScheme.current
         ComposeGlassDialogCard(dark) {
-            Text("发现同名内容", color = colors.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.favorite_conflicts), color = colors.text.primary, fontSize = 18.sp)
             Text(
                 buildString {
-                    append("发现 ${conflicts.fileKeys.size} 个同路径同名收藏文件。请选择如何处理这些文件；同名文件夹下的其他文件仍会直接导入。")
+                    append(resources.getQuantityString(R.plurals.favorite_conflicts_detail, conflicts.fileKeys.size, conflicts.fileKeys.size))
                     if (conflicts.duplicateBackupKeys.isNotEmpty()) {
-                        append("备份文件自身包含 ${conflicts.duplicateBackupKeys.size} 组重名记录；跳过冲突会跳过这些记录，覆盖导入会保留每组最后一条。")
+                        append(resources.getQuantityString(R.plurals.favorite_internal_conflicts_detail, conflicts.duplicateBackupKeys.size, conflicts.duplicateBackupKeys.size))
                     }
                 },
                 color = colors.text.secondary,
@@ -106,15 +107,15 @@ private fun MainActivity.showFavoriteImportConflictDialog(
                 Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
-                DialogAction("取消", dark, dismiss)
+                DialogAction(getString(R.string.action_cancel), dark, dismiss)
                 DialogAction(
-                    "跳过冲突",
+                    getString(R.string.favorite_skip_conflicts),
                     dark,
                     { importFavoritesForCompose(backup, overwriteConflicts = false); dismiss() },
                     Modifier.padding(start = 20.dp),
                 )
                 DialogAction(
-                    "覆盖导入",
+                    getString(R.string.favorite_import_overwrite),
                     dark,
                     { importFavoritesForCompose(backup, overwriteConflicts = true); dismiss() },
                     Modifier.padding(start = 20.dp),

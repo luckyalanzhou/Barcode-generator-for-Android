@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
 import com.luckyalanzhou.barcodegenerator.domain.UpdateLookupResult
@@ -77,7 +78,7 @@ class AndroidUpdateCatalogGateway private constructor(
                 setRequestProperty("User-Agent", "BarcodeGenerator/$currentVersionName")
             }
             val releases = try {
-                if (connection.responseCode !in 200..299) throw IllegalStateException("GitHub HTTP ${connection.responseCode}")
+                if (connection.responseCode !in 200..299) throw UpdateCatalogHttpException(connection.responseCode)
                 readUpdateCatalogJson(connection.inputStream)
             } finally {
                 connection.disconnect()
@@ -94,10 +95,18 @@ class AndroidUpdateCatalogGateway private constructor(
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
             logger.recordSafely("update", "check failed", diagnosticError = error, primaryError = error)
-            UpdateLookupResult.Failed(error.message ?: "检查更新失败，请稍后重试")
+            val diagnostic = error.message ?: "检查更新失败，请稍后重试"
+            when (error) {
+                is UpdateCatalogHttpException -> UpdateLookupResult.Failed(UpdateFailure.Http, diagnostic, error.status)
+                is OversizedUpdateCatalogException -> UpdateLookupResult.Failed(UpdateFailure.OversizedCatalog, diagnostic)
+                else -> UpdateLookupResult.Failed(UpdateFailure.CheckFailed, diagnostic)
+            }
         }
     }
 }
+
+private class UpdateCatalogHttpException(val status: Int) : IllegalStateException("GitHub HTTP $status")
+private class OversizedUpdateCatalogException : IOException("更新信息过大，请稍后重试")
 
 internal fun readUpdateCatalogJson(inputStream: InputStream): JSONArray {
     val responseBytes = inputStream.use { stream ->
@@ -112,7 +121,7 @@ internal fun readUpdateCatalogJson(inputStream: InputStream): JSONArray {
                 val nextByte = stream.read()
                 if (nextByte < 0) break
                 if (totalBytes == MAX_UPDATE_CATALOG_RESPONSE_BYTES) {
-                    throw IOException("更新信息过大，请稍后重试")
+                    throw OversizedUpdateCatalogException()
                 }
                 output.write(nextByte)
                 totalBytes++
@@ -120,7 +129,7 @@ internal fun readUpdateCatalogJson(inputStream: InputStream): JSONArray {
             }
             totalBytes += bytesRead
             if (totalBytes > MAX_UPDATE_CATALOG_RESPONSE_BYTES) {
-                throw IOException("更新信息过大，请稍后重试")
+                throw OversizedUpdateCatalogException()
             }
             output.write(buffer, 0, bytesRead)
         }
@@ -146,16 +155,16 @@ internal fun parseUpdateCatalogResponse(
             )
         })
     val releaseTag = release?.optString("tag_name")?.takeIf { it.isNotBlank() }
-        ?: return UpdateLookupResult.Failed("暂时无法获取更新信息")
+        ?: return UpdateLookupResult.Failed(UpdateFailure.CatalogUnavailable, "暂时无法获取更新信息")
     val apkAsset = release.optJSONArray("assets")?.let { assets ->
         (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }.firstOrNull { asset ->
             isUpdateApkAssetName(asset.optString("name"), updateTagPrefix, apkFilePrefix)
         }
     }
     val downloadUrl = apkAsset?.optString("browser_download_url")?.takeIf { it.isNotBlank() }
-        ?: return UpdateLookupResult.Failed("暂时无法获取更新信息")
+        ?: return UpdateLookupResult.Failed(UpdateFailure.CatalogUnavailable, "暂时无法获取更新信息")
     val latest = parseUpdateAppVersionTag(releaseTag, updateTagPrefix)
-        ?: return UpdateLookupResult.Failed("版本信息格式不正确")
+        ?: return UpdateLookupResult.Failed(UpdateFailure.InvalidCatalog, "版本信息格式不正确")
     val expectedSize = apkAsset.optLong("size", 0L).takeIf { it > 0L }
     val releaseSha256 = release.optString("body")
         .lineSequence()
@@ -180,7 +189,7 @@ internal fun parseUpdateCatalogResponse(
         releaseVersionCode != null && releaseVersionCode > currentVersionCode
     return if (versionNameChanged || betaBuildChanged) {
         if (expectedSha256 == null) {
-            UpdateLookupResult.Failed("该版本缺少 SHA-256 校验信息，无法安全更新")
+            UpdateLookupResult.Failed(UpdateFailure.MissingHash, "该版本缺少 SHA-256 校验信息，无法安全更新")
         } else {
             UpdateLookupResult.Available(
                 latest,

@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.globalButtonChrome
@@ -107,6 +111,7 @@ internal fun GenerateContent(
     onRetryDataLoad: () -> Unit = {},
     validationError: GenerateInputError? = null,
 ) {
+    val localizedResources = LocalResources.current
     val batchPasteFocusRequester = remember { FocusRequester() }
     val values = remember {
         mutableStateListOf<String>().apply {
@@ -173,19 +178,23 @@ internal fun GenerateContent(
                 window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             }
             ComposeGlassDialogCard(dark) {
-                Text("批量粘贴", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.batch_paste), color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                     Text(
-                        "每行一个条码；复制表格时请只选一列。含逗号的条码值可按 CSV 规则用双引号括起。",
+                        stringResource(R.string.batch_paste_help),
                         modifier = Modifier.padding(top = 6.dp),
                         color = secondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
                     )
                     val previewText = when (val preview = batchPastePreview) {
-                        BatchBarcodePastePreview.Empty -> "空行会自动跳过；确认后才会加入输入列表。"
-                        is BatchBarcodePastePreview.Ready -> "将添加 ${preview.addedCount} 条；添加后共 ${preview.totalCount} 条。"
-                        is BatchBarcodePastePreview.Invalid -> preview.line?.let { "第 $it 行：${preview.reason}" } ?: preview.reason
+                        BatchBarcodePastePreview.Empty -> stringResource(R.string.batch_paste_empty)
+                        is BatchBarcodePastePreview.Ready -> pluralStringResource(R.plurals.batch_paste_preview, preview.addedCount, preview.addedCount, preview.totalCount)
+                        is BatchBarcodePastePreview.Invalid -> {
+                            val reason = preview.rowLimit?.let { stringResource(preview.reason, it) }
+                                ?: stringResource(preview.reason)
+                            preview.line?.let { stringResource(R.string.row_error, it, reason) } ?: reason
+                        }
                     }
                     Text(
                         previewText,
@@ -216,13 +225,13 @@ internal fun GenerateContent(
                             },
                             modifier = Modifier.fillMaxWidth().focusRequester(batchPasteFocusRequester)
                                 .verticalScroll(rememberScrollState())
-                                .semantics { contentDescription = "多行条码内容" },
-                            textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp),
+                                .semantics { contentDescription = localizedResources.getString(R.string.batch_paste_contents) },
+                            textStyle = TextStyle(color = textColor, fontSize = 15.sp, lineHeight = 21.sp, fontFamily = MiSansFontFamily),
                             cursorBrush = SolidColor(textColor),
                             decorationBox = { field ->
                                 Box {
                                     if (batchPasteText.isEmpty()) {
-                                        Text("在此粘贴多行条码内容", color = secondary, fontSize = 15.sp)
+                                        Text(stringResource(R.string.batch_paste_placeholder), color = secondary, fontSize = 15.sp)
                                     }
                                     field()
                                 }
@@ -235,17 +244,21 @@ internal fun GenerateContent(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    DialogAction("取消", dark, { batchPasteDialog = false })
+                    DialogAction(stringResource(R.string.action_cancel), dark, { batchPasteDialog = false })
                     DialogAction(
-                        "添加",
+                        stringResource(R.string.action_add),
                         dark,
                         {
                             when (val parsed = BatchBarcodeTextParser.parse(batchPasteText)) {
-                                is BatchBarcodeTextResult.Failure -> onNotice("第 ${parsed.line} 行：${parsed.reason}")
+                                is BatchBarcodeTextResult.Failure -> {
+                                    val reason = parsed.rowLimit?.let { localizedResources.getString(parsed.reason, it) }
+                                        ?: localizedResources.getString(parsed.reason)
+                                    onNotice(localizedResources.getString(R.string.row_error, parsed.line, reason))
+                                }
                                 is BatchBarcodeTextResult.Success -> when (
                                     val appended = BatchBarcodeTextParser.append(values.toList(), parsed.values)
                                 ) {
-                                    BatchBarcodeAppendResult.CapacityExceeded -> onNotice("最多保留 ${BatchBarcodeTextParser.MAX_INPUT_ROWS} 行输入；本次内容未添加")
+                                    BatchBarcodeAppendResult.CapacityExceeded -> onNotice(localizedResources.getString(R.string.batch_paste_capacity_exceeded, BatchBarcodeTextParser.MAX_INPUT_ROWS))
                                     is BatchBarcodeAppendResult.Success -> {
                                         values.clear()
                                         values.addAll(appended.values)
@@ -288,19 +301,19 @@ internal fun GenerateContent(
         ) {
             ComposeGlassDialogCard(dark) {
                 Text(
-                    "\u6e05\u7a7a\u6240\u6709\u8f93\u5165\uff1f",
+                    stringResource(R.string.clear_inputs_title),
                     color = themeColors.text.primary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                 )
-                Text("将移除全部 ${values.size} 行输入，并保留一个空行。", color = secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                Text(pluralStringResource(R.plurals.clear_inputs_confirm, values.size, values.size), color = secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    DialogAction("取消", dark, { clearDialog = false })
+                    DialogAction(stringResource(R.string.action_cancel), dark, { clearDialog = false })
                     DialogAction(
-                        "清空全部",
+                        stringResource(R.string.action_clear_all),
                         dark,
                         {
                             values.clear()
@@ -336,9 +349,9 @@ internal fun GenerateContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("条码内容", modifier = Modifier.weight(1f), color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.barcode_contents), modifier = Modifier.weight(1f), color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 TextButton(onClick = { clearDialog = true }, enabled = values.size > 1 || values.any { it.isNotEmpty() }) {
-                    Text("清空全部", color = if (values.size > 1 || values.any { it.isNotEmpty() }) themeColors.text.destructive else themeColors.text.disabled, fontSize = 14.sp)
+                    Text(stringResource(R.string.action_clear_all), color = if (values.size > 1 || values.any { it.isNotEmpty() }) themeColors.text.destructive else themeColors.text.disabled, fontSize = 14.sp)
                 }
             }
             // 修改、上下移动和删除输入行都会同步草稿，保证离开页面后可恢复。
@@ -417,11 +430,11 @@ internal fun GenerateContent(
             )
             deletedInput?.let { deleted ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("已删除第 ${deleted.index + 1} 行", color = secondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.input_row_deleted, deleted.index + 1), color = secondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     TextButton(onClick = {
                         val placeholder = deleted.placeholderKey?.let { rowKeys.indexOf(it) }?.takeIf { it >= 0 && values[it].isEmpty() }
                         if (values.size - (if (placeholder != null) 1 else 0) >= MAX_GENERATE_INPUT_ROWS) {
-                            onNotice("输入行已达上限，无法撤销删除")
+                            onNotice(localizedResources.getString(R.string.input_undo_capacity_exceeded))
                         } else {
                             if (placeholder != null) { values.removeAt(placeholder); rowKeys.removeAt(placeholder) }
                             val at = deleted.index.coerceIn(0, values.size)
@@ -433,7 +446,7 @@ internal fun GenerateContent(
                             deletedInput = null
                             syncDraft()
                         }
-                    }) { Text("撤销", color = themeColors.controls.accent, fontSize = 14.sp) }
+                    }) { Text(stringResource(R.string.action_undo), color = themeColors.controls.accent, fontSize = 14.sp) }
                 }
             }
 
@@ -443,7 +456,7 @@ internal fun GenerateContent(
             val generateContent = if (generateEnabled) themeColors.text.onAccent else themeColors.text.disabled
             GlassGenerateActionBar(
                 onAddRow = {
-                    if (values.size >= MAX_GENERATE_INPUT_ROWS) onNotice("最多保留 $MAX_GENERATE_INPUT_ROWS 行输入框")
+                    if (values.size >= MAX_GENERATE_INPUT_ROWS) onNotice(localizedResources.getString(R.string.input_capacity_exceeded, MAX_GENERATE_INPUT_ROWS))
                     else {
                         val at = (focusedIndex + 1).coerceIn(0, values.size)
                         values.add(at, "")
@@ -463,13 +476,13 @@ internal fun GenerateContent(
                 onCaptureText = onCaptureText,
             )
             // 条码类型按钮只负责展开菜单；选中后同步更新本地显示和上层保存的格式。
-            val formatDescription = barcodeFormats.firstOrNull { it.displayName == formatName }?.description.orEmpty()
+            val formatDescription = barcodeFormats.firstOrNull { it.displayName == formatName }?.let { stringResource(it.descriptionResId) }.orEmpty()
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("条码类型", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.barcode_format), color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text(formatDescription, color = secondary, fontSize = 12.sp, lineHeight = 16.sp)
                 }
                 Box {
@@ -482,8 +495,10 @@ internal fun GenerateContent(
                         }
                             .heightIn(min = 48.dp)
                             .semantics {
-                                contentDescription = "条码类型"
-                                stateDescription = "$formatName，$formatDescription，${if (formatExpanded) "已展开" else "已收起"}"
+                                contentDescription = localizedResources.getString(R.string.barcode_format)
+                                stateDescription = localizedResources.getString(R.string.control_state_with_value,
+                                    localizedResources.getString(R.string.control_state_with_value, formatName, formatDescription),
+                                    localizedResources.getString(if (formatExpanded) R.string.state_expanded else R.string.state_collapsed))
                             },
                         shape = RoundedCornerShape(12.dp),
                         elevation = ButtonDefaults.buttonElevation(
@@ -507,7 +522,7 @@ internal fun GenerateContent(
                         dark = dark,
                         expanded = formatExpanded,
                         onDismissRequest = { formatExpanded = false },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
                         containerColor = themeColors.surfaces.overlay,
                         tonalElevation = 0.dp,
                         shadowElevation = 1.dp,
@@ -546,7 +561,7 @@ internal fun GenerateContent(
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isPreparingResult) CircularProgressIndicator(Modifier.size(18.dp), color = generateContent, strokeWidth = 2.dp)
                 Text(
-                    if (isPreparingResult) "正在准备全部条码…" else if (validationError != null) "重新生成" else if (count == 0) "生成条码" else "生成 $count 个条码",
+                    if (isPreparingResult) stringResource(R.string.preparing_all_barcodes) else if (validationError != null) stringResource(R.string.regenerate) else if (count == 0) stringResource(R.string.generate_barcode) else pluralStringResource(R.plurals.generate_barcode_count, count, count),
                     color = generateContent,
                     fontSize = 16.sp,
                     style = LocalTextStyle.current.copy(background = Color.Transparent),
@@ -556,14 +571,14 @@ internal fun GenerateContent(
 
             if (isDataLoadFailed) {
                 Text(
-                    "数据读取失败，暂时无法生成条码",
+                    stringResource(R.string.generate_data_load_failed),
                     color = themeColors.text.primary,
                     fontSize = 14.sp,
                     modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
                 DialogAction(
-                    "重试读取",
+                    stringResource(R.string.action_retry_load),
                     dark,
                     onRetryDataLoad,
                     modifier = Modifier.align(Alignment.End),

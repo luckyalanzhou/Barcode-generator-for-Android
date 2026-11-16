@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.lanshare
 
+import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareNetworkUnavailableException
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogCompose
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.ensureShareableCacheDirectory
@@ -53,14 +55,14 @@ internal fun MainActivity.enterLanShare() {
     lanShareViewModel.startHostSessionAsync { error ->
         composeAppShellActions().navigateTo(AppRoute.Settings)
         DebugLog.record("lan_share", "host_start_failed", error)
-        if (error.message == "Error 当前不处于局域网") showLanShareNetworkErrorDialog()
-        else toast(error.message ?: "无法创建房间")
+        if (error is LanShareNetworkUnavailableException) showLanShareNetworkErrorDialog()
+        else toast(getString(R.string.share_room_create_failed))
     }
     composeAppShellActions().navigateTo(AppRoute.LanShare)
 }
 
 internal fun MainActivity.showLanShareNetworkErrorDialog() {
-    showIos26NoticeDialogCompose("Error: 当前不处于局域网")
+    showIos26NoticeDialogCompose(getString(R.string.share_wifi_required))
 }
 
 internal fun MainActivity.openLanShareCamera() {
@@ -95,7 +97,7 @@ internal fun MainActivity.openLanShareCamera() {
         DebugLog.record("lan_share", "camera_launch_failed", error)
         cameraOcrViewModel.clearCameraOutput()
         photoFile?.delete()
-        toast("当前设备没有可用的系统相机")
+        toast(getString(R.string.system_camera_unavailable))
     }
 }
 
@@ -105,13 +107,13 @@ internal fun <T> resolveLanCameraCaptureTarget(
     cameraResultUri: T?,
 ): T? = output?.takeIf { outputHasContent } ?: cameraResultUri
 
-internal fun resolveLanShareAttachmentName(queryDisplayName: () -> String?): String =
+internal fun resolveLanShareAttachmentName(fallbackName: String, queryDisplayName: () -> String?): String =
     try {
-        queryDisplayName() ?: "附件"
+        queryDisplayName() ?: fallbackName
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
-        "附件"
+        fallbackName
     }
 
 internal fun MainActivity.openLanShareGallery() {
@@ -160,7 +162,7 @@ internal suspend fun MainActivity.selectLanShareAttachment(
     autoUpload: Boolean = false,
 ) {
     val displayName = withContext(Dispatchers.IO) {
-        resolveLanShareAttachmentName {
+        resolveLanShareAttachmentName(getString(R.string.attachment)) {
             contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 cursor.moveToFirst()
                 cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
@@ -174,8 +176,8 @@ internal suspend fun MainActivity.selectLanShareAttachment(
             handoffCapturedLanPhotoUpload(
                 session = lanShareViewModel.uiState.value.session,
                 temporaryFile = selectedFile,
-                upload = { session -> lanShareViewModel.uploadFile(session, selectedUri, selectedFile) },
-                sessionUnavailable = { toast("分享连接已结束，请重新连接后重试") },
+                upload = { session -> lanShareViewModel.uploadFile(session, selectedUri, selectedFile, displayName) },
+                sessionUnavailable = { toast(getString(R.string.share_connection_ended)) },
                 temporaryFileCleanupFailed = {
                     DebugLog.record("lan_share", "capture_temp_cleanup_failed")
                 },
@@ -183,7 +185,7 @@ internal suspend fun MainActivity.selectLanShareAttachment(
         }
     }
     else {
-        toast("已选择附件，点击发送按钮发送")
+        toast(getString(R.string.attachment_selected))
     }
 }
 

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.domain.*
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
@@ -17,7 +18,7 @@ class UpdateCheckStateTest {
         object : ApkDownloadGateway {
             override fun cancel() = Unit
             override suspend fun download(apkUrl: String, expectedSize: Long?, expectedSha256: String?,
-                onProgress: (Int, Boolean, String) -> Unit): File = error("not used")
+                onProgress: (Int, Boolean, Long) -> Unit): File = error("not used")
         }, object : UpdateCatalogGateway { override suspend fun check() = lookup() },
         object : ApkValidationGateway { override fun validate(file: File) = Unit }, logger,
         SavedStateHandle())
@@ -84,7 +85,7 @@ class UpdateCheckStateTest {
                     apkUrl: String,
                     expectedSize: Long?,
                     expectedSha256: String?,
-                    onProgress: (Int, Boolean, String) -> Unit,
+                    onProgress: (Int, Boolean, Long) -> Unit,
                 ): File = error("not used")
             },
             updateCatalogGateway = object : UpdateCatalogGateway {
@@ -169,7 +170,7 @@ class UpdateCheckStateTest {
         )
 
         assertEquals(
-            UpdateCheckResult.Failed("检查更新失败，请重试"),
+            UpdateCheckResult.Failed(UpdateFailure.CheckFailed),
             coordinator.checkForUpdates(),
         )
         assertEquals(UpdateCheckResult.UpToDate, coordinator.checkForUpdates())
@@ -188,7 +189,7 @@ class UpdateCheckStateTest {
                     apkUrl: String,
                     expectedSize: Long?,
                     expectedSha256: String?,
-                    onProgress: (Int, Boolean, String) -> Unit,
+                    onProgress: (Int, Boolean, Long) -> Unit,
                 ): File = error("not used")
             },
             updateCatalogGateway = object : UpdateCatalogGateway {
@@ -236,7 +237,7 @@ class UpdateCheckStateTest {
         object : ApkDownloadGateway {
             override fun cancel() = Unit
             override suspend fun download(apkUrl: String, expectedSize: Long?, expectedSha256: String?,
-                onProgress: (Int, Boolean, String) -> Unit): File = error("not used")
+                onProgress: (Int, Boolean, Long) -> Unit): File = error("not used")
         },
         object : UpdateCatalogGateway { override suspend fun check() = UpdateLookupResult.UpToDate },
         object : ApkValidationGateway { override fun validate(file: File) = Unit },

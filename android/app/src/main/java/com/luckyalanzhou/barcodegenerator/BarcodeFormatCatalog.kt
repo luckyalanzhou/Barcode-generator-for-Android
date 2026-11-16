@@ -4,7 +4,7 @@ package com.luckyalanzhou.barcodegenerator
 internal data class BarcodeFormatOption(
     val displayName: String,
     val id: String,
-    val description: String,
+    @androidx.annotation.StringRes val descriptionResId: Int,
 )
 
 /** 稳定的应用内格式 ID；持久化数据仍使用原有显示名称。 */
@@ -20,14 +20,14 @@ internal object BarcodeFormatIds {
 }
 
 internal val barcodeFormats: List<BarcodeFormatOption> = listOf(
-    BarcodeFormatOption("Code 128-B", BarcodeFormatIds.CODE_128, "字母、数字和符号"),
-    BarcodeFormatOption("QR Code", BarcodeFormatIds.QR_CODE, "网址或较长文本"),
-    BarcodeFormatOption("Code 39", BarcodeFormatIds.CODE_39, "大写字母、数字和符号"),
-    BarcodeFormatOption("EAN-13", BarcodeFormatIds.EAN_13, "零售商品条码"),
-    BarcodeFormatOption("EAN-8", BarcodeFormatIds.EAN_8, "小包装商品条码"),
-    BarcodeFormatOption("UPC-A", BarcodeFormatIds.UPC_A, "零售商品条码"),
-    BarcodeFormatOption("ITF-14", BarcodeFormatIds.ITF_14, "物流外箱条码"),
-    BarcodeFormatOption("Codabar", BarcodeFormatIds.CODABAR, "数字与常用符号"),
+    BarcodeFormatOption("Code 128-B", BarcodeFormatIds.CODE_128, R.string.format_letters_numbers_symbols),
+    BarcodeFormatOption("QR Code", BarcodeFormatIds.QR_CODE, R.string.format_urls_long_text),
+    BarcodeFormatOption("Code 39", BarcodeFormatIds.CODE_39, R.string.format_uppercase_numbers_symbols),
+    BarcodeFormatOption("EAN-13", BarcodeFormatIds.EAN_13, R.string.format_retail_products),
+    BarcodeFormatOption("EAN-8", BarcodeFormatIds.EAN_8, R.string.format_small_packages),
+    BarcodeFormatOption("UPC-A", BarcodeFormatIds.UPC_A, R.string.format_retail_products),
+    BarcodeFormatOption("ITF-14", BarcodeFormatIds.ITF_14, R.string.format_shipping_cartons),
+    BarcodeFormatOption("Codabar", BarcodeFormatIds.CODABAR, R.string.format_numbers_common_symbols),
 )
 
 /** 查找显示名称或旧版别名；预览入口用 null 区分不支持的值。 */

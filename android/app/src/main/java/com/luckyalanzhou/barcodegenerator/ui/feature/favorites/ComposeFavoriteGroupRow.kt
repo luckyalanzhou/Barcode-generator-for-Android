@@ -1,6 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
+import com.luckyalanzhou.barcodegenerator.ui.support.localization.rememberApplicationFormattingLocale
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.LocalLongPressMenuHost
@@ -56,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /**
  * 收藏文件行：点击打开条码文件，长按弹出编辑菜单；移动、重命名、编辑和删除分别委托给上层回调。
@@ -80,6 +83,7 @@ internal fun FavoriteGroupRow(
     onDelete: suspend (FavoriteGroup) -> Unit,
     searchPath: String? = null,
 ) {
+    val localizedResources = LocalResources.current
     val interactionSource = remember(group.id) { MutableInteractionSource() }
     val menuHost = LocalLongPressMenuHost.current
     val view = LocalView.current
@@ -92,14 +96,14 @@ internal fun FavoriteGroupRow(
         val rowBounds = coordinates.rowBounds()
         menuHost(TabLongPressMenuState(rowBounds, AttachFileIcon, group.name, fileColor, dark,
             actions = listOf(
-                TabLongPressAction("编辑条码", EditIcon) { onEdit(group) },
-                TabLongPressAction("移动", DriveFileMoveIcon) { onShowMoveDialog(group) },
-                TabLongPressAction("重命名", EditIcon) { onShowRenameDialog(group) },
-                TabLongPressAction("删除", DeleteIcon) {
-                    onConfirm("删除收藏", "确定删除“${group.name}”吗？", "删除") { onDelete(group) }
+                TabLongPressAction(localizedResources.getString(R.string.edit_barcodes), EditIcon) { onEdit(group) },
+                TabLongPressAction(localizedResources.getString(R.string.action_move), DriveFileMoveIcon) { onShowMoveDialog(group) },
+                TabLongPressAction(localizedResources.getString(R.string.action_rename), EditIcon) { onShowRenameDialog(group) },
+                TabLongPressAction(localizedResources.getString(R.string.action_delete), DeleteIcon) {
+                    onConfirm(localizedResources.getString(R.string.favorite_delete), localizedResources.getString(R.string.favorite_delete_confirm, group.name), localizedResources.getString(R.string.action_delete)) { onDelete(group) }
                 },
             ), restoreFocus = { if (coordinates.rowBounds() != androidx.compose.ui.geometry.Rect.Zero) focus.requestFocus() },
-            title = "编辑收藏文件", tabAnchor = false,
+            title = localizedResources.getString(R.string.favorite_file_edit), tabAnchor = false,
             menuAnchorBoundsOnScreen = coordinates.titleBounds() ?: rowBounds,
             sourceContent = { FavoriteGroupRowContent(row, group, fileColor, searchPath) }))
     }
@@ -127,7 +131,7 @@ internal fun FavoriteGroupRow(
                 role = Role.Button,
                 onClick = onClick,
                 onLongClick = openMenu,
-                onLongClickLabel = "编辑收藏文件",
+                onLongClickLabel = stringResource(R.string.favorite_file_edit),
                 hapticFeedbackEnabled = false,
             ),
         contentAlignment = Alignment.CenterStart,
@@ -143,14 +147,18 @@ private fun FavoriteGroupRowContent(
     searchPath: String?,
     onTitleCoordinates: (LayoutCoordinates) -> Unit = {},
 ) {
-    val time = remember(group.savedAt) { SimpleDateFormat("MM-dd HH:mm", Locale.ROOT).format(Date(group.savedAt)) }
+    val locale = rememberApplicationFormattingLocale()
+    val time = remember(group.savedAt, locale) {
+        val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, "MdHm")
+        SimpleDateFormat(pattern, locale).format(Date(group.savedAt))
+    }
     Row(Modifier.fillMaxWidth().padding(
         start = 11.dp + 20.dp * row.level, end = 4.dp,
         top = if (searchPath != null) 6.dp else 0.dp,
         bottom = if (searchPath != null) 6.dp else 0.dp,
     ),
         verticalAlignment = Alignment.CenterVertically) {
-        Icon(AttachFileIcon, "收藏文件", tint = fileColor, modifier = Modifier.size(21.dp))
+        Icon(AttachFileIcon, stringResource(R.string.favorite_file), tint = fileColor, modifier = Modifier.size(21.dp))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f).padding(end = 8.dp)) {
             Text(group.name, color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp,

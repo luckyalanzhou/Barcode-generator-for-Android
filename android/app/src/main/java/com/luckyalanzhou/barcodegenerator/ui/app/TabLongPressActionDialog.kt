@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
@@ -93,6 +96,7 @@ import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.luckyalanzhou.barcodegenerator.ui.theme.ActionMenuMetrics
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuWidthDp
 import kotlin.math.roundToInt
@@ -116,6 +120,7 @@ internal fun TabLongPressActionOverlay(
     onDismiss: () -> Unit,
     onAction: (() -> Unit) -> Unit,
 ) {
+    val localizedResources = LocalResources.current
     val dark = state.dark
     val anchorBoundsOnScreen = state.anchorBoundsOnScreen
     val menuAnchorBoundsOnScreen = state.menuAnchorBoundsOnScreen
@@ -123,7 +128,7 @@ internal fun TabLongPressActionOverlay(
     val focusLabel = state.focusLabel
     val focusTint = state.focusTint
     val actions = state.actions
-    val showTitle = menuShowsTitle(state.tabAnchor, state.title)
+    val showTitle = menuShowsTitle(state.title)
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val menuFocus = remember { FocusRequester() }
@@ -402,7 +407,7 @@ internal fun TabLongPressActionOverlay(
                             if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { onDismiss(); true } else false
                         }
                         .semantics {
-                            paneTitle = "$focusLabel 操作菜单"
+                            paneTitle = localizedResources.getString(R.string.named_action_menu, focusLabel)
                             isTraversalGroup = true
                             dismiss { onDismiss(); true }
                         }
@@ -415,6 +420,7 @@ internal fun TabLongPressActionOverlay(
                         },
                     shape = RoundedCornerShape(panelCorner),
                     color = colors.surfaces.panel,
+                    obscuresBackdropContent = true,
                 ) {
                     key(state) {
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
@@ -453,7 +459,7 @@ internal fun TabLongPressActionOverlay(
                                 text = action.label,
                                 modifier = Modifier.weight(1f),
                                 color = actionColor,
-                                fontSize = 16.sp,
+                                fontSize = MenuMetrics.optionTextSize,
                                 lineHeight = menuOptionLineHeight,
                                 style = MenuLineStyle,
                             )

@@ -27,7 +27,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** 设置页值选择入口需向无障碍服务说明字段语义和菜单状态。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class SettingsContentAccessibilityTest {
     @get:Rule val compose = createComposeRule()

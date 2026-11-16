@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.component.glass
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -52,6 +54,7 @@ internal fun GlassRoundActionButton(
     actionWidth: Dp = 64.dp,
     content: @Composable (contentTint: Color) -> Unit,
 ) {
+    val preparing = stringResource(R.string.state_preparing)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
 
@@ -82,7 +85,7 @@ internal fun GlassRoundActionButton(
             )
             .semantics {
                 this.contentDescription = contentDescription
-                if (busy) this.stateDescription = "正在准备"
+                if (busy) this.stateDescription = preparing
             },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

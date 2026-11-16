@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.ComposeFavoriteRow
 
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
@@ -68,6 +72,7 @@ internal fun FavoriteFolderRow(
     fileCount: Int? = null,
     folderDeletionCount: (String) -> Int? = { null },
 ) {
+    val localizedResources = LocalResources.current
     val interactionSource = remember(row.path) { MutableInteractionSource() }
     val menuHost = LocalLongPressMenuHost.current
     val view = LocalView.current
@@ -77,31 +82,40 @@ internal fun FavoriteFolderRow(
     // 长按菜单中的删除会先弹出确认框，确认后删除该文件夹及其内部收藏。
     val openMenu: () -> Unit = {
         view.performLightMenuOpenHaptic()
-        val labels = if (row.level == 0) listOf("新建文件夹", "重命名", "删除") else listOf("重命名", "删除")
+        val labels = buildList {
+            if (row.level == 0) add(R.string.folder_create)
+            add(R.string.action_rename)
+            add(R.string.action_delete)
+        }
         val rowBounds = coordinates.rowBounds()
         menuHost(TabLongPressMenuState(rowBounds, FolderIcon, row.label, folderColor, dark,
             actions = labels.map { label ->
-                TabLongPressAction(label, when (label) {
-                    "新建文件夹" -> CreateNewFolderIcon
-                    "重命名" -> EditIcon
+                TabLongPressAction(localizedResources.getString(label), when (label) {
+                    R.string.folder_create -> CreateNewFolderIcon
+                    R.string.action_rename -> EditIcon
                     else -> DeleteIcon
                 }) {
                     when (label) {
-                        "新建文件夹" -> onShowSubfolderEditor(row.path)
-                        "重命名" -> onShowFolderEditor(row.path) { renamed ->
+                        R.string.folder_create -> onShowSubfolderEditor(row.path)
+                        R.string.action_rename -> onShowFolderEditor(row.path) { renamed ->
                             onRenameFolder(row.path, favoriteFolderRenameTargetPath(row.path, renamed))
                         }
                         else -> {
                             val count = folderDeletionCount(row.path)
-                            val scope = if (count == null) "其中的所有收藏" else "其中的 $count 个收藏"
-                            onConfirm("删除文件夹", "将删除“${row.path.replace("/", " / ")}”及$scope，确定继续吗？", "删除") {
+                            val scope = if (count == null) localizedResources.getString(R.string.folder_delete_all_contained)
+                                else localizedResources.getQuantityString(R.plurals.folder_delete_contained_count, count, count)
+                            onConfirm(
+                                localizedResources.getString(R.string.folder_delete),
+                                localizedResources.getString(R.string.folder_delete_confirm, row.path.replace("/", " / "), scope),
+                                localizedResources.getString(R.string.action_delete),
+                            ) {
                                 onDeleteFolder(row.path)
                             }
                         }
                     }
                 }
             }, restoreFocus = { if (coordinates.rowBounds() != androidx.compose.ui.geometry.Rect.Zero) focus.requestFocus() },
-            title = "编辑文件夹", tabAnchor = false,
+            title = localizedResources.getString(R.string.folder_edit), tabAnchor = false,
             menuAnchorBoundsOnScreen = coordinates.titleBounds() ?: rowBounds,
             sourceContent = {
                 FavoriteFolderRowContent(row, secondary, folderColor, fileCount, { if (row.collapsed) -90f else 0f })
@@ -142,7 +156,7 @@ internal fun FavoriteFolderRow(
                 role = Role.Button,
                 onClick = onClick,
                 onLongClick = openMenu,
-                onLongClickLabel = "编辑文件夹",
+                onLongClickLabel = stringResource(R.string.folder_edit),
                 hapticFeedbackEnabled = false,
             ),
     ) {
@@ -158,7 +172,7 @@ private fun FavoriteFolderRowContent(
 ) {
     Row(Modifier.fillMaxSize().padding(start = 11.dp + 20.dp * row.level, end = 5.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Icon(FolderIcon, "文件夹", tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
+        Icon(FolderIcon, stringResource(R.string.folder), tint = folderColor, modifier = Modifier.size(if (row.level == 0) 27.dp else 21.dp))
         Spacer(Modifier.width(if (row.level == 0) 8.dp else 7.dp))
         Text(row.label, color = LocalAppColorScheme.current.text.primary,
             fontSize = if (row.level == 0) 18.sp else 16.sp,
@@ -166,13 +180,13 @@ private fun FavoriteFolderRowContent(
             modifier = Modifier.weight(1f).onGloballyPositioned(onTitleCoordinates),
             style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        val countLabel = if (row.level == 0) "${row.count} 个子文件夹"
-            else fileCount?.let { "$it 个收藏" }
+        val countLabel = if (row.level == 0) pluralStringResource(R.plurals.subfolder_count, row.count, row.count)
+            else fileCount?.let { pluralStringResource(R.plurals.favorite_count, it, it) }
         if (countLabel != null) Text(countLabel, color = secondary, fontSize = 12.sp,
             modifier = Modifier.padding(start = 8.dp, end = 4.dp), maxLines = 1,
             style = androidx.compose.material3.LocalTextStyle.current.copy(background = Color.Transparent),
             textAlign = androidx.compose.ui.text.style.TextAlign.End)
-        Icon(KeyboardArrowDownIcon, if (row.collapsed) "展开文件夹" else "收起文件夹", tint = secondary,
+        Icon(KeyboardArrowDownIcon, if (row.collapsed) stringResource(R.string.folder_expand) else stringResource(R.string.folder_collapse), tint = secondary,
             modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = arrowRotation() })
     }
 }

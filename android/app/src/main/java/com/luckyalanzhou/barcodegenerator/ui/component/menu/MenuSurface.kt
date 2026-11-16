@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.geometry.Size
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassBackdropSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.BackdropRenderer
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.rememberGlassBackdropRenderer
@@ -56,11 +57,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 @Composable
 internal fun MenuSurface(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
     color: Color = LocalAppColorScheme.current.surfaces.panel,
     dynamicBackdrop: Boolean = true,
     screenSpaceBackdrop: Boolean = false,
     clearerGlass: Boolean = false,
+    obscuresBackdropContent: Boolean = false,
     backdropRenderer: BackdropRenderer? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -77,6 +79,7 @@ internal fun MenuSurface(
     val layoutDirection = LocalLayoutDirection.current
     var heightDp by remember { mutableFloatStateOf(80f) }
     val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp, policy.highContrast)
+    val surfaceOpacity = if (obscuresBackdropContent) 1f else spec.opacity
     val thickness = ((heightDp - 80f) / 240f).coerceIn(0f, 1f)
     val surfaceLuminance = color.luminance()
     val backgroundLuminance = remember(screenBackdrop, screenBounds) {
@@ -113,9 +116,10 @@ internal fun MenuSurface(
         highlight = { Highlight.Default.copy(alpha = .36f + .16f * press) },
         shadow = { Shadow(alpha = .16f) },
         onDrawSurface = {
-            val tint = if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
+            val tint = if (obscuresBackdropContent) surfaceOpacity
+                else if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
             val edgeTint = (tint + contrastTint).coerceIn(0f, 1f)
-            if (clearerGlass) {
+            if (clearerGlass && !obscuresBackdropContent) {
                 val rimFraction = (16.dp.toPx() / size.height).coerceIn(.01f, .45f)
                 val edge = color.copy(alpha = edgeTint)
                 val center = color.copy(alpha = (edgeTint + .30f).coerceAtMost(.92f))
@@ -158,7 +162,7 @@ internal fun MenuSurface(
     }) {
         if (!useKyant) Box(Modifier.matchParentSize().background(color))
         if (dynamicBackdrop && !useKyant) {
-            GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = spec.opacity,
+            GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = surfaceOpacity,
                 cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f },
                 drawFallback = false, screenCoordinates = true, renderer = renderer)
         }

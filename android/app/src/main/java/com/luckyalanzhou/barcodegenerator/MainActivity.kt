@@ -287,7 +287,7 @@ class MainActivity : AppCompatActivity() {
                 DebugLog.record("startup", "UI initialization failed", error)
             }
             startupFailureNotices.reportSettingsLoad(failed = settingsError != null)?.let {
-                if (!isFinishing && !isDestroyed) showIos26NoticeDialog(it)
+                if (!isFinishing && !isDestroyed) showIos26NoticeDialog(getString(it))
             }
             // 收藏和历史数据在首帧之后后台加载，避免数据量增长阻塞 Activity 创建和首次绘制。
             lifecycleScope.launch(Dispatchers.IO) {
@@ -303,7 +303,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 val fallbackNotice = startupFailureNotices.reportLibraryLoad(failed = libraryLoadFailed)
                 if (fallbackNotice != null) withContext(Dispatchers.Main) {
-                    if (!isFinishing && !isDestroyed) showIos26NoticeDialog(fallbackNotice)
+                    if (!isFinishing && !isDestroyed) showIos26NoticeDialog(getString(fallbackNotice))
                 }
             }
             window.decorView.post {
@@ -419,6 +419,8 @@ class MainActivity : AppCompatActivity() {
     private fun handleAppBackPressed() {
         when (navigationViewModel.uiState.value.page) {
             AppRoute.Settings -> navigationViewModel.navigateTo(navigationViewModel.uiState.value.settingsReturnPage)
+            AppRoute.AboutUs -> navigationViewModel.navigateTo(AppRoute.Settings)
+            AppRoute.Licenses -> navigationViewModel.navigateTo(AppRoute.AboutUs)
             AppRoute.LanShare -> { closeLanShare(); navigationViewModel.navigateTo(AppRoute.Settings) }
             AppRoute.Results -> navigationViewModel.navigateTo(resultsViewModel.resultUiState.value.returnPage)
             else -> finish()
@@ -439,7 +441,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun requestAppPermissions(permissions: Array<String>, requestCode: Int, cameraRequestCode: Int? = null) {
-        val permissionLabel = if (Manifest.permission.CAMERA in permissions) "相机" else "照片读取"
+        val permissionLabel = if (Manifest.permission.CAMERA in permissions) getString(R.string.permission_camera) else getString(R.string.permission_photos)
         val rationalePermission = permissionRequiringRationale(permissions, ::shouldShowRequestPermissionRationale)
         if (rationalePermission != null) {
             showPermissionRationaleDialog(
@@ -459,7 +461,7 @@ class MainActivity : AppCompatActivity() {
     ) {
         if (!cameraOcrViewModel.beginPermissionRequest(requestCode, permissions, cameraRequestCode)) {
             DebugLog.record("permission", "launch_rejected requestCode=$requestCode reason=request_pending")
-            toast("权限请求正在处理中，请稍后重试")
+            toast(getString(R.string.permission_request_pending))
             return
         }
         launchPendingPermissionRequest(permissions, requestCode)
@@ -474,7 +476,7 @@ class MainActivity : AppCompatActivity() {
                     "permission",
                     "launch_failed requestCode=$requestCode exception=${error.javaClass.simpleName}",
                 )
-                toast("无法打开权限请求，请重试")
+                toast(getString(R.string.permission_request_failed))
             },
         )
     }
@@ -488,22 +490,22 @@ class MainActivity : AppCompatActivity() {
                     else -> launchCamera(cameraOcrViewModel.cameraCaptureState.value.requestCode)
                 }
             } else {
-                if (permanentlyDenied) showPermissionSettingsDialog("相机")
-                else toast("需要相机权限才能拍照识别")
+                if (permanentlyDenied) showPermissionSettingsDialog(getString(R.string.permission_camera))
+                else toast(getString(R.string.camera_permission_required))
             }
         } else if (requestCode == REQUEST_LAN_SHARE_GALLERY_PERMISSION) {
             if (granted) openLanShareGalleryPicker()
-            else if (permanentlyDenied) showPermissionSettingsDialog("照片读取")
-            else toast("需要照片权限才能选择图库照片")
+            else if (permanentlyDenied) showPermissionSettingsDialog(getString(R.string.permission_photos))
+            else toast(getString(R.string.photo_permission_required))
         } else if (requestCode == REQUEST_LAN_SHARE_FILE_PERMISSION) {
-            if (granted) openLanShareFilePicker() else toast("需要文件权限才能选择文件")
+            if (granted) openLanShareFilePicker() else toast(getString(R.string.file_permission_required))
         }
     }
 
     internal fun launchExternalActivity(intent: Intent, requestCode: Int): Boolean {
         if (!cameraOcrViewModel.beginExternalActivityRequest(requestCode)) {
             DebugLog.record("external_activity", "launch_rejected requestCode=$requestCode reason=request_pending")
-            toast("已有系统操作正在进行，请完成后重试")
+            toast(getString(R.string.system_action_pending))
             return false
         }
         return try {
@@ -515,7 +517,7 @@ class MainActivity : AppCompatActivity() {
                 "launch_failed requestCode=$requestCode exception=${error.javaClass.simpleName}",
             )
             cameraOcrViewModel.consumeExternalActivityRequest()
-            toast("无法打开系统选择器")
+            toast(getString(R.string.picker_open_failed))
             false
         }
     }
@@ -524,7 +526,7 @@ class MainActivity : AppCompatActivity() {
     internal fun canStartExternalActivity(): Boolean {
         if (!cameraOcrViewModel.hasPendingExternalActivityRequest()) return true
         DebugLog.record("external_activity", "launch_rejected reason=request_pending")
-        toast("已有系统操作正在进行，请完成后重试")
+        toast(getString(R.string.system_action_pending))
         return false
     }
 
@@ -535,12 +537,12 @@ class MainActivity : AppCompatActivity() {
             if (resultCode == RESULT_OK) {
                 if (imageFile == null || !imageFile.isFile) {
                     DebugLog.record("results", "result_image_save_source_missing")
-                    toast("待保存图片已失效，请重新生成后重试")
+                    toast(getString(R.string.result_image_expired))
                 } else {
                     val targetUri = data?.data
                     if (targetUri == null) {
                         DebugLog.record("results", "result_image_save_returned_without_uri")
-                        toast("未能获取保存位置，请重试")
+                        toast(getString(R.string.save_location_missing))
                     } else {
                         lifecycleScope.launch {
                             val operation = System.nanoTime()
@@ -577,7 +579,7 @@ class MainActivity : AppCompatActivity() {
                                 } else {
                                     DebugLog.record("results", "result_image_save_completed operation=$operation")
                                 }
-                                toast(if (written) "已保存到文件" else "保存到文件失败")
+                                toast(if (written) getString(R.string.file_saved) else getString(R.string.save_file_failed))
                             } catch (cancelled: CancellationException) {
                                 DebugLog.record("results", "result_image_save_cancelled operation=$operation")
                                 throw cancelled
@@ -601,7 +603,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     else {
                         DebugLog.record("lan_share", "upload_picker_returned_without_uri")
-                        toast("未能读取所选文件，请重新选择")
+                        toast(getString(R.string.selected_file_unreadable))
                     }
                 }
                 return
@@ -613,13 +615,13 @@ class MainActivity : AppCompatActivity() {
                 val uri = data?.data
                 if (uri == null) {
                     DebugLog.record("lan_share", "download_picker_returned_without_uri")
-                    toast("未能获取保存位置，请重试")
+                    toast(getString(R.string.save_location_missing))
                     return
                 }
                 val session = lanShareViewModel.uiState.value.session
                 if (downloadId == null || session == null) {
                     DebugLog.record("lan_share", "download_picker_returned_without_active_transfer")
-                    toast("分享连接已结束，请重新连接后重试")
+                    toast(getString(R.string.share_connection_ended))
                     lifecycleScope.launch {
                         val cleanup = runDocumentProviderCleanupResult { contentResolver.delete(uri, null, null) }
                         if ((cleanup.getOrNull() ?: 0) <= 0) {
@@ -663,7 +665,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (error: Exception) {
                     retainedCaptureFile?.delete()
                     DebugLog.record("lan_share", "camera_capture_handoff_failed", error)
-                    toast("无法读取刚拍摄的照片")
+                    toast(getString(R.string.captured_photo_unreadable))
                 } finally {
                     releaseCameraCapture(retainedCaptureFile)
                 }
@@ -675,7 +677,7 @@ class MainActivity : AppCompatActivity() {
                 val uri = data?.data
                 if (uri == null) {
                     DebugLog.record("favorites", "backup_picker_returned_without_uri request=$requestCode")
-                    toast("未能获取备份文件，请重试")
+                    toast(getString(R.string.backup_picker_missing))
                 } else {
                     when (requestCode) {
                         REQUEST_FAVORITES_EXPORT -> exportFavorites(uri)
@@ -732,7 +734,7 @@ class MainActivity : AppCompatActivity() {
                     selectedBitmap?.also(pendingBitmap::set)
                 } ?: run {
                     DebugLog.record("image_decode", "recognition bitmap unavailable requestCode=$requestCode")
-                    toast("无法读取所选图片，请选择其他图片后重试")
+                    toast(getString(R.string.selected_image_unreadable))
                     return@launch
                 }
                 when (requestCode) {
@@ -750,9 +752,9 @@ class MainActivity : AppCompatActivity() {
                         // 识别结果直接回填 Compose 生成页，避免依赖已经不再承载界面的旧 EditText。
                         if (decoded != null) {
                             generateViewModel.updateDraft(listOf(decoded))
-                            toast("条码识别成功")
+                            toast(getString(R.string.barcode_recognized))
                         } else {
-                            toast("未识别到条码，请更换清晰图片")
+                            toast(getString(R.string.barcode_not_recognized))
                         }
                     }
                     51 -> {
@@ -766,7 +768,7 @@ class MainActivity : AppCompatActivity() {
                             DebugLog.record("barcode", "decode result ignored as stale requestCode=$requestCode")
                             return@launch
                         }
-                        if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast("未识别到分享二维码")
+                        if (decoded != null) lanShareViewModel.joinSessionFromAddress(decoded) else toast(getString(R.string.share_qr_not_recognized))
                     }
                     45, 46 -> {
                         pendingBitmap.compareAndSet(bitmap, null)

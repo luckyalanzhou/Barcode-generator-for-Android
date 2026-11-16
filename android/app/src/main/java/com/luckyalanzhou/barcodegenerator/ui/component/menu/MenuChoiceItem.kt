@@ -31,10 +31,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 
 /** 值选项共用显示：勾号表示保存状态，底色只表示当前按压或悬停，不参与业务状态更新。 */
 @Composable
@@ -46,7 +45,7 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
     val pressed by interactions.collectIsPressedAsState()
     val hovered by interactions.collectIsHoveredAsState()
     val feedback = colors.controls.accent.copy(alpha = if (LocalVisualEffectsPolicy.current.highContrast) .20f else .10f)
-    // 16sp 正文、22sp 行高，上下各 10dp；不限制最小高度，大字体和换行自然增高。
+    // 16sp 正文、22sp 行高，上下各 11dp；大字体和换行自然增高。
     Row(
         modifier = Modifier.fillMaxWidth()
             .hoverable(interactions)
@@ -57,7 +56,7 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
                 role = if (multiple) Role.Checkbox else Role.RadioButton
                 if (multiple) toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
                 else selected = checked
-            }.padding(horizontal = 12.dp, vertical = menuOptionVerticalPadding),
+            }.padding(horizontal = MenuMetrics.choiceHorizontalPadding, vertical = menuOptionVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
@@ -77,8 +76,8 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
                     strokeWidth, cap = StrokeCap.Round)
             }
         }
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = colors.text.primary, fontSize = 16.sp, lineHeight = menuOptionLineHeight,
+        Spacer(Modifier.width(MenuMetrics.choiceMarkGap))
+        Text(label, color = colors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight,
             style = MenuLineStyle, maxLines = 2, modifier = Modifier.weight(1f))
     }
 }

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
@@ -146,7 +147,7 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? =
             )
             if (!batchComplete) return@withContext null
             completed = true
-            ResultPageImage(pageImage, "本页生成的 ${resultItems.size} 个条码")
+            ResultPageImage(pageImage, resources.getQuantityString(R.plurals.results_share_count, resultItems.size, resultItems.size))
         } finally {
             if (!completed && !pageImage.isRecycled) pageImage.recycle()
         }
@@ -166,7 +167,7 @@ private fun MainActivity.withResultPageImage(action: ResultExportAction, onReady
             val result = createResultPageImage()
             if (result == null) {
                 DebugLog.record("results", "result_image_prepare failed reason=empty_or_invalid_layout action=$action")
-                toast("条码图片准备失败，请重试")
+                toast(getString(R.string.barcode_image_prepare_failed))
             } else {
                 DebugLog.actionSucceeded("result_image_prepare", "width=${result.bitmap.width} height=${result.bitmap.height}")
                 onReady(result)
@@ -178,10 +179,10 @@ private fun MainActivity.withResultPageImage(action: ResultExportAction, onReady
             throw error
         } catch (error: OutOfMemoryError) {
             DebugLog.actionFailed("result_image_prepare", error, "action=$action")
-            toast("图片占用内存过大，请减少条码数量后重试")
+            toast(getString(R.string.barcode_image_memory_limit))
         } catch (error: Exception) {
             DebugLog.actionFailed("result_image_prepare", error, "action=$action")
-            toast("条码图片准备失败，请重试")
+            toast(getString(R.string.barcode_image_prepare_failed))
         } finally {
             if (!sharingStarted) resultExportAction = null
         }
@@ -206,12 +207,12 @@ internal fun MainActivity.saveResultPage() = withResultPageImage(ResultExportAct
         }
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("保存条码", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.save_barcodes), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             Text(result.label, color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp,
                 modifier = Modifier.padding(top = 6.dp))
-            Image(result.bitmap.asImageBitmap(), "待保存的条码图片", contentScale = ContentScale.Fit,
+            Image(result.bitmap.asImageBitmap(), getString(R.string.barcode_image_to_save), contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).padding(top = 10.dp))
-            DialogAction("保存到相册", dark, {
+            DialogAction(getString(R.string.save_to_gallery), dark, {
                 val started = startExclusiveResultExport(
                     currentAction = resultExportAction,
                     requestedAction = ResultExportAction.Save,
@@ -227,7 +228,7 @@ internal fun MainActivity.saveResultPage() = withResultPageImage(ResultExportAct
                     dismiss()
                 }
             }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
-            DialogAction("保存到文件", dark, {
+            DialogAction(getString(R.string.save_to_file), dark, {
                 handedOffToSave = true
                 dismiss()
                 saveResultImageDocument(result)
@@ -269,7 +270,7 @@ private fun MainActivity.saveResultImageDocument(result: ResultPageImage) {
             DebugLog.actionFailed("result_image_document_prepare", error)
             temporary?.delete()
             pendingResultImageFile = null
-            toast("准备文件失败，请重试")
+            toast(getString(R.string.file_prepare_failed))
         } finally {
             result.recycle()
             finishResultExportPreparation(pendingResultImageFile) { resultExportAction = null }

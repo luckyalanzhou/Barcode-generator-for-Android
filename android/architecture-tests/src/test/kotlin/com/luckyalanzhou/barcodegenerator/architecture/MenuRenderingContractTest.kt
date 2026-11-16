@@ -23,7 +23,7 @@ class MenuRenderingContractTest {
         val editor = source("EditorChoiceField.kt")
         assertTrue(editor.contains("cornerReveal = compact"))
         assertTrue(editor.contains("anchorHeight = with(density) { buttonHeight.toDp() }"))
-        assertTrue(editor.contains("SingleChoiceMenuItem(option, option == value, highlightSelection = false)"))
+        assertTrue(editor.contains("SingleChoiceMenuItem(optionLabel(option), option == value, highlightSelection = false)"))
     }
     private fun source(name: String): String = File(Konsist.scopeFromProduction().files.single {
         File(it.path).name == name
@@ -61,13 +61,18 @@ class MenuRenderingContractTest {
     @Test fun `value menu rows keep compact height without material minimum height`() {
         val item = source("MenuChoiceItem.kt")
         assertFalse(item.contains("DropdownMenuItem("))
-        assertTrue(item.contains("fontSize = 16.sp, lineHeight = menuOptionLineHeight"))
-        assertTrue(item.contains("padding(horizontal = 12.dp, vertical = menuOptionVerticalPadding)"))
+        assertTrue(item.contains("fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight"))
+        assertTrue(item.contains("padding(horizontal = MenuMetrics.choiceHorizontalPadding, vertical = menuOptionVerticalPadding)"))
         assertTrue(item.contains("verticalAlignment = Alignment.CenterVertically"))
         assertTrue(item.contains(".clickable("))
         val menuStyle = source("MenuLineStyle.kt")
-        assertTrue(menuStyle.contains("menuOptionLineHeight: TextUnit = 22.sp"))
-        assertTrue(menuStyle.contains("menuOptionVerticalPadding = 10.dp"))
+        assertTrue(menuStyle.contains("menuOptionLineHeight: TextUnit = MenuMetrics.optionLineHeight"))
+        assertTrue(menuStyle.contains("menuOptionVerticalPadding = MenuMetrics.optionVerticalPadding"))
+        val metrics = source("MenuMetrics.kt")
+        assertTrue(metrics.contains("val optionTextSize = 16.sp"))
+        assertTrue(metrics.contains("val optionLineHeight = 22.sp"))
+        assertTrue(metrics.contains("val optionVerticalPadding = 11.dp"))
+        assertTrue(metrics.contains("val choiceHorizontalPadding = 12.dp"))
     }
 
     @Test fun `choice check precedes label and shares its text color`() {
@@ -83,13 +88,13 @@ class MenuRenderingContractTest {
 
     @Test fun `context rows use natural sixteen sp layout and heading follows measured row`() {
         val host = source("TabLongPressActionDialog.kt")
-        assertTrue(host.contains("fontSize = 16.sp,"))
+        assertTrue(host.contains("fontSize = MenuMetrics.optionTextSize,"))
         assertTrue(host.contains("lineHeight = menuOptionLineHeight,"))
         assertTrue(host.contains("vertical = menuOptionVerticalPadding"))
         assertFalse(host.contains("heightIn(min = ActionMenuMetrics.rowHeight)"))
         assertTrue(host.contains("measuredRowHeightPx * (3f / 4f)"))
         assertTrue(host.contains("menuOptionIconSize(density)"))
         val iconSizing = source("MenuLineStyle.kt")
-        assertTrue(iconSizing.contains("16.sp.toDp() + 4.dp"))
+        assertTrue(iconSizing.contains("MenuMetrics.optionTextSize.toDp() + 4.dp"))
     }
 }

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
@@ -43,7 +44,7 @@ internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, i
         var saving by remember { mutableStateOf(false) }
         ComposeGlassDialogCard(dark) {
             Text(
-                if (initial.isBlank()) "新建文件夹" else "重命名文件夹",
+                if (initial.isBlank()) getString(R.string.folder_create) else getString(R.string.folder_rename),
                 color = LocalAppColorScheme.current.text.primary,
                 fontSize = 18.sp,
             )
@@ -59,33 +60,33 @@ internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, i
                     unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("文件夹名称", color = LocalAppColorScheme.current.text.secondary) },
+                label = { Text(getString(R.string.folder_name), color = LocalAppColorScheme.current.text.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, { if (!saving) dismiss() })
-                DialogAction(if (saving) "保存中…" else "保存", dark, {
+                DialogAction(getString(R.string.action_cancel), dark, { if (!saving) dismiss() })
+                DialogAction(if (saving) getString(R.string.saving) else getString(R.string.action_save), dark, {
                     val name = value.trim()
                     val targetPath = favoriteFolderRenameTargetPath(initial, name)
                     val knownFolderPaths = dataState.folders + dataState.groups.map { it.folder }
                     when {
-                        name.isBlank() -> toast("请输入文件夹名称")
-                        !isValidFavoriteFolderName(name) -> toast("文件夹名称不能包含斜杠")
-                        !isValidFavoriteFolderPath(targetPath) -> toast("文件夹最多支持一级和二级，且名称不能包含斜杠")
-                        knownFolderPaths.any { it == targetPath && it != initial } -> toast("已存在同名文件夹")
+                        name.isBlank() -> toast(getString(R.string.folder_name_required))
+                        !isValidFavoriteFolderName(name) -> toast(getString(R.string.folder_name_slash))
+                        !isValidFavoriteFolderPath(targetPath) -> toast(getString(R.string.favorite_invalid_folder))
+                        knownFolderPaths.any { it == targetPath && it != initial } -> toast(getString(R.string.folder_name_duplicate))
                         initial.isNotBlank() && !isSafeFavoriteFolderRename(initial, targetPath, knownFolderPaths) ->
-                            toast("目标文件夹已存在或层级不合法")
+                            toast(getString(R.string.folder_destination_invalid))
                         !saving -> {
                             saving = true
                             operationInProgress = true
                             lifecycleScope.launch {
                                 try {
                                     if (onSaved(name)) dismiss()
-                                    else toast("文件夹保存失败，请检查名称后重试")
+                                    else toast(getString(R.string.folder_save_check_name))
                                 } catch (cancelled: CancellationException) {
                                     throw cancelled
                                 } catch (error: Exception) {
                                     DebugLog.record("favorites", "收藏文件夹保存失败", error)
-                                    toast("文件夹保存失败，请重试")
+                                    toast(getString(R.string.folder_save_failed))
                                 } finally {
                                     saving = false
                                     operationInProgress = false
@@ -107,7 +108,7 @@ internal fun MainActivity.showSubfolderEditorCompose(dataState: BarcodeDataState
         var value by remember { mutableStateOf("") }
         var saving by remember { mutableStateOf(false) }
         ComposeGlassDialogCard(dark) {
-            Text("新建文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.folder_create), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
@@ -120,18 +121,18 @@ internal fun MainActivity.showSubfolderEditorCompose(dataState: BarcodeDataState
                     unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
                     cursorColor = LocalAppColorScheme.current.text.primary,
                 ),
-                label = { Text("文件夹名称", color = LocalAppColorScheme.current.text.secondary) },
+                label = { Text(getString(R.string.folder_name), color = LocalAppColorScheme.current.text.secondary) },
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, { if (!saving) dismiss() })
-                DialogAction(if (saving) "保存中…" else "保存", dark, {
+                DialogAction(getString(R.string.action_cancel), dark, { if (!saving) dismiss() })
+                DialogAction(if (saving) getString(R.string.saving) else getString(R.string.action_save), dark, {
                     val child = value.trim()
                     val path = "$parent/$child"
                     when {
-                        child.isBlank() -> toast("请输入文件夹名称")
-                        child.contains('/') -> toast("名称不能包含斜杠")
+                        child.isBlank() -> toast(getString(R.string.folder_name_required))
+                        child.contains('/') -> toast(getString(R.string.name_slash))
                         path in dataState.folders || dataState.groups.any { it.folder == path } ->
-                            toast("已存在同名文件夹")
+                            toast(getString(R.string.folder_name_duplicate))
                         !saving -> {
                             saving = true
                             operationInProgress = true
@@ -141,13 +142,13 @@ internal fun MainActivity.showSubfolderEditorCompose(dataState: BarcodeDataState
                                         onCreated?.invoke(child)
                                         dismiss()
                                     } else {
-                                        toast("创建文件夹失败，请检查名称后重试")
+                                        toast(getString(R.string.folder_create_check_name))
                                     }
                                 } catch (cancelled: CancellationException) {
                                     throw cancelled
                                 } catch (error: Exception) {
                                     DebugLog.record("favorites", "创建收藏文件夹失败", error)
-                                    toast("创建文件夹失败，请重试")
+                                    toast(getString(R.string.folder_create_failed))
                                 } finally {
                                     saving = false
                                     operationInProgress = false

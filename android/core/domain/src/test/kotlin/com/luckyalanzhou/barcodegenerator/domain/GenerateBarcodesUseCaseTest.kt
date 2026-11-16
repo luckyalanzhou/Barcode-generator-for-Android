@@ -67,6 +67,6 @@ class GenerateBarcodesUseCaseTest {
 
         assertEquals(false, result.isValid)
         assertEquals(MAX_GENERATE_INPUT_ROWS, result.errorIndex)
-        assertEquals("最多支持 $MAX_GENERATE_INPUT_ROWS 行输入", result.errorMessage)
+        assertEquals(BarcodeInputError.TooManyRows, result.error)
     }
 }

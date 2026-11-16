@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
@@ -79,7 +80,7 @@ internal fun MainActivity.launchCamera(requestCode: Int) {
             DebugLog.actionFailed("camera_launch", error, "requestCode=$requestCode")
             cameraOcrViewModel.clearCameraOutput()
             photoFile?.delete()
-            toast("当前设备没有可用的相机")
+            toast(getString(R.string.camera_unavailable))
         }
     }
 

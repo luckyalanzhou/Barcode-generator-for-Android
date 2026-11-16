@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.results
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
@@ -133,12 +135,12 @@ internal fun ResultsContent(
 
     if (items.isEmpty()) {
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = dimensions.pageTopPadding), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("生成结果", color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+            Text(stringResource(R.string.title_results), color = primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
             Text(
                 when {
-                    state.isRestoring -> "正在恢复上次结果…"
-                    state.restoreFailed -> "上次结果已不可用，请返回重新打开"
-                    else -> "暂无生成结果"
+                    state.isRestoring -> stringResource(R.string.result_restoring)
+                    state.restoreFailed -> stringResource(R.string.result_restore_failed)
+                    else -> stringResource(R.string.result_empty)
                 },
                 color = secondary,
                 fontSize = 17.sp,
@@ -174,7 +176,7 @@ internal fun ResultsContent(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "生成结果",
+                stringResource(R.string.title_results),
                 color = primary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -187,36 +189,38 @@ internal fun ResultsContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    val description = stringResource(R.string.result_preparation_progress)
+                    val progressText = stringResource(R.string.result_progress_fraction, completedRows, items.size)
                     LinearProgressIndicator(
                         progress = { completedRows.toFloat() / items.size.coerceAtLeast(1) },
                         modifier = Modifier.width(240.dp).height(4.dp)
                             .semantics {
-                                contentDescription = "条码准备进度"
-                                stateDescription = "$completedRows/${items.size}"
+                                contentDescription = description
+                                stateDescription = progressText
                                 liveRegion = LiveRegionMode.Polite
                             },
                         color = themeColors.controls.accent,
                     )
                     Text(
-                        "正在准备条码 $completedRows/${items.size}…",
+                        stringResource(R.string.result_preparing_progress, completedRows, items.size),
                         color = secondary,
                         fontSize = 17.sp,
                     )
                     Text(
-                        "全部准备完成后显示结果",
+                        stringResource(R.string.result_show_when_ready),
                         color = secondary,
                         fontSize = 14.sp,
                     )
                 }
             } else {
                 Text(
-                    "条码准备失败，请重试",
+                    stringResource(R.string.result_preparation_failed),
                     color = secondary,
                     fontSize = 17.sp,
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                 )
                 TextButton(onClick = { retryAttempt++ }) {
-                    Text("重试", color = themeColors.controls.accent)
+                    Text(stringResource(R.string.action_retry), color = themeColors.controls.accent)
                 }
             }
         }
@@ -372,12 +376,12 @@ internal fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolea
     ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 key(ResultActionId.Edit) {
-                    ResultAction(EditIcon, "编辑", resultActionBlue, onEdit, actionWidth = actionWidth)
+                    ResultAction(EditIcon, stringResource(R.string.action_edit), resultActionBlue, onEdit, actionWidth = actionWidth)
                 }
                 key(ResultActionId.Favorite) {
                     ResultAction(
                         favoriteActionIcon,
-                        "收藏",
+                        stringResource(R.string.title_favorites),
                         if (isFavorite) themeColors.content.favoriteActive else resultActionBlue,
                         onSaveFavorite,
                         actionWidth = actionWidth,
@@ -388,7 +392,7 @@ internal fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolea
                 key(ResultActionId.Share) {
                     ResultAction(
                         IosShareIcon,
-                        "分享",
+                        stringResource(R.string.action_share),
                         resultActionBlue,
                         onShare,
                         enabled = !exportBusy,
@@ -399,7 +403,7 @@ internal fun ResultToolbar(exportAction: ResultExportAction?, isFavorite: Boolea
                 key(ResultActionId.Save) {
                     ResultAction(
                         DownloadIcon,
-                        "保存",
+                        stringResource(R.string.action_save),
                         resultActionBlue,
                         onSave,
                         enabled = !exportBusy,

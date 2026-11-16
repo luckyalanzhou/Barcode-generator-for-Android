@@ -12,7 +12,11 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.safeFileName
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCache
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocale
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebText
+import com.luckyalanzhou.barcodegenerator.data.network.web.defaultLanShareWebLocaleProvider
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.domain.LanShareMessage
@@ -64,6 +68,7 @@ internal class LanShareServer(
     private val deleteUploadStagingFile: (File) -> Boolean = File::delete,
     private val maxConcurrentClientConnections: Int = MAX_CLIENT_HANDLERS,
     private val httpRequestHeaderTimeoutMillis: Long = LAN_SHARE_HTTP_REQUEST_HEADER_TIMEOUT_MS,
+    private val webLocaleProvider: LanShareWebLocaleProvider = defaultLanShareWebLocaleProvider,
 ) : NanoWSD(host, port) {
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
@@ -777,11 +782,15 @@ internal class LanShareServer(
             }
             val payload = runCatching { JSONObject(payloadText) }.getOrNull() ?: return
             if (payload.optString("type") != "message") return
-            val posted = receiveBrowserMessage(browserClientId, payload.optString("text"))
+            val text = payload.optString("text")
+            val posted = receiveBrowserMessage(browserClientId, text)
             if (posted == null) {
-                val reason = if (payload.optString("text").toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) {
-                    "消息不能超过 64 KB"
-                } else "消息不能为空"
+                val locale = currentWebLocale()
+                val reason = if (text.toByteArray(Charsets.UTF_8).size > MAX_CHAT_MESSAGE_BYTES) {
+                    LanShareWebText.MESSAGE_TOO_LARGE
+                } else {
+                    LanShareWebText.MESSAGE_EMPTY
+                }.resolve(locale)
                 runCatching { sendQueued(JSONObject().put("type", "error").put("message", reason).toString()) }
             }
         }
@@ -974,7 +983,7 @@ internal class LanShareServer(
     override fun serve(session: IHTTPSession): Response {
         try {
             if (session.uri.substringBefore('?') == "/ws" && !isAuthorized(session)) {
-                return unauthorizedResponse()
+                return unauthorizedResponse(currentWebLocale())
             }
             return super.serve(session).apply { addHeader("Referrer-Policy", "no-referrer") }
         } finally {
@@ -984,13 +993,14 @@ internal class LanShareServer(
 
     /** 根据 HTTP 方法和路径分发网页、文件清单、上传、预览和下载请求。 */
     override fun serveHttp(session: IHTTPSession): Response {
+        val locale = currentWebLocale()
         val requestPath = session.uri.substringBefore('?')
         if (requestPath !in setOf("/", "/api/pair") && !isAuthorized(session)) {
-            return unauthorizedResponse()
+            return unauthorizedResponse(locale)
         }
         return try {
             when {
-                session.method == Method.POST && requestPath == "/api/pair" -> pairBrowser(session)
+                session.method == Method.POST && requestPath == "/api/pair" -> pairBrowser(session, locale)
 
                 session.method == Method.GET && requestPath == "/api/session" -> newFixedLengthResponse(
                     Response.Status.OK,
@@ -1011,17 +1021,18 @@ internal class LanShareServer(
                 session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(
                     Response.Status.OK,
                     "text/html; charset=utf-8",
-                    LanShareWebTemplates.page()
+                    LanShareWebTemplates.page(locale)
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 
                 session.method == Method.PUT && requestPath == "/upload" -> {
                     val body = uploadBody(session)
-                        ?: return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "上传请求长度无效")
+                        ?: return errorResponse(Response.Status.BAD_REQUEST, LanShareWebText.INVALID_UPLOAD_LENGTH, locale)
                             .apply { closeConnection(true) }
                     if (body.expectedBytes !in 0..LanShareLimits.MAX_FILE_BYTES) {
-                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "单个文件不能超过 10 GiB")
+                        return errorResponse(Response.Status.BAD_REQUEST, LanShareWebText.FILE_TOO_LARGE, locale)
                             .apply { closeConnection(true) }
                     }
+                    // This fallback is part of the stored file name and must not vary with the request language.
                     val submittedName = session.parameters["name"]?.firstOrNull().orEmpty().ifBlank { "附件" }
                     val client = session.parameters["client"]?.firstOrNull().orEmpty()
                     val transferId = session.parameters["transfer"]?.firstOrNull()
@@ -1043,21 +1054,22 @@ internal class LanShareServer(
                     val rejection = reserveUploadCapacity(body.expectedBytes)
                     if (rejection != null) {
                         val message = when (rejection) {
-                            UploadRejection.Stopped -> "分享服务已停止"
-                            UploadRejection.Busy -> "同时上传任务过多，请等待当前传输完成后重试"
-                            UploadRejection.RoomFull -> "房间文件总大小不能超过 100 GB"
-                            UploadRejection.RoomFileLimit -> "房间最多允许 1,000 个文件"
-                            UploadRejection.DiskFull -> "设备可用存储空间不足，请清理后重试"
+                            UploadRejection.Stopped -> LanShareWebText.SHARING_STOPPED
+                            UploadRejection.Busy -> LanShareWebText.UPLOAD_BUSY
+                            UploadRejection.RoomFull -> LanShareWebText.ROOM_FULL
+                            UploadRejection.RoomFileLimit -> LanShareWebText.ROOM_FILE_LIMIT
+                            UploadRejection.DiskFull -> LanShareWebText.DISK_FULL
                         }
                         logger.recordSafely("lan-server", "upload rejected reason=$rejection bytes=${body.expectedBytes}")
                         val bodyConsumed = drainSmallRejectedUpload(session, body)
-                        return newFixedLengthResponse(
+                        return errorResponse(
                             if (rejection == UploadRejection.RoomFull || rejection == UploadRejection.RoomFileLimit) {
                                 Response.Status.BAD_REQUEST
                             } else {
                                 Response.Status.SERVICE_UNAVAILABLE
                             },
-                            MIME_PLAINTEXT, message,
+                            message,
+                            locale,
                         ).apply { closeConnection(!bodyConsumed) }
                     }
                     receiveUpload(
@@ -1076,14 +1088,14 @@ internal class LanShareServer(
 
                 session.method == Method.GET && requestPath.startsWith("/api/preview/") -> {
                     val file = sharedFile(folder, decodeLanSharePathSegment(requestPath.substringAfterLast('/')))
-                    if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
+                    if (file == null) errorResponse(Response.Status.NOT_FOUND, LanShareWebText.FILE_NOT_FOUND, locale)
                     else {
                         val preview = webImagePreviewCache.getOrCreate(file, fileMimeType(file))
                         if (preview == null) {
-                            newFixedLengthResponse(
+                            errorResponse(
                                 Response.Status.NOT_ACCEPTABLE,
-                                MIME_PLAINTEXT,
-                                "此图片格式暂不支持网页预览，请点击文件名下载原图",
+                                LanShareWebText.PREVIEW_NOT_SUPPORTED,
+                                locale,
                             )
                         } else {
                             val previewMimeType = if (preview == file) fileMimeType(file) else "image/jpeg"
@@ -1098,7 +1110,7 @@ internal class LanShareServer(
 
                 session.method == Method.GET && requestPath.startsWith("/dl/") -> {
                     val file = sharedFile(folder, decodeLanSharePathSegment(requestPath.substringAfterLast('/')))
-                    if (file == null) newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "未找到文件")
+                    if (file == null) errorResponse(Response.Status.NOT_FOUND, LanShareWebText.FILE_NOT_FOUND, locale)
                     else newFixedLengthResponse(Response.Status.OK, fileMimeType(file), FileInputStream(file), file.length()).apply {
                         addHeader("Content-Length", file.length().toString())
                         addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
@@ -1110,7 +1122,7 @@ internal class LanShareServer(
                     }
                 }
 
-                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "not found")
+                else -> errorResponse(Response.Status.NOT_FOUND, LanShareWebText.ROUTE_NOT_FOUND, locale)
             }
         } catch (error: Exception) {
             logger.recordSafely(
@@ -1119,7 +1131,7 @@ internal class LanShareServer(
                 error,
                 error,
             )
-            newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "传输失败")
+            errorResponse(Response.Status.INTERNAL_ERROR, LanShareWebText.TRANSFER_FAILED, locale)
         }
     }
 
@@ -1136,27 +1148,33 @@ internal class LanShareServer(
         )
     }
 
-    private fun unauthorizedResponse(): Response = newFixedLengthResponse(
+    private fun currentWebLocale(): LanShareWebLocale =
+        LanShareWebLocale.fromTag(webLocaleProvider.currentSupportedLocaleTag())
+
+    private fun errorResponse(status: Response.Status, message: LanShareWebText, locale: LanShareWebLocale): Response =
+        newFixedLengthResponse(status, MIME_PLAINTEXT, message.resolve(locale))
+
+    private fun unauthorizedResponse(locale: LanShareWebLocale): Response = errorResponse(
         Response.Status.UNAUTHORIZED,
-        MIME_PLAINTEXT,
-        "需要有效的局域网会话凭据",
+        LanShareWebText.UNAUTHORIZED,
+        locale,
     ).apply {
         closeConnection(true)
         addHeader("WWW-Authenticate", "Bearer realm=\"lan-share\"")
         addHeader("Cache-Control", "no-store")
     }
 
-    private fun pairBrowser(session: IHTTPSession): Response {
+    private fun pairBrowser(session: IHTTPSession, locale: LanShareWebLocale): Response {
         val address = currentClientSocket.get()?.inetAddress?.hostAddress ?: "unknown"
         val now = System.currentTimeMillis()
         return synchronized(pairingAttemptsLock) {
             pairingAttemptsByAddress.entries.removeAll { now - it.value.windowStartedAtMs >= PAIRING_WINDOW_MS }
             val previous = pairingAttemptsByAddress[address]
             if (previous != null && previous.failures >= MAX_PAIRING_FAILURES) {
-                return@synchronized noStoreResponse(Response.Status.TOO_MANY_REQUESTS, "配对尝试过多，请稍后再试")
+                return@synchronized noStoreError(Response.Status.TOO_MANY_REQUESTS, LanShareWebText.PAIRING_TOO_MANY_ATTEMPTS, locale)
             }
             if (previous == null && pairingAttemptsByAddress.size >= MAX_TRACKED_PAIRING_ADDRESSES) {
-                return@synchronized noStoreResponse(Response.Status.TOO_MANY_REQUESTS, "当前配对请求过多，请稍后再试")
+                return@synchronized noStoreError(Response.Status.TOO_MANY_REQUESTS, LanShareWebText.PAIRING_BUSY, locale)
             }
 
             val suppliedCode = session.headers["x-lan-pairing-code"]
@@ -1177,12 +1195,12 @@ internal class LanShareServer(
                 previous?.windowStartedAtMs ?: now,
                 (previous?.failures ?: 0) + 1,
             )
-            noStoreResponse(Response.Status.UNAUTHORIZED, "配对码无效")
+            noStoreError(Response.Status.UNAUTHORIZED, LanShareWebText.INVALID_PAIRING_CODE, locale)
         }
     }
 
-    private fun noStoreResponse(status: Response.Status, message: String) =
-        newFixedLengthResponse(status, MIME_PLAINTEXT, message).apply { addHeader("Cache-Control", "no-store") }
+    private fun noStoreError(status: Response.Status, message: LanShareWebText, locale: LanShareWebLocale): Response =
+        errorResponse(status, message, locale).apply { addHeader("Cache-Control", "no-store") }
 
 }
 

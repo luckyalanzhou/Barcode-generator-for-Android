@@ -1,5 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import java.text.NumberFormat
+import com.luckyalanzhou.barcodegenerator.ui.support.localization.rememberApplicationFormattingLocale
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +41,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 
 @Composable
 internal fun LanShareUploadingBubble(upload: LanShareUploadingContent, onCancel: () -> Unit) {
+    val localizedResources = LocalResources.current
     val colors = LocalAppColorScheme.current
     val shape = RoundedCornerShape(18.dp)
     val progress = (upload.progressPercent / 100f).coerceIn(0f, 1f)
@@ -53,7 +59,7 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingContent, onCancel:
                 .widthIn(min = 220.dp, max = 340.dp)
                 .clip(shape)
                 .background(track)
-                .semantics { contentDescription = "正在上传 ${upload.name}" }
+                .semantics { contentDescription = localizedResources.getString(R.string.uploading_named_file, upload.name) }
                 .progressSemantics(progress)
                 .drawBehind {
                     drawRect(color = fill, size = androidx.compose.ui.geometry.Size(size.width * progress, size.height))
@@ -63,22 +69,26 @@ internal fun LanShareUploadingBubble(upload: LanShareUploadingContent, onCancel:
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(AttachFileIcon, contentDescription = "正在上传", tint = label, modifier = Modifier.size(26.dp))
+                Icon(AttachFileIcon, contentDescription = stringResource(R.string.uploading), tint = label, modifier = Modifier.size(26.dp))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(upload.name, color = label, fontSize = 14.sp, maxLines = 1)
                     Text(
-                        "${formatLanShareSize(upload.uploadedBytes.coerceIn(0L, upload.size.coerceAtLeast(0L)))} / ${formatLanShareSize(upload.size)}",
+                        stringResource(
+                            R.string.lan_upload_size_progress,
+                            formatLanShareSize(upload.uploadedBytes.coerceIn(0L, upload.size.coerceAtLeast(0L))),
+                            formatLanShareSize(upload.size),
+                        ),
                         color = label.copy(alpha = .75f),
                         fontSize = 12.sp,
                         maxLines = 1,
                     )
                 }
                 Spacer(Modifier.width(10.dp))
-                Text("${upload.progressPercent}%", color = label, fontSize = 13.sp, maxLines = 1)
+                Text(NumberFormat.getPercentInstance(rememberApplicationFormattingLocale()).format(upload.progressPercent / 100.0), color = label, fontSize = 13.sp, maxLines = 1)
                 TextButton(onClick = onCancel, interactionSource = cancelInteraction,
                     modifier = Modifier.iosPressFeedback(cancelInteraction).widthIn(min = 48.dp).heightIn(min = 48.dp).resultActionEdgeChrome()) {
-                Text("取消",
+                Text(stringResource(R.string.action_cancel),
                     color = label.copy(alpha = .82f),
                     fontSize = 12.sp,
                     maxLines = 1,

@@ -1,0 +1,13 @@
+<!-- Google Material Symbols Outlined: spellcheck. Apache-2.0.
+     https://github.com/google/material-design-icons/tree/master/symbols/web/spellcheck -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M564-80 394-250l56-56 114 114 226-226 56 56L564-80ZM120-320l194-520h94l194 520h-92l-46-132H254l-46 132h-88Zm162-208h156l-76-216h-4l-76 216Z" />
+    </group>
+</vector>

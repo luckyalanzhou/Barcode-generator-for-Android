@@ -20,7 +20,7 @@ interface ApkDownloadGateway {
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
-        onProgress: (progress: Int, indeterminate: Boolean, status: String) -> Unit,
+        onProgress: (progress: Int, indeterminate: Boolean, downloadedBytes: Long) -> Unit,
     ): File
 }
 
@@ -39,7 +39,11 @@ sealed interface UpdateLookupResult {
     ) : UpdateLookupResult
 
     data object UpToDate : UpdateLookupResult
-    data class Failed(val reason: String) : UpdateLookupResult
+    data class Failed(
+        val failure: UpdateFailure,
+        val diagnostic: String? = null,
+        val httpStatus: Int? = null,
+    ) : UpdateLookupResult
 }
 
 interface UpdateCatalogGateway {

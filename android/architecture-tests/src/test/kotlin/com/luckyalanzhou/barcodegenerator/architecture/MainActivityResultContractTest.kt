@@ -187,7 +187,7 @@ class MainActivityResultContractTest {
             .substringBefore("if (requestCode == REQUEST_LAN_SHARE_UPLOAD || requestCode == REQUEST_LAN_SHARE_DOWNLOAD)")
 
         assertTrue(resultImageResult.contains("result_image_save_returned_without_uri"))
-        assertTrue(resultImageResult.contains("未能获取保存位置，请重试"))
+        assertTrue(resultImageResult.contains("getString(R.string.save_location_missing)"))
         assertTrue(resultImageResult.contains("finishPendingResultImageDocument(imageFile)"))
     }
 
@@ -230,7 +230,7 @@ class MainActivityResultContractTest {
 
         assertTrue(pickerResult.contains("if (resultCode == RESULT_OK)"))
         assertTrue(pickerResult.contains("backup_picker_returned_without_uri"))
-        assertTrue(pickerResult.contains("未能获取备份文件，请重试"))
+        assertTrue(pickerResult.contains("getString(R.string.backup_picker_missing)"))
         assertTrue(pickerResult.contains("REQUEST_FAVORITES_EXPORT -> exportFavorites(uri)"))
         assertTrue(pickerResult.contains("REQUEST_FAVORITES_IMPORT -> confirmImportFavorites(uri)"))
     }

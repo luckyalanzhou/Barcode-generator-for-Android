@@ -35,7 +35,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** 历史卡片打开、长按编辑与行内删除互不串触发。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = android.app.Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = android.app.Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HistoryPageInteractionTest {
     @get:Rule val compose = createComposeRule()

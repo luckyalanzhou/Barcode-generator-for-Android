@@ -28,6 +28,6 @@ internal fun AppTheme(
         LocalAppDimensions provides AppDimensions(bottomTabBarHeight = bottomTabHeightForLabel(labelHeightDp).dp),
         LocalRippleConfiguration provides null,
     ) {
-        MaterialTheme(colorScheme = materialColors, content = content)
+        MaterialTheme(colorScheme = materialColors, typography = AppTypography, content = content)
     }
 }

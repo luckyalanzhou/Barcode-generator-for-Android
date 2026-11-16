@@ -7,26 +7,26 @@ import java.util.concurrent.CancellationException
 class LanShareAttachmentNameTest {
     @Test
     fun usesProviderDisplayNameWhenAvailable() {
-        assertEquals("photo.jpg", resolveLanShareAttachmentName { "photo.jpg" })
+        assertEquals("photo.jpg", resolveLanShareAttachmentName("附件") { "photo.jpg" })
     }
 
     @Test
     fun usesGenericNameWhenProviderHasNoDisplayName() {
-        assertEquals("附件", resolveLanShareAttachmentName { null })
+        assertEquals("附件", resolveLanShareAttachmentName("附件") { null })
     }
 
     @Test
     fun usesGenericNameWhenProviderQueryThrowsOrdinaryException() {
-        assertEquals("附件", resolveLanShareAttachmentName { error("provider unavailable") })
+        assertEquals("附件", resolveLanShareAttachmentName("附件") { error("provider unavailable") })
     }
 
     @Test(expected = AssertionError::class)
     fun propagatesFatalErrorsFromProviderQuery() {
-        resolveLanShareAttachmentName { throw AssertionError("fatal") }
+        resolveLanShareAttachmentName("附件") { throw AssertionError("fatal") }
     }
 
     @Test(expected = CancellationException::class)
     fun propagatesCancellationFromProviderQuery() {
-        resolveLanShareAttachmentName { throw CancellationException("cancelled") }
+        resolveLanShareAttachmentName("附件") { throw CancellationException("cancelled") }
     }
 }

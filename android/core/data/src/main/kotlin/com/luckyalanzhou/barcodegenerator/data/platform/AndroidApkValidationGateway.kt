@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateValidationException
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import android.content.Context
 import android.content.pm.PackageManager
 import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
@@ -19,9 +21,9 @@ class AndroidApkValidationGateway(
             PackageManager.GET_SIGNATURES
         }
         val info = packageManager.getPackageArchiveInfo(file.absolutePath, signingFlags)
-            ?: throw IllegalStateException("无法读取 APK 信息")
+            ?: throw UpdateValidationException(UpdateFailure.InvalidApk, "无法读取 APK 信息")
         // 错包应在查询当前安装包签名之前直接拒绝，保持原有短路顺序。
-        if (info.packageName != context.packageName) throw IllegalStateException("APK 包名与当前应用不一致")
+        if (info.packageName != context.packageName) throw UpdateValidationException(UpdateFailure.PackageMismatch, "APK 包名与当前应用不一致")
         val versionCode = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else {
             @Suppress("DEPRECATION")
             info.versionCode.toLong()

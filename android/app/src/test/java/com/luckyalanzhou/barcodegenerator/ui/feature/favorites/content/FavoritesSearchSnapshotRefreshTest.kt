@@ -26,7 +26,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** 回归检查：活动搜索的结果缓存会在快照重新加载时被清空。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FavoritesSearchSnapshotRefreshTest {
     @get:Rule val compose = createComposeRule()

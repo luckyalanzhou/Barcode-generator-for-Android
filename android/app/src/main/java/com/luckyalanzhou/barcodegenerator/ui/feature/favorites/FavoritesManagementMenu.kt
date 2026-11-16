@@ -1,11 +1,15 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuLineStyle
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionLineHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,6 +27,7 @@ import com.luckyalanzhou.barcodegenerator.icons.CloudUploadIcon
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 
 @Composable
 internal fun FavoritesManagementMenu(
@@ -46,7 +51,7 @@ internal fun FavoritesManagementMenu(
             },
             modifier = Modifier.heightIn(min = 48.dp).onSizeChanged { anchorHeight = it.height },
         ) {
-            Text("管理", color = colors.text.secondary)
+            Text(stringResource(R.string.action_manage), color = colors.text.secondary)
         }
         AnchoredDropdownMenu(
             dark = dark,
@@ -57,13 +62,15 @@ internal fun FavoritesManagementMenu(
             cornerReveal = true,
         ) {
             DropdownMenuItem(
-                text = { Text("导入收藏", color = colors.text.primary) },
+                modifier = Modifier.heightIn(min = MenuMetrics.minimumActionItemHeight),
+                text = { Text(stringResource(R.string.favorite_import), color = colors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight, style = MenuLineStyle) },
                 trailingIcon = { Icon(CloudDownloadIcon, contentDescription = null, tint = colors.text.primary) },
                 onClick = { expanded = false; onImport() },
             )
             ComposeDropdownDivider(dark)
             DropdownMenuItem(
-                text = { Text("导出收藏", color = colors.text.primary) },
+                modifier = Modifier.heightIn(min = MenuMetrics.minimumActionItemHeight),
+                text = { Text(stringResource(R.string.favorite_export), color = colors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight, style = MenuLineStyle) },
                 trailingIcon = { Icon(CloudUploadIcon, contentDescription = null, tint = colors.text.primary) },
                 onClick = { expanded = false; onExport() },
             )

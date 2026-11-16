@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.tree.FavoritesTreeState
@@ -35,5 +36,5 @@ internal data class FavoritesContentState(
     val searchRefreshGeneration: Long = 0L,
 )
 
-internal fun favoriteEmptyMessage(query: String): String =
-    if (query.isNotEmpty()) "没有匹配的收藏" else "还没有收藏"
+internal fun favoriteEmptyMessage(query: String): Int =
+    if (query.isNotEmpty()) R.string.favorites_no_matches else R.string.favorites_empty

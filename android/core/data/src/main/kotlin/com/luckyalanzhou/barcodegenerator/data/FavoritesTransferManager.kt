@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.data
 
+import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_ENTRIES
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupIssue
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupInputException
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupContentException
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeFavorite
 import com.luckyalanzhou.barcodegenerator.domain.InterchangeBackup
 import com.luckyalanzhou.barcodegenerator.domain.MAX_FAVORITES_BACKUP_INPUT_BYTES
@@ -19,7 +23,6 @@ import java.util.zip.CRC32
 private const val FAVORITES_DIRECTORY = "favorites"
 private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
 private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32L * 1024 * 1024
-private const val MAX_BACKUP_ZIP_ENTRIES = 2_048
 private const val ZIP_LOCAL_HEADER_BYTES = 30L
 private const val ZIP_CENTRAL_DIRECTORY_HEADER_BYTES = 46L
 private const val ZIP_END_OF_CENTRAL_DIRECTORY_BYTES = 22L
@@ -27,7 +30,11 @@ private const val ZIP_END_OF_CENTRAL_DIRECTORY_BYTES = 22L
 internal inline fun <T> parseFavoriteJsonOrError(parse: () -> T): T = try {
     parse()
 } catch (_: JSONException) {
-    error("收藏文件不是有效 JSON")
+    throw FavoriteBackupContentException(FavoriteBackupIssue.InvalidJson, "收藏文件不是有效 JSON")
+}
+
+private inline fun requireBackup(condition: Boolean, issue: FavoriteBackupIssue, diagnostic: () -> String) {
+    if (!condition) throw FavoriteBackupInputException(issue, diagnostic())
 }
 
 object FavoritesTransferManager {
@@ -69,8 +76,8 @@ object FavoritesTransferManager {
                 .sortedWith(compareBy(FavoriteGroupItem::position, FavoriteGroupItem::itemId))
                 .mapNotNull { itemById[it.itemId] }
                 .filter { it.text.isNotBlank() }
-            require(groupItems.isNotEmpty()) { "收藏“${group.name}”没有有效内容，无法导出" }
-            require(group.name.isNotBlank()) { "收藏文件缺少文件名" }
+            requireBackup(groupItems.isNotEmpty(), FavoriteBackupIssue.EmptyFavorite) { "收藏“${group.name}”没有有效内容，无法导出" }
+            requireBackup(group.name.isNotBlank(), FavoriteBackupIssue.MissingName) { "收藏文件缺少文件名" }
             val types = groupItems.map { toTransferType(it.format) }.distinct()
             val parts = splitFolder(group.folder)
             val favorite = InterchangeFavorite(
@@ -87,29 +94,27 @@ object FavoritesTransferManager {
 
     /** 写入任何字节前先校验所有条目，避免尺寸或格式错误留下不完整的导出文件。 */
     private fun validateExport(entries: List<ExportEntry>) {
-        require(entries.size <= MAX_BACKUP_ZIP_ENTRIES) { "收藏备份包含过多文件，最多支持 $MAX_BACKUP_ZIP_ENTRIES 项" }
+        requireBackup(entries.size <= MAX_FAVORITES_BACKUP_ENTRIES, FavoriteBackupIssue.TooManyEntries) { "收藏备份包含过多文件，最多支持 $MAX_FAVORITES_BACKUP_ENTRIES 项" }
         var uncompressedBytes = 0L
         var archiveBytes = ZIP_END_OF_CENTRAL_DIRECTORY_BYTES
         entries.forEach { entry ->
-            require(entry.path.length <= 65_535) { "收藏文件路径过长，无法导出" }
+            requireBackup(entry.path.length <= 65_535, FavoriteBackupIssue.PathTooLong) { "收藏文件路径过长，无法导出" }
             val nameBytes = entry.path.toByteArray(Charsets.UTF_8)
-            require(nameBytes.size <= 65_535) { "收藏文件路径过长，无法导出" }
+            requireBackup(nameBytes.size <= 65_535, FavoriteBackupIssue.PathTooLong) { "收藏文件路径过长，无法导出" }
             val dataBytes = entry.favorite?.let(::favoriteBytes) ?: ByteArray(0)
-            require(dataBytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES) { "收藏文件“${entry.favorite?.name}”超过 1 MB 限制" }
+            requireBackup(dataBytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES, FavoriteBackupIssue.FavoriteTooLarge) { "收藏文件“${entry.favorite?.name}”超过 1 MB 限制" }
             uncompressedBytes += dataBytes.size.toLong()
-            require(uncompressedBytes <= MAX_BACKUP_UNCOMPRESSED_BYTES) { "收藏备份解压后内容超过 32 MB 限制" }
+            requireBackup(uncompressedBytes <= MAX_BACKUP_UNCOMPRESSED_BYTES, FavoriteBackupIssue.UncompressedTooLarge) { "收藏备份解压后内容超过 32 MB 限制" }
             archiveBytes += ZIP_LOCAL_HEADER_BYTES + nameBytes.size + dataBytes.size +
                 ZIP_CENTRAL_DIRECTORY_HEADER_BYTES + nameBytes.size
-            require(archiveBytes <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong()) { "收藏备份超过 64 MB 限制" }
+            requireBackup(archiveBytes <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong(), FavoriteBackupIssue.ArchiveTooLarge) { "收藏备份超过 64 MB 限制" }
         }
     }
 
     private fun favoriteBytes(favorite: InterchangeFavorite): ByteArray {
-        require(minimumFavoriteJsonLength(favorite) <= MAX_BACKUP_FAVORITE_JSON_BYTES) {
-            "收藏文件“${favorite.name}”超过 1 MB 限制"
-        }
+        requireBackup(minimumFavoriteJsonLength(favorite) <= MAX_BACKUP_FAVORITE_JSON_BYTES, FavoriteBackupIssue.FavoriteTooLarge) { "收藏文件“${favorite.name}”超过 1 MB 限制" }
         return favoriteJson(favorite).toByteArray(Charsets.UTF_8).also { bytes ->
-            require(bytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES) { "收藏文件“${favorite.name}”超过 1 MB 限制" }
+            requireBackup(bytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES, FavoriteBackupIssue.FavoriteTooLarge) { "收藏文件“${favorite.name}”超过 1 MB 限制" }
         }
     }
 
@@ -131,8 +136,8 @@ object FavoritesTransferManager {
     }
 
     fun restore(bytes: ByteArray): InterchangeBackup {
-        require(bytes.size <= MAX_FAVORITES_BACKUP_INPUT_BYTES) { "备份文件超过 64 MB 限制" }
-        require(bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) { "仅支持逐收藏文件 ZIP 备份" }
+        requireBackup(bytes.size <= MAX_FAVORITES_BACKUP_INPUT_BYTES, FavoriteBackupIssue.ArchiveTooLarge) { "备份文件超过 64 MB 限制" }
+        requireBackup(bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte(), FavoriteBackupIssue.ZipRequired) { "仅支持逐收藏文件 ZIP 备份" }
         return extractBackupZip(bytes)
     }
 
@@ -146,7 +151,7 @@ object FavoritesTransferManager {
             var hasFavoritesRoot = false
             while (true) {
                 val entry = zip.nextEntry ?: break
-                require(++entries <= MAX_BACKUP_ZIP_ENTRIES) { "ZIP 备份包含过多文件" }
+                requireBackup(++entries <= MAX_FAVORITES_BACKUP_ENTRIES, FavoriteBackupIssue.TooManyEntries) { "ZIP 备份包含过多文件" }
                 val relativePath = favoriteRelativePath(entry.name)
                 if (relativePath != null && entry.isDirectory) {
                     hasFavoritesRoot = true
@@ -159,19 +164,19 @@ object FavoritesTransferManager {
                         zip,
                         MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed,
                         output = null,
-                        limitMessage = "收藏备份解压后内容超过 32 MB 限制",
+                        limitIssue = FavoriteBackupIssue.UncompressedTooLarge,
                     )
                 } else if (relativePath != null && !entry.isDirectory && relativePath.endsWith(".json", ignoreCase = true)) {
                     hasFavoritesRoot = true
                     val remainingBytes = MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed
                     val entryLimit = minOf(MAX_BACKUP_FAVORITE_JSON_BYTES.toLong(), remainingBytes)
-                    val limitMessage = if (remainingBytes <= MAX_BACKUP_FAVORITE_JSON_BYTES) {
-                        "收藏备份解压后内容超过 32 MB 限制"
+                    val limitIssue = if (remainingBytes <= MAX_BACKUP_FAVORITE_JSON_BYTES) {
+                        FavoriteBackupIssue.UncompressedTooLarge
                     } else {
-                        "单个收藏文件超过 1 MB 限制"
+                        FavoriteBackupIssue.FavoriteTooLarge
                     }
                     val content = ByteArrayOutputStream().use { output ->
-                        uncompressed += copyEntryLimited(zip, entryLimit, output, limitMessage)
+                        uncompressed += copyEntryLimited(zip, entryLimit, output, limitIssue)
                         output.toByteArray()
                     }
                     val favorite = parseFavoriteJson(content.toString(Charsets.UTF_8))
@@ -185,7 +190,7 @@ object FavoritesTransferManager {
                         zip,
                         MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed,
                         output = null,
-                        limitMessage = "收藏备份解压后内容超过 32 MB 限制",
+                        limitIssue = FavoriteBackupIssue.UncompressedTooLarge,
                     )
                 }
                 zip.closeEntry()
@@ -196,7 +201,7 @@ object FavoritesTransferManager {
                 return InterchangeBackup(favorites, folders.toList())
             }
         }
-        error("ZIP 备份中未找到收藏文件")
+        throw FavoriteBackupContentException(FavoriteBackupIssue.NoFavoritesRoot, "ZIP 备份中未找到收藏文件")
     }
 
     /**
@@ -222,15 +227,15 @@ object FavoritesTransferManager {
         // 收藏条码正文保留原始空格；仅过滤完全空白的无效条目。
         val originalTexts = value.optJSONArray("texts").toStrings()
         val originalFormats = value.optJSONArray("formats").toStrings()
-        require(originalFormats.isEmpty() || originalFormats.size == originalTexts.size) { "收藏条码格式与内容数量不一致" }
+        requireBackup(originalFormats.isEmpty() || originalFormats.size == originalTexts.size, FavoriteBackupIssue.MismatchedFormats) { "收藏条码格式与内容数量不一致" }
         val keptIndices = originalTexts.indices.filter { originalTexts[it].isNotBlank() }
         val texts = keptIndices.map(originalTexts::get)
         val formats = if (originalFormats.isEmpty()) emptyList() else keptIndices.map { toTransferType(originalFormats[it]) }
-        require(name.isNotBlank()) { "收藏文件缺少文件名" }
-        require(texts.isNotEmpty()) { "收藏文件“$name”没有有效内容，无法导入" }
+        requireBackup(name.isNotBlank(), FavoriteBackupIssue.MissingName) { "收藏文件缺少文件名" }
+        requireBackup(texts.isNotEmpty(), FavoriteBackupIssue.EmptyFavorite) { "收藏文件“$name”没有有效内容，无法导入" }
         // 导入与导出共用文件夹段约束，避免导入后无法再次导出。
-        require(isValidFolderSegment(rootFolder)) { "一级文件夹格式无效" }
-        require(isValidFolderSegment(subFolder)) { "二级文件夹格式无效" }
+        requireBackup(isValidFolderSegment(rootFolder), FavoriteBackupIssue.InvalidFolder) { "一级文件夹格式无效" }
+        requireBackup(isValidFolderSegment(subFolder), FavoriteBackupIssue.InvalidFolder) { "二级文件夹格式无效" }
         return InterchangeFavorite(value.optString("id").takeIf { it.isNotBlank() }, name, rootFolder, subFolder, toTransferType(value.optString("type", value.optString("barcodeType", "code128"))), value.optLong("time", System.currentTimeMillis()), texts, formats)
     }
 
@@ -238,7 +243,7 @@ object FavoritesTransferManager {
         input: java.io.InputStream,
         limit: Long,
         output: OutputStream?,
-        limitMessage: String,
+        limitIssue: FavoriteBackupIssue,
     ): Long {
         val buffer = ByteArray(16 * 1024)
         var total = 0L
@@ -246,17 +251,18 @@ object FavoritesTransferManager {
             val count = input.read(buffer)
             if (count < 0) break
             total += count.toLong()
-            require(total <= limit) { limitMessage }
+            requireBackup(total <= limit, limitIssue) {
+                if (limitIssue == FavoriteBackupIssue.UncompressedTooLarge) "收藏备份解压后内容超过 32 MB 限制"
+                else "单个收藏文件超过 1 MB 限制"
+            }
             output?.write(buffer, 0, count)
         }
         return total
     }
 
     fun appendEntities(backup: InterchangeBackup, existingItems: List<CodeItemEntity>, existingGroups: List<FavoriteGroupEntity>, existingLinks: List<FavoriteGroupItemEntity>): TransferEntities {
-        require(backup.favorites.all { favorite -> favorite.texts.any { it.isNotBlank() } }) {
-            "收藏文件存在空内容，无法导入"
-        }
-        require(backup.favorites.all { it.formats.isEmpty() || it.formats.size == it.texts.size }) { "收藏条码格式与内容数量不一致" }
+        requireBackup(backup.favorites.all { favorite -> favorite.texts.any { it.isNotBlank() } }, FavoriteBackupIssue.EmptyFavorite) { "收藏文件存在空内容，无法导入" }
+        requireBackup(backup.favorites.all { it.formats.isEmpty() || it.formats.size == it.texts.size }, FavoriteBackupIssue.MismatchedFormats) { "收藏条码格式与内容数量不一致" }
         // 收藏文件的身份只由文件夹路径和文件名决定；条码正文、格式和正文数量
         // 只用于确认文件有内容，绝不能参与判重。
         val existingKeys = existingGroups.map { FavoriteImportKey(normalizeFolder(it.folder), it.name.trim()) }.toSet()
@@ -289,9 +295,7 @@ object FavoritesTransferManager {
 
     private fun requireIdCapacity(maxExistingId: Long, allocationCount: Long, label: String) {
         if (allocationCount == 0L) return
-        require(maxExistingId >= 0L && maxExistingId <= Long.MAX_VALUE - allocationCount) {
-            "$label ID 已达到存储上限"
-        }
+        requireBackup(maxExistingId >= 0L && maxExistingId <= Long.MAX_VALUE - allocationCount, FavoriteBackupIssue.StorageLimit) { "$label ID 已达到存储上限" }
     }
 
     private data class FavoriteImportKey(
@@ -304,8 +308,8 @@ object FavoritesTransferManager {
 
     private fun splitFolder(folder: String): Pair<String, String> {
         val parts = folder.split('/').filter { it.isNotBlank() }
-        require(parts.size <= 2) { "文件夹“$folder”超过两级，无法跨平台导出" }
-        parts.forEach { require(isValidFolderSegment(it)) { "文件夹“$folder”格式无效" } }
+        requireBackup(parts.size <= 2, FavoriteBackupIssue.FolderTooDeep) { "文件夹“$folder”超过两级，无法跨平台导出" }
+        parts.forEach { requireBackup(isValidFolderSegment(it), FavoriteBackupIssue.InvalidFolder) { "文件夹“$folder”格式无效" } }
         return (parts.getOrNull(0) ?: "") to (parts.getOrNull(1) ?: "")
     }
 
@@ -422,7 +426,7 @@ object FavoritesTransferManager {
         "upca", "upc_a", "upc-a" -> "upca"
         "itf14", "itf_14", "itf-14", "itf" -> "itf14"
         "codabar" -> "codabar"
-        else -> error("不支持的条码格式：$format")
+        else -> throw FavoriteBackupContentException(FavoriteBackupIssue.UnsupportedFormat, "不支持的条码格式：$format")
     }
     private fun toAndroidFormat(type: String): String = when (toTransferType(type)) {
         "qr" -> "QR Code"; "code128" -> "Code 128-B"; "code39" -> "Code 39"; "ean13" -> "EAN-13"; "ean8" -> "EAN-8"; "upca" -> "UPC-A"; "itf14" -> "ITF-14"; else -> "Codabar"

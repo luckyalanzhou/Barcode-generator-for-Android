@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.UpdateLookupResult
 import com.sun.net.httpserver.HttpServer
@@ -41,7 +42,7 @@ class AndroidUpdateCatalogConnectionTest {
                 resultTask.await()
             }
 
-            assertEquals(UpdateLookupResult.Failed("GitHub HTTP 503"), result)
+            assertEquals(UpdateLookupResult.Failed(UpdateFailure.Http, "GitHub HTTP 503", 503), result)
             assertEquals(1, logEntries.size)
             assertEquals("update", logEntries.single().first)
             assertEquals("check failed", logEntries.single().second)
@@ -66,7 +67,7 @@ class AndroidUpdateCatalogConnectionTest {
                 resultTask.await()
             }
 
-            assertEquals(UpdateLookupResult.Failed("GitHub HTTP 503"), result)
+            assertEquals(UpdateLookupResult.Failed(UpdateFailure.Http, "GitHub HTTP 503", 503), result)
         }
     }
 

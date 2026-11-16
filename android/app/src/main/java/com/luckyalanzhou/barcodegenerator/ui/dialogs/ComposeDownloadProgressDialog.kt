@@ -1,5 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.dialogs
 
+import java.text.NumberFormat
+import com.luckyalanzhou.barcodegenerator.ui.support.localization.rememberApplicationFormattingLocale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
@@ -101,14 +106,24 @@ internal fun ComposeDownloadProgressDialog(
     onCancel: () -> Unit,
 ) {
     ComposeGlassDialogCard(dark) {
-        Text("下载更新", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+        Text(stringResource(R.string.download_update), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
         if (downloadState.indeterminate) ComposeIndeterminateProgress() else ComposeSegmentedProgress(downloadState.progress)
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text(downloadState.status, modifier = Modifier.weight(1f), color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp, maxLines = 1)
-            if (!downloadState.indeterminate) Text("${downloadState.progress.coerceIn(0, 100)}%", color = LocalAppColorScheme.current.text.link, fontSize = 14.sp)
+            val context = LocalContext.current
+            val bytes = downloadState.downloadedBytes
+            val status = when {
+                bytes == null -> stringResource(R.string.download_preparing)
+                downloadState.indeterminate -> stringResource(
+                    R.string.update_downloaded_size,
+                    android.text.format.Formatter.formatShortFileSize(context, bytes),
+                )
+                else -> stringResource(R.string.update_downloading)
+            }
+            Text(status, modifier = Modifier.weight(1f), color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp, maxLines = 1)
+            if (!downloadState.indeterminate) Text(NumberFormat.getPercentInstance(rememberApplicationFormattingLocale()).format(downloadState.progress.coerceIn(0, 100) / 100.0), color = LocalAppColorScheme.current.text.link, fontSize = 14.sp)
         }
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-            DialogAction("取消下载", dark, onCancel)
+            DialogAction(stringResource(R.string.cancel_download), dark, onCancel)
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import android.os.Build
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -76,9 +78,9 @@ internal fun GlassGenerateActionBar(
         // Record a sibling surface to avoid sampling an ancestor that contains the buttons.
         Box(Modifier.matchParentSize().layerBackdrop(backdrop).background(background))
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
-            GenerateActionButton("添加一行", AddIcon, colors.controls.accent, stacked, backdrop, onAddRow, Modifier.weight(1f))
-            GenerateActionButton("批量粘贴", ContentPasteIcon, pasteTint, stacked, backdrop, onBatchPaste, Modifier.weight(1f))
-            GenerateActionButton("拍照填充", PhotoCameraIcon, cameraTint, stacked, backdrop, onCaptureText, Modifier.weight(1f))
+            GenerateActionButton(stringResource(R.string.add_row), AddIcon, colors.controls.accent, stacked, backdrop, onAddRow, Modifier.weight(1f))
+            GenerateActionButton(stringResource(R.string.batch_paste), ContentPasteIcon, pasteTint, stacked, backdrop, onBatchPaste, Modifier.weight(1f))
+            GenerateActionButton(stringResource(R.string.ocr_take_photo), PhotoCameraIcon, cameraTint, stacked, backdrop, onCaptureText, Modifier.weight(1f))
         }
     }
 }

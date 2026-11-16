@@ -3,7 +3,10 @@ package com.luckyalanzhou.barcodegenerator.data
 import org.json.JSONException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupFailure
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupIssue
 
 class FavoriteJsonFailurePolicyTest {
     @Test
@@ -12,7 +15,8 @@ class FavoriteJsonFailurePolicyTest {
             parseFavoriteJsonOrError<String> { throw JSONException("malformed JSON") }
         }
 
-        assertEquals(IllegalStateException::class.java, failure?.javaClass)
+        assertTrue(failure is IllegalStateException)
+        assertEquals(FavoriteBackupIssue.InvalidJson, (failure as? FavoriteBackupFailure)?.issue)
         assertEquals("收藏文件不是有效 JSON", failure?.message)
     }
 

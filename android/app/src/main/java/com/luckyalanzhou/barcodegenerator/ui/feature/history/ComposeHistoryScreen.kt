@@ -15,6 +15,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.luckyalanzhou.barcodegenerator.ui.support.localization.rememberApplicationFormattingLocale
 import androidx.core.content.ContextCompat
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import java.util.Calendar
@@ -55,6 +56,7 @@ internal fun HistoryScreen(
     listBottomPadding: Dp = 8.dp,
 ) {
     val context = LocalContext.current
+    val locale = rememberApplicationFormattingLocale()
     var timeZoneChangeGeneration by remember { mutableLongStateOf(0L) }
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -110,7 +112,7 @@ internal fun HistoryScreen(
         onOpen = onOpen,
         onEdit = onEdit,
         onDelete = onDelete,
-        timeText = { time -> formatHistoryTime(time, refreshTime) },
+        timeText = { time -> formatHistoryTime(time, refreshTime, locale) },
     )
 }
 

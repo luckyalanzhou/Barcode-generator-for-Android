@@ -138,7 +138,7 @@ class CameraOcrViewModelTest {
             viewModel.performTextRecognition(bitmap, confusionMask = 0)
             viewModel.events.first()
         }
-        assertEquals(CameraOcrEvent.Notice("文字识别失败，请重试"), event)
+        assertEquals(CameraOcrEvent.Notice(R.string.ocr_failed), event)
         assertTrue(bitmap.isRecycled)
     }
 
@@ -186,7 +186,7 @@ class CameraOcrViewModelTest {
         }
 
         assertEquals(
-            listOf(CameraOcrEvent.Notice("识别结果超过 100 行，请分次拍摄")),
+            listOf(CameraOcrEvent.Notice(R.string.ocr_too_many_rows, 100)),
             events,
         )
         assertTrue(bitmap.isRecycled)
@@ -209,7 +209,7 @@ class CameraOcrViewModelTest {
             viewModel.events.first()
         }
 
-        assertEquals(CameraOcrEvent.Notice("文字识别失败，请重试"), event)
+        assertEquals(CameraOcrEvent.Notice(R.string.ocr_failed), event)
         assertTrue(bitmap.isRecycled)
     }
 

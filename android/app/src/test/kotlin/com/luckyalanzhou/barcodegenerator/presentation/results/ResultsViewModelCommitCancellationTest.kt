@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.results
 
+import com.luckyalanzhou.barcodegenerator.R
 import android.app.Application
 import android.graphics.Bitmap
 import android.os.Looper
@@ -403,7 +404,7 @@ class ResultsViewModelCommitCancellationTest {
             CodeItem(1, "12345670", "EAN-8", 1L),
         )
         var navigated = false
-        var notice: String? = null
+        var notice: Int? = null
 
         try {
             viewModel.showHistoryResult(
@@ -424,7 +425,7 @@ class ResultsViewModelCommitCancellationTest {
             )
 
             assertFalse("mixed formats cannot be represented by the single-format editor", navigated)
-            assertEquals("这组条码包含多种格式，不能在生成页统一编辑；原数据未更改", notice)
+            assertEquals(R.string.favorite_mixed_formats, notice)
             assertEquals(listOf("keep-this-draft"), editor.state.value.inputDraft)
             assertEquals("QR Code", editor.state.value.formatName)
         } finally {

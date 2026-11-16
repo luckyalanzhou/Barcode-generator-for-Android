@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
+import com.luckyalanzhou.barcodegenerator.domain.UpdateValidationException
 import java.io.File
 import java.util.UUID
 
@@ -35,10 +37,15 @@ internal fun moveLegacyPendingApkToShareableCache(cacheDirectory: File, apkFile:
         return apkFile
     }
 
-    val destinationDirectory = ensureShareableCacheDirectory(cacheDirectory, SHAREABLE_UPDATE_APKS_DIRECTORY)
+    val destinationDirectory = shareableCacheDirectory(cacheDirectory, SHAREABLE_UPDATE_APKS_DIRECTORY)
+    if (!destinationDirectory.isDirectory && !destinationDirectory.mkdirs()) {
+        throw UpdateValidationException(UpdateFailure.CacheUnavailable, "无法创建分享缓存目录")
+    }
     val destinationName = canonicalApkFile.name.removeSuffix(".apk") + "-legacy-${UUID.randomUUID()}.apk"
     val destination = File(destinationDirectory, destinationName)
-    check(canonicalApkFile.renameTo(destination)) { "无法迁移旧版更新安装文件" }
+    if (!canonicalApkFile.renameTo(destination)) {
+        throw UpdateValidationException(UpdateFailure.SaveFailed, "无法迁移旧版更新安装文件")
+    }
     return destination
 }
 

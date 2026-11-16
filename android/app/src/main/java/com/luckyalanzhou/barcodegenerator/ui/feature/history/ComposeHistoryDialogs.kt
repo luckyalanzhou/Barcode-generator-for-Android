@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -24,7 +26,7 @@ internal fun ClearHistoryDialogContent(
 ) {
     ComposeGlassDialogCard(dark) {
         Text(
-            "一键清空历史记录",
+            stringResource(R.string.history_clear_dialog),
             color = LocalAppColorScheme.current.text.primary,
             fontSize = 18.sp,
         )
@@ -32,9 +34,9 @@ internal fun ClearHistoryDialogContent(
             Modifier.fillMaxWidth().padding(top = 16.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            DialogAction("取消", dark, onDismiss)
+            DialogAction(stringResource(R.string.action_cancel), dark, onDismiss)
             DialogAction(
-                "确定",
+                stringResource(R.string.action_ok),
                 dark,
                 { onConfirm(); onDismiss() },
                 modifier = Modifier.padding(start = 20.dp),

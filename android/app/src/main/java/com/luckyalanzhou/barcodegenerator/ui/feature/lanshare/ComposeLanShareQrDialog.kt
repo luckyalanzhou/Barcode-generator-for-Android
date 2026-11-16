@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
@@ -82,32 +84,32 @@ internal fun ComposeLanShareQrDialog(
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("等待设备扫码", color = primary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.waiting_for_qr_scan), color = primary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        if (browserConnected) "设备已连接" else "等待设备连接",
+                        if (browserConnected) stringResource(R.string.device_connected) else stringResource(R.string.waiting_for_device),
                         color = if (browserConnected) colors.controls.success else secondary,
                         fontSize = 13.sp,
                     )
                 }
                 TextButton(onClick = closeSheet, interactionSource = closeInteractions,
                     modifier = Modifier.iosPressFeedback(closeInteractions).resultActionEdgeChrome()) {
-                    Text("关闭", color = secondary)
+                    Text(stringResource(R.string.action_off), color = secondary)
                 }
             }
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = "局域网分享二维码",
+                contentDescription = stringResource(R.string.lan_share_qr),
                 modifier = Modifier.padding(top = 12.dp).size(qrSize),
             )
             Text(
-                "同一 Wi-Fi 下扫码即可加入",
+                stringResource(R.string.lan_share_qr_instructions),
                 modifier = Modifier.padding(top = 12.dp),
                 color = secondary,
                 fontSize = 14.sp,
             )
             session.pairingCode?.let { code ->
                 Text(
-                    "手动连接配对码：$code",
+                    stringResource(R.string.lan_share_pairing_code, code),
                     modifier = Modifier.padding(top = 8.dp),
                     color = primary,
                     fontSize = 16.sp,
@@ -131,7 +133,7 @@ internal fun ComposeLanShareQrDialog(
                 )
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("复制连接地址", dark, { onCopyAddress(session.shareUrl) }, primary = true)
+                DialogAction(stringResource(R.string.share_address_copy), dark, { onCopyAddress(session.shareUrl) }, primary = true)
             }
         }
     }

@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.di
 
 import android.content.Context
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareManager
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
 import com.luckyalanzhou.barcodegenerator.data.BarcodeDatabase
 import com.luckyalanzhou.barcodegenerator.data.BarcodeDao
 import com.luckyalanzhou.barcodegenerator.data.FavoritesBackupUseCase
@@ -150,8 +151,16 @@ object AppModule {
 
     @Provides
     @Singleton
-    internal fun provideLanShareManager(@ApplicationContext context: Context): LanShareGateway =
-        LanShareManager(context, provideAppLogger())
+    internal fun provideLanShareWebLocaleProvider(@ApplicationContext context: Context): LanShareWebLocaleProvider =
+        AppLanShareWebLocaleProvider(context)
+
+    @Provides
+    @Singleton
+    internal fun provideLanShareManager(
+        @ApplicationContext context: Context,
+        logger: AppLogger,
+        webLocaleProvider: LanShareWebLocaleProvider,
+    ): LanShareGateway = LanShareManager(context, logger, webLocaleProvider)
 
     @Provides
     @Singleton

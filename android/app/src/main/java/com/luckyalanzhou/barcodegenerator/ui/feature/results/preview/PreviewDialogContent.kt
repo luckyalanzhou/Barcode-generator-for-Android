@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.results.preview
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +53,7 @@ internal fun PreviewDialogContent(
         }
         Image(
             bitmap = bitmap.asImageBitmap(),
-            contentDescription = "条码预览",
+            contentDescription = stringResource(R.string.barcode_preview),
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
@@ -63,9 +65,9 @@ internal fun PreviewDialogContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            DialogAction("保存图片", dark, onSave)
-            DialogAction("分享图片", dark, onShare)
-            DialogAction("关闭", dark, onDismiss)
+            DialogAction(stringResource(R.string.save_barcode_picture), dark, onSave)
+            DialogAction(stringResource(R.string.share_barcode_picture), dark, onShare)
+            DialogAction(stringResource(R.string.close_dialog), dark, onDismiss)
         }
     }
 }

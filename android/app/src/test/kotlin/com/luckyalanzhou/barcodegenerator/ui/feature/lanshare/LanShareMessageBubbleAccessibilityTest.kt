@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
 import android.app.Application
 import android.graphics.Bitmap
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
@@ -14,6 +15,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
 import com.luckyalanzhou.barcodegenerator.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
@@ -33,8 +36,11 @@ class LanShareMessageBubbleAccessibilityTest {
     fun imagePreviewExposesButtonRoleAndPreservesActivation() {
         val bitmap = Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888)
         var previewCount = 0
+        var expectedPreviewLabel: String? = null
         compose.setContent {
             AppTheme("light") {
+                val previewLabel = stringResource(R.string.preview_image)
+                SideEffect { expectedPreviewLabel = previewLabel }
                 LanShareMessageBubble(
                     ownFileIds = emptySet(),
                     file = LanShareFile("image-1", "sample.png", 128, 1, mimeType = "image/png"),
@@ -56,7 +62,7 @@ class LanShareMessageBubbleAccessibilityTest {
             SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button),
         )
         val clickAction = previewAction.fetchSemanticsNode().config[SemanticsActions.OnClick]
-        assertEquals("预览图片", clickAction.label)
+        assertEquals(expectedPreviewLabel, clickAction.label)
         previewAction.assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp).performClick()
         compose.runOnIdle { assertEquals(1, previewCount) }
     }

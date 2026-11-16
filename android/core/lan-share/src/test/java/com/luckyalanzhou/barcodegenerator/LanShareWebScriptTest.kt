@@ -2,12 +2,73 @@ package com.luckyalanzhou.barcodegenerator
 
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebScript
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocale
+import com.luckyalanzhou.barcodegenerator.data.network.web.escapeLanShareHtml
+import com.luckyalanzhou.barcodegenerator.data.network.web.lanShareScriptJson
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.LanShareLimits
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [35])
 class LanShareWebScriptTest {
+    @Test
+    fun defaultPageDeclaresSimplifiedChineseAndSuppliesRuntimeMessages() {
+        val page = LanShareWebTemplates.page()
+
+        assertTrue(page.contains("<html lang=\"zh-Hans\">"))
+        assertTrue(page.contains("<title>文件传输</title>"))
+        assertTrue(page.contains("\"NETWORK_FAILURE\":\"网络连接失败\""))
+    }
+
+    @Test
+    fun eachSupportedLocaleRendersItsPageAndRuntimeMessages() {
+        data class Expected(val tag: String, val title: String, val send: String, val connected: String, val networkError: String)
+        val translations = listOf(
+            Expected("zh-Hans", "文件传输", "发送", "● 已连接到设备", "网络连接失败"),
+            Expected("zh-Hant", "檔案傳輸", "傳送", "● 已連線至裝置", "網路連線失敗"),
+            Expected("en", "File transfer", "Send", "● Connected to device", "Network connection failed"),
+            Expected("ja", "ファイル転送", "送信", "● デバイスに接続済み", "ネットワークに接続できませんでした"),
+            Expected("ko", "파일 전송", "보내기", "● 기기에 연결됨", "네트워크 연결에 실패했습니다"),
+            Expected("es", "Transferencia de archivos", "Enviar", "● Conexión establecida", "Error de conexión de red"),
+        )
+
+        for (expected in translations) {
+            val page = LanShareWebTemplates.page(LanShareWebLocale.fromTag(expected.tag))
+            assertTrue(page.contains("<html lang=\"${expected.tag}\">"))
+            assertTrue(page.contains("<title>${expected.title}</title>"))
+            assertTrue(page.contains(">${expected.send}</button>"))
+            val strings = JSONObject(page.substringAfter("id=\"lan-share-strings\">").substringBefore("</script>"))
+            assertEquals(expected.connected, strings.getString("CONNECTED"))
+            assertEquals(expected.networkError, strings.getString("NETWORK_FAILURE"))
+        }
+    }
+
+    @Test
+    fun unsupportedLocaleRendersTheDefaultPage() {
+        assertEquals(LanShareWebTemplates.page(), LanShareWebTemplates.page(LanShareWebLocale.fromTag("fr-CA")))
+    }
+
+    @Test
+    fun embeddedJsonCannotTerminateTheHtmlScriptAndPreservesOriginalText() {
+        val value = "\"'\\</script><script>alert(1)</script>&\n\u2028\u2029"
+        val json = lanShareScriptJson(mapOf("translation" to value))
+
+        assertFalse(json.any { it in "<>&\u2028\u2029" })
+        assertEquals(value, JSONObject(json).getString("translation"))
+    }
+
+    @Test
+    fun translatedHtmlTextIsSafeInBothAttributesAndTextNodes() {
+        assertEquals("&quot;&apos;&amp;&lt;&gt;", escapeLanShareHtml("\"'&<>"))
+    }
+
     @Test
     fun browserClientIdentitySurvivesServerPortChanges() {
         val script = LanShareWebScript.render()
@@ -46,6 +107,16 @@ class LanShareWebScriptTest {
         assertTrue(script.contains("'X-Lan-Pairing-Code': code"))
         assertTrue(!script.contains("/api/pair?code="))
         assertTrue(script.contains("validateAccessToken(accessToken).catch(showPairing)"))
+    }
+
+    @Test
+    fun incompletePairingCodesReachTheLocalizedSubmitValidator() {
+        val page = LanShareWebTemplates.page(LanShareWebLocale.SPANISH)
+        val form = Regex("""<form\b[^>]*\bid="pairing-form"[^>]*>""").find(page)?.value.orEmpty()
+
+        assertTrue("Browser validation must not intercept pairing submissions", Regex("""\snovalidate\b""").containsMatchIn(form))
+        assertTrue(page.contains("if (!/^[0-9]{8}$/.test(code))"))
+        assertTrue(page.contains("pairingError.textContent = strings.ENTER_PAIRING_CODE"))
     }
 
     @Test
@@ -112,7 +183,7 @@ class LanShareWebScriptTest {
         assertEquals(10L * 1024L * 1024L * 1024L, LanShareLimits.MAX_FILE_BYTES)
         assertTrue(script.contains("const MAX_UPLOAD_BYTES = ${LanShareLimits.MAX_FILE_BYTES};"))
         assertTrue(script.contains("if (file.size > MAX_UPLOAD_BYTES)"))
-        assertTrue(script.contains("alert('单个文件不能超过 10 GiB')"))
+        assertTrue(script.contains("alert(strings.FILE_TOO_LARGE)"))
     }
 
     @Test
@@ -128,7 +199,7 @@ class LanShareWebScriptTest {
         assertTrue(page.contains("event.deltaY < 0 ? 1.15 : 1 / 1.15"))
         assertTrue(page.contains("Math.min(5, previewScale"))
         assertTrue(page.contains("function clampPreviewOffsets(baseWidth, baseHeight)"))
-        assertTrue(page.contains("name.download = file.name || '附件'"))
+        assertTrue(page.contains("name.download = file.name || strings.ATTACHMENT"))
     }
 
     @Test

@@ -18,6 +18,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    id("com.google.android.gms.oss-licenses-plugin")
     alias(libs.plugins.roborazzi)
 }
 
@@ -141,6 +142,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.kyant.backdrop)
     implementation(libs.kyant.shapes)
+    implementation(libs.play.services.oss.licenses)
     testImplementation(libs.junit)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)

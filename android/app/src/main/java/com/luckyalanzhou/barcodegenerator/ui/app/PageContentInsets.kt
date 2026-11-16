@@ -18,6 +18,23 @@ internal fun pageShellInsets(
     tabBarBottomPadding = pageBottomPadding,
 )
 
+/**
+ * Restores the Generate page's bottom reservation in step with the IME hide animation.
+ * This avoids expanding the page to the screen edge and then snapping it back above the tab bar.
+ */
+internal fun generateImeBottomInsetProgress(
+    currentImeBottomPx: Int,
+    sourceImeBottomPx: Int,
+    targetImeBottomPx: Int,
+): Float = when {
+    targetImeBottomPx > 0 -> 0f
+    sourceImeBottomPx > targetImeBottomPx -> {
+        ((sourceImeBottomPx - currentImeBottomPx).toFloat() /
+            (sourceImeBottomPx - targetImeBottomPx).toFloat()).coerceIn(0f, 1f)
+    }
+    else -> 1f
+}
+
 /** 生成页保留独立操作区，其余主 Tab 列表可以绘制到底栏后方。 */
 internal fun pageContentBottomInset(route: AppRoute, tabBarHeight: Dp): Dp =
     if (route == AppRoute.Generate) tabBarHeight + 8.dp else 0.dp

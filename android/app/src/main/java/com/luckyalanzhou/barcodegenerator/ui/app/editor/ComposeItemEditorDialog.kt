@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.editor
 
+import com.luckyalanzhou.barcodegenerator.ui.app.barcodeInputError
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.barcodeFormats
 import com.luckyalanzhou.barcodegenerator.barcodeFormatOption
@@ -49,12 +51,12 @@ internal fun MainActivity.showItemEditorCompose(
             mutableStateOf(itemEditorInitialFormat(initialFormat))
         }
         ComposeGlassDialogCard(dark) {
-            Text("编辑条目", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.edit_entry), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             OutlinedTextField(
                 value,
                 { value = it },
                 Modifier.fillMaxWidth().padding(top = 12.dp)
-                    .semantics { contentDescription = "条码内容" },
+                    .semantics { contentDescription = getString(R.string.barcode_contents) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = LocalAppColorScheme.current.text.primary,
@@ -73,12 +75,12 @@ internal fun MainActivity.showItemEditorCompose(
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("保存", dark, {
+                DialogAction(getString(R.string.action_save), dark, {
                     val text = value
                     val format = selectedFormat
                     val validation = BarcodeValidator.validate(text, format)
-                    if (text.isBlank()) toast("请输入条码内容")
-                    else if (!validation.valid) toast(validation.message)
+                    if (text.isBlank()) toast(getString(R.string.barcode_contents_required))
+                    else if (!validation.valid) toast(resources.barcodeInputError(checkNotNull(validation.error)))
                     else {
                         onUpdate(itemId, text, format)
                         dismiss()

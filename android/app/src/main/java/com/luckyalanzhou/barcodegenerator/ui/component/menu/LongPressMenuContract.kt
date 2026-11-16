@@ -22,7 +22,7 @@ internal data class TabLongPressMenuState(
     val dark: Boolean,
     val actions: List<TabLongPressAction>,
     val restoreFocus: () -> Unit = {},
-    val title: String = "操作",
+    val title: String = "",
     val tabAnchor: Boolean = true,
     val menuAnchorBoundsOnScreen: Rect = anchorBoundsOnScreen,
     // 来源行与浮层共用内容组件，避免长按后丢失数量、时间、箭头或改变字号。

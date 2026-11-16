@@ -10,12 +10,12 @@ class AppRouteTest {
     @Test
     fun knownPagesExposeSharedMetadata() {
         assertEquals(AppRoute.History, AppRoute.fromPage("history"))
-        assertEquals("历史记录", AppRoute.History.title)
+        assertEquals(R.string.title_history, AppRoute.History.titleResId)
         assertEquals(1, AppRoute.History.mainTabIndex)
         assertTrue(AppRoute.History.chromeVisible)
 
         assertEquals(AppRoute.Settings, AppRoute.fromPage("settings"))
-        assertEquals("设置", AppRoute.Settings.title)
+        assertEquals(R.string.title_settings, AppRoute.Settings.titleResId)
     }
 
     @Test

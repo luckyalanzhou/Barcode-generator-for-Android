@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
+
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
@@ -76,12 +79,16 @@ internal fun SettingsSection(title: String, dark: Boolean, content: @Composable 
 
 /** 页面入口整行可点；右箭头表示进入页面，不表示立即执行操作。 */
 @Composable
-internal fun SettingsNavigationRow(title: String, onClick: () -> Unit) {
+internal fun SettingsNavigationRow(title: String, onClick: () -> Unit, leading: (@Composable () -> Unit)? = null) {
     val colors = LocalAppColorScheme.current
     val interactions = remember { MutableInteractionSource() }
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).iosPressFeedback(interactions)
         .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.width(12.dp))
+        }
         Text(title, color = colors.settingsText.primary, fontSize = 16.sp, modifier = Modifier.weight(1f))
         Icon(KeyboardArrowRightIcon, contentDescription = null, tint = colors.settingsText.secondary,
             modifier = Modifier.padding(start = 12.dp).size(20.dp))
@@ -89,25 +96,49 @@ internal fun SettingsNavigationRow(title: String, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun SettingsRow(title: String, color: Color, modifier: Modifier = Modifier, trailing: @Composable () -> Unit) {
+internal fun SettingsRow(
+    title: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: @Composable () -> Unit,
+) {
     Row(modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight), verticalAlignment = Alignment.CenterVertically) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.width(12.dp))
+        }
         Text(title, color = color, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(end = 12.dp))
         trailing()
     }
 }
 
 @Composable
-internal fun SettingsActionRow(title: String, action: String, color: Color, buttonColor: Color, onClick: () -> Unit) {
+internal fun SettingsActionRow(
+    title: String,
+    action: String,
+    color: Color,
+    buttonColor: Color,
+    leading: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
     // 标题表达设置项，右侧操作表达可执行动作，两者不共用文字颜色。
-    SettingsRow(title, color) { SettingsButton(action, buttonColor, LocalAppColorScheme.current.controls.accent, onClick) }
+    SettingsRow(title, color, leading = leading) {
+        SettingsButton(action, buttonColor, LocalAppColorScheme.current.controls.accent, onClick)
+    }
 }
 
 @Composable
 internal fun SettingsDropdownButton(text: String, contentColor: Color, onClick: () -> Unit, onMeasured: (IntSize) -> Unit, pickerLabel: String? = null, expanded: Boolean = false) {
+    val pickerState = stringResource(
+        R.string.control_state_with_value,
+        text,
+        stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed),
+    )
     val modifier = Modifier
         .then(if (pickerLabel != null) Modifier.semantics {
             contentDescription = pickerLabel
-            stateDescription = "$text，${if (expanded) "已展开" else "已收起"}"
+            stateDescription = pickerState
         } else Modifier)
     // 值选择入口不画按钮框或底色，保留原点击区域、按压反馈与菜单锚点。
     SettingsButton(text, Color.Transparent, contentColor, onClick, modifier, showDisclosure = pickerLabel != null,
@@ -145,7 +176,7 @@ internal fun settingsButtonTextStyle(inherited: TextStyle): TextStyle =
 
 @Composable
 internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, anchorHeight: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(16.dp), containerColor = LocalAppColorScheme.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, anchorHeight = anchorHeight, alignEndWithAnchor = true, cornerReveal = true, content = content)
+    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics.surfaceCornerRadius), containerColor = LocalAppColorScheme.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, anchorHeight = anchorHeight, alignEndWithAnchor = true, cornerReveal = true, content = content)
 }
 
 @Composable

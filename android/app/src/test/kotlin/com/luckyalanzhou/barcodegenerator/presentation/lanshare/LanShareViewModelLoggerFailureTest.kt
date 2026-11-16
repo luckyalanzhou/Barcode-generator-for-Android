@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
+import com.luckyalanzhou.barcodegenerator.R
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
@@ -83,11 +84,11 @@ class LanShareViewModelLoggerFailureTest {
 
         try {
             viewModel.startHostSession()
-            viewModel.uploadFile(session, Uri.fromFile(uploadSourceFile))
+            viewModel.uploadFile(session, Uri.fromFile(uploadSourceFile), fallbackName = "Attachment")
 
             assertTrue("the upload should finish even if its diagnostic fails", terminalEvent.await(5, TimeUnit.SECONDS))
             assertTrue("the upload Gateway must receive the file", uploadStarted.count == 0L)
-            assertTrue("a successful upload must report success", events.any { it == LanShareEvent.Notice("上传成功") })
+            assertTrue("a successful upload must report success", events.any { it == LanShareEvent.Notice(R.string.upload_succeeded) })
             assertTrue("a diagnostic failure must not be reported as an upload failure", events.none { it is LanShareEvent.Error })
         } finally {
             eventCollector.cancel()

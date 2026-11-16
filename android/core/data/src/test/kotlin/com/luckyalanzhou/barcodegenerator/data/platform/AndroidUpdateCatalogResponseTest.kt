@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import com.luckyalanzhou.barcodegenerator.domain.UpdateLookupResult
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
@@ -27,8 +28,8 @@ class AndroidUpdateCatalogResponseTest {
         )
 
         assertEquals(
-            UpdateLookupResult.Failed("该版本缺少 SHA-256 校验信息，无法安全更新"),
-            result,
+            UpdateFailure.MissingHash,
+            (result as UpdateLookupResult.Failed).failure,
         )
     }
 

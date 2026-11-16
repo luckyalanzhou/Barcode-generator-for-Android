@@ -6,14 +6,14 @@ import org.junit.Test
 
 class ActionMenuStyleTest {
     @Test fun normalWindowsKeepRequestedWidthAndSmallWindowsStayInsideEdges() {
-        assertEquals(200f, actionMenuWidthDp(360f), .001f)
-        assertEquals(200f, actionMenuWidthDp(800f), .001f)
+        assertEquals(216f, actionMenuWidthDp(360f), .001f)
+        assertEquals(216f, actionMenuWidthDp(800f), .001f)
         assertEquals(156f, actionMenuWidthDp(180f), .001f)
         assertEquals(1f, actionMenuWidthDp(20f), .001f)
     }
 
     @Test fun existingMenuGeometryIsPreserved() {
-        assertEquals(12f, ActionMenuMetrics.corner.value, .001f)
+        assertEquals(14f, ActionMenuMetrics.corner.value, .001f)
     }
 
     @Test fun titleKeepsPlaceholderColorAndHighContrastRemainsReadable() {

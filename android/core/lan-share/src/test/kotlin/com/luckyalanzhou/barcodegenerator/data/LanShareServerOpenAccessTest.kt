@@ -1,8 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.data
 
 import com.luckyalanzhou.barcodegenerator.data.network.server.LanShareServer
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareRealtimeEvent
+import fi.iki.elonen.NanoWSD.WebSocketFrame
 import java.io.DataInputStream
 import java.io.File
 import java.net.HttpURLConnection
@@ -12,6 +14,8 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -23,6 +27,96 @@ import org.junit.rules.TemporaryFolder
 @org.robolectric.annotation.Config(manifest = org.robolectric.annotation.Config.NONE, sdk = [35])
 class LanShareServerOpenAccessTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
+
+    @Test
+    fun refreshingUsesOneCurrentLocaleWithoutEndingThePairedSession() {
+        val tag = AtomicReference("en")
+        val reads = AtomicInteger()
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+            webLocaleProvider = LanShareWebLocaleProvider {
+                reads.incrementAndGet()
+                tag.get()
+            },
+        )
+        try {
+            server.start(5_000, false)
+            val base = "http://127.0.0.1:${server.listeningPort}"
+            val paired = request("$base/api/pair", method = "POST", pairingCode = server.pairingCode)
+            assertEquals(200, paired.first)
+            val token = JSONObject(paired.second).getString("token")
+            assertEquals(200, request("$base/api/session", token = token).first)
+            val existingMessage = server.sendLocalMessage("你好 <script> \\\" ¡Hola!")
+
+            reads.set(0)
+            val english = request(base)
+            assertEquals(200, english.first)
+            assertEquals(1, reads.get())
+            assertTrue(english.second.contains("<html lang=\"en\">"))
+            assertTrue(english.second.contains("\"NETWORK_FAILURE\":\"Network connection failed\""))
+
+            tag.set("es")
+            reads.set(0)
+            val spanish = request(base)
+            assertEquals(200, spanish.first)
+            assertEquals(1, reads.get())
+            assertTrue(spanish.second.contains("<html lang=\"es\">"))
+            assertTrue(spanish.second.contains("\"NETWORK_FAILURE\":\"Error de conexión de red\""))
+            assertEquals(200, request("$base/api/session", token = token).first)
+            assertEquals(listOf(existingMessage), server.sessionSnapshot().messages)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun pairingAndFileErrorsKeepTheirStatusesWithLocalizedBodies() {
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+            webLocaleProvider = LanShareWebLocaleProvider { "en" },
+        )
+        try {
+            server.start(5_000, false)
+            val base = "http://127.0.0.1:${server.listeningPort}"
+            assertEquals(401 to "Invalid pairing code", request("$base/api/pair", method = "POST", pairingCode = "wrong"))
+            assertEquals(401 to "Valid LAN sharing credentials are required", request("$base/api/session"))
+            assertEquals(404 to "File not found", request("$base/dl/missing", token = server.sessionToken))
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun existingWebSocketUsesTheCurrentLocaleForAnErrorAndKeepsItsEventShape() {
+        val tag = AtomicReference("en")
+        val server = LanShareServer(
+            "127.0.0.1", 0, temporaryFolder.newFolder(), AppLogger { _, _, _ -> },
+            webLocaleProvider = LanShareWebLocaleProvider { tag.get() },
+        )
+        try {
+            server.start(5_000, false)
+            openWebSocket(server.listeningPort, server.sessionToken).use { browser ->
+                tag.set("es")
+                val input = browser.getInputStream()
+                val output = browser.getOutputStream()
+                WebSocketFrame(
+                    WebSocketFrame.OpCode.Text,
+                    true,
+                    """{"type":"message","text":""}""",
+                    byteArrayOf(1, 2, 3, 4),
+                ).write(output)
+                output.flush()
+                val frame = WebSocketFrame.read(input)
+                assertEquals(WebSocketFrame.OpCode.Text, frame.opCode)
+                val event = JSONObject(frame.textPayload)
+                assertEquals(setOf("type", "message"), event.keys().asSequence().toSet())
+                assertEquals("error", event.getString("type"))
+                assertEquals("El mensaje no puede estar vacío", event.getString("message"))
+            }
+        } finally {
+            server.stop()
+        }
+    }
 
     @Test
     fun briefWebSocketReconnectDoesNotReportDeviceDisconnected() {
@@ -435,7 +529,13 @@ class LanShareServerOpenAccessTest {
                 "Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
                 "Sec-WebSocket-Version: 13\r\n\r\n"
             ).toByteArray(Charsets.US_ASCII))
-        val statusLine = socket.getInputStream().bufferedReader().readLine()
+        val input = DataInputStream(socket.getInputStream())
+        val headers = StringBuilder()
+        while (!headers.endsWith("\r\n\r\n")) {
+            headers.append(input.readUnsignedByte().toChar())
+            assertTrue(headers.length < 8_192)
+        }
+        val statusLine = headers.toString().substringBefore("\r\n")
         assertTrue("WebSocket upgrade failed: $statusLine", statusLine.contains(" 101 "))
         return socket
     }

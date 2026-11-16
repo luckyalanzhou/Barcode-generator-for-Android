@@ -8,6 +8,7 @@ import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,6 +36,7 @@ internal fun ComposeChoiceField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     compact: Boolean = false,
+    optionLabel: (String) -> String = { it },
     onSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -58,13 +60,13 @@ internal fun ComposeChoiceField(
             colors = ButtonDefaults.outlinedButtonColors(contentColor = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary,
                 containerColor = androidx.compose.ui.graphics.Color.Transparent),
         ) {
-            Text(value, color = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(optionLabel(value), color = if (compact) LocalAppColorScheme.current.text.secondary else LocalAppColorScheme.current.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         AnchoredDropdownMenu(
             dark = dark,
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
             containerColor = LocalAppColorScheme.current.surfaces.overlay,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp,
@@ -79,9 +81,9 @@ internal fun ComposeChoiceField(
         ) {
             options.forEachIndexed { index, option ->
                 if (index > 0) ComposeDropdownDivider(dark)
-                if (compact) SingleChoiceMenuItem(option, option == value, highlightSelection = false) {
+                if (compact) SingleChoiceMenuItem(optionLabel(option), option == value, highlightSelection = false) {
                     onSelected(option); expanded = false
-                } else SingleChoiceMenuItem(option, option == value, highlightSelection = false) {
+                } else SingleChoiceMenuItem(optionLabel(option), option == value, highlightSelection = false) {
                     onSelected(option); expanded = false
                 }
             }

@@ -21,7 +21,7 @@ class UpdateCancellationTest {
                 apkUrl: String,
                 expectedSize: Long?,
                 expectedSha256: String?,
-                onProgress: (Int, Boolean, String) -> Unit,
+                onProgress: (Int, Boolean, Long) -> Unit,
             ) = File("ready.apk")
         }
         val coordinator = UpdateCoordinator(
@@ -59,7 +59,7 @@ class UpdateCancellationTest {
                     apkUrl: String,
                     expectedSize: Long?,
                     expectedSha256: String?,
-                    onProgress: (Int, Boolean, String) -> Unit,
+                    onProgress: (Int, Boolean, Long) -> Unit,
                 ) = File("ready-after-log-failure.apk")
             },
             updateCatalogGateway = object : UpdateCatalogGateway {
@@ -95,7 +95,7 @@ class UpdateCancellationTest {
                     apkUrl: String,
                     expectedSize: Long?,
                     expectedSha256: String?,
-                    onProgress: (Int, Boolean, String) -> Unit,
+                    onProgress: (Int, Boolean, Long) -> Unit,
                 ): File = throw IOException("network unavailable")
             },
             updateCatalogGateway = object : UpdateCatalogGateway {
@@ -141,7 +141,7 @@ class UpdateCancellationTest {
                     apkUrl: String,
                     expectedSize: Long?,
                     expectedSha256: String?,
-                    onProgress: (Int, Boolean, String) -> Unit,
+                    onProgress: (Int, Boolean, Long) -> Unit,
                 ): File {
                     downloadStarted.complete(Unit)
                     return releaseDownload.await()
@@ -191,17 +191,17 @@ class UpdateCancellationTest {
         var cancellations = 0
         val gateway = object : ApkDownloadGateway {
             override fun cancel() { cancellations++ }
-            override suspend fun download(apkUrl: String, expectedSize: Long?, expectedSha256: String?, onProgress: (Int, Boolean, String) -> Unit): File {
+            override suspend fun download(apkUrl: String, expectedSize: Long?, expectedSha256: String?, onProgress: (Int, Boolean, Long) -> Unit): File {
                 if (calls.incrementAndGet() == 1) {
                     firstStarted.complete(Unit)
                     withContext(NonCancellable) {
                         releaseFirst.await()
-                        onProgress(99, false, "old request")
+                        onProgress(99, false, 99L)
                         firstEnded.complete(Unit)
                     }
                     throw CancellationException()
                 }
-                onProgress(20, false, "new request")
+                onProgress(20, false, 20L)
                 secondStarted.complete(Unit)
                 releaseSecond.await()
                 return File("not-created-test.apk")

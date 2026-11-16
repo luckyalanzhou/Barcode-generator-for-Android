@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.history
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.unframedActionPressFeedback
@@ -58,15 +61,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-internal fun formatHistoryTime(time: Long, nowMillis: Long = System.currentTimeMillis()): String {
+internal fun formatHistoryTime(
+    time: Long,
+    nowMillis: Long = System.currentTimeMillis(),
+    locale: Locale = Locale.getDefault(),
+): String {
     val date = Date(time)
     val now = Date(nowMillis)
-    val day = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-    return if (day.format(date) == day.format(now)) {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
-    } else {
-        SimpleDateFormat("M/d HH:mm", Locale.getDefault()).format(date)
-    }
+    val day = SimpleDateFormat("yyyyMMdd", locale)
+    val skeleton = if (day.format(date) == day.format(now)) "Hm" else "MdHm"
+    val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton)
+    return SimpleDateFormat(pattern, locale).format(date)
 }
 
 internal fun historyBatchSummary(batch: List<CodeItem>): String =
@@ -126,14 +131,14 @@ internal fun HistoryComposePage(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        if (loadFailed) "历史记录加载失败" else "正在加载历史记录…",
+                        if (loadFailed) stringResource(R.string.history_load_failed) else stringResource(R.string.history_loading),
                         color = if (loadFailed) primary else secondary,
                         fontSize = 17.sp,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         textAlign = TextAlign.Center,
                     )
                     if (loadFailed) {
-                        DialogAction("重试", dark, onRetry, modifier = Modifier.padding(top = 12.dp), primary = true)
+                        DialogAction(stringResource(R.string.action_retry), dark, onRetry, modifier = Modifier.padding(top = 12.dp), primary = true)
                     }
                 }
             }
@@ -188,9 +193,9 @@ private fun HistoryBatchCard(
             .groupedContentSurface(dark, card, RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = onOpen,
-                onClickLabel = "查看这批条码",
+                onClickLabel = stringResource(R.string.view_barcode_batch),
                 onLongClick = onEdit,
-                onLongClickLabel = "编辑这批条码",
+                onLongClickLabel = stringResource(R.string.edit_barcode_batch),
                 role = Role.Button,
                 hapticFeedbackEnabled = false,
             ),
@@ -215,11 +220,11 @@ private fun HistoryBatchCard(
                 modifier = Modifier.size(48.dp).unframedActionPressFeedback(editInteractions),
             ) {
                 // 只移动图标来缩短视觉间距，按钮本身仍占独立的 48dp 触控区域。
-                Icon(EditIcon, "编辑这批条码", tint = colors.controls.accent, modifier = Modifier.offset(x = 12.dp).size(20.dp))
+                Icon(EditIcon, stringResource(R.string.edit_barcode_batch), tint = colors.controls.accent, modifier = Modifier.offset(x = 12.dp).size(20.dp))
             }
             IconButton(onClick = onDelete, interactionSource = deleteInteractions,
                 modifier = Modifier.size(48.dp).unframedActionPressFeedback(deleteInteractions)) {
-                Icon(DeleteIcon, "删除这条历史记录", tint = colors.content.deleteIcon, modifier = Modifier.size(20.dp))
+                Icon(DeleteIcon, stringResource(R.string.delete_history_entry), tint = colors.content.deleteIcon, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -231,7 +236,7 @@ private fun HistoryEmptyState(color: Color) {
         modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("暂无历史记录", color = color, fontSize = 17.sp)
+        Text(stringResource(R.string.history_empty), color = color, fontSize = 17.sp)
     }
 }
 
@@ -244,7 +249,7 @@ internal fun HistoryBatchPickerDialogContent(
 ) {
     ComposeGlassDialogCard(dark) {
         Text(
-            "本次生成的 ${batch.size} 个条码",
+            pluralStringResource(R.plurals.history_barcode_count, batch.size, batch.size),
             color = LocalAppColorScheme.current.text.primary,
             fontSize = 20.sp,
         )

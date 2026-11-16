@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupIssue
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupInputException
+import com.luckyalanzhou.barcodegenerator.domain.FavoriteBackupContentException
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.MainActivity
@@ -38,7 +42,7 @@ import java.util.Locale
 internal fun MainActivity.shareFavoritesExportForCompose() {
     DebugLog.actionStarted("favorites_backup_share")
     val name = timestampedBackupFileName()
-    toast("正在准备收藏备份…")
+    toast(getString(R.string.backup_preparing))
     lifecycleScope.launch(Dispatchers.IO) {
         val shareDirectory = ensureShareableCacheDirectory(cacheDir, SHAREABLE_FAVORITES_DIRECTORY)
         val result = prepareFavoriteBackupShareArtifact(shareDirectory, name) { artifact ->
@@ -51,21 +55,21 @@ internal fun MainActivity.shareFavoritesExportForCompose() {
                 val share = Intent(Intent.ACTION_SEND).apply {
                     type = "application/zip"
                     putExtra(Intent.EXTRA_STREAM, exportUri)
-                    putExtra(Intent.EXTRA_TITLE, "收藏备份 · $name")
+                    putExtra(Intent.EXTRA_TITLE, getString(R.string.backup_named, name))
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    clipData = ClipData.newRawUri("收藏备份", exportUri)
+                    clipData = ClipData.newRawUri(getString(R.string.backup_title), exportUri)
                 }
                 launchFavoriteBackupChooser(
-                    launch = { startActivity(Intent.createChooser(share, "分享收藏备份")) },
+                    launch = { startActivity(Intent.createChooser(share, getString(R.string.backup_share_title))) },
                     cleanupArtifact = { exportFile.delete() },
                     onFailure = { error ->
                         DebugLog.actionFailed("favorites_backup_share", error)
-                        toast("无法打开分享面板，请使用保存备份")
+                        toast(getString(R.string.backup_share_open_failed))
                     },
                 )
             }.onFailure {
                 DebugLog.actionFailed("favorites_backup_prepare", it)
-                toast(formatFavoritesExportError(it))
+                toast(resources.favoriteBackupFailureMessage(it, exporting = true))
             }
         }
     }
@@ -181,20 +185,9 @@ internal fun MainActivity.exportFavorites(uri: Uri) {
         }
         withContext(Dispatchers.Main) {
             result
-                .onSuccess { DebugLog.actionSucceeded("favorites_backup_export"); toast("收藏备份已导出") }
-                .onFailure { DebugLog.actionFailed("favorites_backup_export", it); toast(formatFavoritesExportError(it)) }
+                .onSuccess { DebugLog.actionSucceeded("favorites_backup_export"); toast(getString(R.string.backup_exported)) }
+                .onFailure { DebugLog.actionFailed("favorites_backup_export", it); toast(resources.favoriteBackupFailureMessage(it, exporting = true)) }
         }
-    }
-}
-
-private fun formatFavoritesExportError(error: Throwable): String {
-    val message = error.message.orEmpty()
-    return when {
-        message.contains("没有有效内容") || message.contains("空内容") ->
-            "收藏导出失败：存在没有条码内容的收藏文件，请补充内容后重试"
-        message.contains("ZIP") || message.contains("备份") || message.contains("JSON") ->
-            "收藏导出失败：导出的 ZIP 结构或内容校验不通过，请重试"
-        else -> "收藏导出失败：${message.ifBlank { "无法生成有效备份" }}"
     }
 }
 
@@ -209,16 +202,16 @@ internal fun MainActivity.confirmImportFavorites(uri: Uri) {
             } catch (_: Exception) {
                 null
             } ?: -1L
-            require(declaredSize < 0L || declaredSize <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong()) {
-                "备份文件超过 64 MB 限制"
+            if (declaredSize > MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong()) {
+                throw FavoriteBackupInputException(FavoriteBackupIssue.ArchiveTooLarge, "备份文件超过 64 MB 限制")
             }
             val bytes = contentResolver.openInputStream(uri)?.use { input -> readFavoritesBackupBounded(input) }
-                ?: error("无法读取备份文件")
+                ?: throw FavoriteBackupContentException(FavoriteBackupIssue.Unreadable, "无法读取备份文件")
             favoritesViewModel.restoreFavorites(bytes)
         }
         withContext(Dispatchers.Main) {
             parsed
-                .onFailure { DebugLog.actionFailed("favorites_backup_parse", it); toast("无法导入收藏：${it.message ?: "文件格式无效"}") }
+                .onFailure { DebugLog.actionFailed("favorites_backup_parse", it); toast(resources.favoriteBackupFailureMessage(it, reading = true)) }
                 .onSuccess { backup -> DebugLog.actionSucceeded("favorites_backup_parse"); confirmImportFavoritesCompose(uri, backup) }
         }
     }
@@ -239,11 +232,11 @@ internal fun MainActivity.importFavoritesForCompose(backup: InterchangeBackup, o
                 .onSuccess { (itemCount, groupCount) ->
                     DebugLog.actionSucceeded("favorites_backup_import", "groups=$groupCount items=$itemCount")
                     composeAppShellActions().navigateTo(AppRoute.Favorites)
-                    toast("已导入 $groupCount 个收藏，$itemCount 条码")
+                    toast(resources.favoriteImportCountMessage(R.string.favorites_imported, groupCount, itemCount))
                 }
                 .onFailure { error ->
                     DebugLog.actionFailed("favorites_backup_import", error)
-                    toast(favoritesImportFailureMessage(error))
+                    toast(resources.favoritesImportFailureMessage(error))
                 }
         }
     }
@@ -260,7 +253,17 @@ internal suspend fun <T> captureRecoverableFavoriteBackupOperation(
     Result.failure(error)
 }
 
-internal fun favoritesImportFailureMessage(error: Throwable): String =
+internal fun android.content.res.Resources.favoritesImportFailureMessage(error: Throwable): String =
     (error as? FavoritesImportRefreshException)?.let {
-        "数据库已写入 ${it.importedGroupCount} 个收藏、${it.importedItemCount} 条码，但列表刷新失败；请重启应用后查看"
-    } ?: "收藏导入失败：${error.message ?: "无法写入数据"}"
+        favoriteImportCountMessage(R.string.favorites_import_refresh_failed, it.importedGroupCount, it.importedItemCount)
+    } ?: favoriteBackupFailureMessage(error)
+
+private fun android.content.res.Resources.favoriteImportCountMessage(
+    @androidx.annotation.StringRes messageRes: Int,
+    groups: Int,
+    items: Int,
+): String = getString(
+    messageRes,
+    getQuantityString(R.plurals.favorite_count, groups, groups),
+    getQuantityString(R.plurals.backup_barcode_count, items, items),
+)

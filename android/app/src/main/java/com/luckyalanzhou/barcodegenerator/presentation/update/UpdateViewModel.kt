@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -124,13 +125,13 @@ class UpdateViewModel @Inject constructor(
     }
 
     /** 先确认版本已持久化，再关闭弹窗，避免失败后仍声称已忽略。 */
-    fun ignoreAvailableUpdate(onIgnored: () -> Unit = {}, onFailure: (String) -> Unit) =
+    fun ignoreAvailableUpdate(onIgnored: () -> Unit = {}, onFailure: (Int) -> Unit) =
         ignoreAvailableUpdate(viewModelScope, onIgnored, onFailure)
 
     internal fun ignoreAvailableUpdate(
         scope: CoroutineScope,
         onIgnored: () -> Unit = {},
-        onFailure: (String) -> Unit,
+        onFailure: (Int) -> Unit,
     ) {
         val version = uiState.value.availableVersion ?: return
         val ignoreKey = uiState.value.availableUpdateKey ?: version
@@ -145,11 +146,11 @@ class UpdateViewModel @Inject constructor(
             } catch (interrupted: InterruptedException) {
                 Thread.currentThread().interrupt()
                 logger.recordSafely("update", "ignore interrupted operation=$operation", interrupted, interrupted)
-                onFailure("忽略更新失败，请重试")
+                onFailure(R.string.ignore_update_failed)
                 return@launch
             } catch (error: Exception) {
                 logger.recordSafely("update", "ignore failed operation=$operation", error, error)
-                onFailure("忽略更新失败，请重试")
+                onFailure(R.string.ignore_update_failed)
                 return@launch
             }
             if (ignoreOperation.get() != operation || uiState.value.availableUpdateKey != ignoreKey) {
@@ -168,8 +169,8 @@ class UpdateViewModel @Inject constructor(
     fun setDialogShowing(value: Boolean) = updateFacade.setDialogShowing(value)
     fun setDownloadRunning(value: Boolean) = updateFacade.setDownloadRunning(value)
     fun resetDownloadState() = updateFacade.resetDownloadState()
-    fun setDownloadProgress(progress: Int, indeterminate: Boolean, status: String) =
-        updateFacade.setDownloadProgress(progress, indeterminate, status)
+    fun setDownloadProgress(progress: Int, indeterminate: Boolean, downloadedBytes: Long) =
+        updateFacade.setDownloadProgress(progress, indeterminate, downloadedBytes)
     suspend fun downloadUpdate(apkUrl: String, expectedSize: Long?, expectedSha256: String?): File =
         updateFacade.downloadUpdate(apkUrl, expectedSize, expectedSha256)
     fun validateDownloadedApk(file: File) = updateFacade.validateDownloadedApk(file)

@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import com.luckyalanzhou.barcodegenerator.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -34,7 +35,7 @@ class BatchBarcodeTextParserTest {
         val result = BatchBarcodeTextParser.parse("first\nsecond,third\nfourth")
 
         assertEquals(
-            BatchBarcodeTextResult.Failure(2, "每行只能有一个条码值；含逗号或双引号的值请用双引号括起"),
+            BatchBarcodeTextResult.Failure(2, R.string.batch_paste_one_value_per_row),
             result,
         )
     }
@@ -50,7 +51,7 @@ class BatchBarcodeTextParserTest {
     fun rejectsTooManyRowsAtomically() {
         val result = BatchBarcodeTextParser.parse("one\ntwo\nthree", maxRows = 2)
 
-        assertEquals(BatchBarcodeTextResult.Failure(3, "最多导入 2 行条码"), result)
+        assertEquals(BatchBarcodeTextResult.Failure(3, R.string.batch_paste_import_limit, 2), result)
     }
 
     @Test
@@ -59,7 +60,7 @@ class BatchBarcodeTextParserTest {
 
         val result = BatchBarcodeTextParser.parse(input, maxRows = 2)
 
-        assertEquals(BatchBarcodeTextResult.Failure(3, "最多导入 2 行条码"), result)
+        assertEquals(BatchBarcodeTextResult.Failure(3, R.string.batch_paste_import_limit, 2), result)
         assertTrue("容量检查后不应继续扫描剩余文本: ${input.charactersRead}", input.charactersRead < 64)
     }
 
@@ -104,7 +105,7 @@ class BatchBarcodeTextParserTest {
         assertEquals(
             BatchBarcodePastePreview.Invalid(
                 line = 2,
-                reason = "每行只能有一个条码值；含逗号或双引号的值请用双引号括起",
+                reason = R.string.batch_paste_one_value_per_row,
             ),
             BatchBarcodeTextParser.preview(listOf("EXISTING"), "ONE\nTWO,THREE"),
         )
@@ -113,7 +114,7 @@ class BatchBarcodeTextParserTest {
     @Test
     fun previewReportsRemainingCapacityConflictWithoutPartialRows() {
         assertEquals(
-            BatchBarcodePastePreview.Invalid(line = null, reason = "最多保留 3 行；本次导入会超出上限"),
+            BatchBarcodePastePreview.Invalid(line = null, reason = R.string.batch_paste_preview_capacity, rowLimit = 3),
             BatchBarcodeTextParser.preview(listOf("ONE", "TWO"), "THREE\nFOUR", maxRows = 3),
         )
     }

@@ -14,7 +14,7 @@ import org.robolectric.annotation.Config
 
 /** LAN 主机的明文传输提示应完整暴露给界面与辅助技术。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 class LanShareSecurityNoticeTest {
     @get:Rule val compose = createComposeRule()
 

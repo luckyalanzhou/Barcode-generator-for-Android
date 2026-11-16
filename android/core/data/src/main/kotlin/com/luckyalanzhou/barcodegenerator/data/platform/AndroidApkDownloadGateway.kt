@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateValidationException
+import com.luckyalanzhou.barcodegenerator.domain.UpdateDownloadException
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import android.content.Context
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
@@ -50,12 +53,14 @@ class AndroidApkDownloadGateway private constructor(
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
-        onProgress: (progress: Int, indeterminate: Boolean, status: String) -> Unit,
+        onProgress: (progress: Int, indeterminate: Boolean, downloadedBytes: Long) -> Unit,
     ): File = withContext(Dispatchers.IO) {
         val requestId = UUID.randomUUID().toString()
         val temp = File(context.cacheDir, "$UPDATE_APK_DOWNLOAD_FILE_PREFIX$requestId$UPDATE_APK_PARTIAL_FILE_SUFFIX")
         val shareDirectory = File(context.cacheDir, "$UPDATE_APK_SHARE_CACHE_DIRECTORY")
-        check(shareDirectory.isDirectory || shareDirectory.mkdirs()) { "无法创建更新包分享目录" }
+        if (!shareDirectory.isDirectory && !shareDirectory.mkdirs()) {
+            throw UpdateValidationException(UpdateFailure.CacheUnavailable, "无法创建更新包分享目录")
+        }
         val official = File(shareDirectory, "$UPDATE_APK_DOWNLOAD_FILE_PREFIX$requestId.apk")
         var connection: HttpURLConnection? = null
         activePartialFiles.add(temp)
@@ -65,8 +70,12 @@ class AndroidApkDownloadGateway private constructor(
                 logger.recordSafely("update", "removed orphaned APK partial files count=$removedPartials")
             }
             val limit = UpdateSecurity.MAX_APK_DOWNLOAD_BYTES
-            require(expectedSha256 != null) { "该版本缺少 SHA-256 校验信息，无法安全更新" }
-            require(expectedSize == null || expectedSize <= limit) { "更新包超过 500 MB 限制" }
+            if (expectedSha256 == null) {
+                throw UpdateDownloadException(UpdateFailure.MissingHash, "该版本缺少 SHA-256 校验信息，无法安全更新")
+            }
+            if (expectedSize != null && expectedSize > limit) {
+                throw UpdateDownloadException(UpdateFailure.OversizedApk, "更新包超过 500 MB 限制")
+            }
             var currentUrl = URL(apkUrl)
             HttpsUpdateRedirectPolicy.requireAllowedGitHubReleaseUrl(currentUrl)
             var redirectsFollowed = 0
@@ -96,7 +105,9 @@ class AndroidApkDownloadGateway private constructor(
                     redirectsFollowed++
                     continue
                 }
-                require(responseCode in 200..299) { "HTTP $responseCode" }
+                if (responseCode !in 200..299) {
+                    throw UpdateDownloadException(UpdateFailure.Http, "HTTP $responseCode")
+                }
             }
             val downloadConnection = checkNotNull(connection)
             logger.recordSafely(
@@ -104,7 +115,9 @@ class AndroidApkDownloadGateway private constructor(
                 "download response=${downloadConnection.responseCode} contentLength=${downloadConnection.contentLengthLong}",
             )
             val total = downloadConnection.contentLengthLong.takeIf { it > 0L } ?: expectedSize
-            require(total == null || total <= limit) { "更新包超过 500 MB 限制" }
+            if (total != null && total > limit) {
+                throw UpdateDownloadException(UpdateFailure.OversizedApk, "更新包超过 500 MB 限制")
+            }
             temp.delete()
             downloadConnection.inputStream.use { input ->
                 temp.outputStream().use { output ->
@@ -113,20 +126,26 @@ class AndroidApkDownloadGateway private constructor(
                     var count: Int
                     while (input.read(buffer).also { count = it } != -1) {
                         coroutineContext.ensureActive()
-                        require(done + count <= limit) { "更新包超过 500 MB 限制" }
+                        if (done + count > limit) {
+                            throw UpdateDownloadException(UpdateFailure.OversizedApk, "更新包超过 500 MB 限制")
+                        }
                         output.write(buffer, 0, count)
                         done += count
                         if (total != null) {
                             val progress = (done * 100 / total).toInt().coerceIn(0, 100)
-                            onProgress(progress, false, "正在下载")
+                            onProgress(progress, false, done)
                         } else {
-                            onProgress(0, true, "正在下载… ${done / 1024} KB")
+                            onProgress(0, true, done)
                         }
                     }
                 }
             }
-            require(temp.isFile && temp.length() > 0L) { "APK 为空" }
-            require(expectedSize == null || temp.length() == expectedSize) { "文件大小校验失败：${temp.length()} / $expectedSize" }
+            if (!temp.isFile || temp.length() == 0L) {
+                throw UpdateDownloadException(UpdateFailure.EmptyApk, "APK 为空")
+            }
+            if (expectedSize != null && temp.length() != expectedSize) {
+                throw UpdateDownloadException(UpdateFailure.SizeMismatch, "文件大小校验失败：${temp.length()} / $expectedSize")
+            }
             val digest = MessageDigest.getInstance("SHA-256")
             val actual = temp.inputStream().use { input ->
                 val buffer = ByteArray(16 * 1024)
@@ -137,10 +156,14 @@ class AndroidApkDownloadGateway private constructor(
                 }
                 digest.digest().joinToString("") { "%02x".format(it) }
             }
-            require(actual.equals(expectedSha256, true)) { "SHA-256 校验失败" }
+            if (!actual.equals(expectedSha256, true)) {
+                throw UpdateDownloadException(UpdateFailure.HashMismatch, "SHA-256 校验失败")
+            }
             coroutineContext.ensureActive()
             official.delete()
-            require(temp.renameTo(official)) { "无法保存更新文件" }
+            if (!temp.renameTo(official)) {
+                throw UpdateDownloadException(UpdateFailure.SaveFailed, "无法保存更新文件")
+            }
             logger.recordSafely("update", "download validated size=${official.length()}")
             return@withContext official
         } finally {

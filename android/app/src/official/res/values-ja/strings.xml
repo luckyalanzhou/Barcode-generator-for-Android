@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name_release">バーコード生成</string>
+    <string name="app_name_debug">バーコード生成 Debug</string>
+</resources>

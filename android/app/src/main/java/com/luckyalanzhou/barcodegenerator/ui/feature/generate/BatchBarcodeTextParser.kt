@@ -1,11 +1,13 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import com.luckyalanzhou.barcodegenerator.R
+import androidx.annotation.StringRes
 import com.luckyalanzhou.barcodegenerator.domain.MAX_GENERATE_INPUT_ROWS
 
 /** 批量粘贴解析结果；失败时提供原始文本行号，调用方不得应用部分结果。 */
 internal sealed interface BatchBarcodeTextResult {
     data class Success(val values: List<String>) : BatchBarcodeTextResult
-    data class Failure(val line: Int, val reason: String) : BatchBarcodeTextResult
+    data class Failure(val line: Int, @StringRes val reason: Int, val rowLimit: Int? = null) : BatchBarcodeTextResult
 }
 
 /** 草稿追加结果；容量检查通过前不修改调用方持有的当前输入。 */
@@ -18,7 +20,7 @@ internal sealed interface BatchBarcodeAppendResult {
 internal sealed interface BatchBarcodePastePreview {
     data object Empty : BatchBarcodePastePreview
     data class Ready(val addedCount: Int, val totalCount: Int) : BatchBarcodePastePreview
-    data class Invalid(val line: Int?, val reason: String) : BatchBarcodePastePreview
+    data class Invalid(val line: Int?, @StringRes val reason: Int, val rowLimit: Int? = null) : BatchBarcodePastePreview
 }
 
 /**
@@ -31,7 +33,7 @@ internal object BatchBarcodeTextParser {
     fun preview(current: List<String>, text: CharSequence, maxRows: Int = MAX_INPUT_ROWS): BatchBarcodePastePreview {
         if (text.all { it.isWhitespace() || it == '\uFEFF' }) return BatchBarcodePastePreview.Empty
         return when (val parsed = parse(text, maxRows)) {
-            is BatchBarcodeTextResult.Failure -> BatchBarcodePastePreview.Invalid(parsed.line, parsed.reason)
+            is BatchBarcodeTextResult.Failure -> BatchBarcodePastePreview.Invalid(parsed.line, parsed.reason, parsed.rowLimit)
             is BatchBarcodeTextResult.Success -> when (val appended = append(current, parsed.values, maxRows)) {
                 is BatchBarcodeAppendResult.Success -> BatchBarcodePastePreview.Ready(
                     addedCount = parsed.values.size,
@@ -39,14 +41,15 @@ internal object BatchBarcodeTextParser {
                 )
                 BatchBarcodeAppendResult.CapacityExceeded -> BatchBarcodePastePreview.Invalid(
                     line = null,
-                    reason = "最多保留 $maxRows 行；本次导入会超出上限",
+                    reason = R.string.batch_paste_preview_capacity,
+                    rowLimit = maxRows,
                 )
             }
         }
     }
 
     fun parse(text: CharSequence, maxRows: Int = MAX_INPUT_ROWS): BatchBarcodeTextResult {
-        if (maxRows <= 0) return BatchBarcodeTextResult.Failure(1, "没有可用的输入行")
+        if (maxRows <= 0) return BatchBarcodeTextResult.Failure(1, R.string.batch_paste_no_rows)
         val values = ArrayList<String>()
         var lineStart = if (text.isNotEmpty() && text[0] == '\uFEFF') 1 else 0
         var lineNumber = 1
@@ -58,11 +61,11 @@ internal object BatchBarcodeTextParser {
                 val value = parseSingleCsvField(line)
                     ?: return BatchBarcodeTextResult.Failure(
                         line = lineNumber,
-                        reason = "每行只能有一个条码值；含逗号或双引号的值请用双引号括起",
+                        reason = R.string.batch_paste_one_value_per_row,
                     )
                 if (value.isNotBlank()) {
                     if (values.size == maxRows) {
-                        return BatchBarcodeTextResult.Failure(lineNumber, "最多导入 $maxRows 行条码")
+                        return BatchBarcodeTextResult.Failure(lineNumber, R.string.batch_paste_import_limit, maxRows)
                     }
                     values += value
                 }
@@ -77,7 +80,7 @@ internal object BatchBarcodeTextParser {
             lineNumber++
         }
         return if (values.isEmpty()) {
-            BatchBarcodeTextResult.Failure(1, "请粘贴至少一行非空条码内容")
+            BatchBarcodeTextResult.Failure(1, R.string.batch_paste_requires_text)
         } else {
             BatchBarcodeTextResult.Success(values)
         }

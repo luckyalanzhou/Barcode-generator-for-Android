@@ -2,15 +2,14 @@ package com.luckyalanzhou.barcodegenerator.ui.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 
 /** Tab 菜单与文件/文件夹菜单共用此样式；各自的布局和手势保持独立。 */
 internal object ActionMenuMetrics {
-    val width = 200.dp
-    val corner = 12.dp
-    val horizontalPadding = 16.dp
-    val iconGap = 12.dp
-    val separatorHeight = .5.dp
+    val width = MenuMetrics.actionMenuMaxWidth
+    val corner = MenuMetrics.surfaceCornerRadius
+    val horizontalPadding = MenuMetrics.actionHorizontalPadding
+    val iconGap = MenuMetrics.actionIconGap
+    val separatorHeight = MenuMetrics.separatorHeight
 }
 
 @Immutable

@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.presentation.update
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailureCause
 import androidx.lifecycle.SavedStateHandle
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -76,9 +78,9 @@ internal class UpdateCoordinator(
                     UpdateCheckResult.UpToDate
                 }
                 is UpdateLookupResult.Failed -> {
-                    recordSafely("check failed reason=${result.reason}", null, null)
+                    recordSafely("check failed reason=${result.diagnostic}", null, null)
                     clearAvailableUpdate()
-                    UpdateCheckResult.Failed(result.reason)
+                    UpdateCheckResult.Failed(result.failure, result.httpStatus)
                 }
             }
         } catch (error: CancellationException) {
@@ -89,7 +91,7 @@ internal class UpdateCoordinator(
             throw interrupted
         } catch (error: Exception) {
             recordSafely("check failed exception", error, error)
-            return UpdateCheckResult.Failed("检查更新失败，请重试")
+            return UpdateCheckResult.Failed(UpdateFailure.CheckFailed)
         } finally {
             _uiState.update { it.copy(checking = false) }
             checkMutex.unlock()
@@ -122,11 +124,11 @@ internal class UpdateCoordinator(
         _downloadUiState.value = UpdateDownloadUiState()
     }
 
-    fun setDownloadProgress(progress: Int, indeterminate: Boolean, status: String) {
+    fun setDownloadProgress(progress: Int, indeterminate: Boolean, downloadedBytes: Long) {
         _downloadUiState.value = UpdateDownloadUiState(
             progress = progress.coerceIn(0, 100),
             indeterminate = indeterminate,
-            status = status,
+            downloadedBytes = downloadedBytes,
         )
     }
 
@@ -134,8 +136,8 @@ internal class UpdateCoordinator(
         apkUrl: String,
         expectedSize: Long?,
         expectedSha256: String?,
-    ): File = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
-        setDownloadProgress(progress, indeterminate, status)
+    ): File = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, downloadedBytes ->
+        setDownloadProgress(progress, indeterminate, downloadedBytes)
     }
 
     fun validateDownloadedApk(file: File) {
@@ -151,8 +153,8 @@ internal class UpdateCoordinator(
         _uiState.update { it.copy(downloadRunning = true, activeDownloadRequest = request) }
         downloadJob = scope.launch {
             try {
-                val file = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, status ->
-                    if (downloadGeneration.get() == generation) setDownloadProgress(progress, indeterminate, status)
+                val file = updateDownloadGateway.download(apkUrl, expectedSize, expectedSha256) { progress, indeterminate, downloadedBytes ->
+                    if (downloadGeneration.get() == generation) setDownloadProgress(progress, indeterminate, downloadedBytes)
                 }
                 if (downloadGeneration.get() != generation) {
                     file.delete()
@@ -175,7 +177,7 @@ internal class UpdateCoordinator(
                         apkUrl = apkUrl,
                         expectedSize = expectedSize,
                         expectedSha256 = expectedSha256,
-                        reason = error.message ?: "未知错误",
+                        reason = (error as? UpdateFailureCause)?.failure ?: UpdateFailure.DownloadFailed,
                     )
                 )
             } finally {

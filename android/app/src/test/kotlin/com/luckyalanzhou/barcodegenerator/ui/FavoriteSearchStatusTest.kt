@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content.FavoritesSearchContentState
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content.favoriteEmptyMessage
 import org.junit.Assert.*
@@ -17,7 +18,7 @@ class FavoriteSearchStatusTest {
         assertFalse(FavoritesSearchContentState("old", busy = true).isPending(""))
     }
     @Test fun emptyLibraryAndNoMatchesHaveDifferentMessages() {
-        assertEquals("还没有收藏", favoriteEmptyMessage(""))
-        assertEquals("没有匹配的收藏", favoriteEmptyMessage("new"))
+        assertEquals(R.string.favorites_empty, favoriteEmptyMessage(""))
+        assertEquals(R.string.favorites_no_matches, favoriteEmptyMessage("new"))
     }
 }

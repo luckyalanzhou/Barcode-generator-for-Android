@@ -21,8 +21,7 @@ internal fun tabMenuIconMotion(motion: Offset): Offset {
 }
 
 // HIG：上下文菜单标题只有在能说明操作对象或操作结果时才有价值。
-internal fun menuShowsTitle(tabAnchor: Boolean, title: String): Boolean =
-    title.isNotBlank() && (!tabAnchor || title != "操作")
+internal fun menuShowsTitle(title: String): Boolean = title.isNotBlank()
 
 /** 使用同一个展开进度驱动几何、光线和厚度，不让各部分独立淡入淡出。 */
 internal data class MenuGlassReveal(val scale: Float, val alpha: Float, val thickness: Float, val shadow: Float)

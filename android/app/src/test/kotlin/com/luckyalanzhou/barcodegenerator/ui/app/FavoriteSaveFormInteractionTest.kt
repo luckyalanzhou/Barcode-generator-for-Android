@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 /** 验证收藏保存表单把实际选择的层级、名称和条码 ID 交给保存回调。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], qualifiers = "w393dp-h873dp", application = Application::class)
+@Config(sdk = [35], qualifiers = "zh-rCN-w393dp-h873dp", application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FavoriteSaveFormInteractionTest {
     @get:Rule val compose = createComposeRule()

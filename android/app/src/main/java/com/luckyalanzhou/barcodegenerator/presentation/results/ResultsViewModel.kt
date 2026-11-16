@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.results
 
+import com.luckyalanzhou.barcodegenerator.R
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -140,14 +141,14 @@ class ResultsViewModel @Inject constructor(
         density: Float,
         isCurrent: (Long, Long, Long) -> Boolean,
         onNavigateToResults: () -> Unit,
-        onNotice: (String) -> Unit,
+        onNotice: (Int) -> Unit,
     ) {
         favoriteRenderJob?.cancel()
         val request = ++favoriteRenderRequest
         favoriteRenderJob = viewModelScope.launch {
             try {
                 if (!prepareBarcodeImages(content.items, style, dark, density)) {
-                    onNotice("部分收藏条码生成失败，请重试")
+                    onNotice(R.string.favorite_barcodes_failed)
                     return@launch
                 }
                 if (
@@ -168,7 +169,7 @@ class ResultsViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                onNotice("读取收藏文件失败，数据未被修改；请重试")
+                onNotice(R.string.favorite_read_failed)
                 appLogger.recordSafely("favorites", "open failed groupId=${content.group.id}", error, error)
             }
         }
@@ -189,7 +190,7 @@ class ResultsViewModel @Inject constructor(
         style: StyleSettings,
         dark: Boolean,
         density: Float,
-        onNotice: (String) -> Unit,
+        onNotice: (Int) -> Unit,
         onNavigateToResults: () -> Unit,
     ) {
         prepareResultImages(batch, style, dark, density, onNotice, replaceHistoryPreparation = true) {
@@ -201,7 +202,7 @@ class ResultsViewModel @Inject constructor(
     }
 
     /** 将完整结果一次性写入生成页编辑状态，再导航回生成页，避免页面观察到半更新数据。 */
-    fun editCurrentResult(onNavigateToGenerate: () -> Unit, onNotice: (String) -> Unit) {
+    fun editCurrentResult(onNavigateToGenerate: () -> Unit, onNotice: (Int) -> Unit) {
         val items = results.current().items
         if (items.isEmpty()) {
             appLogger.recordSafely("results", "edit ignored because result list is empty")
@@ -212,7 +213,7 @@ class ResultsViewModel @Inject constructor(
         }.distinct()
         if (formatIds.size > 1) {
             appLogger.recordSafely("results", "edit ignored because result contains mixed barcode formats count=${items.size}")
-            onNotice("这组条码包含多种格式，不能在生成页统一编辑；原数据未更改")
+            onNotice(R.string.favorite_mixed_formats)
             return
         }
         // 在切换页面前一次性发布完整的编辑快照。分两次写入 StateFlow 时，生成页可能在输入列表替换期间
@@ -227,11 +228,11 @@ class ResultsViewModel @Inject constructor(
         style: StyleSettings,
         dark: Boolean,
         density: Float,
-        onNotice: (String) -> Unit,
+        onNotice: (Int) -> Unit,
         onNavigateToResults: () -> Unit,
     ) {
         if (!dataSession.dataState.value.isReady) {
-            onNotice("数据正在加载，请稍后生成")
+            onNotice(R.string.generate_data_loading)
             return
         }
         if (items.isEmpty()) return
@@ -259,7 +260,7 @@ class ResultsViewModel @Inject constructor(
         style: StyleSettings,
         dark: Boolean,
         density: Float,
-        onNotice: (String) -> Unit,
+        onNotice: (Int) -> Unit,
         replaceHistoryPreparation: Boolean = false,
         onReady: suspend (request: Long) -> Unit,
     ) {
@@ -275,14 +276,14 @@ class ResultsViewModel @Inject constructor(
         resultPreparationJob = viewModelScope.launch {
             try {
                 if (!prepareBarcodeImages(items, style, dark, density)) {
-                    if (request == resultPreparationRequest) onNotice("条码图片生成失败，结果尚未打开；请重试")
+                    if (request == resultPreparationRequest) onNotice(R.string.result_bitmap_failed)
                     return@launch
                 }
                 if (request == resultPreparationRequest) onReady(request)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                if (request == resultPreparationRequest) onNotice("条码结果准备或保存失败，结果尚未打开；请重试")
+                if (request == resultPreparationRequest) onNotice(R.string.result_prepare_or_save_failed)
                 appLogger.recordSafely("results", "preparing or saving result failed", error, error)
             } finally {
                 if (request == resultPreparationRequest) {

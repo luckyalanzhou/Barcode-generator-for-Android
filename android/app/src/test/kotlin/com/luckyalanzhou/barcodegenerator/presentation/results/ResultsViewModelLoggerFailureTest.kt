@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.results
 
+import com.luckyalanzhou.barcodegenerator.R
 import android.app.Application
 import android.graphics.Bitmap
 import android.os.Looper
@@ -61,7 +62,7 @@ class ResultsViewModelLoggerFailureTest {
             barcodeRepository = repository,
             savedState = SavedStateHandle(),
         )
-        var notice: String? = null
+        var notice: Int? = null
         var navigated = false
 
         viewModel.showHistoryResult(
@@ -75,7 +76,7 @@ class ResultsViewModelLoggerFailureTest {
 
         pumpMainUntil("result preparation finishes") { !viewModel.isPreparingResult.value }
 
-        assertTrue("render failure must still reach the user", notice?.contains("失败") == true)
+        assertTrue("render failure must still reach the user", notice == R.string.result_prepare_or_save_failed)
         assertTrue("a failed result must not navigate", !navigated)
     }
 
@@ -154,7 +155,7 @@ class ResultsViewModelLoggerFailureTest {
             savedState = SavedStateHandle(),
         )
         var navigated = false
-        var notice: String? = null
+        var notice: Int? = null
 
         try {
             viewModel.openFavoriteGroup(

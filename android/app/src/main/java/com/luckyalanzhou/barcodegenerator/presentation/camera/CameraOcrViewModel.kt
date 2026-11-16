@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.camera
 
+import com.luckyalanzhou.barcodegenerator.R
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -96,9 +97,9 @@ class CameraOcrViewModel @Inject constructor(
             }
             logger.recordSafely("ocr", "recognize success operation=$operation lineCount=${lines.size}")
             if (lines.isEmpty()) {
-                _events.send(CameraOcrEvent.Notice("未识别到文字，请拍摄清晰、正面的屏幕区域"))
+                _events.send(CameraOcrEvent.Notice(R.string.ocr_no_text))
             } else if (lines.size > MAX_GENERATE_INPUT_ROWS) {
-                _events.send(CameraOcrEvent.Notice("识别结果超过 $MAX_GENERATE_INPUT_ROWS 行，请分次拍摄"))
+                _events.send(CameraOcrEvent.Notice(R.string.ocr_too_many_rows, MAX_GENERATE_INPUT_ROWS))
             } else {
                 _events.send(CameraOcrEvent.RecognizedText(lines, expectedDraft))
             }
@@ -111,7 +112,7 @@ class CameraOcrViewModel @Inject constructor(
             throw interrupted
         } catch (error: Exception) {
             logger.recordSafely("ocr", "recognize failed operation=$operation", error, error)
-            if (isCurrentRecognition()) _events.send(CameraOcrEvent.Notice("文字识别失败，请重试"))
+            if (isCurrentRecognition()) _events.send(CameraOcrEvent.Notice(R.string.ocr_failed))
         } finally {
             if (!bitmap.isRecycled) bitmap.recycle()
         }
@@ -143,5 +144,5 @@ sealed interface CameraOcrEvent {
         val lines: List<String>,
         val expectedDraft: List<String>? = null,
     ) : CameraOcrEvent
-    data class Notice(val message: String) : CameraOcrEvent
+    data class Notice(@androidx.annotation.StringRes val messageResId: Int, val rowLimit: Int? = null) : CameraOcrEvent
 }

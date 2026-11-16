@@ -1,7 +1,5 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites
 
-internal const val FAVORITE_ROOT_ONLY_OPTION = "仅一级文件夹"
-
 internal fun favoriteFolderRoots(paths: Collection<String>): List<String> =
     paths.filter(::isValidFavoriteFolderPath)
         .map { it.substringBefore('/') }

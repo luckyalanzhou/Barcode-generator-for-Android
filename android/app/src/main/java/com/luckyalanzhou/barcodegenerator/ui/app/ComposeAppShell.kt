@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareViewModel
@@ -35,6 +38,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -42,6 +46,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationSource
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
@@ -51,7 +57,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -136,7 +141,9 @@ internal fun MainActivity.buildComposeShell() {
  * 页面可保存自身滚动状态；网络、持久化和系统选择器等副作用通过依赖回调交给上层处理。
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
+    val localizedResources = LocalResources.current
     val appUiState by dependencies.navigationViewModel.uiState.collectAsStateWithLifecycle()
     val settingsUiState by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
@@ -201,12 +208,12 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     }
     LaunchedEffect(Unit) {
         dependencies.libraryDataViewModel.persistenceFailures.collect {
-            dependencies.actions.notice("数据保存失败，请稍后重试")
+            dependencies.actions.notice(localizedResources.getString(R.string.data_save_failed))
         }
     }
     LaunchedEffect(dependencies.settingsViewModel) {
         dependencies.settingsViewModel.persistenceFailures.collect {
-            dependencies.actions.notice("设置未保存，当前调整仍保留，请重试")
+            dependencies.actions.notice(localizedResources.getString(R.string.settings_save_failed))
         }
     }
     BackHandler(enabled = tabMenu.menu != null) {
@@ -228,11 +235,18 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val bottomChromeInset = navigationInsets.asPaddingValues().calculateBottomPadding() + dimensions.pageBottomPadding
         val imeInsets = WindowInsets.ime
         val insetDensity = LocalDensity.current
-        val imeVisible by remember(imeInsets, insetDensity) {
-            derivedStateOf { imeInsets.getBottom(insetDensity) > 0 }
-        }
+        val imeBottomPx = imeInsets.getBottom(insetDensity)
+        val imeSourceBottomPx = WindowInsets.imeAnimationSource.getBottom(insetDensity)
+        val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(insetDensity)
+        val imeVisible = imeBottomPx > 0
         val generateWithKeyboard = currentRoute == AppRoute.Generate && imeVisible
+        val generateInsetProgress = if (currentRoute == AppRoute.Generate) {
+            generateImeBottomInsetProgress(imeBottomPx, imeSourceBottomPx, imeTargetBottomPx)
+        } else 1f
         val shellInsets = pageShellInsets(currentRoute, generateWithKeyboard, dimensions.pageBottomPadding)
+        val contentBottomPadding = if (currentRoute == AppRoute.Generate) {
+            dimensions.pageBottomPadding * generateInsetProgress
+        } else shellInsets.contentBottomPadding
         val backdrop = rememberGlassBackdrop()
         val kyantTabBackdrop = rememberLayerBackdrop()
         CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalLiquidGlassBackdrop provides kyantTabBackdrop,
@@ -274,7 +288,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         ),
                 ) {
                     Column(Modifier.fillMaxSize()
-                        .padding(bottom = shellInsets.contentBottomPadding)
+                        .padding(bottom = contentBottomPadding)
                         .then(if (chromeVisible && !effects.opaqueGlass && android.os.Build.VERSION.SDK_INT >= 33)
                             Modifier.layerBackdrop(kyantTabBackdrop) else Modifier)
                         .then(if (chromeVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(
@@ -290,7 +304,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                 contentAlignment = Alignment.TopCenter,
                             ) {
                                 Text(
-                                    text = currentRoute.title,
+                                    text = stringResource(currentRoute.titleResId),
                                     modifier = Modifier.fillMaxWidth(),
                                     color = colors.text.primary,
                                     fontSize = 25.sp,
@@ -308,8 +322,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                             }
                         }
 
-                        val pageBottomInset = if (generateWithKeyboard) {
-                            0.dp
+                        val pageBottomInset = if (currentRoute == AppRoute.Generate) {
+                            pageContentBottomInset(currentRoute, dimensions.bottomTabBarHeight) * generateInsetProgress
                         } else if (currentRoute.mainTabIndex != null) {
                             pageContentBottomInset(currentRoute, dimensions.bottomTabBarHeight)
                         } else pageTransitionBottomInset(
@@ -434,6 +448,7 @@ internal fun CameraOcrEventCollector(
     onNavigateToGenerate: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
+    val localizedResources = LocalResources.current
     val currentOnRecognizedText by rememberUpdatedState(onRecognizedText)
     val currentOnNavigateToGenerate by rememberUpdatedState(onNavigateToGenerate)
     val currentOnNotice by rememberUpdatedState(onNotice)
@@ -444,11 +459,14 @@ internal fun CameraOcrEventCollector(
                     val applied = currentOnRecognizedText(event.lines, event.expectedDraft)
                     currentOnNavigateToGenerate()
                     currentOnNotice(
-                        if (applied) "文字识别成功，已按行添加到输入框"
-                        else "识别完成，但输入内容已更改，未覆盖当前草稿",
+                        if (applied) localizedResources.getString(R.string.ocr_added_lines)
+                        else localizedResources.getString(R.string.ocr_draft_changed),
                     )
                 }
-                is CameraOcrEvent.Notice -> currentOnNotice(event.message)
+                is CameraOcrEvent.Notice -> currentOnNotice(
+                    event.rowLimit?.let { localizedResources.getString(event.messageResId, it) }
+                        ?: localizedResources.getString(event.messageResId),
+                )
             }
         }
     }

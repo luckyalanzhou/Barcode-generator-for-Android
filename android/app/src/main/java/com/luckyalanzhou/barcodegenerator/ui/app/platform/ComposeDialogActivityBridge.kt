@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.platform
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.app.toast
 import com.luckyalanzhou.barcodegenerator.ui.app.isDark
@@ -33,7 +34,7 @@ internal fun MainActivity.showIos26NoticeDialogCompose(message: String) {
         ComposeGlassDialogCard(dark) {
             Text(message, modifier = Modifier.fillMaxWidth(), color = LocalAppColorScheme.current.text.primary, fontSize = 16.sp)
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("确定", dark, dismiss)
+                DialogAction(getString(R.string.action_ok), dark, dismiss)
             }
         }
     }
@@ -48,16 +49,16 @@ internal fun MainActivity.showPermissionRationaleDialog(
     showComposeDialog(compact = true, onCancel = onCancel) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("需要${permissionLabel}权限", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.permission_title, permissionLabel), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             Text(
-                "此功能需要${permissionLabel}权限才能继续。",
+                getString(R.string.permission_explanation, permissionLabel),
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 color = LocalAppColorScheme.current.text.secondary,
                 fontSize = 14.sp,
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, { onCancel(); dismiss() })
-                DialogAction("继续", dark, { dismiss(); onContinue() }, Modifier.padding(start = 20.dp), primary = true)
+                DialogAction(getString(R.string.action_cancel), dark, { onCancel(); dismiss() })
+                DialogAction(getString(R.string.action_continue), dark, { dismiss(); onContinue() }, Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }
@@ -68,17 +69,17 @@ internal fun MainActivity.showPermissionSettingsDialog(permissionLabel: String) 
     showComposeDialog(compact = true) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
-            Text("请在设置中开启权限", color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
+            Text(getString(R.string.permission_enable_in_settings), color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)
             Text(
-                "${permissionLabel}权限已被关闭。请到应用设置中开启权限，返回后再重试。",
+                getString(R.string.permission_enable_help, permissionLabel),
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 color = LocalAppColorScheme.current.text.secondary,
                 fontSize = 14.sp,
             )
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
+                DialogAction(getString(R.string.action_cancel), dark, dismiss)
                 DialogAction(
-                    "去设置",
+                    getString(R.string.open_settings),
                     dark,
                     {
                         dismiss()
@@ -88,7 +89,7 @@ internal fun MainActivity.showPermissionSettingsDialog(permissionLabel: String) 
                             })
                         } catch (error: Exception) {
                             DebugLog.record("permission", "open_app_settings_failed", error)
-                            toast("无法打开应用设置")
+                            toast(getString(R.string.app_settings_open_failed))
                         }
                     },
                     Modifier.padding(start = 20.dp),
@@ -117,7 +118,7 @@ internal fun MainActivity.showComposeConfirmDialog(
                 fontSize = 15.sp,
             )
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, dismiss)
+                DialogAction(getString(R.string.action_cancel), dark, dismiss)
                 DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 20.dp))
             }
         }
@@ -144,9 +145,9 @@ internal fun MainActivity.showComposeDurableConfirmDialog(
                 fontSize = 15.sp,
             )
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                DialogAction("取消", dark, { if (!confirming) dismiss() })
+                DialogAction(getString(R.string.action_cancel), dark, { if (!confirming) dismiss() })
                 DialogAction(
-                    if (confirming) "处理中…" else positive,
+                    if (confirming) getString(R.string.processing) else positive,
                     dark,
                     {
                         if (!confirming) {
@@ -160,7 +161,7 @@ internal fun MainActivity.showComposeDurableConfirmDialog(
                                     throw cancelled
                                 } catch (error: Exception) {
                                     DebugLog.record("favorites", "confirmed operation failed: $title", error)
-                                    toast("${title}失败，请重试")
+                                    toast(getString(R.string.action_failed, title))
                                 } finally {
                                     confirming = false
                                     operationInProgress = false

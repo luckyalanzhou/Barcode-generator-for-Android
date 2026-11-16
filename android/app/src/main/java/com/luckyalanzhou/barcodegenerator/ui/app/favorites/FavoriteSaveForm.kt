@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.app.favorites
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
 import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
@@ -70,6 +73,7 @@ internal fun FavoriteSaveForm(
     onValidationMessage: (String) -> Unit,
     onCancel: () -> Unit,
 ) {
+    val localizedResources = LocalResources.current
     val editingGroup = resultState.selectedFavoriteGroup
         .takeIf { resultState.returnPage == AppRoute.Favorites }
     var folders by remember {
@@ -100,19 +104,19 @@ internal fun FavoriteSaveForm(
 
     ComposeGlassDialogCard(dark) {
         Text(
-            if (editingGroup == null) "保存到收藏" else "编辑收藏",
+            if (editingGroup == null) stringResource(R.string.favorite_save) else stringResource(R.string.favorite_edit),
             color = LocalAppColorScheme.current.text.primary,
             fontSize = 18.sp,
         )
         Text(
-            "选择收藏保存位置",
+            stringResource(R.string.favorite_save_location),
             color = LocalAppColorScheme.current.text.secondary,
             fontSize = 14.sp,
             modifier = Modifier.padding(top = 12.dp),
         )
         if (roots.isEmpty()) {
             Text(
-                "暂无一级文件夹，请先新建",
+                stringResource(R.string.favorite_no_root_folders),
                 color = LocalAppColorScheme.current.text.secondary,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(top = 8.dp),
@@ -125,19 +129,19 @@ internal fun FavoriteSaveForm(
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Icon(
                         FolderIcon,
-                        "一级文件夹",
+                        stringResource(R.string.favorite_root_folder),
                         tint = LocalAppColorScheme.current.content.folder,
                         modifier = Modifier.size(24.dp),
                     )
                     Text(
-                        "① 一级文件夹",
+                        stringResource(R.string.favorite_root_folder_step),
                         color = LocalAppColorScheme.current.text.primary,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
                 ComposeChoiceField(
-                    value = selectedRoot.ifBlank { "选择一级文件夹" },
+                    value = selectedRoot.ifBlank { stringResource(R.string.favorite_choose_root_folder) },
                     options = roots,
                     dark = dark,
                     modifier = Modifier.padding(start = 32.dp),
@@ -155,19 +159,19 @@ internal fun FavoriteSaveForm(
                     }
                     Icon(
                         FolderIcon,
-                        "二级文件夹",
+                        stringResource(R.string.favorite_nested_folder),
                         tint = LocalAppColorScheme.current.content.childFolder,
                         modifier = Modifier.size(24.dp),
                     )
                     Text(
-                        "② 二级文件夹",
+                        stringResource(R.string.favorite_nested_folder_step),
                         color = LocalAppColorScheme.current.text.primary,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
                 ComposeChoiceField(
-                    value = selectedChild.ifBlank { "选择二级文件夹" },
+                    value = selectedChild.ifBlank { stringResource(R.string.favorite_choose_nested_folder) },
                     options = childOptions,
                     dark = dark,
                     modifier = Modifier.padding(start = 52.dp),
@@ -182,26 +186,26 @@ internal fun FavoriteSaveForm(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("当前位置", color = LocalAppColorScheme.current.text.secondary, fontSize = 12.sp)
+                    Text(stringResource(R.string.favorite_current_location), color = LocalAppColorScheme.current.text.secondary, fontSize = 12.sp)
                     Row(Modifier.padding(top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         if (selectedRoot.isBlank()) {
-                            Text("未选择一级文件夹", color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp)
+                            Text(stringResource(R.string.favorite_no_root_selected), color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp)
                         } else {
-                            Icon(FolderIcon, "当前一级文件夹", tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
+                            Icon(FolderIcon, stringResource(R.string.favorite_current_root_folder), tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
                             Text(selectedRoot, color = LocalAppColorScheme.current.text.primary, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                             if (selectedChild.isNotBlank()) {
-                                Icon(KeyboardArrowRightIcon, "层级", tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
-                                Icon(FolderIcon, "当前二级文件夹", tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
+                                Icon(KeyboardArrowRightIcon, stringResource(R.string.favorite_hierarchy), tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
+                                Icon(FolderIcon, stringResource(R.string.favorite_current_nested_folder), tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
                                 Text(selectedChild, color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
                 }
-                Icon(KeyboardArrowDownIcon, "展开层级", tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp))
+                Icon(KeyboardArrowDownIcon, stringResource(R.string.favorite_expand_hierarchy), tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp))
             }
             if (selectedRoot.isNotBlank() && childOptions.isEmpty()) {
                 Text(
-                    "该一级文件夹暂无二级文件夹，请先新建",
+                    stringResource(R.string.favorite_no_subfolders),
                     color = LocalAppColorScheme.current.text.secondary,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 6.dp),
@@ -230,12 +234,12 @@ internal fun FavoriteSaveForm(
                 border = null,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
             ) {
-                Icon(CreateNewFolderIcon, "新建一级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
-                Text("新建一级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                Icon(CreateNewFolderIcon, stringResource(R.string.favorite_create_root_folder), tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
+                Text(stringResource(R.string.favorite_create_root_folder), color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
             }
             OutlinedButton(
                 onClick = {
-                    if (selectedRoot.isBlank()) onValidationMessage("请先选择一级文件夹")
+                    if (selectedRoot.isBlank()) onValidationMessage(localizedResources.getString(R.string.favorite_select_root_first))
                     else onOpenChildFolderEditor(selectedRoot) { child ->
                         val path = "$selectedRoot/$child"
                         if (path !in folders) folders = (folders + path).distinct()
@@ -249,12 +253,12 @@ internal fun FavoriteSaveForm(
                 border = null,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
             ) {
-                Icon(CreateNewFolderIcon, "新建二级文件夹", tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
-                Text("新建二级文件夹", color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                Icon(CreateNewFolderIcon, stringResource(R.string.favorite_create_nested_folder), tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
+                Text(stringResource(R.string.favorite_create_nested_folder), color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
             }
         }
 
-        Text("收藏文件名", color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+        Text(stringResource(R.string.favorite_filename), color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
@@ -268,18 +272,18 @@ internal fun FavoriteSaveForm(
                 unfocusedLabelColor = LocalAppColorScheme.current.text.primary,
                 cursorColor = LocalAppColorScheme.current.text.primary,
             ),
-            label = { Text("收藏文件名", color = LocalAppColorScheme.current.text.primary) },
+            label = { Text(stringResource(R.string.favorite_filename), color = LocalAppColorScheme.current.text.primary) },
         )
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
-            DialogAction("取消", dark, { if (!saving) onCancel() })
+            DialogAction(stringResource(R.string.action_cancel), dark, { if (!saving) onCancel() })
             DialogAction(
-                if (saving) "保存中…" else "保存",
+                if (saving) stringResource(R.string.saving) else stringResource(R.string.action_save),
                 dark,
                 {
                     val cleanName = name.trim()
                     when {
-                        cleanName.isEmpty() -> onValidationMessage("请输入收藏文件名")
-                        selectedFolder.isBlank() -> onValidationMessage("请选择文件夹")
+                        cleanName.isEmpty() -> onValidationMessage(localizedResources.getString(R.string.favorite_filename_required))
+                        selectedFolder.isBlank() -> onValidationMessage(localizedResources.getString(R.string.favorite_choose_folder))
                         else -> {
                             val conflictGroupId = findExistingGroupId(
                                 selectedFolder,
@@ -297,8 +301,8 @@ internal fun FavoriteSaveForm(
                             if (conflictGroupId == null) save()
                             else {
                                 onShowOverwriteConfirmation(
-                                    "覆盖收藏",
-                                    "“" + selectedFolder + "/" + cleanName + "”已存在，是否覆盖？",
+                                    localizedResources.getString(R.string.favorite_overwrite),
+                                    localizedResources.getString(R.string.favorite_overwrite_confirm, "$selectedFolder/$cleanName"),
                                     save,
                                 )
                             }

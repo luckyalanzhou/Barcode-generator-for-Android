@@ -7,7 +7,7 @@ class GenerateBarcodesUseCase {
     data class Output(
         val items: List<CodeItem> = emptyList(),
         val errorIndex: Int = -1,
-        val errorMessage: String = "",
+        val error: BarcodeInputError? = null,
     ) {
         val isValid: Boolean get() = errorIndex < 0
     }
@@ -22,17 +22,17 @@ class GenerateBarcodesUseCase {
         if (input.size > MAX_GENERATE_INPUT_ROWS) {
             return Output(
                 errorIndex = MAX_GENERATE_INPUT_ROWS,
-                errorMessage = "最多支持 $MAX_GENERATE_INPUT_ROWS 行输入",
+                error = BarcodeInputError.TooManyRows,
             )
         }
         // 只过滤完全空白的输入，条码正文（包括首尾空格）必须原样保留。
         val values = input.mapIndexedNotNull { index, value ->
             value.takeIf(String::isNotBlank)?.let { index to it }
         }
-        if (values.isEmpty()) return Output(errorIndex = 0, errorMessage = "请输入内容")
+        if (values.isEmpty()) return Output(errorIndex = 0, error = BarcodeInputError.MissingInput)
         values.forEach { (originalIndex, value) ->
             val validation = BarcodeValidator.validate(value, format)
-            if (!validation.valid) return Output(errorIndex = originalIndex, errorMessage = validation.message)
+            if (!validation.valid) return Output(errorIndex = originalIndex, error = checkNotNull(validation.error))
         }
         // 草稿 ID 仅用于界面渲染；插入时由仓库分配正式 ID。
         var nextId = (existingItems.maxOfOrNull { it.id } ?: 0L) + 1L

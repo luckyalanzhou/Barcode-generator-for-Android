@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,7 +18,7 @@ internal fun LanShareSecurityNotice(
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = "请在可信 Wi-Fi 下传输。配对令牌限制访问，传输内容未加密。",
+        text = stringResource(R.string.lan_share_security),
         color = secondary,
         fontSize = 14.sp,
         lineHeight = 19.sp,

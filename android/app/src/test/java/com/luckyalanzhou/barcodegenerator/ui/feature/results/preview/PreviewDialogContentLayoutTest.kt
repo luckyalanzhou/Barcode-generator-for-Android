@@ -22,7 +22,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** 预览弹窗的大字号窄屏布局仍需保留全部媒体操作。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class PreviewDialogContentLayoutTest {
     @get:Rule val compose = createComposeRule()

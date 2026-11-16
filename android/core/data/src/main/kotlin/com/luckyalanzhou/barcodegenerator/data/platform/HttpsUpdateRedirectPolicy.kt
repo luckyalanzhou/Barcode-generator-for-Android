@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data.platform
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
+import com.luckyalanzhou.barcodegenerator.domain.UpdateDownloadException
 import java.net.URI
 import java.net.URL
 import java.util.Locale
@@ -24,15 +26,19 @@ internal object HttpsUpdateRedirectPolicy {
     fun resolve(currentUrl: URL, location: String?, redirectsFollowed: Int): URL {
         val currentUri = toUri(currentUrl)
         requireAllowedGitHubReleaseUri(currentUri)
-        require(redirectsFollowed in 0 until MAX_REDIRECTS) { "更新服务器重定向次数过多" }
-        require(!location.isNullOrBlank()) { "更新服务器返回了无效重定向" }
+        if (redirectsFollowed !in 0 until MAX_REDIRECTS) {
+            throw UpdateDownloadException(UpdateFailure.RedirectLimit, "更新服务器重定向次数过多")
+        }
+        if (location.isNullOrBlank()) {
+            throw UpdateDownloadException(UpdateFailure.InvalidRedirect, "更新服务器返回了无效重定向")
+        }
 
         val target = try {
             currentUri.resolve(location.trim())
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            throw IllegalArgumentException("更新服务器返回了无效重定向", error)
+            throw UpdateDownloadException(UpdateFailure.InvalidRedirect, "更新服务器返回了无效重定向", error)
         }
 
         requireAllowedGitHubReleaseUri(target)
@@ -42,7 +48,7 @@ internal object HttpsUpdateRedirectPolicy {
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            throw IllegalArgumentException("更新服务器返回了无效重定向", error)
+            throw UpdateDownloadException(UpdateFailure.InvalidRedirect, "更新服务器返回了无效重定向", error)
         }
     }
 
@@ -50,13 +56,14 @@ internal object HttpsUpdateRedirectPolicy {
         val hostIsAllowed = uri.host
             ?.lowercase(Locale.ROOT)
             ?.let(allowedHosts::contains) == true
-        require(
-            uri.scheme.equals("https", ignoreCase = true) &&
+        val trusted = uri.scheme.equals("https", ignoreCase = true) &&
                 hostIsAllowed &&
                 (uri.port == -1 || uri.port == 443) &&
                 uri.rawUserInfo == null &&
-                uri.rawFragment == null,
-        ) { "更新下载地址必须指向受信任的 GitHub Release HTTPS 主机" }
+                uri.rawFragment == null
+        if (!trusted) {
+            throw UpdateDownloadException(UpdateFailure.UnsafeDownloadAddress, "更新下载地址必须指向受信任的 GitHub Release HTTPS 主机")
+        }
     }
 
     private fun toUri(url: URL): URI = try {
@@ -64,6 +71,6 @@ internal object HttpsUpdateRedirectPolicy {
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (error: Exception) {
-        throw IllegalArgumentException("更新服务器返回了无效重定向", error)
+        throw UpdateDownloadException(UpdateFailure.InvalidRedirect, "更新服务器返回了无效重定向", error)
     }
 }

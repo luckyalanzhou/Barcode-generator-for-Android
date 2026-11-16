@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.lanshare
 
+import com.luckyalanzhou.barcodegenerator.R
 import android.app.Application
 import android.graphics.Bitmap
 import android.os.Looper
@@ -139,7 +140,7 @@ class LanShareViewModelStartupRealtimeTest {
             assertFalse("a stale QR must be hidden", viewModel.uiState.value.qrVisible)
             assertTrue("the UI must expose a re-create action state", viewModel.uiState.value.hostSessionInvalidated)
             assertEquals(
-                LanShareEvent.Error("Wi-Fi 已断开，分享房间已关闭，请重新创建"),
+                LanShareEvent.Error(R.string.share_wifi_lost),
                 runBlocking { viewModel.events.first() },
             )
         } finally {

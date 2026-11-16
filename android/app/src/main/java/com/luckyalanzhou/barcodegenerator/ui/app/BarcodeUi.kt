@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showIos26NoticeDialogCompose
@@ -71,13 +72,13 @@ internal fun MainActivity.shareText(text: String) {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, text)
                 },
-                "分享条码内容",
+                getString(R.string.share_barcode_contents),
             ),
         )
     }.onSuccess { DebugLog.record("image_export", "text_share_chooser_opened") }
         .onFailure {
             DebugLog.record("image_export", "text_share_failed", it)
-            toast("分享失败，请重试")
+            toast(getString(R.string.share_failed))
         }
 }
 
@@ -107,7 +108,7 @@ internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String, onFinished: 
                         ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) > 0)
                 }
             }
-            toast("已保存到相册")
+            toast(getString(R.string.saved_to_gallery))
             DebugLog.record("image_export", "gallery_save_succeeded operation=$operation")
         } catch (error: CancellationException) {
             DebugLog.record("image_export", "gallery_save_cancelled operation=$operation")
@@ -116,7 +117,7 @@ internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String, onFinished: 
         } catch (error: Exception) {
             DebugLog.record("image_export", "gallery_save_failed operation=$operation", error)
             createdUri?.let { rollbackGalleryImage(it, operation) }
-            toast("保存失败，请重试")
+            toast(getString(R.string.save_failed))
         } finally {
             onFinished()
         }
@@ -159,7 +160,7 @@ internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String, onStarted: 
                 putExtra(Intent.EXTRA_TITLE, label)
                 clipData = ClipData.newUri(contentResolver, label, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }, "分享条码图片"))
+            }, getString(R.string.share_barcode_image)))
             // 此处不要删除文件：系统分享面板关闭后，接收应用仍可能继续读取它。
             DebugLog.record("image_export", "image_share_chooser_opened operation=$operation")
         } catch (error: CancellationException) {
@@ -169,7 +170,7 @@ internal fun MainActivity.shareBitmap(bitmap: Bitmap, label: String, onStarted: 
         } catch (error: Exception) {
             DebugLog.record("image_export", "image_share_failed operation=$operation", error)
             shareFile?.delete()
-            toast("分享失败，请重试")
+            toast(getString(R.string.share_failed))
         } finally {
             onFinished()
         }

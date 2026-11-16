@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.domain.isLanShareImage
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
@@ -87,7 +89,7 @@ internal fun LanShareMessageBubble(
                     val bitmap = preview
                     Box(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .clickable(onClickLabel = "预览图片", role = Role.Button) { onPreviewImage(bitmap) },
+                            .clickable(onClickLabel = stringResource(R.string.preview_image), role = Role.Button) { onPreviewImage(bitmap) },
                         contentAlignment = Alignment.Center,
                     ) {
                         Image(
@@ -106,7 +108,7 @@ internal fun LanShareMessageBubble(
                         Text(formatLanShareSize(file.size), color = secondary, fontSize = 12.sp, maxLines = 1)
                         }
                         TextButton(onClick = { onSaveFile(file) }, enabled = !isDownloading, modifier = Modifier.heightIn(min = 48.dp)) {
-                            Text(if (isDownloading) "保存中" else "保存", color = themeColors.text.link, fontSize = 13.sp, maxLines = 1)
+                            Text(if (isDownloading) stringResource(R.string.saving_short) else stringResource(R.string.action_save), color = themeColors.text.link, fontSize = 13.sp, maxLines = 1)
                         }
                     }
                     if (isDownloading) {
@@ -120,7 +122,7 @@ internal fun LanShareMessageBubble(
                                 color = themeColors.controls.accent,
                                 strokeWidth = 1.5.dp,
                             )
-                            Text("正在保存…", color = secondary, fontSize = 12.sp)
+                            Text(stringResource(R.string.saving_file), color = secondary, fontSize = 12.sp)
                         }
                     }
                 }
@@ -131,7 +133,7 @@ internal fun LanShareMessageBubble(
                 shape = RoundedCornerShape(18.dp), color = bubbleColor, shadowElevation = 0.dp,
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(AttachFileIcon, "文件附件", tint = if (mine) themeColors.content.sentContent else themeColors.content.icon, modifier = Modifier.size(26.dp))
+                    Icon(AttachFileIcon, stringResource(R.string.file_attachment), tint = if (mine) themeColors.content.sentContent else themeColors.content.icon, modifier = Modifier.size(26.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(middleEllipsize(file.name), color = if (mine) themeColors.content.sentContent else primary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
@@ -166,9 +168,9 @@ internal fun LanShareMessageBubble(
                                 strokeWidth = 1.5.dp,
                             )
                             Spacer(Modifier.width(5.dp))
-                            Text("保存中", color = if (mine) themeColors.content.sentContent else themeColors.text.link, fontSize = 12.sp, maxLines = 1)
+                            Text(stringResource(R.string.saving_short), color = if (mine) themeColors.content.sentContent else themeColors.text.link, fontSize = 12.sp, maxLines = 1)
                         } else Text(
-                            "保存",
+                            stringResource(R.string.action_save),
                             color = if (mine) themeColors.content.sentContent else themeColors.text.link,
                             fontSize = 12.sp,
                             maxLines = 1,

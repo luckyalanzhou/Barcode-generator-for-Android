@@ -1,5 +1,9 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -74,8 +78,11 @@ internal fun SettingsContent(
     onShareDebugLog: () -> Unit,
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
+    onEnterAbout: () -> Unit = {},
     listBottomPadding: Dp = 8.dp,
+    languageRow: @Composable () -> Unit = {},
 ) {
+    val localizedResources = LocalResources.current
     val colors = rememberSettingsColors()
     var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
@@ -96,24 +103,28 @@ internal fun SettingsContent(
         modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = listBottomPadding),
         verticalArrangement = Arrangement.spacedBy(dimensions.settingsCardSpacing),
     ) {
-        SettingsSection("外观", dark) {
-            SettingsRow("主题", colors.settingsText.primary) {
+        SettingsSection(stringResource(R.string.settings_section_general), dark) {
+            SettingsRow(
+                stringResource(R.string.settings_row_application_theme),
+                colors.settingsText.primary,
+                leading = { SettingsLeadingIcon(SettingsIconKind.Theme) },
+            ) {
                 Box {
                     SettingsDropdownButton(
                         text = when (settings.style.colorScheme) {
-                            "dark" -> "深色"
-                            "light" -> "浅色"
-                            else -> "跟随系统"
+                            "dark" -> stringResource(R.string.theme_dark)
+                            "light" -> stringResource(R.string.theme_light)
+                            else -> stringResource(R.string.settings_option_automatic)
                         },
                         contentColor = colors.settingsText.secondary,
                         onClick = { schemeMenu = true },
                         onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
-                        pickerLabel = "外观",
+                        pickerLabel = stringResource(R.string.settings_row_application_theme),
                         expanded = schemeMenu,
                     )
                     SettingsDropdown(dark, schemeMenu, 160.dp, schemeWidth, schemeHeight,
                         onDismiss = { schemeMenu = false }) {
-                        listOf("跟随系统" to "system", "浅色" to "light", "深色" to "dark").forEachIndexed { index, (label, value) ->
+                        listOf(stringResource(R.string.settings_option_automatic) to "system", stringResource(R.string.theme_light) to "light", stringResource(R.string.theme_dark) to "dark").forEachIndexed { index, (label, value) ->
                             if (index > 0) ComposeDropdownDivider(dark)
                             val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
                             SingleChoiceMenuItem(label, value == selectedScheme, highlightSelection = false) {
@@ -124,44 +135,49 @@ internal fun SettingsContent(
                     }
                 }
             }
+            languageRow()
         }
-        SettingsSection("条码样式", dark) {
+        SettingsSection(stringResource(R.string.settings_barcode_style), dark) {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val stacked = useStackedSlider(maxWidth.value, LocalDensity.current.fontScale)
                 Column {
-                    SettingsSliderRow("条码高度", settings.style.barHeight.toFloat(), 30f..80f, "${settings.style.barHeight} dp", colors.settingsText.primary, stacked) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_height), settings.style.barHeight.toFloat(), 30f..80f, stringResource(R.string.dp_value, settings.style.barHeight), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeHeight) }) {
                         persist(settings.style.copy(barHeight = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码宽度", settings.style.barWidth, 120f..300f, "${settings.style.barWidth.toInt()} dp", colors.settingsText.primary, stacked) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_width), settings.style.barWidth, 120f..300f, stringResource(R.string.dp_value, settings.style.barWidth.toInt()), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeWidth) }) {
                         persist(settings.style.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码间距", settings.style.margin.toFloat(), 0f..10f, "${settings.style.margin} dp", colors.settingsText.primary, stacked) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_spacing), settings.style.margin.toFloat(), 0f..10f, stringResource(R.string.dp_value, settings.style.margin), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeSpacing) }) {
                         persist(settings.style.copy(margin = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow("条码文字大小", settings.style.textSize, 10f..24f, "${settings.style.textSize.toInt()} sp", colors.settingsText.primary, stacked) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_text_size), settings.style.textSize, 10f..24f, stringResource(R.string.sp_value, settings.style.textSize.toInt()), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.TextSize) }) {
                         persist(settings.style.copy(textSize = it))
                     }
                     SettingsDivider(dark)
-                    SettingsActionRow("恢复条码默认样式", "恢复", colors.settingsText.primary, colors.controls.button) {
+                    SettingsActionRow(stringResource(R.string.settings_restore_barcode_style), stringResource(R.string.action_restore), colors.settingsText.primary, colors.controls.button, leading = { SettingsLeadingIcon(SettingsIconKind.RestoreStyle) }) {
                         persist(settings.style.copy(textSize = 14f, barHeight = 55, barWidth = 220f, margin = 4))
-                        onNotice("已恢复条码默认样式")
+                        onNotice(localizedResources.getString(R.string.settings_barcode_style_restored))
                     }
                 }
             }
         }
-        SettingsSection("识别辅助", dark) {
-            SettingsRow("OCR 字符纠错", colors.settingsText.primary) {
+        SettingsSection(stringResource(R.string.settings_recognition_assistance), dark) {
+            SettingsRow(
+                stringResource(R.string.settings_ocr_correction),
+                colors.settingsText.primary,
+                leading = { SettingsLeadingIcon(SettingsIconKind.Correction) },
+            ) {
                 val selected = ocrReplacementLabels.filter { (_, bit) -> settings.ocrMask and bit != 0 }.map { it.first }
                 Box {
                     SettingsDropdownButton(
-                        text = when (selected.size) { 0 -> "关闭"; 1 -> selected.first(); else -> "启用 ${selected.size} 项" },
+                        text = when (selected.size) { 0 -> stringResource(R.string.action_off); 1 -> selected.first(); else -> pluralStringResource(R.plurals.settings_ocr_enabled_count, selected.size, selected.size) },
                         contentColor = colors.settingsText.secondary,
                         onClick = { ocrMenu = true },
                         onMeasured = { ocrButtonWidth = it.width; ocrButtonHeight = it.height },
-                        pickerLabel = "OCR 字符纠错",
+                        pickerLabel = stringResource(R.string.settings_ocr_correction),
                         expanded = ocrMenu,
                     )
                     SettingsDropdown(dark, ocrMenu, 140.dp, ocrWidth, ocrHeight,
@@ -181,33 +197,31 @@ internal fun SettingsContent(
                 }
             }
         }
-        SettingsSection("文件传输", dark) {
-            SettingsNavigationRow("局域网文件分享", onEnterLanShare)
+        SettingsSection(stringResource(R.string.settings_file_transfer), dark) {
+            SettingsNavigationRow(
+                stringResource(R.string.settings_lan_file_share),
+                onEnterLanShare,
+                leading = { SettingsLeadingIcon(SettingsIconKind.LanShare) },
+            )
         }
         if (BuildConfig.DEBUG_LOG_EXPORT) {
-            SettingsSection("诊断", dark) {
-                SettingsActionRow("导出调试日志", "分享", colors.settingsText.primary, colors.controls.button, onShareDebugLog)
-            }
-        }
-        SettingsSection("关于", dark) {
-            SettingsRow("版本", colors.settingsText.primary) {
-                Text(BuildConfig.VERSION_NAME, color = colors.settingsText.secondary, fontSize = 15.sp)
-            }
-            SettingsDivider(dark)
-            SettingsRow("作者", colors.settingsText.primary) {
-                Text("Alan", color = colors.settingsText.secondary, fontSize = 15.sp)
-            }
-            SettingsDivider(dark)
-            SettingsRow("应用更新", colors.settingsText.primary) {
-                SettingsButton(
-                    text = if (checkingForUpdates) "检查中…" else "检查更新",
-                    busy = checkingForUpdates,
-                    color = colors.controls.button,
-                    contentColor = colors.controls.accent,
-                    onClick = onCheckForUpdates,
-                    modifier = Modifier.widthIn(min = 112.dp),
+            SettingsSection(stringResource(R.string.settings_diagnostics), dark) {
+                SettingsActionRow(
+                    stringResource(R.string.settings_export_logs),
+                    stringResource(R.string.action_share),
+                    colors.settingsText.primary,
+                    colors.controls.button,
+                    leading = { SettingsLeadingIcon(SettingsIconKind.Logs) },
+                    onClick = onShareDebugLog,
                 )
             }
+        }
+        SettingsCard(colors.surfaces.card, dark) {
+            SettingsNavigationRow(
+                stringResource(R.string.title_about),
+                onEnterAbout,
+                leading = { SettingsLeadingIcon(SettingsIconKind.About) },
+            )
         }
     }
 }

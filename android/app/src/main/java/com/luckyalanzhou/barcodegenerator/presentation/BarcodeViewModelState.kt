@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation
 
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import android.net.Uri
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
@@ -77,7 +78,7 @@ data class UpdateDownloadRequest(
 data class UpdateDownloadUiState(
     val progress: Int = 0,
     val indeterminate: Boolean = false,
-    val status: String = "准备下载…",
+    val downloadedBytes: Long? = null,
 )
 
 sealed interface UpdateEvent {
@@ -86,7 +87,7 @@ sealed interface UpdateEvent {
         val apkUrl: String,
         val expectedSize: Long?,
         val expectedSha256: String?,
-        val reason: String,
+        val reason: UpdateFailure,
     ) : UpdateEvent
 }
 
@@ -100,5 +101,5 @@ sealed interface UpdateCheckResult {
         val ignoreKey: String = version,
     ) : UpdateCheckResult
     data object UpToDate : UpdateCheckResult
-    data class Failed(val reason: String) : UpdateCheckResult
+    data class Failed(val reason: UpdateFailure, val httpStatus: Int? = null) : UpdateCheckResult
 }

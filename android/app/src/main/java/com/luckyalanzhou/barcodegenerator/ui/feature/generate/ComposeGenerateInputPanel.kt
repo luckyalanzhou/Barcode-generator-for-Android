@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.generate
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.unframedActionPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -149,6 +151,7 @@ internal fun ComposeGenerateInputPanel(
     ) {
         values.forEachIndexed { index, value ->
             key(rowKeys.getOrElse(index) { index.toLong() }) {
+                val rowDescription = stringResource(R.string.barcode_input_row, index + 1)
                 val focusRequester = remember { FocusRequester() }
                 val bringIntoView = remember { BringIntoViewRequester() }
                 LaunchedEffect(focusRequest, focusRequestRowKey) {
@@ -177,7 +180,7 @@ internal fun ComposeGenerateInputPanel(
                             Text(
                                 text = (index + 1).toString(),
                                 // 三位序号需随文字宽度扩展，避免大字体时折行并挤压输入内容。
-                                modifier = Modifier.widthIn(min = 40.dp).clickable(onClickLabel = "选中第 ${index + 1} 行") { focusRequester.requestFocus(); onFocus(index) },
+                                modifier = Modifier.widthIn(min = 40.dp).clickable(onClickLabel = stringResource(R.string.select_input_row, index + 1)) { focusRequester.requestFocus(); onFocus(index) },
                                 color = textColor,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
@@ -189,6 +192,7 @@ internal fun ComposeGenerateInputPanel(
                                 singleLine = true,
                                 textStyle = TextStyle(
                                     color = textColor,
+                                    fontFamily = MiSansFontFamily,
                                     fontSize = 16.sp,
                                     lineHeight = 22.sp,
                                     background = Color.Transparent,
@@ -203,7 +207,7 @@ internal fun ComposeGenerateInputPanel(
                                     .focusRequester(focusRequester)
                                     .onFocusChanged { if (it.isFocused) onFocus(index) }
                                     .semantics {
-                                        contentDescription = "第 ${index + 1} 行条码内容"
+                                        contentDescription = rowDescription
                                         validationError?.takeIf { it.rowIndex == index }?.let { error(it.message) }
                                     }
                                     .padding(horizontal = 6.dp),
@@ -214,7 +218,7 @@ internal fun ComposeGenerateInputPanel(
                                     ) {
                                         if (value.isEmpty()) {
                                             Text(
-                                                text = "输入一行条码内容",
+                                                text = stringResource(R.string.barcode_input_placeholder),
                                                 maxLines = 1,
                                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                 style = LocalTextStyle.current.copy(
@@ -235,14 +239,14 @@ internal fun ComposeGenerateInputPanel(
                                 },
                             )
                     if (focusedIndex == index) {
-                        GenerateInputAction(ArrowUpwardIcon, "上移", index > 0) { onMoveUp(index) }
-                        GenerateInputAction(ArrowDownwardIcon, "下移", index < values.lastIndex) { onMoveDown(index) }
-                        GenerateInputAction(DeleteIcon, "删除", values.size > 1 || value.isNotEmpty()) { onDelete(index) }
+                        GenerateInputAction(ArrowUpwardIcon, stringResource(R.string.move_up), index > 0) { onMoveUp(index) }
+                        GenerateInputAction(ArrowDownwardIcon, stringResource(R.string.move_down), index < values.lastIndex) { onMoveDown(index) }
+                        GenerateInputAction(DeleteIcon, stringResource(R.string.action_delete), values.size > 1 || value.isNotEmpty(), destructive = true) { onDelete(index) }
                     }
                         }
                     }
                     if (validationError?.rowIndex == index) {
-                        Text("第 ${index + 1} 行：${validationError.message}", color = themeColors.text.destructive,
+                        Text(stringResource(R.string.row_error, index + 1, validationError.message), color = themeColors.text.destructive,
                             fontSize = 13.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
                     }
 
@@ -257,15 +261,16 @@ private fun GenerateInputAction(
     icon: ImageVector,
     description: String,
     enabled: Boolean,
+    destructive: Boolean = false,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColorScheme.current
-    val tint = if (description == "删除") colors.text.destructive else colors.text.primary
+    val tint = if (destructive) colors.text.destructive else colors.text.primary
     val interactions = remember { MutableInteractionSource() }
     androidx.compose.material3.IconButton(onClick = onClick, enabled = enabled, interactionSource = interactions,
         modifier = Modifier.size(48.dp).unframedActionPressFeedback(interactions),
     ) {
         Icon(icon, description, tint = if (enabled) tint else colors.text.disabled,
-            modifier = Modifier.size(if (description == "删除") 20.dp else 22.dp))
+            modifier = Modifier.size(if (destructive) 20.dp else 22.dp))
     }
 }

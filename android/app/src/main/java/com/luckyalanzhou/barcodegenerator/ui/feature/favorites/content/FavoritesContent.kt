@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.favorites.content
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
@@ -136,6 +139,7 @@ internal fun FavoritesContent(
     folderDeletionCount: (String) -> Int? = { null },
     listBottomPadding: Dp = 8.dp,
 ) {
+    val localizedResources = LocalResources.current
     val favoritesState = state.favorites
     val searchState = state.searchResults
     val searchStatus = state.search
@@ -299,7 +303,7 @@ internal fun FavoritesContent(
                         value = query,
                         onValueChange = onQueryChange,
                         modifier = Modifier.weight(1f).heightIn(min = 28.dp)
-                            .padding(vertical = 8.dp).semantics { contentDescription = "搜索收藏名称、文件夹或条码内容" },
+                            .padding(vertical = 8.dp).semantics { contentDescription = localizedResources.getString(R.string.favorite_search_description) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = {
@@ -308,6 +312,7 @@ internal fun FavoritesContent(
                         }),
                         textStyle = TextStyle(
                             color = primary,
+                            fontFamily = MiSansFontFamily,
                             fontSize = 18.sp,
                             lineHeight = 24.sp,
                             platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -324,9 +329,10 @@ internal fun FavoritesContent(
                             ) {
                                 if (query.isEmpty()) {
                                     Text(
-                                        "搜索名称、文件夹或内容",
+                                        stringResource(R.string.favorite_search_placeholder),
                                         style = TextStyle(
                                             color = themeColors.text.secondary,
+                                            fontFamily = MiSansFontFamily,
                                             fontSize = 14.sp,
                                             lineHeight = 20.sp,
                                             platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -360,7 +366,7 @@ internal fun FavoritesContent(
                             ) {
                                 Icon(
                                     imageVector = CloseSmallIcon,
-                                    contentDescription = "清除搜索内容",
+                                    contentDescription = stringResource(R.string.clear_search),
                                     tint = themeColors.text.primary,
                                     modifier = Modifier.requiredSize(28.dp),
                                 )
@@ -385,20 +391,20 @@ internal fun FavoritesContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        if (favoritesState.loadFailed) "收藏数据加载失败" else "正在加载收藏…",
+                        if (favoritesState.loadFailed) stringResource(R.string.favorites_load_failed) else stringResource(R.string.favorites_loading),
                         color = if (favoritesState.loadFailed) primary else secondary,
                         fontSize = 17.sp,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         textAlign = TextAlign.Center,
                     )
                     if (favoritesState.loadFailed) {
-                        DialogAction("重试", dark, onRetryLoad, modifier = Modifier.padding(top = 12.dp), primary = true)
+                        DialogAction(stringResource(R.string.action_retry), dark, onRetryLoad, modifier = Modifier.padding(top = 12.dp), primary = true)
                     }
                 }
             }
         } else if (normalizedQuery.isNotEmpty() && (searchPending || searchStatus.failed)) {
             item(key = "favorite-search-status") {
-                Text(if (searchPending) "正在搜索…" else "搜索失败，当前显示上次结果；请修改搜索词重试",
+                Text(if (searchPending) stringResource(R.string.searching) else stringResource(R.string.favorite_search_failed),
                     color = secondary, fontSize = 17.sp,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite },
@@ -410,7 +416,7 @@ internal fun FavoritesContent(
         } else if (rowsForDisplay.isEmpty() && favoritesState.isReady && !(normalizedQuery.isNotEmpty() && (searchPending || searchStatus.failed))) {
             item(key = "favorite-empty") {
                 Text(
-                    favoriteEmptyMessage(normalizedQuery),
+                    stringResource(favoriteEmptyMessage(normalizedQuery)),
                     color = secondary,
                     fontSize = 17.sp,
                     modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
@@ -520,7 +526,7 @@ internal fun FavoritesContent(
                     onClick = { onLoadMoreGroups(normalizedQuery) },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 ) {
-                    Text("加载失败，点击重试", color = secondary, fontSize = 14.sp)
+                    Text(stringResource(R.string.load_failed_retry), color = secondary, fontSize = 14.sp)
                 }
             }
         }

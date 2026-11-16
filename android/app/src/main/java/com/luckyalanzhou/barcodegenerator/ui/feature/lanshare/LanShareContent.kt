@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import androidx.compose.ui.res.stringResource
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
@@ -151,13 +153,13 @@ internal fun LanShareContent(
         ) {
             if (lanState.hostSessionInvalidated) {
                 Text(
-                    "Wi-Fi 已断开，分享房间已关闭。连接 Wi-Fi 后可重新创建。",
+                    stringResource(R.string.share_wifi_lost_help),
                     color = secondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 Button(onClick = onRetryHostSession) {
-                    Text("重新创建房间")
+                    Text(stringResource(R.string.share_recreate_room))
                 }
             } else {
                 androidx.compose.material3.CircularProgressIndicator(
@@ -166,7 +168,7 @@ internal fun LanShareContent(
                     strokeWidth = 2.dp,
                 )
                 Text(
-                    if (lanState.isStartingHost) "正在启动分享房间…" else "准备分享房间…",
+                    if (lanState.isStartingHost) stringResource(R.string.share_room_starting) else stringResource(R.string.share_room_preparing),
                     color = secondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
@@ -270,8 +272,8 @@ internal fun LanShareContent(
                         )
                         if (!lanState.browserConnected) {
                             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("让另一台设备扫码，或在浏览器打开分享地址", color = secondary, fontSize = 14.sp, textAlign = TextAlign.Center)
-                                androidx.compose.material3.TextButton(onClick = toggleQr) { Text("显示连接二维码", color = accent) }
+                                Text(stringResource(R.string.share_room_instructions), color = secondary, fontSize = 14.sp, textAlign = TextAlign.Center)
+                                androidx.compose.material3.TextButton(onClick = toggleQr) { Text(stringResource(R.string.show_connection_qr), color = accent) }
                             }
                         }
                     }
@@ -329,7 +331,7 @@ internal fun LanShareContent(
                         }
                     } },
                     modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
-                ) { Text("查看最新内容") }
+                ) { Text(stringResource(R.string.show_newest_items)) }
             }
         }
             // 单独测量输入栏，附件与大字体不会覆盖时间线。
@@ -384,13 +386,13 @@ private fun LanShareHeader(primary: Color, accent: Color, showQr: Boolean, onQrC
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.width(48.dp))
-        Text("文件传输", color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        Text(stringResource(R.string.settings_file_transfer), color = primary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (showQr) {
             // 二维码入口只在本机是主机时显示，避免客户端看到点击无效的操作。
             IconButton(onClick = onQrClick, interactionSource = interactionSource, modifier = Modifier.iosPressFeedback(interactionSource).size(48.dp).resultActionEdgeChrome(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))) {
                 Icon(
                     imageVector = QrCode2Icon,
-                    contentDescription = "显示二维码",
+                    contentDescription = stringResource(R.string.show_qr),
                     tint = accent,
                     modifier = Modifier.size(30.dp),
                 )
@@ -407,11 +409,11 @@ private fun LanShareConnectionStatus(connected: Boolean) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = if (connected) CircleFilledIcon else CircleIcon,
-            contentDescription = if (connected) "已连接" else "等待连接",
+            contentDescription = if (connected) stringResource(R.string.connected) else stringResource(R.string.waiting_for_connection),
             tint = statusColor,
             modifier = Modifier.size(16.dp),
         )
         Spacer(Modifier.width(5.dp))
-        Text(if (connected) "设备已连接" else "等待设备连接", color = statusColor, fontSize = 15.sp)
+        Text(if (connected) stringResource(R.string.device_connected) else stringResource(R.string.waiting_for_device), color = statusColor, fontSize = 15.sp)
     }
 }

@@ -46,7 +46,7 @@ internal fun AnchoredDropdownMenu(
     onDismissRequest: () -> Unit,
     dark: Boolean,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
     containerColor: Color? = null,
     tonalElevation: Dp = 0.dp,
     shadowElevation: Dp = 1.dp,

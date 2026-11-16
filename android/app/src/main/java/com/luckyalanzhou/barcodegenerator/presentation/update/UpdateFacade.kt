@@ -39,8 +39,8 @@ internal class UpdateFacade(
     fun setDialogShowing(value: Boolean) = coordinator.setDialogShowing(value)
     fun setDownloadRunning(value: Boolean) = coordinator.setDownloadRunning(value)
     fun resetDownloadState() = coordinator.resetDownloadState()
-    fun setDownloadProgress(progress: Int, indeterminate: Boolean, status: String) =
-        coordinator.setDownloadProgress(progress, indeterminate, status)
+    fun setDownloadProgress(progress: Int, indeterminate: Boolean, downloadedBytes: Long) =
+        coordinator.setDownloadProgress(progress, indeterminate, downloadedBytes)
     suspend fun downloadUpdate(apkUrl: String, expectedSize: Long?, expectedSha256: String?): File =
         coordinator.downloadUpdate(apkUrl, expectedSize, expectedSha256)
     fun validateDownloadedApk(file: File) = coordinator.validateDownloadedApk(file)

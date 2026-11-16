@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.presentation.*
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.settings.SettingsViewModel
@@ -62,6 +63,8 @@ internal interface ComposeAppShellActions {
     fun saveLanShareFile(file: LanShareFile)
     fun copyLanShareAddress(address: String)
     fun shareDebugLog()
+    fun showOpenSourceLicenses(dark: Boolean)
+    fun openMiSansLicense()
 }
 
 /** Activity 只负责把 Android 系统能力适配到 Compose 动作边界。 */
@@ -134,9 +137,9 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     }
     override fun clearFavorites() = traceAction("favorites_clear_dialog") {
         this@composeAppShellActions.showComposeDurableConfirmDialogImpl(
-            "清空所有收藏",
-            "将清空应用内收藏和文件夹层级。此操作无法撤销。",
-            "确定",
+            getString(R.string.favorite_clear_all),
+            getString(R.string.favorite_clear_all_confirm),
+            getString(R.string.action_ok),
         ) { favoritesViewModel.clearFavorites() }
     }
 
@@ -169,9 +172,9 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
                         }
                     }
                 },
-                onNotice = { message ->
-                    DebugLog.record("action", "favorite_edit notice groupId=${group.id} message=${message.take(80)}")
-                    this@composeAppShellActions.toast(message)
+                onNotice = { messageResId ->
+                    DebugLog.record("action", "favorite_edit notice groupId=${group.id} message=${resources.getResourceEntryName(messageResId)}")
+                    this@composeAppShellActions.toast(getString(messageResId))
                 },
             )
         }
@@ -231,9 +234,43 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
 
     override fun copyLanShareAddress(address: String) {
         (getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-            .setPrimaryClip(android.content.ClipData.newPlainText("局域网传输地址", address))
-        this@composeAppShellActions.toast("已复制局域网传输地址")
+            .setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.share_address), address))
+        this@composeAppShellActions.toast(getString(R.string.share_address_copied))
     }
 
     override fun shareDebugLog() = this@composeAppShellActions.shareDebugLog()
+
+    override fun showOpenSourceLicenses(dark: Boolean) = traceAction("open_source_licenses", "dark=$dark") {
+        val colorScheme = if (dark) {
+            com.luckyalanzhou.barcodegenerator.ui.theme.appDarkMaterialColorScheme(
+                com.luckyalanzhou.barcodegenerator.ui.theme.appColorScheme(true),
+            )
+        } else {
+            com.luckyalanzhou.barcodegenerator.ui.theme.appLightMaterialColorScheme(
+                com.luckyalanzhou.barcodegenerator.ui.theme.appColorScheme(false),
+            )
+        }
+        com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity.setActivityTitle(getString(R.string.title_licenses))
+        com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity.setTheme(
+            colorScheme,
+            colorScheme,
+            com.luckyalanzhou.barcodegenerator.ui.theme.AppTypography,
+        )
+        startActivity(android.content.Intent(
+            this@composeAppShellActions,
+            com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity::class.java,
+        ))
+    }
+
+    override fun openMiSansLicense() = traceAction("open_misans_license") {
+        val intent = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("https://hyperos.mi.com/font-download/MiSans%E5%AD%97%E4%BD%93%E7%9F%A5%E8%AF%86%E4%BA%A7%E6%9D%83%E8%AE%B8%E5%8F%AF%E5%8D%8F%E8%AE%AE.pdf"),
+        )
+        try {
+            startActivity(intent)
+        } catch (_: android.content.ActivityNotFoundException) {
+            this@composeAppShellActions.toast(getString(R.string.misans_license_open_failed))
+        }
+    }
 }

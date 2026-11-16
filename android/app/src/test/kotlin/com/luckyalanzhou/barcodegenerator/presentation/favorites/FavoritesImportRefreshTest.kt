@@ -891,8 +891,12 @@ class FavoritesImportRefreshTest {
         val committedError = FavoritesImportRefreshException(5, 2, IllegalStateException("persistent read failure"))
         assertEquals(5, committedError.importedItemCount)
         assertEquals(2, committedError.importedGroupCount)
-        val message = favoritesImportFailureMessage(committedError)
-        assertTrue(message.contains("数据库已写入 2 个收藏、5 条码"))
+        val context = org.robolectric.RuntimeEnvironment.getApplication()
+        val configuration = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(java.util.Locale.SIMPLIFIED_CHINESE)
+        }
+        val message = context.createConfigurationContext(configuration).resources.favoritesImportFailureMessage(committedError)
+        assertTrue(message.contains("数据库已写入 2 个收藏、5 个条码"))
         assertTrue(message.contains("重启应用后查看"))
         assertTrue(!message.startsWith("收藏导入失败"))
     }

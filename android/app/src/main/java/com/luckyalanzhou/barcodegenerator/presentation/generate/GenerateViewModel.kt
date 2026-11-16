@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.presentation.generate
 
+import com.luckyalanzhou.barcodegenerator.domain.BarcodeInputError
 import com.luckyalanzhou.barcodegenerator.presentation.*
 
 import androidx.lifecycle.ViewModel
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 
-data class GenerateValidationError(val rowIndex: Int, val message: String, val attempt: Long = 0)
+data class GenerateValidationError(val rowIndex: Int, val reason: BarcodeInputError, val attempt: Long = 0)
 
 /** 负责保存生成页草稿与格式，并调用领域用例校验输入、生成条码数据。 */
 @HiltViewModel
@@ -61,7 +62,7 @@ class GenerateViewModel @Inject constructor(
         editor.updateFormat(format)
         val result = generateBarcodesUseCase.execute(values, format, existingItems)
         _validationError.value = if (!result.isValid && result.errorIndex in values.indices)
-            GenerateValidationError(result.errorIndex, result.errorMessage, ++validationAttempt) else null
+            GenerateValidationError(result.errorIndex, checkNotNull(result.error), ++validationAttempt) else null
         return result
     }
 }

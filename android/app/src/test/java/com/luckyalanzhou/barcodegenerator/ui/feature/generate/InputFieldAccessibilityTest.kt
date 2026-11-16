@@ -39,7 +39,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** 输入框在空值和填写后都保持稳定、明确的辅助技术名称。 */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(qualifiers = "zh-rCN", sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class InputFieldAccessibilityTest {
     @get:Rule val compose = createComposeRule()

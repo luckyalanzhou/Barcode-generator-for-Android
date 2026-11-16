@@ -1,5 +1,6 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.barcodeFormatOption
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
@@ -10,7 +11,7 @@ import kotlinx.coroutines.launch
 /** 负责接入预览生成和 Android 媒体操作的应用层边界。 */
 internal fun MainActivity.previewCompose(item: CodeItem) {
     val formatId = barcodeFormatOption(item.format)?.id ?: run {
-        toast("不支持的条码格式")
+        toast(getString(R.string.barcode_format_unsupported))
         return
     }
     val style = settingsViewModel.style.copy()
@@ -24,7 +25,7 @@ internal fun MainActivity.previewCompose(item: CodeItem) {
             dark,
             density,
         ) ?: run {
-            toast("内容不符合该格式")
+            toast(getString(R.string.barcode_format_mismatch))
             return@launch
         }
         var transferredToDialog = false
