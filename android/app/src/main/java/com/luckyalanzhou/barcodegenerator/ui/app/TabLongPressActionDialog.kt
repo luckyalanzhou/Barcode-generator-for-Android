@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSeparator
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuLineStyle
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionIconSize
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.menuOptionLineHeight
@@ -98,6 +99,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.luckyalanzhou.barcodegenerator.ui.theme.ActionMenuMetrics
 import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
+import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuShadowColors
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuWidthDp
 import kotlin.math.roundToInt
 
@@ -143,6 +145,7 @@ internal fun TabLongPressActionOverlay(
     val panelCorner = ActionMenuMetrics.corner
     val sourceCardShape = remember { RoundedCornerShape(14.dp) }
     val menuColors = actionMenuColors(colors, dark, effects.highContrast)
+    val menuShadowColors = actionMenuShadowColors(dark)
     val separator = menuColors.separator
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
@@ -165,6 +168,9 @@ internal fun TabLongPressActionOverlay(
         if (gesture.feedbackPoint != null) pointerMotion() else null,
         effects.reduceMotion,
     ) { follow.value }
+    val glassDragMotion = remember(gesture, effects.reduceMotion) {
+        derivedStateOf { displayedMotion() }
+    }
     LaunchedEffect(gesture, effects.reduceMotion, anchorMotionRangePx, state.tabAnchor) {
         snapshotFlow {
             val point = gesture.feedbackPoint
@@ -357,9 +363,9 @@ internal fun TabLongPressActionOverlay(
                             // 全部选项作为完整面板同时出现，不再依次裁切标题和菜单行。
                             shape = RoundedCornerShape(panelCorner)
                             clip = true
-                            shadowElevation = 12.dp.toPx() * reveal.shadow
-                            ambientShadowColor = Color.Black.copy(alpha = if (dark) .25f else .12f)
-                            spotShadowColor = Color.Black.copy(alpha = if (dark) .32f else .18f)
+                            shadowElevation = MenuMetrics.surfaceShadowElevation.toPx() * reveal.shadow
+                            ambientShadowColor = menuShadowColors.ambient
+                            spotShadowColor = menuShadowColors.spot
                             val motion = displayedMotion()
                             val presentationScale = if (effects.reduceMotion) 1f else if (actionClosing) 1f - .03f * actionExit.value
                                 else reveal.scale
@@ -421,6 +427,7 @@ internal fun TabLongPressActionOverlay(
                     shape = RoundedCornerShape(panelCorner),
                     color = colors.surfaces.panel,
                     obscuresBackdropContent = true,
+                    externalGlassMotion = glassDragMotion,
                 ) {
                     key(state) {
                     SlideSelectionMenu(gesture.selection, Modifier.verticalScroll(rememberScrollState())) { selection ->
@@ -438,10 +445,10 @@ internal fun TabLongPressActionOverlay(
                             fontWeight = FontWeight.Medium,
                         )
                     }
-                    ActionSeparator(color = separator)
+                    MenuSeparator(color = separator)
                     }
                     actions.forEachIndexed { index, action ->
-                        if (index > 0) ActionSeparator(color = separator)
+                        if (index > 0) MenuSeparator(color = separator)
                         Row(
                             modifier = Modifier.fillMaxWidth()
                                 .onSizeChanged { measuredRowHeightPx = maxOf(measuredRowHeightPx, it.height.toFloat()) }
@@ -450,6 +457,7 @@ internal fun TabLongPressActionOverlay(
                                     selection.confirmed = index
                                     onAction(action.onClick)
                                 }
+                                .heightIn(min = MenuMetrics.minimumActionItemHeight)
                                 .padding(horizontal = ActionMenuMetrics.horizontalPadding, vertical = menuOptionVerticalPadding),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -475,11 +483,4 @@ internal fun TabLongPressActionOverlay(
                     }
                 }
     }
-}
-
-@Composable
-private fun ActionSeparator(color: Color) {
-    Box(
-        Modifier.fillMaxWidth().height(ActionMenuMetrics.separatorHeight).background(color),
-    )
 }

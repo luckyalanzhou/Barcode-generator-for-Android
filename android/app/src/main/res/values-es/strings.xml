@@ -137,7 +137,7 @@
     <string name="favorite_changed">El archivo de favoritos cambió. Actualiza la lista e inténtalo de nuevo.</string>
     <string name="favorite_choose_folder">Elige una carpeta.</string>
     <string name="favorite_choose_nested_folder">Elige la subcarpeta</string>
-    <string name="favorite_choose_root_folder">Elige la carpeta de primer nivel</string>
+    <string name="favorite_choose_root_folder">Elige la carpeta raíz</string>
     <string name="favorite_clear">Borrar favoritos</string>
     <string name="favorite_clear_all">Borrar todos los favoritos</string>
     <string name="favorite_clear_all_confirm">Se borrarán permanentemente tus favoritos y carpetas.</string>
@@ -297,7 +297,7 @@
     <string name="language_option_spanish">Español</string>
     <string name="language_option_traditional_chinese">繁體中文</string>
     <string name="latest_version_installed">Ya tienes la versión más reciente.</string>
-    <string name="license_misans_agreement">Licencia de propiedad intelectual de fuentes de Xiaomi</string>
+    <string name="license_misans_agreement">Licencia de Xiaomi</string>
     <string name="license_misans_description">Esta aplicación incluye la fuente variable MiSans. La licencia de Xiaomi exige atribuir MiSans y prohíbe modificar su aspecto.</string>
     <string name="license_misans_font">Fuente MiSans</string>
     <string name="license_misans_view">Ver la licencia completa de MiSans</string>
@@ -377,7 +377,7 @@
     <string name="settings_barcode_spacing">Margen del código</string>
     <string name="settings_barcode_style">Estilo del código</string>
     <string name="settings_barcode_style_restored">Se restauró el estilo predeterminado</string>
-    <string name="settings_barcode_text_size">Tamaño del texto</string>
+    <string name="settings_barcode_text_size">Tamaño de fuente</string>
     <string name="settings_barcode_width">Ancho del código</string>
     <string name="settings_diagnostics">Diagnóstico</string>
     <string name="settings_export_logs">Exportar registros de depuración</string>
@@ -389,8 +389,9 @@
         <item quantity="other">%1$d activadas</item>
     </plurals>
     <string name="settings_recognition_assistance">Asistencia de reconocimiento</string>
-    <string name="settings_restore_barcode_style">Restaurar el estilo predeterminado</string>
+    <string name="settings_restore_barcode_style">Restaurar estilo</string>
     <string name="settings_row_application_theme">Tema de la aplicación</string>
+    <string name="settings_liquid_glass">Vidrio líquido</string>
     <string name="settings_row_language">Idioma</string>
     <string name="settings_save_failed">No se guardaron los ajustes. Tus cambios siguen en pantalla. Inténtalo de nuevo.</string>
     <string name="settings_section_general">General</string>

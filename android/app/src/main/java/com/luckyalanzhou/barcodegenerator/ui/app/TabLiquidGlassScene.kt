@@ -137,7 +137,16 @@ internal fun TabLiquidGlassScene(
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = { drawRect(sampledContainerColor) },
+                    onDrawSurface = {
+                        drawRect(sampledContainerColor)
+                        val frame = frameProvider()
+                        val top = (sceneSize.height - size.height) / 2f
+                        drawGlassTouchHighlight(
+                            androidx.compose.ui.geometry.Offset(frame.touchX, frame.touchY - top),
+                            frame.motion,
+                            .12f,
+                        )
+                    },
             ),
             )
 
@@ -208,9 +217,19 @@ internal fun TabLiquidGlassScene(
                         )
                     },
                     onDrawSurface = {
-                        val motionAmount = frameProvider().motion.coerceIn(0f, 1f)
+                        val frame = frameProvider()
+                        val motionAmount = frame.motion.coerceIn(0f, 1f)
                         drawRect(Color.White.copy(alpha = .025f * (1f - motionAmount)))
                         drawRect(Color.Black.copy(alpha = .03f * motionAmount))
+                        val cellWidth = (frame.width - 8f * density) / tabCount
+                        drawGlassTouchHighlight(
+                            androidx.compose.ui.geometry.Offset(
+                                frame.touchX - (frame.centerX - cellWidth / 2f),
+                                frame.touchY - (frame.centerY - 28f * density),
+                            ),
+                            motionAmount,
+                            .18f,
+                        )
                     },
                 ).height(56.dp).fillMaxWidth(1f / tabCount),
             )
@@ -231,7 +250,7 @@ internal fun TabLiquidGlassScene(
                 renderer = renderer,
             )
         }
-        if (visible && !backdropAvailable) {
+        if (visible && !backdropAvailable && !policy.opaqueGlass) {
             TabGlassSurface(frameProvider, resolvedMaterial,
                 accent, background, policy.highContrast, drawMotionHighlight = true)
         }

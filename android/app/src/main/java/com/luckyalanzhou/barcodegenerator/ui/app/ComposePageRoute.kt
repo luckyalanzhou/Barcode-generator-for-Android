@@ -291,7 +291,11 @@ private fun ComposePageRoute(
                     listBottomPadding = listBottomPadding,
                     languageRow = { AppLanguageSettingsRow(dark) },
                     checkingForUpdates = update.checking,
-                    settings = SettingsContentState(style = settings.style, ocrMask = settings.ocrMask),
+                    settings = SettingsContentState(
+                        style = settings.style,
+                        ocrMask = settings.ocrMask,
+                        liquidGlassEnabled = settings.liquidGlassEnabled,
+                    ),
                     dark = dark,
                     onStyleChange = { next ->
                         val viewModel = dependencies.settingsViewModel
@@ -305,6 +309,7 @@ private fun ComposePageRoute(
                         }
                     },
                     onOcrMaskChange = { dependencies.settingsViewModel.setOcrMaskPersisted(it) },
+                    onLiquidGlassEnabledChange = dependencies.settingsViewModel::setLiquidGlassEnabled,
                     onEnterAbout = { dependencies.actions.navigateTo(AppRoute.AboutUs) },
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onShareDebugLog = dependencies.actions::shareDebugLog,

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -34,6 +35,7 @@ import androidx.compose.ui.state.ToggleableState
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
+import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 
 /** 值选项共用显示：勾号表示保存状态，底色只表示当前按压或悬停，不参与业务状态更新。 */
 @Composable
@@ -44,8 +46,13 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     val hovered by interactions.collectIsHoveredAsState()
-    val feedback = colors.controls.accent.copy(alpha = if (LocalVisualEffectsPolicy.current.highContrast) .20f else .10f)
-    // 16sp 正文、22sp 行高，上下各 11dp；大字体和换行自然增高。
+    val policy = LocalVisualEffectsPolicy.current
+    val feedback = actionMenuColors(
+        colors,
+        dark = colors.surfaces.background.luminance() < .35f,
+        highContrast = policy.highContrast,
+    ).selection
+    // 16sp 正文、22sp 行高，与长按菜单共用 48dp 的选项行。
     Row(
         modifier = Modifier.fillMaxWidth()
             .hoverable(interactions)

@@ -17,6 +17,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,22 +30,26 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.backdrops.rememberCanvasBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import com.luckyalanzhou.barcodegenerator.icons.ContentPasteIcon
 import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 
@@ -56,12 +61,24 @@ internal fun GlassGenerateActionBar(
     modifier: Modifier = Modifier,
 ) {
     val gap = 8.dp
-    val backdrop = rememberLayerBackdrop()
     val colors = LocalAppColorScheme.current
     val background = colors.surfaces.background
+    // These buttons sit in the same page subtree recorded by the app shell. Sampling that
+    // ancestor from inside its recording creates a RenderNode cycle; this region has only
+    // the page background behind it, so use a coordinate-independent canvas backdrop.
+    val backdrop = rememberCanvasBackdrop { drawRect(background) }
     val light = background.luminance() > .5f
     val pasteTint = if (light) Color(0xFF08796C) else Color(0xFF59D7C3)
     val cameraTint = if (light) Color(0xFF7444AE) else Color(0xFFC7A4FF)
+    val labels = listOf(
+        stringResource(R.string.add_row),
+        stringResource(R.string.batch_paste),
+        stringResource(R.string.ocr_take_photo),
+    )
+    val labelStyle = LocalTextStyle.current.copy(fontSize = 15.sp)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     BoxWithConstraints(
         modifier.fillMaxWidth().testTag("generate-actions").pointerInput(Unit) {
             awaitEachGesture {
@@ -74,13 +91,33 @@ internal fun GlassGenerateActionBar(
             }
         },
     ) {
-        val stacked = (maxWidth - gap * 2) / 3 < (36 + 60 * LocalDensity.current.fontScale).dp
-        // Record a sibling surface to avoid sampling an ancestor that contains the buttons.
-        Box(Modifier.matchParentSize().layerBackdrop(backdrop).background(background))
+        val buttonWidth = (maxWidth - gap * 2) / 3
+        val availableInlineTextWidth = with(density) { (buttonWidth - 36.dp).toPx() }
+        val hasLabelThatWouldWrapInline = remember(
+            labels,
+            labelStyle,
+            textMeasurer,
+            density,
+            layoutDirection,
+            availableInlineTextWidth,
+        ) {
+            labels.any { label ->
+                textMeasurer.measure(
+                    text = AnnotatedString(label),
+                    style = labelStyle,
+                    softWrap = false,
+                    maxLines = 1,
+                    layoutDirection = layoutDirection,
+                    density = density,
+                ).size.width > availableInlineTextWidth
+            }
+        }
+        val stacked = hasLabelThatWouldWrapInline ||
+            buttonWidth < (36 + 60 * density.fontScale).dp
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
-            GenerateActionButton(stringResource(R.string.add_row), AddIcon, colors.controls.accent, stacked, backdrop, onAddRow, Modifier.weight(1f))
-            GenerateActionButton(stringResource(R.string.batch_paste), ContentPasteIcon, pasteTint, stacked, backdrop, onBatchPaste, Modifier.weight(1f))
-            GenerateActionButton(stringResource(R.string.ocr_take_photo), PhotoCameraIcon, cameraTint, stacked, backdrop, onCaptureText, Modifier.weight(1f))
+            GenerateActionButton(labels[0], labelStyle, AddIcon, colors.controls.accent, stacked, backdrop, onAddRow, Modifier.weight(1f))
+            GenerateActionButton(labels[1], labelStyle, ContentPasteIcon, pasteTint, stacked, backdrop, onBatchPaste, Modifier.weight(1f))
+            GenerateActionButton(labels[2], labelStyle, PhotoCameraIcon, cameraTint, stacked, backdrop, onCaptureText, Modifier.weight(1f))
         }
     }
 }
@@ -88,14 +125,16 @@ internal fun GlassGenerateActionBar(
 @Composable
 private fun GenerateActionButton(
     label: String,
+    labelStyle: androidx.compose.ui.text.TextStyle,
     icon: ImageVector,
     accent: Color,
     stacked: Boolean,
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: com.kyant.backdrop.Backdrop?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    val touch = remember { GlassPointerTracker() }
     val pressed by interaction.collectIsPressedAsState()
     val policy = LocalVisualEffectsPolicy.current
     val colors = LocalAppColorScheme.current
@@ -110,7 +149,7 @@ private fun GenerateActionButton(
     )
     val iconTint = if (policy.highContrast) colors.text.primary else accent
     val pressedTint = { lerp(fill, accent, .18f * progress.coerceIn(0f, 1f)) }
-    val surface = if (Build.VERSION.SDK_INT >= 33 && !policy.opaqueGlass) {
+    val surface = if (Build.VERSION.SDK_INT >= 33 && backdrop != null && !policy.opaqueGlass) {
         Modifier.drawBackdrop(
             backdrop = backdrop,
             shape = { shape },
@@ -120,14 +159,24 @@ private fun GenerateActionButton(
                 blur(6f * density)
                 lens(10f * density, (5f + 4f * strength) * density)
             },
+            layerBlock = {
+                val scale = if (policy.reduceMotion) 1f else 1f - .035f * progress.coerceIn(0f, 1f)
+                scaleX = scale
+                scaleY = scale
+            },
             highlight = { Highlight.Default.copy(alpha = .24f + .24f * progress.coerceIn(0f, 1f)) },
             shadow = { Shadow(alpha = if (light) .06f else .12f) },
             onDrawSurface = {
                 drawRect(pressedTint().copy(alpha = (if (light) .34f else .47f) + .10f * progress.coerceIn(0f, 1f)))
+                drawGlassTouchHighlight(touch.touchPosition, progress, if (light) .14f else .18f)
             },
         )
     } else {
-        Modifier.background((if (policy.highContrast) fill else pressedTint()).copy(alpha = if (policy.opaqueGlass) 1f else .78f + .16f * progress.coerceIn(0f, 1f)), shape)
+        Modifier.graphicsLayer {
+            val scale = if (policy.reduceMotion) 1f else 1f - .035f * progress.coerceIn(0f, 1f)
+            scaleX = scale
+            scaleY = scale
+        }.background((if (policy.highContrast) fill else pressedTint()).copy(alpha = if (policy.opaqueGlass) 1f else .78f + .16f * progress.coerceIn(0f, 1f)), shape)
     }
     Box(
         modifier.fillMaxHeight().heightIn(min = 48.dp)
@@ -135,19 +184,15 @@ private fun GenerateActionButton(
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.matchParentSize().graphicsLayer {
-                val scale = if (policy.reduceMotion) 1f else 1f - .035f * progress.coerceIn(0f, 1f)
-                scaleX = scale
-                scaleY = scale
-            }.then(surface).border(
+            Modifier.matchParentSize().then(surface).border(
                 if (policy.highContrast) 1.5.dp else 1.dp,
                 iconTint.copy(alpha = if (policy.highContrast) 1f else if (light) .30f else .36f),
                 shape,
-            ),
+            ).then(touch.pointerModifier),
         )
         val content: @Composable () -> Unit = {
             Icon(icon, null, Modifier.size(20.dp), tint = iconTint)
-            Text(label, color = colors.text.primary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            Text(label, modifier = Modifier, color = colors.text.primary, style = labelStyle, textAlign = TextAlign.Center)
         }
         if (stacked) {
             Column(Modifier.padding(horizontal = 6.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,

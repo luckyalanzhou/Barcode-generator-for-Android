@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.AppTheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -55,10 +56,13 @@ class MenuChoiceLayoutTest {
         val checked = compose.onNodeWithText("已选中").fetchSemanticsNode().boundsInRoot.height
         val unchecked = compose.onNodeWithText("未选中").fetchSemanticsNode().boundsInRoot.height
         assertEquals(checked, unchecked, .5f)
-        // 字体回退的真实字形可能高于声明行高；测量真实文字行框，再核对上下各 10dp 留白。
+        // 字体回退的真实字形可能高于声明行高；测量文字行框，再核对共享菜单上下内边距。
         val textHeight = compose.onNodeWithText("未选中", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot.height
-        assertEquals(textHeight + 20f * density, unchecked, 2f)
+        val verticalPaddingPx = with(Density(density, fontScale)) {
+            (MenuMetrics.optionVerticalPadding * 2).toPx()
+        }
+        assertEquals(textHeight + verticalPaddingPx, unchecked, 2f)
         val expectedLineHeightPx = with(Density(density, fontScale)) { menuOptionLineHeight.toPx() }
         // Android 字体回退和非线性字号缩放可能扩大实际字形行框；声明行高不能裁切字体。
         org.junit.Assert.assertTrue(

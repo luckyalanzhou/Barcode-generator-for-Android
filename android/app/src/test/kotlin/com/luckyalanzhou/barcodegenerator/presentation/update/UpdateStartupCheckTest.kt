@@ -380,6 +380,8 @@ class UpdateStartupCheckTest {
         var releaseRead: CompletableDeferred<Unit>? = null
         override suspend fun load() = Unit
         override fun loadStyle() = StyleSettings()
+        override fun getLiquidGlassEnabled() = true
+        override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
         override fun saveStyle(style: StyleSettings) = completedJob()
         override fun getOcrConfusionReplacementMask() = 0
         override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()

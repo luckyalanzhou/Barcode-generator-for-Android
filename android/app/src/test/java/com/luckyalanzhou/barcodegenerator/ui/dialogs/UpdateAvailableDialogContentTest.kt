@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.testTag
 import com.luckyalanzhou.barcodegenerator.ui.theme.AppTheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.VisualEffectsPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -32,7 +33,9 @@ class UpdateAvailableDialogContentTest {
         var later = 0
         var updated = 0
         compose.setContent {
-            AppTheme("light") {
+            // This test verifies dialog semantics and layout. Robolectric's software
+            // canvas cannot render the library's RuntimeShader glass material.
+            AppTheme("light", VisualEffectsPolicy(opaqueGlass = true)) {
                 UpdateAvailableDialogContent(
                     latest = "1.2.3",
                     dark = false,
@@ -59,7 +62,8 @@ class UpdateAvailableDialogContentTest {
     @Test
     fun allActionsRemainVisibleOnANarrowDialogAtLargeFontScale() {
         compose.setContent {
-            AppTheme("light") {
+            // Keep the layout test independent of hardware-only RuntimeShader rendering.
+            AppTheme("light", VisualEffectsPolicy(opaqueGlass = true)) {
                 val density = LocalDensity.current
                 androidx.compose.runtime.CompositionLocalProvider(
                     LocalDensity provides Density(density.density, 2f),

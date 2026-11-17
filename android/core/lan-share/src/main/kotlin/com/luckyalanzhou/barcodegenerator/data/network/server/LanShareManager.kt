@@ -14,6 +14,8 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.LAN_SHARE_SOCKET
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.listFiles
 import com.luckyalanzhou.barcodegenerator.data.network.protocol.sharedFile
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebGlassProvider
+import com.luckyalanzhou.barcodegenerator.data.network.web.defaultLanShareWebGlassProvider
 import com.luckyalanzhou.barcodegenerator.data.network.web.defaultLanShareWebLocaleProvider
 
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
@@ -47,6 +49,7 @@ class LanShareManager private constructor(
     private val logger: AppLogger,
     private val testOverrides: LanShareManagerOverrides,
     private val webLocaleProvider: LanShareWebLocaleProvider = defaultLanShareWebLocaleProvider,
+    private val webGlassProvider: LanShareWebGlassProvider = defaultLanShareWebGlassProvider,
 ) : LanShareGateway {
     constructor(context: Context, logger: AppLogger) : this(context, logger, LanShareManagerOverrides())
 
@@ -55,6 +58,13 @@ class LanShareManager private constructor(
         logger: AppLogger,
         webLocaleProvider: LanShareWebLocaleProvider,
     ) : this(context, logger, LanShareManagerOverrides(), webLocaleProvider)
+
+    constructor(
+        context: Context,
+        logger: AppLogger,
+        webLocaleProvider: LanShareWebLocaleProvider,
+        webGlassProvider: LanShareWebGlassProvider,
+    ) : this(context, logger, LanShareManagerOverrides(), webLocaleProvider, webGlassProvider)
 
     /** 测试专用构造器用于通过 App 侧公开网关验证真实上传与取消调用链。 */
     internal constructor(
@@ -172,6 +182,7 @@ class LanShareManager private constructor(
             logger,
             webPreviewFolder,
             webLocaleProvider = webLocaleProvider,
+            webGlassProvider = webGlassProvider,
             emitRealtimeEvent = { event ->
                 synchronized(realtimeStateLock) {
                     if (serverGeneration.get() == generation) {

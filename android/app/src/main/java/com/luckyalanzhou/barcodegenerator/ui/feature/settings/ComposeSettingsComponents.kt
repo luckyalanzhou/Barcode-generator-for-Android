@@ -176,7 +176,7 @@ internal fun settingsButtonTextStyle(inherited: TextStyle): TextStyle =
 
 @Composable
 internal fun SettingsDropdown(dark: Boolean, expanded: Boolean, menuWidth: Dp, anchorWidth: Dp?, anchorHeight: Dp?, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics.surfaceCornerRadius), containerColor = LocalAppColorScheme.current.surfaces.overlay, tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, anchorHeight = anchorHeight, alignEndWithAnchor = true, cornerReveal = true, content = content)
+    AnchoredDropdownMenu(dark = dark, expanded = expanded, onDismissRequest = onDismiss, shape = RoundedCornerShape(com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics.surfaceCornerRadius), containerColor = LocalAppColorScheme.current.surfaces.panel, tonalElevation = 0.dp, shadowElevation = com.luckyalanzhou.barcodegenerator.ui.theme.MenuMetrics.surfaceShadowElevation, menuWidth = menuWidth.coerceAtLeast(110.dp), anchorWidth = anchorWidth, anchorHeight = anchorHeight, alignEndWithAnchor = true, cornerReveal = true, dynamicBackdrop = true, content = content)
 }
 
 @Composable

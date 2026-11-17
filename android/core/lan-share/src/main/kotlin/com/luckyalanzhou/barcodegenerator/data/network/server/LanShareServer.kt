@@ -14,8 +14,10 @@ import com.luckyalanzhou.barcodegenerator.data.network.protocol.toLanShareFile
 import com.luckyalanzhou.barcodegenerator.data.preview.LanShareWebImagePreviewCache
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocale
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebLocaleProvider
+import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebGlassProvider
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebTemplates
 import com.luckyalanzhou.barcodegenerator.data.network.web.LanShareWebText
+import com.luckyalanzhou.barcodegenerator.data.network.web.defaultLanShareWebGlassProvider
 import com.luckyalanzhou.barcodegenerator.data.network.web.defaultLanShareWebLocaleProvider
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.LanShareFile
@@ -69,6 +71,7 @@ internal class LanShareServer(
     private val maxConcurrentClientConnections: Int = MAX_CLIENT_HANDLERS,
     private val httpRequestHeaderTimeoutMillis: Long = LAN_SHARE_HTTP_REQUEST_HEADER_TIMEOUT_MS,
     private val webLocaleProvider: LanShareWebLocaleProvider = defaultLanShareWebLocaleProvider,
+    private val webGlassProvider: LanShareWebGlassProvider = defaultLanShareWebGlassProvider,
 ) : NanoWSD(host, port) {
     private companion object {
         const val DEFAULT_CONNECTION_DISCONNECT_GRACE_MS = 3_000L
@@ -1021,7 +1024,7 @@ internal class LanShareServer(
                 session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(
                     Response.Status.OK,
                     "text/html; charset=utf-8",
-                    LanShareWebTemplates.page(locale)
+                    LanShareWebTemplates.page(locale, webGlassProvider.isLiquidGlassEnabled())
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 
                 session.method == Method.PUT && requestPath == "/upload" -> {

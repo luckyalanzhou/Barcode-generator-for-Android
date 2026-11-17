@@ -22,6 +22,7 @@ import com.luckyalanzhou.barcodegenerator.R
 /** Decorative icons used only by rows on the top-level Settings page. */
 internal enum class SettingsIconKind {
     Theme,
+    LiquidGlass,
     Language,
     Correction,
     LanShare,
@@ -40,6 +41,7 @@ private val SettingsIconBlue = Color(0xFF1688F8)
 internal fun SettingsLeadingIcon(kind: SettingsIconKind) {
     val background = when (kind) {
         SettingsIconKind.Theme -> Color(0xFFE91E63)
+        SettingsIconKind.LiquidGlass -> Color(0xFF5B67D8)
         SettingsIconKind.Language, SettingsIconKind.About -> Color(0xFF1688F8)
         SettingsIconKind.Correction -> Color(0xFF1A9B57)
         SettingsIconKind.LanShare -> Color(0xFFD87800)
@@ -68,6 +70,7 @@ internal fun SettingsLeadingIcon(kind: SettingsIconKind) {
 private fun SettingsGlyph(kind: SettingsIconKind, color: Color, modifier: Modifier) {
     val vector = when (kind) {
         SettingsIconKind.Theme -> R.drawable.settings_symbol_palette
+        SettingsIconKind.LiquidGlass -> R.drawable.settings_symbol_blur_on
         SettingsIconKind.Language -> R.drawable.settings_symbol_language
         SettingsIconKind.Correction -> R.drawable.settings_symbol_spellcheck
         SettingsIconKind.LanShare -> R.drawable.settings_symbol_wifi

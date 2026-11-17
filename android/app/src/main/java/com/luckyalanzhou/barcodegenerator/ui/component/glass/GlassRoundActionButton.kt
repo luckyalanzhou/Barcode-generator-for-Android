@@ -56,6 +56,7 @@ internal fun GlassRoundActionButton(
 ) {
     val preparing = stringResource(R.string.state_preparing)
     val interaction = remember { MutableInteractionSource() }
+    val touch = remember { GlassPointerTracker() }
     val pressed by interaction.collectIsPressedAsState()
 
     val colors = LocalAppColorScheme.current
@@ -91,6 +92,7 @@ internal fun GlassRoundActionButton(
     ) {
         Box(
             Modifier.width(48.dp).height(48.dp)
+                .then(touch.pointerModifier)
                 .graphicsLayer {
                     val shadow = resultActionShadow(colors.surfaces.background, effects.opaqueGlass)
                     shadowElevation = if (useKyantGlass) 0f else shadow.elevationDp * density
@@ -134,6 +136,7 @@ internal fun GlassRoundActionButton(
                         val press = pressProgress.coerceIn(0f, 1f)
                         drawCircle((if (lightSurface) Color.White else Color(0xFF121212))
                             .copy(alpha = .18f + .16f * press))
+                        drawGlassTouchHighlight(touch.touchPosition, press, if (lightSurface) .12f else .18f)
                     },
                 ) else Modifier.clip(CircleShape)),
             contentAlignment = Alignment.Center,
@@ -147,6 +150,7 @@ internal fun GlassRoundActionButton(
                     contentTint,
                     density,
                     effects.highContrast,
+                    edgeHighlight = !effects.opaqueGlass,
                 )
             }
             // 反馈只作用于前景图标，不改变下方玻璃外观或阴影；取消手势也会恢复。

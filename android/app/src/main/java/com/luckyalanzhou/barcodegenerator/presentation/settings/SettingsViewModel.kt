@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
     val scheme: String = "system",
+    val liquidGlassEnabled: Boolean = true,
     val ocrMask: Int = 0,
     val textSize: Float = 14f,
     val barHeight: Float = 55f,
@@ -54,6 +55,7 @@ class SettingsViewModel @Inject constructor(
     private var currentStyle = StyleSettings()
     private val styleFieldsChangedBeforeLoad = mutableSetOf<StyleField>()
     private var ocrMaskChangedBeforeLoad: Int? = null
+    private var liquidGlassChangedBeforeLoad: Boolean? = null
     private val writeFailureNotices = Channel<Unit>(Channel.BUFFERED)
     val persistenceFailures = writeFailureNotices.receiveAsFlow()
 
@@ -64,13 +66,17 @@ class SettingsViewModel @Inject constructor(
     suspend fun loadPersistedState() {
         try {
             logger.recordSafely("settings", "load start")
-            val (style, ocrMask) = withContext(Dispatchers.IO) {
+            val (style, ocrMask, liquidGlassEnabled) = withContext(Dispatchers.IO) {
                 settingsRepository.load()
                 legacySettingsMigrator.migrateIfNeeded()
-                settingsRepository.loadStyle() to settingsRepository.getOcrConfusionReplacementMask()
+                Triple(
+                    settingsRepository.loadStyle(),
+                    settingsRepository.getOcrConfusionReplacementMask(),
+                    settingsRepository.getLiquidGlassEnabled(),
+                )
             }
             // 回到调用方上下文后再发布状态，日志仅记录设置类型、不记录输入内容。
-            initialize(style, ocrMask)
+            initialize(style, ocrMask, liquidGlassEnabled)
             logger.recordSafely(
                 "settings",
                 "load success scheme=${style.colorScheme}",
@@ -128,7 +134,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun initialize(style: StyleSettings, ocrMask: Int) {
+    fun initialize(style: StyleSettings, ocrMask: Int, liquidGlassEnabled: Boolean = true) {
         if (initialized) return
         initialized = true
         val resolvedStyle = style.copy().apply {
@@ -142,12 +148,16 @@ class SettingsViewModel @Inject constructor(
         }
         val shouldPersistEarlyStyle = styleFieldsChangedBeforeLoad.isNotEmpty()
         val earlyOcrMask = ocrMaskChangedBeforeLoad
+        val earlyLiquidGlassEnabled = liquidGlassChangedBeforeLoad
+        val resolvedLiquidGlassEnabled = earlyLiquidGlassEnabled ?: liquidGlassEnabled
         currentStyle = resolvedStyle
         styleFieldsChangedBeforeLoad.clear()
         ocrMaskChangedBeforeLoad = null
+        liquidGlassChangedBeforeLoad = null
         _uiState.value = SettingsUiState(
             style = currentStyle.copy(),
             scheme = currentStyle.colorScheme,
+            liquidGlassEnabled = resolvedLiquidGlassEnabled,
             ocrMask = earlyOcrMask ?: ocrMask,
             textSize = currentStyle.textSize,
             barHeight = currentStyle.barHeight.toFloat(),
@@ -158,6 +168,11 @@ class SettingsViewModel @Inject constructor(
         if (earlyOcrMask != null) {
             trackWrite("ocr_mask_save_after_initial_load") {
                 settingsRepository.setOcrConfusionReplacementMask(earlyOcrMask)
+            }
+        }
+        if (earlyLiquidGlassEnabled != null) {
+            trackWrite("liquid_glass_save_after_initial_load") {
+                settingsRepository.setLiquidGlassEnabled(earlyLiquidGlassEnabled)
             }
         }
     }
@@ -172,6 +187,17 @@ class SettingsViewModel @Inject constructor(
     fun setOcrMask(value: Int) {
         if (!initialized) ocrMaskChangedBeforeLoad = value
         _uiState.update { it.copy(ocrMask = value) }
+    }
+
+    fun setLiquidGlassEnabled(enabled: Boolean) {
+        if (!initialized) {
+            liquidGlassChangedBeforeLoad = enabled
+            _uiState.update { it.copy(liquidGlassEnabled = enabled) }
+            return
+        }
+        if (_uiState.value.liquidGlassEnabled == enabled) return
+        _uiState.update { it.copy(liquidGlassEnabled = enabled) }
+        trackWrite("liquid_glass_save") { settingsRepository.setLiquidGlassEnabled(enabled) }
     }
     fun setTextSize(value: Float) = updateStyleValue { it.copy(textSize = value) }
     fun setBarHeight(value: Float) = updateStyleValue { it.copy(barHeight = value.toInt()) }

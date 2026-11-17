@@ -56,7 +56,7 @@ internal fun AppLanguageSettingsRow(dark: Boolean) {
                 pickerLabel = label,
                 expanded = expanded,
             )
-            SettingsDropdown(dark, expanded, 224.dp, anchorWidth, anchorHeight, onDismiss = { expanded = false }) {
+            SettingsDropdown(dark, expanded, 144.dp, anchorWidth, anchorHeight, onDismiss = { expanded = false }) {
                 AppLanguage.entries.forEachIndexed { index, language ->
                     if (index > 0) ComposeDropdownDivider(dark)
                     SingleChoiceMenuItem(

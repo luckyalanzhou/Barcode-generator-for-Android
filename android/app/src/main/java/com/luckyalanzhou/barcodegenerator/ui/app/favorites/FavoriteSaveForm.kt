@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -228,14 +230,23 @@ internal fun FavoriteSaveForm(
                     }
                 },
                 interactionSource = rootInteractions,
-                modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(rootInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
+                modifier = Modifier.weight(1f).heightIn(min = 40.dp).iosPressFeedback(rootInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
                 contentPadding = PaddingValues(horizontal = 6.dp),
                 shape = RoundedCornerShape(8.dp),
                 border = null,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
             ) {
                 Icon(CreateNewFolderIcon, stringResource(R.string.favorite_create_root_folder), tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
-                Text(stringResource(R.string.favorite_create_root_folder), color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                Text(
+                    stringResource(R.string.favorite_create_root_folder),
+                    color = LocalAppColorScheme.current.text.primary,
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Clip,
+                )
             }
             OutlinedButton(
                 onClick = {
@@ -247,14 +258,23 @@ internal fun FavoriteSaveForm(
                     }
                 },
                 interactionSource = childInteractions,
-                modifier = Modifier.weight(1f).height(40.dp).iosPressFeedback(childInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
+                modifier = Modifier.weight(1f).heightIn(min = 40.dp).iosPressFeedback(childInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
                 contentPadding = PaddingValues(horizontal = 6.dp),
                 shape = RoundedCornerShape(8.dp),
                 border = null,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
             ) {
                 Icon(CreateNewFolderIcon, stringResource(R.string.favorite_create_nested_folder), tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
-                Text(stringResource(R.string.favorite_create_nested_folder), color = LocalAppColorScheme.current.text.primary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
+                Text(
+                    stringResource(R.string.favorite_create_nested_folder),
+                    color = LocalAppColorScheme.current.text.primary,
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Clip,
+                )
             }
         }
 

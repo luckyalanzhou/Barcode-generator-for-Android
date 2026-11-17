@@ -297,7 +297,7 @@
     <string name="language_option_spanish">Español</string>
     <string name="language_option_traditional_chinese">繁體中文</string>
     <string name="latest_version_installed">You have the latest version.</string>
-    <string name="license_misans_agreement">Xiaomi Font Intellectual Property License</string>
+    <string name="license_misans_agreement">Xiaomi font license</string>
     <string name="license_misans_description">This app includes the MiSans variable font. The Xiaomi license requires crediting MiSans and prohibits changes to its appearance.</string>
     <string name="license_misans_font">MiSans font</string>
     <string name="license_misans_view">View full MiSans license</string>
@@ -377,7 +377,7 @@
     <string name="settings_barcode_spacing">Barcode spacing</string>
     <string name="settings_barcode_style">Barcode style</string>
     <string name="settings_barcode_style_restored">Default barcode style restored</string>
-    <string name="settings_barcode_text_size">Barcode text size</string>
+    <string name="settings_barcode_text_size">Font size</string>
     <string name="settings_barcode_width">Barcode width</string>
     <string name="settings_diagnostics">Diagnostics</string>
     <string name="settings_export_logs">Export debug logs</string>
@@ -389,8 +389,9 @@
         <item quantity="other">%1$d enabled</item>
     </plurals>
     <string name="settings_recognition_assistance">Recognition assistance</string>
-    <string name="settings_restore_barcode_style">Restore default barcode style</string>
+    <string name="settings_restore_barcode_style">Restore style</string>
     <string name="settings_row_application_theme">App theme</string>
+    <string name="settings_liquid_glass">Liquid glass</string>
     <string name="settings_row_language">Language</string>
     <string name="settings_save_failed">Settings were not saved. Your changes are still on screen. Try again.</string>
     <string name="settings_section_general">General</string>

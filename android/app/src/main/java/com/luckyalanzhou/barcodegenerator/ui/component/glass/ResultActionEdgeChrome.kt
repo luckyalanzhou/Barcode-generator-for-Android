@@ -34,7 +34,7 @@ internal fun Modifier.resultActionEdgeChrome(
                 accent = accent,
                 density = density,
                 highContrast = effects.highContrast,
-                edgeHighlight = edgeHighlight,
+                edgeHighlight = edgeHighlight && !effects.opaqueGlass,
                 bounds = size,
             )
         }

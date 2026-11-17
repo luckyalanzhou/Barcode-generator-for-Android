@@ -116,8 +116,9 @@ internal fun LanShareInputBar(
                 AnchoredDropdownMenu(
                     dark = dark, expanded = attachmentMenu, onDismissRequest = onDismissAttachmentMenu,
                     shape = RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
-                    containerColor = themeColors.surfaces.overlay,
-                    tonalElevation = 0.dp, shadowElevation = 1.dp, menuWidth = 120.dp,
+                    containerColor = themeColors.surfaces.panel,
+                    tonalElevation = 0.dp, shadowElevation = MenuMetrics.surfaceShadowElevation, menuWidth = 120.dp,
+                    dynamicBackdrop = true,
                 ) {
                     DropdownMenuItem(modifier = Modifier.heightIn(min = MenuMetrics.minimumActionItemHeight), text = { Text(stringResource(R.string.take_picture), color = themeColors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight, style = MenuLineStyle) }, onClick = { onDismissAttachmentMenu(); onOpenCamera() })
                     ComposeDropdownDivider(dark)

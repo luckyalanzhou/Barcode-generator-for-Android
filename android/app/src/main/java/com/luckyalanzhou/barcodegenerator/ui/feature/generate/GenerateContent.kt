@@ -523,16 +523,16 @@ internal fun GenerateContent(
                         expanded = formatExpanded,
                         onDismissRequest = { formatExpanded = false },
                         shape = RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
-                        containerColor = themeColors.surfaces.overlay,
+                        containerColor = themeColors.surfaces.panel,
                         tonalElevation = 0.dp,
-                        shadowElevation = 1.dp,
+                        shadowElevation = MenuMetrics.surfaceShadowElevation,
                         menuWidth = (formatAnchorWidth ?: 176.dp).coerceAtLeast(176.dp),
                         anchorWidth = formatAnchorWidth,
                         anchorHeight = with(density) { formatButtonHeight.toDp() },
                         alignEndWithAnchor = true,
                         // 与外观/字符纠错一致：整个菜单从按钮边界展开，不走 Material 默认动画。
                         cornerReveal = true,
-                        clearerGlass = true,
+                        dynamicBackdrop = true,
                     ) {
                         barcodeFormats.forEachIndexed { index, option ->
                             if (index > 0) ComposeDropdownDivider(dark)

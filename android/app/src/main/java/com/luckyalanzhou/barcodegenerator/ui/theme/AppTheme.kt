@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 internal fun AppTheme(
     appearanceMode: String,
+    visualEffectsPolicy: VisualEffectsPolicy = VisualEffectsPolicy(),
     content: @Composable () -> Unit,
 ) {
     val dark = resolveDarkAppearance(appearanceMode, isSystemInDarkTheme())
@@ -26,6 +27,7 @@ internal fun AppTheme(
         LocalResolvedAppAppearance provides ResolvedAppAppearance(dark),
         LocalAppColorScheme provides colors,
         LocalAppDimensions provides AppDimensions(bottomTabBarHeight = bottomTabHeightForLabel(labelHeightDp).dp),
+        LocalVisualEffectsPolicy provides visualEffectsPolicy,
         LocalRippleConfiguration provides null,
     ) {
         MaterialTheme(colorScheme = materialColors, typography = AppTypography, content = content)

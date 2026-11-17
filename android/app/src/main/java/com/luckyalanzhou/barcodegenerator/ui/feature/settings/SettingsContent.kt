@@ -40,6 +40,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,6 +60,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -81,6 +85,7 @@ internal fun SettingsContent(
     onEnterAbout: () -> Unit = {},
     listBottomPadding: Dp = 8.dp,
     languageRow: @Composable () -> Unit = {},
+    onLiquidGlassEnabledChange: (Boolean) -> Unit = {},
 ) {
     val localizedResources = LocalResources.current
     val colors = rememberSettingsColors()
@@ -135,25 +140,50 @@ internal fun SettingsContent(
                     }
                 }
             }
+            val liquidGlassLabel = stringResource(R.string.settings_liquid_glass)
+            SettingsRow(
+                liquidGlassLabel,
+                colors.settingsText.primary,
+                leading = { SettingsLeadingIcon(SettingsIconKind.LiquidGlass) },
+            ) {
+                Switch(
+                    checked = settings.liquidGlassEnabled,
+                    onCheckedChange = onLiquidGlassEnabledChange,
+                    modifier = Modifier.semantics { contentDescription = liquidGlassLabel },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = colors.controls.toggleOn,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = colors.controls.toggleOff,
+                    ),
+                )
+            }
             languageRow()
         }
         SettingsSection(stringResource(R.string.settings_barcode_style), dark) {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val stacked = useStackedSlider(maxWidth.value, LocalDensity.current.fontScale)
+                val sliderTitles = listOf(
+                    stringResource(R.string.settings_barcode_height),
+                    stringResource(R.string.settings_barcode_width),
+                    stringResource(R.string.settings_barcode_spacing),
+                    stringResource(R.string.settings_barcode_text_size),
+                )
+                val sliderTitleWidth = rememberSettingsSliderTitleWidth(sliderTitles)
+                val stacked = useStackedSlider(maxWidth.value, LocalDensity.current.fontScale, sliderTitleWidth.value)
                 Column {
-                    SettingsSliderRow(stringResource(R.string.settings_barcode_height), settings.style.barHeight.toFloat(), 30f..80f, stringResource(R.string.dp_value, settings.style.barHeight), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeHeight) }) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_height), settings.style.barHeight.toFloat(), 30f..80f, stringResource(R.string.dp_value, settings.style.barHeight), colors.settingsText.primary, stacked, sliderTitleWidth, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeHeight) }) {
                         persist(settings.style.copy(barHeight = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow(stringResource(R.string.settings_barcode_width), settings.style.barWidth, 120f..300f, stringResource(R.string.dp_value, settings.style.barWidth.toInt()), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeWidth) }) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_width), settings.style.barWidth, 120f..300f, stringResource(R.string.dp_value, settings.style.barWidth.toInt()), colors.settingsText.primary, stacked, sliderTitleWidth, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeWidth) }) {
                         persist(settings.style.copy(barWidth = it))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow(stringResource(R.string.settings_barcode_spacing), settings.style.margin.toFloat(), 0f..10f, stringResource(R.string.dp_value, settings.style.margin), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeSpacing) }) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_spacing), settings.style.margin.toFloat(), 0f..10f, stringResource(R.string.dp_value, settings.style.margin), colors.settingsText.primary, stacked, sliderTitleWidth, leading = { SettingsLeadingIcon(SettingsIconKind.BarcodeSpacing) }) {
                         persist(settings.style.copy(margin = it.toInt()))
                     }
                     SettingsDivider(dark)
-                    SettingsSliderRow(stringResource(R.string.settings_barcode_text_size), settings.style.textSize, 10f..24f, stringResource(R.string.sp_value, settings.style.textSize.toInt()), colors.settingsText.primary, stacked, leading = { SettingsLeadingIcon(SettingsIconKind.TextSize) }) {
+                    SettingsSliderRow(stringResource(R.string.settings_barcode_text_size), settings.style.textSize, 10f..24f, stringResource(R.string.sp_value, settings.style.textSize.toInt()), colors.settingsText.primary, stacked, sliderTitleWidth, leading = { SettingsLeadingIcon(SettingsIconKind.TextSize) }) {
                         persist(settings.style.copy(textSize = it))
                     }
                     SettingsDivider(dark)

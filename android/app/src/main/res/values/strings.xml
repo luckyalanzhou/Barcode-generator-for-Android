@@ -297,7 +297,7 @@
     <string name="language_option_spanish">Español</string>
     <string name="language_option_traditional_chinese">繁體中文</string>
     <string name="latest_version_installed">当前已是最新版本</string>
-    <string name="license_misans_agreement">小米字体知识产权许可协议</string>
+    <string name="license_misans_agreement">小米字体许可协议</string>
     <string name="license_misans_description">本应用内嵌 MiSans 可变字体。小米许可要求软件注明使用了 MiSans，且不得更改字体外观。</string>
     <string name="license_misans_font">MiSans 字体</string>
     <string name="license_misans_view">查看完整 MiSans 许可协议</string>
@@ -377,7 +377,7 @@
     <string name="settings_barcode_spacing">条码间距</string>
     <string name="settings_barcode_style">条码样式</string>
     <string name="settings_barcode_style_restored">已恢复条码默认样式</string>
-    <string name="settings_barcode_text_size">条码文字大小</string>
+    <string name="settings_barcode_text_size">条码字号</string>
     <string name="settings_barcode_width">条码宽度</string>
     <string name="settings_diagnostics">诊断</string>
     <string name="settings_export_logs">导出调试日志</string>
@@ -389,8 +389,9 @@
         <item quantity="other">启用 %1$d 项</item>
     </plurals>
     <string name="settings_recognition_assistance">识别辅助</string>
-    <string name="settings_restore_barcode_style">恢复条码默认样式</string>
+    <string name="settings_restore_barcode_style">恢复样式</string>
     <string name="settings_row_application_theme">应用主题</string>
+    <string name="settings_liquid_glass">液态玻璃效果</string>
     <string name="settings_row_language">语言</string>
     <string name="settings_save_failed">设置未保存，当前调整仍保留，请重试</string>
     <string name="settings_section_general">通用</string>

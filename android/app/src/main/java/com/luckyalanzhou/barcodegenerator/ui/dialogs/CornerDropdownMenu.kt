@@ -62,7 +62,8 @@ internal fun dropdownVisualSource(anchor: Rect, visualHeight: Float): Rect {
 @Composable
 internal fun CornerDropdownMenu(
     expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier,
-    shape: Shape, color: Color, anchorHeight: Dp?, clearerGlass: Boolean,
+    shape: Shape, color: Color, anchorHeight: Dp?, clearerGlass: Boolean, dynamicBackdrop: Boolean,
+    shadowElevation: Dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
@@ -74,7 +75,7 @@ internal fun CornerDropdownMenu(
     // Popup 关闭后会销毁内容树；把着色器记录在锚点组合树中，避免每次重开都重新创建。
     val backdropRenderer = rememberGlassBackdropRenderer(
         menuMaterial = true,
-        enabled = expanded || backdropRequested || state.currentState || !state.isIdle,
+        enabled = dynamicBackdrop && (expanded || backdropRequested || state.currentState || !state.isIdle),
     )
     val reduced = LocalVisualEffectsPolicy.current.reduceMotion
     val transition = rememberTransition(state, label = "settings-menu")
@@ -117,9 +118,10 @@ internal fun CornerDropdownMenu(
                 MenuSurface(
                     shape = shape,
                     color = color,
-                    dynamicBackdrop = true,
+                    dynamicBackdrop = dynamicBackdrop,
                     screenSpaceBackdrop = true,
                     clearerGlass = clearerGlass,
+                    shadowElevation = shadowElevation,
                     backdropRenderer = backdropRenderer,
                 ) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)

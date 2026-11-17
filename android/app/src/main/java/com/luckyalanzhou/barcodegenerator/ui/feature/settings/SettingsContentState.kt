@@ -6,4 +6,5 @@ import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 internal data class SettingsContentState(
     val style: StyleSettings,
     val ocrMask: Int,
+    val liquidGlassEnabled: Boolean = true,
 )

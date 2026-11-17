@@ -83,13 +83,30 @@ li.upload-progress .upload-cancel:active{background:rgba(90,105,125,.16)}
 li.mine.upload-progress small{color:var(--upload-sub)}
 .pairing-gate{position:fixed;z-index:20;inset:0;display:grid;place-items:center;padding:24px;background:var(--bg)}
 .pairing-gate[hidden]{display:none}
-.pairing-gate form{display:grid;gap:12px;width:min(100%,360px);padding:24px;border:1px solid var(--bubble-border);border-radius:22px;background:var(--panel);color:var(--text)}
+.pairing-gate form{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;width:min(100%,360px);min-width:0;padding:24px;border:1px solid var(--bubble-border);border-radius:22px;background:var(--panel);color:var(--text)}
+.pairing-gate form>*{grid-column:1;min-width:0;max-width:100%;width:100%}
 .pairing-gate h1,.pairing-gate p{margin:0}
-.pairing-gate p{color:var(--sub);font-size:14px;line-height:1.45}
-.pairing-gate input,.pairing-gate button{min-height:48px;border:1px solid var(--bubble-border);border-radius:12px;padding:0 14px;background:transparent;color:var(--text);font:inherit}
+.pairing-gate p{color:var(--sub);font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.pairing-gate input,.pairing-gate button{display:block;box-sizing:border-box;min-width:0;width:100%;min-height:48px;border:1px solid var(--bubble-border);border-radius:12px;padding:0 14px;background:transparent;color:var(--text);font:inherit}
 .pairing-gate input{text-align:center;letter-spacing:.28em;font-size:20px}
 .pairing-gate button{background:var(--accent);border-color:var(--accent);color:#fff;cursor:pointer}
 .pairing-gate #pairing-error{color:#c62828}
 body.unpaired>.bar,body.unpaired>main,body.unpaired>.bottom,body.unpaired>#attachment-sheet{visibility:hidden}
 </style></head>"""
+
+    fun render(liquidGlassEnabled: Boolean): String =
+        if (liquidGlassEnabled) render() else render().replace("</head>", "${liquidGlassDisabledOverrides()}</head>")
+
+    /** Replace translucent browser bubbles and controls with solid surfaces when glass is disabled. */
+    fun liquidGlassDisabledOverrides() = """<style>
+:root{--bubble-peer-solid:#fff;--bubble-mine-solid:#0a84ff}
+@media(prefers-color-scheme:dark){:root{--bubble-peer-solid:#2c2c2e;--bubble-mine-solid:#0a84ff}}
+li{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 2px 8px var(--bubble-shadow)!important}
+li:not(.upload-progress){background:var(--bubble-peer-solid)!important}
+li.mine:not(.upload-progress){background:var(--bubble-mine-solid)!important}
+.download{background:var(--panel)!important}
+.mine .download{background:#006fe0!important}
+.image-viewer-toolbar button{background:#303034!important;border-color:#606066!important}
+li.upload-progress .upload-cancel{background:var(--panel)!important}
+</style>"""
 }

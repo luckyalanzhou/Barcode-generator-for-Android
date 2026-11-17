@@ -30,17 +30,21 @@ internal data class VisualEffectsPolicy(
 
 internal val LocalVisualEffectsPolicy = staticCompositionLocalOf { VisualEffectsPolicy() }
 
-internal fun resolveVisualEffectsPolicy(animationsEnabled: Boolean, systemHighContrast: Boolean): VisualEffectsPolicy {
+internal fun resolveVisualEffectsPolicy(
+    animationsEnabled: Boolean,
+    systemHighContrast: Boolean,
+    liquidGlassEnabled: Boolean = true,
+): VisualEffectsPolicy {
     return VisualEffectsPolicy(
         reduceMotion = !animationsEnabled,
-        opaqueGlass = systemHighContrast,
+        opaqueGlass = systemHighContrast || !liquidGlassEnabled,
         highContrast = systemHighContrast,
     )
 }
 
 /** 仅使用公开系统 API。实时观察系统设置变化，并在 Composition 结束时注销监听。 */
 @Composable
-internal fun rememberVisualEffectsPolicy(): VisualEffectsPolicy {
+internal fun rememberVisualEffectsPolicy(liquidGlassEnabled: Boolean = true): VisualEffectsPolicy {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val accessibility = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
@@ -75,7 +79,7 @@ internal fun rememberVisualEffectsPolicy(): VisualEffectsPolicy {
             mainHandler.removeCallbacksAndMessages(null)
         }
     }
-    return resolveVisualEffectsPolicy(animationsEnabled, contrast)
+    return resolveVisualEffectsPolicy(animationsEnabled, contrast, liquidGlassEnabled)
 }
 
 @RequiresApi(33)

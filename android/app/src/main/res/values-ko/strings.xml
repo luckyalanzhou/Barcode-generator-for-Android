@@ -5,7 +5,7 @@
     <string name="about_app_version">앱 버전</string>
     <string name="about_font">글꼴</string>
     <string name="about_misans_vendor">MiSans(샤오미)</string>
-    <string name="about_version_with_code">%1$s(%2$d)</string>
+    <string name="about_version_with_code">%1$s (%2$d)</string>
     <string name="action_add">추가</string>
     <string name="action_back">뒤로</string>
     <string name="action_cancel">취소</string>
@@ -297,7 +297,7 @@
     <string name="language_option_spanish">Español</string>
     <string name="language_option_traditional_chinese">繁體中文</string>
     <string name="latest_version_installed">최신 버전을 사용 중입니다.</string>
-    <string name="license_misans_agreement">샤오미 글꼴 지식재산권 라이선스</string>
+    <string name="license_misans_agreement">샤오미 글꼴 라이선스</string>
     <string name="license_misans_description">이 앱에는 MiSans 가변 글꼴이 포함되어 있습니다. 샤오미 라이선스는 MiSans 사용을 명시하고 글꼴의 외형을 변경하지 않도록 요구합니다.</string>
     <string name="license_misans_font">MiSans 글꼴</string>
     <string name="license_misans_view">MiSans 전체 라이선스 보기</string>
@@ -320,7 +320,7 @@
     <string name="ocr_draft_changed">텍스트를 인식했습니다. 편집한 초안은 그대로 유지했습니다.</string>
     <string name="ocr_failed">텍스트 인식에 실패했습니다. 다시 시도하세요.</string>
     <string name="ocr_no_text">텍스트를 찾지 못했습니다. 화면 정면에서 선명하게 촬영하세요.</string>
-    <string name="ocr_take_photo">사진으로 채우기</string>
+    <string name="ocr_take_photo">사진에서 입력</string>
     <string name="ocr_too_many_rows">인식한 결과가 %1$d줄을 초과했습니다. 여러 번에 나누어 촬영하세요.</string>
     <string name="open_action_menu">%1$s 작업 메뉴 열기</string>
     <string name="open_settings">설정 열기</string>
@@ -377,7 +377,7 @@
     <string name="settings_barcode_spacing">바코드 간격</string>
     <string name="settings_barcode_style">바코드 스타일</string>
     <string name="settings_barcode_style_restored">기본 바코드 스타일을 복원했습니다</string>
-    <string name="settings_barcode_text_size">바코드 글자 크기</string>
+    <string name="settings_barcode_text_size">글자 크기</string>
     <string name="settings_barcode_width">바코드 너비</string>
     <string name="settings_diagnostics">진단</string>
     <string name="settings_export_logs">디버그 로그 내보내기</string>
@@ -389,8 +389,9 @@
         <item quantity="other">%1$d개 사용 중</item>
     </plurals>
     <string name="settings_recognition_assistance">인식 도우미</string>
-    <string name="settings_restore_barcode_style">기본 바코드 스타일 복원</string>
+    <string name="settings_restore_barcode_style">스타일 복원</string>
     <string name="settings_row_application_theme">앱 테마</string>
+    <string name="settings_liquid_glass">리퀴드 글래스</string>
     <string name="settings_row_language">언어</string>
     <string name="settings_save_failed">설정을 저장하지 못했습니다. 현재 변경 사항은 유지됩니다. 다시 시도하세요.</string>
     <string name="settings_section_general">일반</string>

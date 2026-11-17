@@ -20,6 +20,18 @@ internal data class ActionMenuColors(
     val selection: Color,
 )
 
+@Immutable
+internal data class ActionMenuShadowColors(
+    val ambient: Color,
+    val spot: Color,
+)
+
+internal fun actionMenuShadowColors(dark: Boolean): ActionMenuShadowColors =
+    ActionMenuShadowColors(
+        ambient = Color.Black.copy(alpha = if (dark) .25f else .12f),
+        spot = Color.Black.copy(alpha = if (dark) .32f else .18f),
+    )
+
 internal fun actionMenuColors(colors: AppColorScheme, dark: Boolean, highContrast: Boolean): ActionMenuColors =
     ActionMenuColors(
         title = if (highContrast) colors.text.primary else colors.text.secondary,

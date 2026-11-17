@@ -21,8 +21,11 @@ class ButtonRenderingContractTest {
         assertFalse(button.contains("rememberGlassBackdropRenderer"))
         assertFalse(button.contains("GlassBackdropSurface("))
         val results = source("ResultsContent.kt")
-        assertFalse(results.contains("recordGlassBackdrop"))
-        assertFalse(results.contains("rememberGlassBackdrop"))
+        assertTrue(results.contains("val recordGlassBackdrop = android.os.Build.VERSION.SDK_INT >= 33"))
+        assertTrue(results.contains(".then(if (recordGlassBackdrop) Modifier.layerBackdrop(resultBackdrop) else Modifier)"))
+        assertTrue(results.indexOf("LazyColumn(") < results.indexOf("CompositionLocalProvider(LocalLiquidGlassBackdrop provides resultBackdrop)"))
+        assertFalse(results.contains("rememberGlassBackdropRenderer"))
+        assertFalse(results.contains("rememberGlassBackdrop("))
     }
     @Test fun `round action press updates material and keeps foreground readable`() {
         val button = source("GlassRoundActionButton.kt")
@@ -65,9 +68,12 @@ class ButtonRenderingContractTest {
     }
     @Test fun `photo fill uses the glass action bar and LAN entry is an accessible navigation row`() {
         val actions = source("GlassGenerateActionBar.kt")
-        assertTrue(actions.contains("GenerateActionButton(stringResource(R.string.add_row), AddIcon"))
-        assertTrue(actions.contains("GenerateActionButton(stringResource(R.string.batch_paste), ContentPasteIcon"))
-        assertTrue(actions.contains("GenerateActionButton(stringResource(R.string.ocr_take_photo), PhotoCameraIcon"))
+        assertTrue(actions.contains("stringResource(R.string.add_row)"))
+        assertTrue(actions.contains("stringResource(R.string.batch_paste)"))
+        assertTrue(actions.contains("stringResource(R.string.ocr_take_photo)"))
+        assertTrue(actions.contains("GenerateActionButton(labels[0], labelStyle, AddIcon"))
+        assertTrue(actions.contains("GenerateActionButton(labels[1], labelStyle, ContentPasteIcon"))
+        assertTrue(actions.contains("GenerateActionButton(labels[2], labelStyle, PhotoCameraIcon"))
         assertTrue(actions.contains("onClick = onClick"))
         assertTrue(actions.contains("role = Role.Button"))
         assertTrue(actions.contains("drawBackdrop("))

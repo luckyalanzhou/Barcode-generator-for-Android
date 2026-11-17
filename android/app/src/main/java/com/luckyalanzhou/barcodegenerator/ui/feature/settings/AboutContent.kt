@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -59,7 +60,7 @@ internal fun AboutUsContent(
                     color = colors.controls.button,
                     contentColor = colors.controls.accent,
                     onClick = onCheckForUpdates,
-                    modifier = Modifier.size(width = 112.dp, height = 48.dp),
+                    modifier = Modifier.widthIn(min = 112.dp, max = 220.dp).height(48.dp),
                 )
             }
         }

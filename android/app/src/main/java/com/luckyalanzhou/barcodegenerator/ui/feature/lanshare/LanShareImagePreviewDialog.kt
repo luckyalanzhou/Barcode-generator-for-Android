@@ -67,6 +67,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowCompat
 import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -95,6 +97,7 @@ internal fun LanShareImagePreviewDialog(
     ) {
         val dialogView = LocalView.current
         val closeInteractions = remember { MutableInteractionSource() }
+        val closeTouch = remember { GlassPointerTracker() }
         val closePressed by closeInteractions.collectIsPressedAsState()
         val effectsPolicy = LocalVisualEffectsPolicy.current
         val density = LocalDensity.current.density
@@ -178,7 +181,10 @@ internal fun LanShareImagePreviewDialog(
                         highlight = { Highlight.Default.copy(alpha = .30f) },
                         shadow = { Shadow(alpha = .20f) },
                         onDrawSurface = { drawRect(Color.Black.copy(alpha = .60f)) },
-                    ) else Modifier.background(Color.Black.copy(alpha = .60f), RoundedCornerShape(28.dp)))
+                    ) else Modifier.background(
+                        Color.Black.copy(alpha = if (effectsPolicy.opaqueGlass) 1f else .60f),
+                        RoundedCornerShape(28.dp),
+                    ))
                     .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -194,6 +200,7 @@ internal fun LanShareImagePreviewDialog(
                     onClick = onDismiss,
                     interactionSource = closeInteractions,
                     modifier = Modifier.size(48.dp).iosPressFeedback(closeInteractions)
+                        .then(closeTouch.pointerModifier)
                         .then(if (useKyantGlass) Modifier else Modifier.resultActionEdgeChrome(
                             RoundedCornerShape(10.dp), rimBackground = Color.Black, rimAccent = Color.White,
                         )).then(if (useKyantGlass) Modifier.drawBackdrop(
@@ -202,7 +209,8 @@ internal fun LanShareImagePreviewDialog(
                         effects = {
                             vibrancy()
                             blur(6f * density)
-                            lens((8f + 6f * closePress) * density, (18f + 8f * closePress) * density)
+                            // Lens height must stay within this control's 10dp corner radius.
+                            lens(minOf(8f + 2f * closePress, 10f) * density, (18f + 8f * closePress) * density)
                         },
                         layerBlock = {
                             val scale = 1f + .025f * closePress
@@ -211,8 +219,14 @@ internal fun LanShareImagePreviewDialog(
                         },
                         highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
                         shadow = { Shadow(alpha = .12f + .20f * closePress) },
-                        onDrawSurface = { drawRect(Color.Black.copy(alpha = .58f + .06f * closePress)) },
-                    ) else Modifier.background(Color.White.copy(alpha = .16f), RoundedCornerShape(10.dp))).semantics {
+                        onDrawSurface = {
+                            drawRect(Color.Black.copy(alpha = .58f + .06f * closePress))
+                            drawGlassTouchHighlight(closeTouch.touchPosition, closePress, .16f)
+                        },
+                    ) else Modifier.background(
+                        if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha = .16f),
+                        RoundedCornerShape(10.dp),
+                    )).semantics {
                         contentDescription = localizedResources.getString(R.string.close_image_preview)
                     },
                     shape = RoundedCornerShape(10.dp),

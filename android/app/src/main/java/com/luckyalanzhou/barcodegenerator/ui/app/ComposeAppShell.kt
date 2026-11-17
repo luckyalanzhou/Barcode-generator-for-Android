@@ -152,7 +152,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
     val favoritesRowsProjectionCache = remember { FavoritesRowsProjectionCache() }
-    val effects = rememberVisualEffectsPolicy()
+    val effects = rememberVisualEffectsPolicy(settingsUiState.liquidGlassEnabled)
     var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
     val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }
     val menuGesture = remember { ContextMenuGestureSession() }
@@ -225,7 +225,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         }
     }
 
-    AppTheme(settingsUiState.style.colorScheme) {
+    AppTheme(settingsUiState.style.colorScheme, effects) {
         val dark = LocalResolvedAppAppearance.current.isDark
         LaunchedEffect(dark) { dismissMenu() }
         val colors = LocalAppColorScheme.current
@@ -250,7 +250,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val backdrop = rememberGlassBackdrop()
         val kyantTabBackdrop = rememberLayerBackdrop()
         CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalLiquidGlassBackdrop provides kyantTabBackdrop,
-            LocalVisualEffectsPolicy provides effects,
             LocalLongPressMenuHost provides ::showMenu) {
         Box(Modifier.fillMaxSize().background(colors.surfaces.background)
             .contextMenuGestures(menuGesture, onDismiss = { dismissMenu() }, onAction = { dismissMenu(it) })) {

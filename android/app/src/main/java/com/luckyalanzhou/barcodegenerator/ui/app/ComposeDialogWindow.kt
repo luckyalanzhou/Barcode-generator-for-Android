@@ -9,8 +9,10 @@ import android.app.Dialog
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.graphics.drawable.toDrawable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlin.math.roundToInt
@@ -47,7 +49,9 @@ internal fun MainActivity.showComposeDialog(
     composeView.setViewTreeLifecycleOwner(this)
     composeView.setViewTreeSavedStateRegistryOwner(this)
     composeView.setContent {
-        AppTheme(settingsViewModel.style.colorScheme) { content { dialog.dismiss() } }
+        val settings by settingsViewModel.uiState.collectAsStateWithLifecycle()
+        val effects = rememberVisualEffectsPolicy(settings.liquidGlassEnabled)
+        AppTheme(settings.style.colorScheme, effects) { content { dialog.dismiss() } }
     }
     dialog.setContentView(composeView)
     dialog.setCanceledOnTouchOutside(true)

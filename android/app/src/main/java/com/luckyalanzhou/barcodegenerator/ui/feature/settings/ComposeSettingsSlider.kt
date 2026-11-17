@@ -48,14 +48,38 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import kotlin.math.roundToInt
 
 /** 解析数值输入并校验范围；非法或越界文本返回 null，由界面显示错误状态且不保存。 */
 internal fun parseSliderValue(text: String, range: ClosedFloatingPointRange<Float>): Float? =
     text.trim().toIntOrNull()?.toFloat()?.takeIf { it in range }
 
-internal fun useStackedSlider(widthDp: Float, fontScale: Float): Boolean =
-    widthDp < 290f || fontScale > 1.2f
+internal fun useStackedSlider(widthDp: Float, fontScale: Float, titleWidthDp: Float = 0f): Boolean {
+    val requiredInlineWidth = 40f + 8f + titleWidthDp + (74f * fontScale.coerceAtLeast(1f)) + 64f
+    return widthDp < maxOf(290f, requiredInlineWidth) || fontScale > 1.2f
+}
+
+@Composable
+internal fun rememberSettingsSliderTitleWidth(titles: List<String>): Dp {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val textStyle = LocalTextStyle.current.copy(fontSize = 16.sp)
+    val textMeasurer = rememberTextMeasurer()
+    val titleWidthPx = remember(titles, textStyle, density, layoutDirection, textMeasurer) {
+        titles.maxOfOrNull { title ->
+            textMeasurer.measure(
+                text = AnnotatedString(title),
+                style = textStyle,
+                softWrap = false,
+                maxLines = 1,
+                layoutDirection = layoutDirection,
+                density = density,
+            ).size.width
+        } ?: 1
+    }
+    return with(density) { titleWidthPx.toDp().coerceAtLeast(1.dp) }
+}
 
 /**
  * 设置页的数值滑块：拖动后在结束时提交；点击右侧数值可直接键盘输入，失焦时校验并保存。
@@ -70,6 +94,7 @@ internal fun SettingsSliderRow(
     valueText: String,
     color: Color,
     stacked: Boolean,
+    titleWidth: Dp,
     leading: (@Composable () -> Unit)? = null,
     onChange: (Float) -> Unit,
 ) {
@@ -85,20 +110,7 @@ internal fun SettingsSliderRow(
     val latestValue by rememberUpdatedState(value)
     val latestOnChange by rememberUpdatedState(onChange)
     val density = LocalDensity.current
-    val layoutDirection = LocalLayoutDirection.current
     val titleTextStyle = LocalTextStyle.current.copy(color = color, fontSize = 16.sp)
-    val textMeasurer = rememberTextMeasurer()
-    val titleWidthPx = remember(title, titleTextStyle, density, layoutDirection, textMeasurer) {
-        textMeasurer.measure(
-            text = AnnotatedString(title),
-            style = titleTextStyle,
-            softWrap = false,
-            maxLines = 1,
-            layoutDirection = layoutDirection,
-            density = density,
-        ).size.width
-    }
-    val titleWidth = with(density) { titleWidthPx.toDp() }.coerceAtLeast(1.dp)
     LaunchedEffect(value) { if (!dragging) draft = value
         if (!editing && !warning) input = TextFieldValue(value.roundToInt().toString()) }
     DisposableEffect(Unit) {

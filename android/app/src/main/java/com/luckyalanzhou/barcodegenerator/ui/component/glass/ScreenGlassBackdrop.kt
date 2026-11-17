@@ -3,6 +3,7 @@ package com.luckyalanzhou.barcodegenerator.ui.component.glass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -31,8 +32,15 @@ import com.kyant.backdrop.Backdrop
 
 /** Popup 与主窗口使用屏幕坐标对齐，避免 positionInWindow 跨窗口采样错位。 */
 @Composable
-internal fun rememberScreenGlassBackdrop(softenBackdropColor: Boolean = false): ScreenGlassBackdrop? {
-    val source = LocalGlassBackdrop.current ?: return null
+internal fun rememberScreenGlassBackdrop(
+    softenBackdropColor: Boolean = false,
+    captureKey: Any? = Unit,
+    waitForNextFrame: Boolean = false,
+): ScreenGlassBackdrop? {
+    // Activity-hosted Compose dialogs use a separate composition from the app shell,
+    // so they may not inherit a recorded layer. PixelCopy can still provide their
+    // screen-space backdrop directly from the host window.
+    val source = LocalGlassBackdrop.current
     val context = LocalContext.current
     val activity = remember(context) {
         generateSequence(context) { (it as? ContextWrapper)?.baseContext }
@@ -40,7 +48,9 @@ internal fun rememberScreenGlassBackdrop(softenBackdropColor: Boolean = false): 
     } ?: return null
     val origin = remember { mutableStateOf(Offset.Zero) }
     // 从 Window 复制图像；不在主窗口与 Popup 之间重放或读取 Compose GraphicsLayer。
-    val snapshot = produceState<ImageBitmap?>(null, source, activity) {
+    val snapshot = produceState<ImageBitmap?>(null, source, activity, captureKey, waitForNextFrame) {
+        // 页面切换时弹层可能先于宿主窗口的新页面完成绘制；等下一帧后再取样，避免沿用上一页。
+        if (waitForNextFrame) withFrameNanos { }
         val decor = activity.window.decorView
         if (decor.width <= 0 || decor.height <= 0) return@produceState
         val location = IntArray(2)
@@ -61,7 +71,7 @@ internal fun rememberScreenGlassBackdrop(softenBackdropColor: Boolean = false): 
             }, Handler(Looper.getMainLooper()))
         }
     }
-    return remember(source, softenBackdropColor) {
+    return remember(source, softenBackdropColor, captureKey, waitForNextFrame) {
         val colorFilter = if (softenBackdropColor) {
             ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(.22f) })
         } else null

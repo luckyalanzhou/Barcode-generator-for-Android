@@ -26,7 +26,8 @@ internal fun Modifier.globalButtonChrome(
     borderColor: Color? = null,
 ): Modifier {
     val colors = LocalAppColorScheme.current
-    val highContrast = LocalVisualEffectsPolicy.current.highContrast
+    val effects = LocalVisualEffectsPolicy.current
+    val highContrast = effects.highContrast
     val density = LocalDensity.current.density
     val edge = if (highContrast) colors.text.primary else borderColor ?: colors.text.primary
     return drawWithCache {
@@ -46,6 +47,7 @@ internal fun Modifier.globalButtonChrome(
                     accent = colors.controls.accent,
                     density = density,
                     highContrast = highContrast,
+                    edgeHighlight = !effects.opaqueGlass,
                     bounds = size,
                 )
             } else {

@@ -10,6 +10,8 @@ interface SettingsRepository {
     suspend fun load()
     fun loadStyle(): StyleSettings
     fun saveStyle(style: StyleSettings): Job
+    fun getLiquidGlassEnabled(): Boolean
+    fun setLiquidGlassEnabled(enabled: Boolean): Job
     fun getOcrConfusionReplacementMask(): Int
     fun setOcrConfusionReplacementMask(mask: Int): Job
     fun setUpdateError(error: String): Job

@@ -67,12 +67,13 @@ internal fun ComposeChoiceField(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(MenuMetrics.surfaceCornerRadius),
-            containerColor = LocalAppColorScheme.current.surfaces.overlay,
+            containerColor = LocalAppColorScheme.current.surfaces.panel,
             tonalElevation = 0.dp,
-            shadowElevation = 1.dp,
+            shadowElevation = MenuMetrics.surfaceShadowElevation,
             // compact 是编辑条码格式入口；文件夹选择保持现有展开方式。
             cornerReveal = compact,
             alignEndWithAnchor = compact,
+            dynamicBackdrop = true,
             anchorHeight = with(density) { buttonHeight.toDp() },
             menuWidth = buttonWidth.takeIf { it > 0 }?.let {
                 val measured = with(density) { it.toDp() }

@@ -233,11 +233,14 @@ internal fun ResultsContent(
     }
     val toolbarHeight = with(LocalDensity.current) { toolbarSize.height.toDp() }
     val resultBackdrop = rememberLayerBackdrop()
+    val recordGlassBackdrop = android.os.Build.VERSION.SDK_INT >= 33 &&
+        !LocalVisualEffectsPolicy.current.opaqueGlass
     Box(Modifier.fillMaxSize()) {
         // 条码列表位于固定工具栏下方并独立滚动，顶部预留状态栏和工具栏高度以避免遮挡。
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().layerBackdrop(resultBackdrop)
+            modifier = Modifier.fillMaxSize()
+                .then(if (recordGlassBackdrop) Modifier.layerBackdrop(resultBackdrop) else Modifier)
                 .background(themeColors.surfaces.background),
             contentPadding = PaddingValues(top = statusBarInset + toolbarHeight + 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(style.margin.coerceIn(0, 10).dp),

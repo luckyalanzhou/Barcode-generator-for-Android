@@ -24,6 +24,8 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings(colorScheme = "dark", textSize = 19f)
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = completedJob()
             override fun getOcrConfusionReplacementMask() = 6
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
@@ -54,6 +56,8 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = pending.also { writes++ }
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
@@ -87,6 +91,8 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = pending
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
@@ -126,6 +132,8 @@ class SettingsViewModelTest {
             }
 
             override fun loadStyle() = StyleSettings(colorScheme = "dark", textSize = 14f, barWidth = 270f, showText = false)
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = completedJob().also { savedStyles += style.copy() }
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob().also { savedOcrMasks += mask }
@@ -167,6 +175,8 @@ class SettingsViewModelTest {
             }
 
             override fun loadStyle() = StyleSettings(colorScheme = "dark")
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
 
             override fun saveStyle(style: StyleSettings) = completedJob()
 
@@ -254,6 +264,8 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = pending
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = pending
@@ -295,6 +307,8 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = completedJob()
             override fun getOcrConfusionReplacementMask() = storedMask
             override fun setOcrConfusionReplacementMask(mask: Int) = pendingWrite

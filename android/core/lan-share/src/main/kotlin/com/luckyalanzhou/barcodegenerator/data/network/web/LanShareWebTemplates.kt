@@ -2,9 +2,12 @@ package com.luckyalanzhou.barcodegenerator.data.network.web
 
 /** 浏览器端传输页总模板，只负责按顺序组装各部分。 */
 internal object LanShareWebTemplates {
-    fun page(locale: LanShareWebLocale = LanShareWebLocale.SIMPLIFIED_CHINESE) = buildString {
+    fun page(
+        locale: LanShareWebLocale = LanShareWebLocale.SIMPLIFIED_CHINESE,
+        liquidGlassEnabled: Boolean = true,
+    ) = buildString {
         append(LanShareWebHead.render(locale))
-        append(LanShareWebStyles.render())
+        append(LanShareWebStyles.render(liquidGlassEnabled))
         append(LanShareWebBody.render(locale))
         val strings = LanShareWebText.entries.associate { it.name to it.resolve(locale) }
         append("""<script type="application/json" id="lan-share-strings">""")

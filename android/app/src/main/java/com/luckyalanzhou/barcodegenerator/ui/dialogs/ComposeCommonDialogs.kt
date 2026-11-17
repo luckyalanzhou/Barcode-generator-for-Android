@@ -4,8 +4,8 @@ import com.luckyalanzhou.barcodegenerator.ui.app.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
-import com.luckyalanzhou.barcodegenerator.ui.component.globalCardSurface
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 
 
 import androidx.compose.foundation.background
@@ -56,6 +56,7 @@ internal fun AnchoredDropdownMenu(
     alignEndWithAnchor: Boolean = false,
     cornerReveal: Boolean = false,
     clearerGlass: Boolean = false,
+    dynamicBackdrop: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val containerSize = LocalWindowInfo.current.containerSize
@@ -70,7 +71,7 @@ internal fun AnchoredDropdownMenu(
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
             containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
-            anchorHeight, clearerGlass, content)
+            anchorHeight, clearerGlass, dynamicBackdrop, shadowElevation, content)
         return
     }
     DropdownMenu(
@@ -89,6 +90,7 @@ internal fun AnchoredDropdownMenu(
         com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface(
             shape = shape,
             screenSpaceBackdrop = true,
+            dynamicBackdrop = dynamicBackdrop,
             clearerGlass = clearerGlass,
             color = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
         ) { Column(content = content) }
@@ -96,14 +98,23 @@ internal fun AnchoredDropdownMenu(
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 20.dp, content: @Composable ColumnScope.() -> Unit) {
     val card = LocalAppColorScheme.current.surfaces.surface
-    Box(
-        modifier = Modifier
-            .widthIn(min = 280.dp, max = 400.dp)
-            .globalCardSurface(dark, card, RoundedCornerShape(20.dp), 2.dp)
-            .padding(horizontal = horizontalPadding, vertical = 20.dp),
-    ) { Column(content = content) }
+    MenuSurface(
+        modifier = Modifier.widthIn(min = 280.dp, max = 400.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = card,
+        dynamicBackdrop = true,
+        screenSpaceBackdrop = true,
+        shadowElevation = 2.dp,
+        waitForScreenBackdropFrame = true,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = horizontalPadding, vertical = 20.dp),
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -144,5 +155,9 @@ internal fun DialogAction(
 
 @Composable
 internal fun ComposeDropdownDivider(dark: Boolean) {
-    HorizontalDivider(thickness = if (dark) 0.5.dp else 1.dp, color = LocalAppColorScheme.current.borders.divider)
+    val colors = LocalAppColorScheme.current
+    val separator = com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors(
+        colors, dark, LocalVisualEffectsPolicy.current.highContrast,
+    ).separator
+    com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSeparator(separator)
 }

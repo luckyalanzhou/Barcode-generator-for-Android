@@ -58,7 +58,7 @@ class MenuRenderingContractTest {
         assertTrue(item.contains("highlightSelection && checked"))
     }
 
-    @Test fun `value menu rows keep compact height without material minimum height`() {
+    @Test fun `value menu rows use shared touch spacing without material imposed minimum height`() {
         val item = source("MenuChoiceItem.kt")
         assertFalse(item.contains("DropdownMenuItem("))
         assertTrue(item.contains("fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight"))
@@ -71,8 +71,9 @@ class MenuRenderingContractTest {
         val metrics = source("MenuMetrics.kt")
         assertTrue(metrics.contains("val optionTextSize = 16.sp"))
         assertTrue(metrics.contains("val optionLineHeight = 22.sp"))
-        assertTrue(metrics.contains("val optionVerticalPadding = 11.dp"))
-        assertTrue(metrics.contains("val choiceHorizontalPadding = 12.dp"))
+        assertTrue(metrics.contains("val optionVerticalPadding = 13.dp"))
+        assertTrue(metrics.contains("val choiceHorizontalPadding = actionHorizontalPadding"))
+        assertTrue(metrics.contains("val minimumActionItemHeight = 48.dp"))
     }
 
     @Test fun `choice check precedes label and shares its text color`() {
