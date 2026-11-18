@@ -4,9 +4,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import android.graphics.Bitmap
 import android.os.Build
 import android.view.Window
@@ -14,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -53,13 +53,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.DialogProperties
@@ -70,6 +70,9 @@ import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBac
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.glassOpacityForStrength
+import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalResolvedAppAppearance
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -97,6 +100,8 @@ internal fun LanShareImagePreviewDialog(
         ),
     ) {
         val dialogView = LocalView.current
+        val colors = LocalAppColorScheme.current
+        val dark = LocalResolvedAppAppearance.current.isDark
         val closeInteractions = remember { MutableInteractionSource() }
         val closeTouch = remember { GlassPointerTracker() }
         val closePressed by closeInteractions.collectIsPressedAsState()
@@ -168,85 +173,77 @@ internal fun LanShareImagePreviewDialog(
                         },
                 )
             }
-            Row(
+            MenuSurface(
                 modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 10.dp)
-                    .then(if (useKyantGlass) Modifier.drawBackdrop(
-                        backdrop = imageBackdrop,
-                        shape = { Capsule() },
-                        effects = {
-                            vibrancy()
-                            blur(8f * density)
-                            lens(12f * density, 24f * density)
-                        },
-                        highlight = { Highlight.Default.copy(alpha = .30f) },
-                        shadow = { Shadow(alpha = .20f) },
-                        onDrawSurface = {
-                            drawRect(Color.Black.copy(alpha = glassOpacityForStrength(
-                                .60f, effectsPolicy.glassStrengthPercent)))
-                        },
-                    ) else Modifier.background(
-                        Color.Black.copy(alpha = if (effectsPolicy.opaqueGlass) 1f else
-                            glassOpacityForStrength(.60f, effectsPolicy.glassStrengthPercent)),
-                        RoundedCornerShape(28.dp),
-                    ))
-                    .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(start = 16.dp, end = 16.dp, top = 10.dp),
+                shape = Capsule(),
+                color = colors.surfaces.panel,
+                dynamicBackdrop = true,
+                obscuresBackdropContent = true,
+                trackPointer = false,
             ) {
-                Text(
-                    text = fileName,
-                    modifier = Modifier.weight(1f),
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Surface(
-                    onClick = onDismiss,
-                    interactionSource = closeInteractions,
-                    modifier = Modifier.size(48.dp).iosPressFeedback(closeInteractions)
-                        .then(closeTouch.pointerModifier)
-                        .then(if (useKyantGlass) Modifier else Modifier.resultActionEdgeChrome(
-                            RoundedCornerShape(10.dp), rimBackground = Color.Black, rimAccent = Color.White,
-                        )).then(if (useKyantGlass) Modifier.drawBackdrop(
-                        backdrop = imageBackdrop,
-                        shape = { RoundedCornerShape(10.dp) },
-                        effects = {
-                            vibrancy()
-                            blur(6f * density)
-                            // Lens height must stay within this control's 10dp corner radius.
-                            lens(minOf(8f + 2f * closePress, 10f) * density, (18f + 8f * closePress) * density)
-                        },
-                        layerBlock = {
-                            val scale = 1f + .025f * closePress
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                        highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
-                        shadow = { Shadow(alpha = .12f + .20f * closePress) },
-                        onDrawSurface = {
-                            drawRect(Color.Black.copy(alpha = (
-                                glassOpacityForStrength(.58f, effectsPolicy.glassStrengthPercent) + .06f * closePress
-                            ).coerceAtMost(1f)))
-                            drawGlassTouchHighlight(closeTouch.touchPosition, closePress, .16f)
-                        },
-                    ) else Modifier.background(
-                        if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha =
-                            glassOpacityForStrength(.16f, effectsPolicy.glassStrengthPercent)),
-                        RoundedCornerShape(10.dp),
-                    )).semantics {
-                        contentDescription = localizedResources.getString(R.string.close_image_preview)
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color.Transparent,
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = CloseSmallIcon,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp),
-                        )
+                    Text(
+                        text = fileName,
+                        modifier = Modifier.weight(1f),
+                        color = if (dark) Color.White else colors.text.primary,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Surface(
+                        onClick = onDismiss,
+                        interactionSource = closeInteractions,
+                        modifier = Modifier.size(48.dp).iosPressFeedback(closeInteractions)
+                            .then(closeTouch.pointerModifier)
+                            .then(if (useKyantGlass) Modifier else Modifier.resultActionEdgeChrome(
+                                    RoundedCornerShape(10.dp), rimBackground = Color.Black, rimAccent = Color.White,
+                                )).then(if (useKyantGlass) Modifier.drawBackdrop(
+                                    backdrop = imageBackdrop,
+                                    shape = { RoundedCornerShape(10.dp) },
+                                    effects = {
+                                        vibrancy()
+                                        blur(6f * density)
+                                        lens(minOf(8f + 2f * closePress, 10f) * density,
+                                            (18f + 8f * closePress) * density)
+                                    },
+                                    layerBlock = {
+                                        val scale = 1f + .025f * closePress
+                                        scaleX = scale
+                                        scaleY = scale
+                                    },
+                                    highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
+                                    shadow = { Shadow(alpha = .12f + .20f * closePress) },
+                                    onDrawSurface = {
+                                        drawRect(Color.Black.copy(alpha = (
+                                            glassOpacityForStrength(.58f, effectsPolicy.glassStrengthPercent) +
+                                                .06f * closePress
+                                        ).coerceAtMost(1f)))
+                                        drawGlassTouchHighlight(closeTouch.touchPosition, closePress, .16f)
+                                    },
+                                ) else Modifier.background(
+                                    if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha =
+                                        glassOpacityForStrength(.16f, effectsPolicy.glassStrengthPercent)),
+                                    RoundedCornerShape(10.dp),
+                                ))
+                                .semantics {
+                                    contentDescription = localizedResources.getString(R.string.close_image_preview)
+                                },
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color.Transparent,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = CloseSmallIcon,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp),
+                            )
+                        }
                     }
                 }
             }

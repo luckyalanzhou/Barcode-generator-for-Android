@@ -288,11 +288,11 @@ internal fun FavoriteSaveForm(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = LocalAppColorScheme.current.text.primary,
                 unfocusedTextColor = LocalAppColorScheme.current.text.primary,
-                focusedLabelColor = LocalAppColorScheme.current.text.primary,
-                unfocusedLabelColor = LocalAppColorScheme.current.text.primary,
+                focusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
+                unfocusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
                 cursorColor = LocalAppColorScheme.current.text.primary,
             ),
-            label = { Text(stringResource(R.string.favorite_filename), color = LocalAppColorScheme.current.text.primary) },
+            placeholder = { Text(stringResource(R.string.favorite_filename), color = LocalAppColorScheme.current.text.secondary) },
         )
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
             DialogAction(stringResource(R.string.action_cancel), dark, { if (!saving) onCancel() })

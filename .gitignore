@@ -14,8 +14,9 @@ android/.local-validation/
 .idea/
 *.iml
 
-# Local AI instructions and session state
-AGENTS.md
+# AI instruction files are local except this project's root AGENTS.md
+**/AGENTS.md
+!/AGENTS.md
 CLAUDE.md
 GEMINI.md
 .codex/

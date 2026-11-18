@@ -365,7 +365,7 @@ internal fun LiquidGlassStrengthSliderRow(
             textAlign = TextAlign.End,
             maxLines = 1,
             softWrap = false,
-            modifier = Modifier.widthIn(min = 42.dp).padding(start = 2.dp),
+            modifier = Modifier.widthIn(min = 42.dp).padding(start = 2.dp, end = 12.dp),
         )
     }
 }

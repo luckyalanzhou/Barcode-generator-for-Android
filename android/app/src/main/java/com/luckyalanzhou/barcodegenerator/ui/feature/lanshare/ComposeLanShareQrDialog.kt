@@ -99,7 +99,7 @@ internal fun ComposeLanShareQrDialog(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         // Keep the navigation-bar inset on the same surface tint; MenuSurface draws
         // the sampled glass over the sheet content itself.
-        containerColor = colors.surfaces.surface,
+        containerColor = colors.surfaces.panel,
         contentColor = primary,
         tonalElevation = 0.dp,
         dragHandle = null,
@@ -107,12 +107,15 @@ internal fun ComposeLanShareQrDialog(
         MenuSurface(
             modifier = Modifier.fillMaxWidth().onSizeChanged { sheetHeightPx.floatValue = it.height.toFloat() },
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = colors.surfaces.surface,
+            color = colors.surfaces.panel,
             dynamicBackdrop = true,
             screenSpaceBackdrop = true,
+            obscuresBackdropContent = true,
             screenBackdropCaptureKey = session.shareUrl,
             waitForScreenBackdropFrame = true,
             externalGlassMotion = sheetGlassMotion,
+            drawBottomOutline = false,
+            drawKyantHighlight = false,
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth()

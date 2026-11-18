@@ -121,6 +121,7 @@ internal fun CornerDropdownMenu(
                     dynamicBackdrop = dynamicBackdrop,
                     screenSpaceBackdrop = true,
                     clearerGlass = clearerGlass,
+                    obscuresBackdropContent = true,
                     shadowElevation = shadowElevation,
                     backdropRenderer = backdropRenderer,
                     backdropWindow = backdropWindow,

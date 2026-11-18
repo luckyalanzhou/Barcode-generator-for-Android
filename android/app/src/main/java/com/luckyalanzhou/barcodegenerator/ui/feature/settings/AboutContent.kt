@@ -14,18 +14,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassBackButton
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 
 @Composable
@@ -120,17 +117,14 @@ internal fun LicensesContent(
 internal fun SecondarySettingsHeader(title: String, onBack: () -> Unit) {
     val colors = LocalAppColorScheme.current
     Row(
-        modifier = Modifier.fillMaxWidth().height(52.dp),
+        modifier = Modifier.fillMaxWidth().height(56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-            Icon(
-                imageVector = KeyboardArrowRightIcon,
-                contentDescription = stringResource(R.string.action_back),
-                tint = colors.text.primary,
-                modifier = Modifier.size(24.dp).graphicsLayer { scaleX = -1f },
-            )
-        }
+        GlassBackButton(
+            onClick = onBack,
+            contentDescription = stringResource(R.string.action_back),
+            backdropCaptureKey = "$title-${colors.surfaces.background}",
+        )
         Text(
             title,
             color = colors.text.primary,
@@ -139,6 +133,6 @@ internal fun SecondarySettingsHeader(title: String, onBack: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.size(48.dp))
+        Spacer(Modifier.size(56.dp))
     }
 }

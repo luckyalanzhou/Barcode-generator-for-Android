@@ -73,7 +73,7 @@ internal fun AnchoredDropdownMenu(
     if (cornerReveal) {
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
-            containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
+            containerColor ?: LocalAppColorScheme.current.surfaces.panel,
             anchorHeight, clearerGlass, dynamicBackdrop, shadowElevation, backdropWindow, content)
         return
     }
@@ -95,7 +95,8 @@ internal fun AnchoredDropdownMenu(
             screenSpaceBackdrop = true,
             dynamicBackdrop = dynamicBackdrop,
             clearerGlass = clearerGlass,
-            color = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
+            color = containerColor ?: LocalAppColorScheme.current.surfaces.panel,
+            obscuresBackdropContent = true,
             backdropWindow = backdropWindow,
         ) { Column(content = content) }
     }
@@ -104,13 +105,14 @@ internal fun AnchoredDropdownMenu(
 @Composable
 @Suppress("UNUSED_PARAMETER")
 internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 20.dp, content: @Composable ColumnScope.() -> Unit) {
-    val card = LocalAppColorScheme.current.surfaces.surface
+    val card = LocalAppColorScheme.current.surfaces.panel
     MenuSurface(
         modifier = Modifier.widthIn(min = 280.dp, max = 400.dp),
         shape = RoundedCornerShape(20.dp),
         color = card,
         dynamicBackdrop = true,
         screenSpaceBackdrop = true,
+        obscuresBackdropContent = true,
         backdropWindow = LocalGlassBackdropSourceWindow.current,
         trackPointer = false,
         shadowElevation = 2.dp,

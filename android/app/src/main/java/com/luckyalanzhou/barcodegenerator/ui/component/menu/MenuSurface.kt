@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -73,6 +74,8 @@ internal fun MenuSurface(
     externalGlassMotion: State<Offset>? = null,
     backdropWindow: android.view.Window? = null,
     trackPointer: Boolean = true,
+    drawBottomOutline: Boolean = true,
+    drawKyantHighlight: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val policy = LocalVisualEffectsPolicy.current
@@ -150,7 +153,9 @@ internal fun MenuSurface(
             scaleX = scale
             scaleY = scale
         },
-        highlight = { Highlight.Default.copy(alpha = .36f + .28f * glassProgress()) },
+        highlight = if (drawKyantHighlight) {
+            { Highlight.Default.copy(alpha = .36f + .28f * glassProgress()) }
+        } else null,
         shadow = { Shadow(alpha = .16f + .10f * glassProgress()) },
         onDrawSurface = {
             val strength = glassProgress()
@@ -196,8 +201,17 @@ internal fun MenuSurface(
         )
         onDrawWithContent {
             drawContent()
-            drawOutline(outline, spec.outline, style = stroke)
-            if (!policy.highContrast && !policy.opaqueGlass) drawOutline(outline, highlight, style = Stroke(1f))
+            if (drawBottomOutline) {
+                drawOutline(outline, spec.outline, style = stroke)
+                if (!policy.highContrast && !policy.opaqueGlass) drawOutline(outline, highlight, style = Stroke(1f))
+            } else {
+                clipRect(bottom = (size.height - stroke.width * 2f).coerceAtLeast(0f)) {
+                    drawOutline(outline, spec.outline, style = stroke)
+                    if (!policy.highContrast && !policy.opaqueGlass) {
+                        drawOutline(outline, highlight, style = Stroke(1f))
+                    }
+                }
+            }
         }
     }) {
         if (!useKyant) Box(Modifier.matchParentSize().background(color))
