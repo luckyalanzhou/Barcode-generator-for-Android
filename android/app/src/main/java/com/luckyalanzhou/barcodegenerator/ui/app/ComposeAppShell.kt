@@ -235,7 +235,8 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
         val dimensions = LocalAppDimensions.current
         val extendsToBottom = currentRoute.drawsBehindSystemNavigation
         val navigationInsets = WindowInsets.navigationBars
-        val bottomChromeInset = navigationInsets.asPaddingValues().calculateBottomPadding() + dimensions.pageBottomPadding
+        val navigationBottomInset = navigationInsets.asPaddingValues().calculateBottomPadding()
+        val bottomChromeInset = navigationBottomInset + dimensions.pageBottomPadding
         val imeInsets = WindowInsets.ime
         val insetDensity = LocalDensity.current
         val imeBottomPx = imeInsets.getBottom(insetDensity)
@@ -378,6 +379,18 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         }
                     }
                     if (chromeVisible) {
+                        if (extendsToBottom && effects.opaqueGlass) {
+                            // Keep the system gesture area continuous with the page canvas. The
+                            // opaque capsule has its own surface in TabLiquidGlassScene.
+                            val solidTabBottomExtension = navigationBottomInset + shellInsets.tabBarBottomPadding +
+                                (dimensions.bottomTabBarHeight - 64.dp).coerceAtLeast(0.dp) / 2f
+                            Box(
+                                Modifier.align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(solidTabBottomExtension)
+                                    .background(colors.surfaces.background),
+                            )
+                        }
                         BarcodeComposeBottomTabBar(
                             selectedIndex = appUiState.selectedTab,
                             dark = dark,
