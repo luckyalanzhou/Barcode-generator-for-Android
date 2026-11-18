@@ -126,16 +126,13 @@ internal fun GlassBackButton(
                     onDrawSurface = {
                         val progress = press.coerceIn(0f, 1f)
                         val opacity = if (lightSurface) .54f else .18f
-                        val alpha = (glassOpacityForStrength(opacity, effects.glassStrengthPercent) + .08f * progress)
+                        val alpha = (opacity + .08f * progress)
                             .coerceIn(0f, 1f)
                         drawCircle((if (lightSurface) Color.White else Color(0xFF18191D)).copy(alpha = alpha))
                         drawGlassTouchHighlight(touch.touchPosition, progress, if (lightSurface) .14f else .19f)
                     },
                 ) else Modifier.drawBehind {
-                    val base = if (effects.opaqueGlass) 1f else glassOpacityForStrength(
-                        if (lightSurface) .54f else .18f,
-                        effects.glassStrengthPercent,
-                    )
+                    val base = if (effects.opaqueGlass) 1f else if (lightSurface) .54f else .18f
                     drawCircle(colors.surfaces.panel.copy(alpha = base))
                 })
                 .drawWithCache {

@@ -71,18 +71,17 @@ internal fun TabLiquidGlassScene(
     val tabsBackdrop = rememberLayerBackdrop()
     val renderer = rememberGlassBackdropRenderer()
     val backdropAvailable = Build.VERSION.SDK_INT >= 33 && kyantBackdrop != null && !policy.opaqueGlass
-    val material = remember(background, sceneSize.height, density, policy.glassStrengthPercent) {
-        tabGlassMaterial(background, sceneSize.height / density, policy.glassStrengthPercent)
+    val material = remember(background, sceneSize.height, density) {
+        tabGlassMaterial(background, sceneSize.height / density)
     }
     val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, accentTint = 0f) else material
-    val containerOpacity = glassOpacityForStrength(.4f, policy.glassStrengthPercent)
+    val containerOpacity = .4f
     val containerColor = if (background.luminance() > .5f) {
         Color(0xFFFAFAFA).copy(alpha = containerOpacity)
     } else {
         Color(0xFF121212).copy(alpha = containerOpacity)
     }
-    val sampledContainerColor = containerColor.copy(
-        alpha = glassOpacityForStrength(.22f, policy.glassStrengthPercent))
+    val sampledContainerColor = containerColor.copy(alpha = .22f)
     val backdropBlurPx = 2.5f * density
     val active = !policy.reduceMotion && visible && motion.pressed
     val activity = animateFloatAsState(

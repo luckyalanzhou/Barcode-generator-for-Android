@@ -141,12 +141,10 @@ internal fun GlassBackdropSurface(
     renderer: BackdropRenderer? = rememberGlassBackdropRenderer(),
     screenCoordinates: Boolean = false,
     diagnosticName: String = "surface",
-    strengthPercent: Int? = null,
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
-    val resolvedStrengthPercent = strengthPercent ?: policy.glassStrengthPercent
-    val effectiveOpacity = glassOpacityForStrength(opacity, resolvedStrengthPercent)
+    val effectiveOpacity = opacity.coerceIn(0f, 1f)
     val density = LocalDensity.current.density
     var origin by remember { mutableStateOf(Offset.Zero) }
     var screenOrigin by remember { mutableStateOf(Offset.Zero) }
@@ -188,7 +186,7 @@ internal fun GlassBackdropSurface(
             }
         } else if (drawFallback) {
             drawRoundRect(
-                color.copy(alpha = glassFallbackOpacity(opacity, capsule != null, policy.opaqueGlass, resolvedStrengthPercent)),
+                color.copy(alpha = glassFallbackOpacity(opacity, capsule != null, policy.opaqueGlass)),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerDp * density),
             )
         }
@@ -205,11 +203,10 @@ internal fun glassFallbackOpacity(
     opacity: Float,
     smallControl: Boolean,
     opaque: Boolean,
-    strengthPercent: Int = 50,
 ): Float = if (opaque) 1f else if (smallControl) {
-    glassOpacityForStrength(opacity.coerceIn(0f, 1f), strengthPercent)
+    opacity.coerceIn(0f, 1f)
 } else {
-    glassOpacityForStrength(opacity.coerceIn(.92f, 1f), strengthPercent)
+    opacity.coerceIn(.92f, 1f)
 }
 
 @RequiresApi(33)

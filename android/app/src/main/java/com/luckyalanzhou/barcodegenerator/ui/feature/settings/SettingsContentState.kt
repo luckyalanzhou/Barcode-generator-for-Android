@@ -7,6 +7,5 @@ internal data class SettingsContentState(
     val style: StyleSettings,
     val ocrMask: Int,
     val liquidGlassEnabled: Boolean = true,
-    val liquidGlassStrengthPercent: Int = 50,
     val bottomTabLabelsVisible: Boolean = true,
 )

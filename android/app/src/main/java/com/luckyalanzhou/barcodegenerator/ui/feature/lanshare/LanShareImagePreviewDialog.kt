@@ -69,7 +69,6 @@ import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
-import com.luckyalanzhou.barcodegenerator.ui.component.glass.glassOpacityForStrength
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalResolvedAppAppearance
@@ -219,15 +218,11 @@ internal fun LanShareImagePreviewDialog(
                                     highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
                                     shadow = { Shadow(alpha = .12f + .20f * closePress) },
                                     onDrawSurface = {
-                                        drawRect(Color.Black.copy(alpha = (
-                                            glassOpacityForStrength(.58f, effectsPolicy.glassStrengthPercent) +
-                                                .06f * closePress
-                                        ).coerceAtMost(1f)))
+                                        drawRect(Color.Black.copy(alpha = (.58f + .06f * closePress).coerceAtMost(1f)))
                                         drawGlassTouchHighlight(closeTouch.touchPosition, closePress, .16f)
                                     },
                                 ) else Modifier.background(
-                                    if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha =
-                                        glassOpacityForStrength(.16f, effectsPolicy.glassStrengthPercent)),
+                                    if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha = .16f),
                                     RoundedCornerShape(10.dp),
                                 ))
                                 .semantics {

@@ -16,7 +16,7 @@ internal data class TabGlassMaterial(
     val outlineOpacity: Float,
 )
 
-internal fun tabGlassMaterial(background: Color, heightDp: Float, strengthPercent: Int = 50): TabGlassMaterial {
+internal fun tabGlassMaterial(background: Color, heightDp: Float): TabGlassMaterial {
     val luminance = background.luminance().coerceIn(0f, 1f)
     val thickness = ((heightDp - 48f) / 36f).coerceIn(0f, 1f)
     val darkBackground = luminance < .35f
@@ -27,27 +27,21 @@ internal fun tabGlassMaterial(background: Color, heightDp: Float, strengthPercen
         innerShadow = if (darkBackground) .12f + thickness * .02f else .055f + thickness * .015f,
         edgeWidthDp = 1.0f + thickness * .45f,
         refractionDp = 3.3f + thickness * 1.0f,
-        surfaceOpacity = glassOpacityForStrength(
-            if (darkBackground) .53f + thickness * .02f else .47f + thickness * .025f,
-            strengthPercent,
-        ),
-        outlineOpacity = glassOpacityForStrength(
-            if (darkBackground) .085f + thickness * .015f else .075f + thickness * .015f,
-            strengthPercent,
-        ),
+        surfaceOpacity = if (darkBackground) .53f + thickness * .02f else .47f + thickness * .025f,
+        outlineOpacity = if (darkBackground) .085f + thickness * .015f else .075f + thickness * .015f,
     )
 }
 
 /** 保持中心通透；小控件通过光学倒角呈现轮廓，不铺设厚重的灰色底盘。 */
-internal fun resultActionGlassMaterial(background: Color, strengthPercent: Int = 50): TabGlassMaterial {
+internal fun resultActionGlassMaterial(background: Color): TabGlassMaterial {
     val dark = background.luminance() < .35f
-    return tabGlassMaterial(background, 48f, strengthPercent).copy(
+    return tabGlassMaterial(background, 48f).copy(
         accentTint = .006f,
-        surfaceOpacity = glassOpacityForStrength(if (dark) .22f else .18f, strengthPercent),
+        surfaceOpacity = if (dark) .22f else .18f,
         rimLight = if (dark) .40f else .58f,
         // 兼容路径的内部暗边不随外部阴影降低，仍负责玻璃厚度。
         innerShadow = if (dark) .15f else .075f,
-        outlineOpacity = glassOpacityForStrength(if (dark) .10f else .09f, strengthPercent),
+        outlineOpacity = if (dark) .10f else .09f,
     )
 }
 

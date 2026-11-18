@@ -393,10 +393,8 @@
     <string name="settings_row_application_theme">Tema de la aplicación</string>
     <string name="settings_liquid_glass">Vidrio líquido</string>
     <string name="settings_appearance_theme">Tema de apariencia</string>
-    <string name="settings_liquid_glass_strength">Intensidad</string>
     <string name="settings_navigation_bar">Barra de navegación</string>
     <string name="settings_navigation_bar_labels">Mostrar nombres de pestañas</string>
-    <string name="settings_strength_percent">%1$d%%</string>
     <string name="settings_row_language">Idioma</string>
     <string name="settings_save_failed">No se guardaron los ajustes. Tus cambios siguen en pantalla. Inténtalo de nuevo.</string>
     <string name="settings_section_general">General</string>

@@ -3,9 +3,6 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.luckyalanzhou.barcodegenerator.R
-import android.os.Build
-import android.view.HapticFeedbackConstants
-import android.view.View
 import com.luckyalanzhou.barcodegenerator.ui.component.performLightMenuOpenHaptic
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
@@ -51,7 +48,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -127,7 +123,6 @@ internal fun BarcodeComposeBottomTabBar(
     val unselectedColor = if (effects.highContrast) themeColors.text.primary else themeColors.navigation.tabUnselected
     val hapticView = LocalView.current
     val density = LocalDensity.current.density
-    var lastTabHapticAt by remember { mutableLongStateOf(0L) }
     var tapPulseTab by remember { mutableIntStateOf(-1) }
     var tapPulseGeneration by remember { mutableIntStateOf(0) }
     val tabBoundsOnScreen = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
@@ -139,15 +134,7 @@ internal fun BarcodeComposeBottomTabBar(
     val currentOnTabSelected by rememberUpdatedState(onTabSelected)
     LaunchedEffect(selectedIndex) { motion.select(selectedIndex) }
 
-    fun performTabSwitchHaptic() {
-        val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastTabHapticAt < TAB_SWITCH_HAPTIC_MIN_INTERVAL_MS) return
-        lastTabHapticAt = now
-        hapticView.performSubtleTabHaptic()
-    }
-
     fun handleTabClick(index: Int) {
-        if (index != selectedIndex) performTabSwitchHaptic()
         motion.pulse(if (index == selectedIndex) .014f else .03f)
         if (index == selectedIndex) {
             motion.select(index)
@@ -189,9 +176,9 @@ internal fun BarcodeComposeBottomTabBar(
                     }
                 }
             }
-            .pointerInput(motion, showSelectionIndicator, density) {
+            .pointerInput(motion, showSelectionIndicator, effects.liquidGlassEnabled, density) {
                 // 长按进入菜单后，后续拖动由根菜单容器接管，Tab 栏不再重复处理同一指针事件。
-                if (!showSelectionIndicator) return@pointerInput
+                if (!showSelectionIndicator || !effects.liquidGlassEnabled) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     // 长按资格只按最初按下位置判断，不能因手指越过触摸阈值而改变目标 Tab。
@@ -216,7 +203,6 @@ internal fun BarcodeComposeBottomTabBar(
                         if (target != lastTarget) {
                             lastTarget = target
                             motion.pulse(.025f)
-                            performTabSwitchHaptic()
                         }
                     }
                     move(start, overSlop)
@@ -409,18 +395,4 @@ internal fun BarcodeComposeBottomTabBar(
             }
         }
     }
-}
-
-private const val TAB_SWITCH_HAPTIC_MIN_INTERVAL_MS = 120L
-
-/** 优先使用 Android 轻柔的频繁选择反馈，旧系统回退到兼容的轻触感常量。 */
-private fun View.performSubtleTabHaptic() {
-    val feedback = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
-            HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 ->
-            HapticFeedbackConstants.TEXT_HANDLE_MOVE
-        else -> HapticFeedbackConstants.CLOCK_TICK
-    }
-    performHapticFeedback(feedback)
 }

@@ -1027,7 +1027,6 @@ internal class LanShareServer(
                     LanShareWebTemplates.page(
                         locale = locale,
                         liquidGlassEnabled = webGlassProvider.isLiquidGlassEnabled(),
-                        glassStrengthPercent = webGlassProvider.getLiquidGlassStrengthPercent(),
                     )
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 

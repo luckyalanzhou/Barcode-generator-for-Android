@@ -380,8 +380,6 @@ class UpdateStartupCheckTest {
         var releaseRead: CompletableDeferred<Unit>? = null
         override suspend fun load() = Unit
         override fun loadStyle() = StyleSettings()
-        override fun getLiquidGlassStrengthPercent() = 50
-        override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
         override fun getLiquidGlassEnabled() = true
         override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
         override fun getBottomTabLabelsVisible() = true

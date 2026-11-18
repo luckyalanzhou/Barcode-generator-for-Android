@@ -24,7 +24,6 @@ data class SettingsUiState(
     val style: StyleSettings = StyleSettings(),
     val scheme: String = "system",
     val liquidGlassEnabled: Boolean = true,
-    val liquidGlassStrengthPercent: Int = 50,
     val bottomTabLabelsVisible: Boolean = true,
     val ocrMask: Int = 0,
     val textSize: Float = 14f,
@@ -48,7 +47,6 @@ private data class PersistedSettingsState(
     val style: StyleSettings,
     val ocrMask: Int,
     val liquidGlassEnabled: Boolean,
-    val liquidGlassStrengthPercent: Int,
     val bottomTabLabelsVisible: Boolean,
 )
 
@@ -66,7 +64,6 @@ class SettingsViewModel @Inject constructor(
     private val styleFieldsChangedBeforeLoad = mutableSetOf<StyleField>()
     private var ocrMaskChangedBeforeLoad: Int? = null
     private var liquidGlassChangedBeforeLoad: Boolean? = null
-    private var liquidGlassStrengthChangedBeforeLoad: Int? = null
     private var bottomTabLabelsChangedBeforeLoad: Boolean? = null
     private val writeFailureNotices = Channel<Unit>(Channel.BUFFERED)
     val persistenceFailures = writeFailureNotices.receiveAsFlow()
@@ -78,19 +75,18 @@ class SettingsViewModel @Inject constructor(
     suspend fun loadPersistedState() {
         try {
             logger.recordSafely("settings", "load start")
-            val (style, ocrMask, liquidGlassEnabled, liquidGlassStrengthPercent, bottomTabLabelsVisible) = withContext(Dispatchers.IO) {
+            val (style, ocrMask, liquidGlassEnabled, bottomTabLabelsVisible) = withContext(Dispatchers.IO) {
                 settingsRepository.load()
                 legacySettingsMigrator.migrateIfNeeded()
                 PersistedSettingsState(
                     style = settingsRepository.loadStyle(),
                     ocrMask = settingsRepository.getOcrConfusionReplacementMask(),
                     liquidGlassEnabled = settingsRepository.getLiquidGlassEnabled(),
-                    liquidGlassStrengthPercent = settingsRepository.getLiquidGlassStrengthPercent(),
                     bottomTabLabelsVisible = settingsRepository.getBottomTabLabelsVisible(),
                 )
             }
             // 回到调用方上下文后再发布状态，日志仅记录设置类型、不记录输入内容。
-            initialize(style, ocrMask, liquidGlassEnabled, liquidGlassStrengthPercent, bottomTabLabelsVisible)
+            initialize(style, ocrMask, liquidGlassEnabled, bottomTabLabelsVisible)
             logger.recordSafely(
                 "settings",
                 "load success scheme=${style.colorScheme}",
@@ -152,7 +148,6 @@ class SettingsViewModel @Inject constructor(
         style: StyleSettings,
         ocrMask: Int,
         liquidGlassEnabled: Boolean = true,
-        liquidGlassStrengthPercent: Int = 50,
         bottomTabLabelsVisible: Boolean = true,
     ) {
         if (initialized) return
@@ -169,23 +164,18 @@ class SettingsViewModel @Inject constructor(
         val shouldPersistEarlyStyle = styleFieldsChangedBeforeLoad.isNotEmpty()
         val earlyOcrMask = ocrMaskChangedBeforeLoad
         val earlyLiquidGlassEnabled = liquidGlassChangedBeforeLoad
-        val earlyLiquidGlassStrengthPercent = liquidGlassStrengthChangedBeforeLoad
         val earlyBottomTabLabelsVisible = bottomTabLabelsChangedBeforeLoad
         val resolvedLiquidGlassEnabled = earlyLiquidGlassEnabled ?: liquidGlassEnabled
-        val resolvedLiquidGlassStrengthPercent =
-            (earlyLiquidGlassStrengthPercent ?: liquidGlassStrengthPercent).coerceIn(0, 100)
         val resolvedBottomTabLabelsVisible = earlyBottomTabLabelsVisible ?: bottomTabLabelsVisible
         currentStyle = resolvedStyle
         styleFieldsChangedBeforeLoad.clear()
         ocrMaskChangedBeforeLoad = null
         liquidGlassChangedBeforeLoad = null
-        liquidGlassStrengthChangedBeforeLoad = null
         bottomTabLabelsChangedBeforeLoad = null
         _uiState.value = SettingsUiState(
             style = currentStyle.copy(),
             scheme = currentStyle.colorScheme,
             liquidGlassEnabled = resolvedLiquidGlassEnabled,
-            liquidGlassStrengthPercent = resolvedLiquidGlassStrengthPercent,
             bottomTabLabelsVisible = resolvedBottomTabLabelsVisible,
             ocrMask = earlyOcrMask ?: ocrMask,
             textSize = currentStyle.textSize,
@@ -202,11 +192,6 @@ class SettingsViewModel @Inject constructor(
         if (earlyLiquidGlassEnabled != null) {
             trackWrite("liquid_glass_save_after_initial_load") {
                 settingsRepository.setLiquidGlassEnabled(earlyLiquidGlassEnabled)
-            }
-        }
-        if (earlyLiquidGlassStrengthPercent != null) {
-            trackWrite("liquid_glass_strength_save_after_initial_load") {
-                settingsRepository.setLiquidGlassStrengthPercent(resolvedLiquidGlassStrengthPercent)
             }
         }
         if (earlyBottomTabLabelsVisible != null) {
@@ -237,20 +222,6 @@ class SettingsViewModel @Inject constructor(
         if (_uiState.value.liquidGlassEnabled == enabled) return
         _uiState.update { it.copy(liquidGlassEnabled = enabled) }
         trackWrite("liquid_glass_save") { settingsRepository.setLiquidGlassEnabled(enabled) }
-    }
-
-    fun setLiquidGlassStrengthPercent(percent: Int) {
-        val resolvedPercent = percent.coerceIn(0, 100)
-        if (!initialized) {
-            liquidGlassStrengthChangedBeforeLoad = resolvedPercent
-            _uiState.update { it.copy(liquidGlassStrengthPercent = resolvedPercent) }
-            return
-        }
-        if (_uiState.value.liquidGlassStrengthPercent == resolvedPercent) return
-        _uiState.update { it.copy(liquidGlassStrengthPercent = resolvedPercent) }
-        trackWrite("liquid_glass_strength_save") {
-            settingsRepository.setLiquidGlassStrengthPercent(resolvedPercent)
-        }
     }
 
     fun setBottomTabLabelsVisible(visible: Boolean) {

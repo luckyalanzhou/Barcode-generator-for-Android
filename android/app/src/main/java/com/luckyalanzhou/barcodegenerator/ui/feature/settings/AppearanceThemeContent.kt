@@ -32,7 +32,6 @@ internal fun AppearanceThemeContent(
     onBack: () -> Unit,
     onStyleChange: (StyleSettings) -> Unit,
     onLiquidGlassEnabledChange: (Boolean) -> Unit,
-    onLiquidGlassStrengthChange: (Int) -> Unit,
     onBottomTabLabelsVisibleChange: (Boolean) -> Unit,
 ) {
     val colors = rememberSettingsColors()
@@ -98,13 +97,6 @@ internal fun AppearanceThemeContent(
                     ),
                 )
             }
-            SettingsDivider(dark)
-            LiquidGlassStrengthSliderRow(
-                title = stringResource(R.string.settings_liquid_glass_strength),
-                value = settings.liquidGlassStrengthPercent,
-                enabled = settings.liquidGlassEnabled,
-                onValueChange = onLiquidGlassStrengthChange,
-            )
         }
         SettingsSection(stringResource(R.string.settings_navigation_bar), dark) {
             val labelsTitle = stringResource(R.string.settings_navigation_bar_labels)

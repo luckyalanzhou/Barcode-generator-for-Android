@@ -295,7 +295,6 @@ private fun ComposePageRoute(
                         style = settings.style,
                         ocrMask = settings.ocrMask,
                         liquidGlassEnabled = settings.liquidGlassEnabled,
-                        liquidGlassStrengthPercent = settings.liquidGlassStrengthPercent,
                         bottomTabLabelsVisible = settings.bottomTabLabelsVisible,
                     ),
                     dark = dark,
@@ -327,7 +326,6 @@ private fun ComposePageRoute(
                         style = settings.style,
                         ocrMask = settings.ocrMask,
                         liquidGlassEnabled = settings.liquidGlassEnabled,
-                        liquidGlassStrengthPercent = settings.liquidGlassStrengthPercent,
                         bottomTabLabelsVisible = settings.bottomTabLabelsVisible,
                     ),
                     dark = dark,
@@ -343,7 +341,6 @@ private fun ComposePageRoute(
                         }
                     },
                     onLiquidGlassEnabledChange = dependencies.settingsViewModel::setLiquidGlassEnabled,
-                    onLiquidGlassStrengthChange = dependencies.settingsViewModel::setLiquidGlassStrengthPercent,
                     onBottomTabLabelsVisibleChange = dependencies.settingsViewModel::setBottomTabLabelsVisible,
                 )
             }

@@ -45,7 +45,6 @@ import com.luckyalanzhou.barcodegenerator.ui.component.glass.rememberScreenGlass
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
-import com.luckyalanzhou.barcodegenerator.ui.component.glass.glassOpacityForStrength
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -98,7 +97,7 @@ internal fun MenuSurface(
     val layoutDirection = LocalLayoutDirection.current
     var heightDp by remember { mutableFloatStateOf(80f) }
     val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp,
-        policy.highContrast, policy.glassStrengthPercent)
+        policy.highContrast)
     val surfaceOpacity = if (obscuresBackdropContent) 1f else spec.opacity
     val thickness = ((heightDp - 80f) / 240f).coerceIn(0f, 1f)
     val surfaceLuminance = color.luminance()
@@ -161,13 +160,11 @@ internal fun MenuSurface(
             val strength = glassProgress()
             val tint = if (obscuresBackdropContent) surfaceOpacity
                 else if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
-            val edgeTint = if (obscuresBackdropContent) 1f else glassOpacityForStrength(
-                (tint + contrastTint).coerceIn(0f, 1f), policy.glassStrengthPercent)
+            val edgeTint = if (obscuresBackdropContent) 1f else (tint + contrastTint).coerceIn(0f, 1f)
             if (clearerGlass && !obscuresBackdropContent) {
                 val rimFraction = (16.dp.toPx() / size.height).coerceIn(.01f, .45f)
                 val edge = color.copy(alpha = edgeTint)
-                val center = color.copy(alpha = glassOpacityForStrength(
-                    (tint + contrastTint + .30f).coerceAtMost(.92f), policy.glassStrengthPercent))
+                val center = color.copy(alpha = (tint + contrastTint + .30f).coerceAtMost(.92f))
                 drawRect(Brush.verticalGradient(
                     0f to edge,
                     rimFraction to center,
@@ -217,7 +214,7 @@ internal fun MenuSurface(
         if (!useKyant) Box(Modifier.matchParentSize().background(color))
         if (dynamicBackdrop && !useKyant) {
             GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = surfaceOpacity,
-                cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f }, strengthPercent = 50,
+                cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f },
                 drawFallback = false, screenCoordinates = true, renderer = renderer)
         }
         content()

@@ -8,6 +8,4 @@ internal class AppLanShareWebGlassProvider(
     private val settingsRepository: SettingsRepository,
 ) : LanShareWebGlassProvider {
     override fun isLiquidGlassEnabled(): Boolean = settingsRepository.getLiquidGlassEnabled()
-
-    override fun getLiquidGlassStrengthPercent(): Int = settingsRepository.getLiquidGlassStrengthPercent()
 }

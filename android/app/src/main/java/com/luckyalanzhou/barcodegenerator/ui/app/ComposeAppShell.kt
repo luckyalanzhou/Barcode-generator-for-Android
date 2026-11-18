@@ -154,7 +154,6 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val favoritesRowsProjectionCache = remember { FavoritesRowsProjectionCache() }
     val effects = rememberVisualEffectsPolicy(
         liquidGlassEnabled = settingsUiState.liquidGlassEnabled,
-        glassStrengthPercent = settingsUiState.liquidGlassStrengthPercent,
     )
     var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
     val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }

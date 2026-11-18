@@ -58,7 +58,6 @@ internal fun MainActivity.showComposeDialog(
         val settings by settingsViewModel.uiState.collectAsStateWithLifecycle()
         val effects = rememberVisualEffectsPolicy(
             liquidGlassEnabled = settings.liquidGlassEnabled,
-            glassStrengthPercent = settings.liquidGlassStrengthPercent,
         )
         CompositionLocalProvider(
             LocalGlassDialogWindow provides dialogWindow,

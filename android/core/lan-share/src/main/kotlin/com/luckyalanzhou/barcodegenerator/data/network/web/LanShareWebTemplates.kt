@@ -5,10 +5,9 @@ internal object LanShareWebTemplates {
     fun page(
         locale: LanShareWebLocale = LanShareWebLocale.SIMPLIFIED_CHINESE,
         liquidGlassEnabled: Boolean = true,
-        glassStrengthPercent: Int = 50,
     ) = buildString {
         append(LanShareWebHead.render(locale))
-        append(LanShareWebStyles.render(liquidGlassEnabled, glassStrengthPercent))
+        append(LanShareWebStyles.render(liquidGlassEnabled))
         append(LanShareWebBody.render(locale))
         val strings = LanShareWebText.entries.associate { it.name to it.resolve(locale) }
         append("""<script type="application/json" id="lan-share-strings">""")

@@ -30,51 +30,6 @@ class TabGlassMaterialTest {
         assertTrue(light.rimLight >= .58f && dark.rimLight >= .40f)
     }
 
-    @Test fun strengthChangesOnlyOpacityAcrossEveryTenPercentStep() {
-        for (background in listOf(Color.Black, Color(0xFF17191D), Color.White, Color(0xFFF2F3F8))) {
-            val tabBaseline = tabGlassMaterial(background, 64f)
-            val actionBaseline = resultActionGlassMaterial(background)
-            var previousTab = -1f
-            var previousAction = -1f
-            var previousTabOutline = -1f
-            var previousActionOutline = -1f
-            for (strength in 0..100 step 10) {
-                val tab = tabGlassMaterial(background, 64f, strength)
-                val action = resultActionGlassMaterial(background, strength)
-                assertTrue("tab opacity must increase: $background at $strength%", tab.surfaceOpacity > previousTab)
-                assertTrue("action opacity must increase: $background at $strength%", action.surfaceOpacity > previousAction)
-                assertTrue("tab outline opacity must increase: $background at $strength%", tab.outlineOpacity > previousTabOutline)
-                assertTrue("action outline opacity must increase: $background at $strength%", action.outlineOpacity > previousActionOutline)
-                assertTrue(tab.surfaceOpacity in 0f..1f && tab.outlineOpacity in 0f..1f)
-                assertTrue(action.surfaceOpacity in 0f..1f && action.outlineOpacity in 0f..1f)
-                assertEquals(tabBaseline.accentTint, tab.accentTint, 0f)
-                assertEquals(tabBaseline.rimLight, tab.rimLight, 0f)
-                assertEquals(tabBaseline.innerShadow, tab.innerShadow, 0f)
-                assertEquals(tabBaseline.edgeWidthDp, tab.edgeWidthDp, 0f)
-                assertEquals(tabBaseline.refractionDp, tab.refractionDp, 0f)
-                assertEquals(actionBaseline.rimLight, action.rimLight, 0f)
-                assertEquals(actionBaseline.innerShadow, action.innerShadow, 0f)
-                assertEquals(actionBaseline.edgeWidthDp, action.edgeWidthDp, 0f)
-                assertEquals(actionBaseline.refractionDp, action.refractionDp, 0f)
-                if (strength == 0) {
-                    assertEquals(tabBaseline.surfaceOpacity * .75f, tab.surfaceOpacity, .001f)
-                    assertEquals(actionBaseline.surfaceOpacity * .75f, action.surfaceOpacity, .001f)
-                    assertEquals(tabBaseline.outlineOpacity * .75f, tab.outlineOpacity, .001f)
-                    assertEquals(actionBaseline.outlineOpacity * .75f, action.outlineOpacity, .001f)
-                }
-                if (strength == 50) {
-                    assertEquals(tabBaseline.surfaceOpacity, tab.surfaceOpacity, 0f)
-                    assertEquals(actionBaseline.surfaceOpacity, action.surfaceOpacity, 0f)
-                    assertEquals(tabBaseline.outlineOpacity, tab.outlineOpacity, 0f)
-                    assertEquals(actionBaseline.outlineOpacity, action.outlineOpacity, 0f)
-                }
-                previousTab = tab.surfaceOpacity
-                previousAction = action.surfaceOpacity
-                previousTabOutline = tab.outlineOpacity
-                previousActionOutline = action.outlineOpacity
-            }
-        }
-    }
 
     @Test
     fun fixedNeutralBodyTintIsRemovedAndAccentStaysSubtle() {
@@ -140,24 +95,6 @@ class TabGlassMaterialTest {
         assertEquals(1f, glassFallbackOpacity(2f, smallControl = false, opaque = false), 0f)
     }
 
-    @Test fun fallbackStrengthMapsControlsAndLargeSurfaceFloorAtEveryStep() {
-        var previousControl = -1f
-        var previousLargeSurface = -1f
-        for (strength in 0..100 step 10) {
-            val control = glassFallbackOpacity(.60f, smallControl = true, opaque = false, strengthPercent = strength)
-            val largeSurface = glassFallbackOpacity(.60f, smallControl = false, opaque = false, strengthPercent = strength)
-            assertTrue(control > previousControl)
-            assertTrue(largeSurface > previousLargeSurface)
-            if (strength == 50) {
-                assertEquals(.60f, control, 0f)
-                assertEquals(.92f, largeSurface, 0f)
-            }
-            if (strength == 0) assertEquals(.45f, control, .001f)
-            previousControl = control
-            previousLargeSurface = largeSurface
-        }
-        assertEquals(1f, glassFallbackOpacity(.60f, false, true, 0), 0f)
-    }
 
     @Test fun bevelStaysThinInPhysicalPixelsAcrossDisplayDensities() {
         val material = tabGlassMaterial(Color.White, 56f)

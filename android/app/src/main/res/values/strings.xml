@@ -393,10 +393,8 @@
     <string name="settings_row_application_theme">应用主题</string>
     <string name="settings_liquid_glass">液态玻璃效果</string>
     <string name="settings_appearance_theme">外观主题</string>
-    <string name="settings_liquid_glass_strength">强度</string>
     <string name="settings_navigation_bar">导航栏</string>
     <string name="settings_navigation_bar_labels">显示导航栏名称</string>
-    <string name="settings_strength_percent">%1$d%%</string>
     <string name="settings_row_language">语言</string>
     <string name="settings_save_failed">设置未保存，当前调整仍保留，请重试</string>
     <string name="settings_section_general">通用</string>
