@@ -45,6 +45,8 @@ class SettingsStore(private val context: Context) : SettingsRepository {
         internal val MARGIN = intPreferencesKey("style_margin")
         internal val COLOR_SCHEME = stringPreferencesKey("style_color_scheme")
         internal val LIQUID_GLASS_ENABLED = booleanPreferencesKey("appearance_liquid_glass_enabled")
+        internal val LIQUID_GLASS_STRENGTH_PERCENT = intPreferencesKey("appearance_liquid_glass_strength_percent")
+        internal val BOTTOM_TAB_LABELS_VISIBLE = booleanPreferencesKey("appearance_bottom_tab_labels_visible")
         internal val OCR_CONFUSION_REPLACEMENT_MASK = intPreferencesKey("ocr_confusion_replacement_mask")
         internal val LAST_UPDATE_ERROR = stringPreferencesKey("last_update_error")
         internal val IGNORED_UPDATE_VERSION = stringPreferencesKey("ignored_update_version")
@@ -107,6 +109,19 @@ class SettingsStore(private val context: Context) : SettingsRepository {
     override fun getLiquidGlassEnabled(): Boolean = cachedValues[LIQUID_GLASS_ENABLED] ?: true
 
     override fun setLiquidGlassEnabled(enabled: Boolean): Job = write { it[LIQUID_GLASS_ENABLED] = enabled }
+
+    override fun getBottomTabLabelsVisible(): Boolean = cachedValues[BOTTOM_TAB_LABELS_VISIBLE] ?: true
+
+    override fun setBottomTabLabelsVisible(visible: Boolean): Job = write {
+        it[BOTTOM_TAB_LABELS_VISIBLE] = visible
+    }
+
+    override fun getLiquidGlassStrengthPercent(): Int =
+        cachedValues[LIQUID_GLASS_STRENGTH_PERCENT] ?: 50
+
+    override fun setLiquidGlassStrengthPercent(percent: Int): Job = write {
+        it[LIQUID_GLASS_STRENGTH_PERCENT] = percent.coerceIn(0, 100)
+    }
 
     fun markMigrated(): Job = write { it[SETTINGS_MIGRATED] = true }
 

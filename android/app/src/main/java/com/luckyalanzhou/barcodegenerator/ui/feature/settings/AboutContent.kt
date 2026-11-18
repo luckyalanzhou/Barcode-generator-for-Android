@@ -117,7 +117,7 @@ internal fun LicensesContent(
 }
 
 @Composable
-private fun SecondarySettingsHeader(title: String, onBack: () -> Unit) {
+internal fun SecondarySettingsHeader(title: String, onBack: () -> Unit) {
     val colors = LocalAppColorScheme.current
     Row(
         modifier = Modifier.fillMaxWidth().height(52.dp),

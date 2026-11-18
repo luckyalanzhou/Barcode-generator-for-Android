@@ -34,11 +34,21 @@ import com.luckyalanzhou.barcodegenerator.presentation.favorites.isValidFavorite
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderRenameTargetPath
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.isValidFavoriteFolderPath
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+import android.view.Window
 
 /** 文件夹编辑 Compose 弹窗，校验规则与原编辑器一致。 */
-internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, initial: String = "", onSaved: suspend (String) -> Boolean) {
+internal fun MainActivity.showFolderEditorCompose(
+    dataState: BarcodeDataState,
+    initial: String = "",
+    backdropSourceWindow: Window? = null,
+    onSaved: suspend (String) -> Boolean,
+) {
     var operationInProgress = false
-    showComposeDialog(compact = false, canCancel = { !operationInProgress }) { dismiss ->
+    showComposeDialog(
+        compact = false,
+        canCancel = { !operationInProgress },
+        backdropSourceWindow = backdropSourceWindow,
+    ) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf(favoriteFolderEditorInitialValue(initial)) }
         var saving by remember { mutableStateOf(false) }
@@ -101,9 +111,19 @@ internal fun MainActivity.showFolderEditorCompose(dataState: BarcodeDataState, i
 }
 
 /** 新建二级文件夹 Compose 弹窗，保持原有斜杠和重名校验。 */
-internal fun MainActivity.showSubfolderEditorCompose(dataState: BarcodeDataState, parent: String, onCreated: ((String) -> Unit)? = null, onCreateFolder: suspend (String) -> Boolean) {
+internal fun MainActivity.showSubfolderEditorCompose(
+    dataState: BarcodeDataState,
+    parent: String,
+    onCreated: ((String) -> Unit)? = null,
+    backdropSourceWindow: Window? = null,
+    onCreateFolder: suspend (String) -> Boolean,
+) {
     var operationInProgress = false
-    showComposeDialog(compact = false, canCancel = { !operationInProgress }) { dismiss ->
+    showComposeDialog(
+        compact = false,
+        canCancel = { !operationInProgress },
+        backdropSourceWindow = backdropSourceWindow,
+    ) { dismiss ->
         val dark = isDark()
         var value by remember { mutableStateOf("") }
         var saving by remember { mutableStateOf(false) }

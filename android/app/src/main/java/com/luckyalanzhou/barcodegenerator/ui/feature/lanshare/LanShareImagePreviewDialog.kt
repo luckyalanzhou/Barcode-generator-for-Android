@@ -69,6 +69,7 @@ import com.luckyalanzhou.barcodegenerator.icons.CloseSmallIcon
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.glassOpacityForStrength
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -180,9 +181,13 @@ internal fun LanShareImagePreviewDialog(
                         },
                         highlight = { Highlight.Default.copy(alpha = .30f) },
                         shadow = { Shadow(alpha = .20f) },
-                        onDrawSurface = { drawRect(Color.Black.copy(alpha = .60f)) },
+                        onDrawSurface = {
+                            drawRect(Color.Black.copy(alpha = glassOpacityForStrength(
+                                .60f, effectsPolicy.glassStrengthPercent)))
+                        },
                     ) else Modifier.background(
-                        Color.Black.copy(alpha = if (effectsPolicy.opaqueGlass) 1f else .60f),
+                        Color.Black.copy(alpha = if (effectsPolicy.opaqueGlass) 1f else
+                            glassOpacityForStrength(.60f, effectsPolicy.glassStrengthPercent)),
                         RoundedCornerShape(28.dp),
                     ))
                     .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
@@ -220,11 +225,14 @@ internal fun LanShareImagePreviewDialog(
                         highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
                         shadow = { Shadow(alpha = .12f + .20f * closePress) },
                         onDrawSurface = {
-                            drawRect(Color.Black.copy(alpha = .58f + .06f * closePress))
+                            drawRect(Color.Black.copy(alpha = (
+                                glassOpacityForStrength(.58f, effectsPolicy.glassStrengthPercent) + .06f * closePress
+                            ).coerceAtMost(1f)))
                             drawGlassTouchHighlight(closeTouch.touchPosition, closePress, .16f)
                         },
                     ) else Modifier.background(
-                        if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha = .16f),
+                        if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha =
+                            glassOpacityForStrength(.16f, effectsPolicy.glassStrengthPercent)),
                         RoundedCornerShape(10.dp),
                     )).semantics {
                         contentDescription = localizedResources.getString(R.string.close_image_preview)

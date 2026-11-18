@@ -295,6 +295,8 @@ private fun ComposePageRoute(
                         style = settings.style,
                         ocrMask = settings.ocrMask,
                         liquidGlassEnabled = settings.liquidGlassEnabled,
+                        liquidGlassStrengthPercent = settings.liquidGlassStrengthPercent,
+                        bottomTabLabelsVisible = settings.bottomTabLabelsVisible,
                     ),
                     dark = dark,
                     onStyleChange = { next ->
@@ -309,12 +311,40 @@ private fun ComposePageRoute(
                         }
                     },
                     onOcrMaskChange = { dependencies.settingsViewModel.setOcrMaskPersisted(it) },
-                    onLiquidGlassEnabledChange = dependencies.settingsViewModel::setLiquidGlassEnabled,
                     onEnterAbout = { dependencies.actions.navigateTo(AppRoute.AboutUs) },
+                    onEnterAppearanceTheme = { dependencies.actions.navigateTo(AppRoute.AppearanceTheme) },
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
                     onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onNotice = dependencies.actions::notice,
+                )
+            }
+            AppRoute.AppearanceTheme -> {
+                val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
+                val scope = rememberCoroutineScope()
+                AppearanceThemeContent(
+                    settings = SettingsContentState(
+                        style = settings.style,
+                        ocrMask = settings.ocrMask,
+                        liquidGlassEnabled = settings.liquidGlassEnabled,
+                        liquidGlassStrengthPercent = settings.liquidGlassStrengthPercent,
+                        bottomTabLabelsVisible = settings.bottomTabLabelsVisible,
+                    ),
+                    dark = dark,
+                    onBack = { dependencies.actions.navigateTo(AppRoute.Settings) },
+                    onStyleChange = { next ->
+                        val viewModel = dependencies.settingsViewModel
+                        val schemeChanged = viewModel.style.colorScheme != next.colorScheme
+                        viewModel.updateStyle(next)
+                        val saveJob = viewModel.save()
+                        if (schemeChanged) scope.launch {
+                            saveJob.join()
+                            dependencies.actions.applyAppearance()
+                        }
+                    },
+                    onLiquidGlassEnabledChange = dependencies.settingsViewModel::setLiquidGlassEnabled,
+                    onLiquidGlassStrengthChange = dependencies.settingsViewModel::setLiquidGlassStrengthPercent,
+                    onBottomTabLabelsVisibleChange = dependencies.settingsViewModel::setBottomTabLabelsVisible,
                 )
             }
             AppRoute.AboutUs -> {

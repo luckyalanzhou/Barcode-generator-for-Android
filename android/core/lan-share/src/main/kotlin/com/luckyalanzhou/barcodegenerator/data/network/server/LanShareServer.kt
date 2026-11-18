@@ -1024,7 +1024,11 @@ internal class LanShareServer(
                 session.method == Method.GET && requestPath == "/" -> newFixedLengthResponse(
                     Response.Status.OK,
                     "text/html; charset=utf-8",
-                    LanShareWebTemplates.page(locale, webGlassProvider.isLiquidGlassEnabled())
+                    LanShareWebTemplates.page(
+                        locale = locale,
+                        liquidGlassEnabled = webGlassProvider.isLiquidGlassEnabled(),
+                        glassStrengthPercent = webGlassProvider.getLiquidGlassStrengthPercent(),
+                    )
                 ).apply { addHeader("Cache-Control", "no-store, no-cache, must-revalidate") }
 
                 session.method == Method.PUT && requestPath == "/upload" -> {

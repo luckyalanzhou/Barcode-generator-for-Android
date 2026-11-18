@@ -51,9 +51,10 @@ class ButtonRenderingContractTest {
         assertFalse(rim.contains("RuntimeShader"))
     }
     @Test fun `settings distinguish current values from executable actions`() {
+        val appearance = source("AppearanceThemeContent.kt")
         val settings = source("SettingsContent.kt")
-        for (open in listOf("schemeMenu", "ocrMenu")) {
-            val beforeOpen = settings.substringBefore("onClick = { $open = true }").takeLast(180)
+        for ((sourceText, open) in listOf(appearance to "schemeMenu", settings to "ocrMenu")) {
+            val beforeOpen = sourceText.substringBefore("onClick = { $open = true }").takeLast(180)
             assertTrue(beforeOpen.contains("contentColor = colors.settingsText.secondary"))
         }
         val about = source("AboutContent.kt")

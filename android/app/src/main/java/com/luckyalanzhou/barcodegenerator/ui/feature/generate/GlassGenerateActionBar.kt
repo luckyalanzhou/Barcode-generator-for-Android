@@ -47,6 +47,7 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.glassOpacityForStrength
 import com.luckyalanzhou.barcodegenerator.icons.AddIcon
 import com.luckyalanzhou.barcodegenerator.icons.ContentPasteIcon
 import com.luckyalanzhou.barcodegenerator.icons.PhotoCameraIcon
@@ -167,7 +168,9 @@ private fun GenerateActionButton(
             highlight = { Highlight.Default.copy(alpha = .24f + .24f * progress.coerceIn(0f, 1f)) },
             shadow = { Shadow(alpha = if (light) .06f else .12f) },
             onDrawSurface = {
-                drawRect(pressedTint().copy(alpha = (if (light) .34f else .47f) + .10f * progress.coerceIn(0f, 1f)))
+                val baseOpacity = glassOpacityForStrength(
+                    if (light) .34f else .47f, policy.glassStrengthPercent)
+                drawRect(pressedTint().copy(alpha = (baseOpacity + .10f * progress.coerceIn(0f, 1f)).coerceAtMost(1f)))
                 drawGlassTouchHighlight(touch.touchPosition, progress, if (light) .14f else .18f)
             },
         )
@@ -176,7 +179,8 @@ private fun GenerateActionButton(
             val scale = if (policy.reduceMotion) 1f else 1f - .035f * progress.coerceIn(0f, 1f)
             scaleX = scale
             scaleY = scale
-        }.background((if (policy.highContrast) fill else pressedTint()).copy(alpha = if (policy.opaqueGlass) 1f else .78f + .16f * progress.coerceIn(0f, 1f)), shape)
+        }.background((if (policy.highContrast) fill else pressedTint()).copy(alpha = if (policy.opaqueGlass) 1f else
+            (glassOpacityForStrength(.78f, policy.glassStrengthPercent) + .16f * progress.coerceIn(0f, 1f)).coerceAtMost(1f)), shape)
     }
     Box(
         modifier.fillMaxHeight().heightIn(min = 48.dp)

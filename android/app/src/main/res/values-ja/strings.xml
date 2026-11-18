@@ -392,6 +392,11 @@
     <string name="settings_restore_barcode_style">スタイルを復元</string>
     <string name="settings_row_application_theme">アプリのテーマ</string>
     <string name="settings_liquid_glass">リキッドグラス</string>
+    <string name="settings_appearance_theme">外観テーマ</string>
+    <string name="settings_liquid_glass_strength">強度</string>
+    <string name="settings_navigation_bar">ナビゲーションバー</string>
+    <string name="settings_navigation_bar_labels">タブ名を表示</string>
+    <string name="settings_strength_percent">%1$d%%</string>
     <string name="settings_row_language">言語</string>
     <string name="settings_save_failed">設定は保存されませんでした。変更は画面に残っています。もう一度お試しください。</string>
     <string name="settings_section_general">一般</string>

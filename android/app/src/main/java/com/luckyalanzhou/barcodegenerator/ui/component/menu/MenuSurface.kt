@@ -44,6 +44,7 @@ import com.luckyalanzhou.barcodegenerator.ui.component.glass.rememberScreenGlass
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalLiquidGlassBackdrop
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.GlassPointerTracker
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.drawGlassTouchHighlight
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.glassOpacityForStrength
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -70,6 +71,8 @@ internal fun MenuSurface(
     screenBackdropCaptureKey: Any? = Unit,
     waitForScreenBackdropFrame: Boolean = false,
     externalGlassMotion: State<Offset>? = null,
+    backdropWindow: android.view.Window? = null,
+    trackPointer: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val policy = LocalVisualEffectsPolicy.current
@@ -79,18 +82,20 @@ internal fun MenuSurface(
             softenBackdropColor = clearerGlass,
             captureKey = screenBackdropCaptureKey,
             waitForNextFrame = waitForScreenBackdropFrame,
+            sourceWindow = backdropWindow,
         ) else null
     val backdrop = if (screenSpaceBackdrop) screenBackdrop else LocalLiquidGlassBackdrop.current
     var screenBounds by remember { mutableStateOf(Rect.Zero) }
     val useKyant = android.os.Build.VERSION.SDK_INT >= 33 && backdrop != null && dynamicBackdrop && !policy.opaqueGlass
     val touch = remember { GlassPointerTracker() }
-    val press by animateFloatAsState(if (touch.isPressed) 1f else 0f,
+    val press by animateFloatAsState(if (trackPointer && touch.isPressed) 1f else 0f,
         if (policy.reduceMotion) snap() else spring(.7f, 400f), label = "menu-glass-contact")
     val currentGlassMotion = { externalGlassMotion?.value ?: Offset.Zero }
     val glassProgress = { maxOf(press, currentGlassMotion().getDistance().coerceIn(0f, 1f)) }
     val layoutDirection = LocalLayoutDirection.current
     var heightDp by remember { mutableFloatStateOf(80f) }
-    val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp, policy.highContrast)
+    val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp,
+        policy.highContrast, policy.glassStrengthPercent)
     val surfaceOpacity = if (obscuresBackdropContent) 1f else spec.opacity
     val thickness = ((heightDp - 80f) / 240f).coerceIn(0f, 1f)
     val surfaceLuminance = color.luminance()
@@ -151,11 +156,13 @@ internal fun MenuSurface(
             val strength = glassProgress()
             val tint = if (obscuresBackdropContent) surfaceOpacity
                 else if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
-            val edgeTint = (tint + contrastTint).coerceIn(0f, 1f)
+            val edgeTint = if (obscuresBackdropContent) 1f else glassOpacityForStrength(
+                (tint + contrastTint).coerceIn(0f, 1f), policy.glassStrengthPercent)
             if (clearerGlass && !obscuresBackdropContent) {
                 val rimFraction = (16.dp.toPx() / size.height).coerceIn(.01f, .45f)
                 val edge = color.copy(alpha = edgeTint)
-                val center = color.copy(alpha = (edgeTint + .30f).coerceAtMost(.92f))
+                val center = color.copy(alpha = glassOpacityForStrength(
+                    (tint + contrastTint + .30f).coerceAtMost(.92f), policy.glassStrengthPercent))
                 drawRect(Brush.verticalGradient(
                     0f to edge,
                     rimFraction to center,
@@ -175,7 +182,7 @@ internal fun MenuSurface(
             }
             drawGlassTouchHighlight(localTouch, strength, if (surfaceLuminance > .5f) .14f else .18f)
         },
-    ) else Modifier).clip(shape).then(touch.pointerModifier).onSizeChanged {
+    ) else Modifier).clip(shape).then(if (trackPointer) touch.pointerModifier else Modifier).onSizeChanged {
         heightDp = with(density) { it.height.toDp().value }
         measuredSize = it
     }.drawWithCache {
@@ -196,7 +203,7 @@ internal fun MenuSurface(
         if (!useKyant) Box(Modifier.matchParentSize().background(color))
         if (dynamicBackdrop && !useKyant) {
             GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = surfaceOpacity,
-                cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f },
+                cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f }, strengthPercent = 50,
                 drawFallback = false, screenCoordinates = true, renderer = renderer)
         }
         content()

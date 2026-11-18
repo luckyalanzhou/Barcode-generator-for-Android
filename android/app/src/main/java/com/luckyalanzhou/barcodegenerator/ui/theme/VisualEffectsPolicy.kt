@@ -26,6 +26,7 @@ internal data class VisualEffectsPolicy(
     val reduceMotion: Boolean = false,
     val opaqueGlass: Boolean = false,
     val highContrast: Boolean = false,
+    val glassStrengthPercent: Int = 50,
 )
 
 internal val LocalVisualEffectsPolicy = staticCompositionLocalOf { VisualEffectsPolicy() }
@@ -34,17 +35,22 @@ internal fun resolveVisualEffectsPolicy(
     animationsEnabled: Boolean,
     systemHighContrast: Boolean,
     liquidGlassEnabled: Boolean = true,
+    glassStrengthPercent: Int = 50,
 ): VisualEffectsPolicy {
     return VisualEffectsPolicy(
         reduceMotion = !animationsEnabled,
         opaqueGlass = systemHighContrast || !liquidGlassEnabled,
         highContrast = systemHighContrast,
+        glassStrengthPercent = glassStrengthPercent.coerceIn(0, 100),
     )
 }
 
 /** 仅使用公开系统 API。实时观察系统设置变化，并在 Composition 结束时注销监听。 */
 @Composable
-internal fun rememberVisualEffectsPolicy(liquidGlassEnabled: Boolean = true): VisualEffectsPolicy {
+internal fun rememberVisualEffectsPolicy(
+    liquidGlassEnabled: Boolean = true,
+    glassStrengthPercent: Int = 50,
+): VisualEffectsPolicy {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val accessibility = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
@@ -79,7 +85,7 @@ internal fun rememberVisualEffectsPolicy(liquidGlassEnabled: Boolean = true): Vi
             mainHandler.removeCallbacksAndMessages(null)
         }
     }
-    return resolveVisualEffectsPolicy(animationsEnabled, contrast, liquidGlassEnabled)
+    return resolveVisualEffectsPolicy(animationsEnabled, contrast, liquidGlassEnabled, glassStrengthPercent)
 }
 
 @RequiresApi(33)

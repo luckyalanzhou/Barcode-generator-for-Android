@@ -97,6 +97,7 @@ private data class ComposeTabSpec(
 internal fun BarcodeComposeBottomTabBar(
     selectedIndex: Int,
     dark: Boolean,
+    showTabLabels: Boolean = true,
     onTabSelected: (index: Int, fromSwipe: Boolean) -> Unit,
     onGeneratePhotoFill: () -> Unit,
     onHistoryClear: () -> Unit,
@@ -117,7 +118,12 @@ internal fun BarcodeComposeBottomTabBar(
     )
     val themeColors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
-    val selectedColor = if (effects.highContrast) lerp(themeColors.controls.accent, themeColors.text.primary, .55f) else themeColors.controls.accent
+    val selectedColor = when {
+        effects.highContrast -> lerp(themeColors.controls.accent, themeColors.text.primary, .55f)
+        effects.opaqueGlass && dark -> themeColors.text.link
+        effects.opaqueGlass -> themeColors.controls.primaryAction
+        else -> themeColors.controls.accent
+    }
     val unselectedColor = if (effects.highContrast) themeColors.text.primary else themeColors.navigation.tabUnselected
     val hapticView = LocalView.current
     val density = LocalDensity.current.density
@@ -251,7 +257,9 @@ internal fun BarcodeComposeBottomTabBar(
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 Icon(tab.icon, contentDescription = null, tint = selectedColor, modifier = Modifier.size(26.dp))
-                                Text(tab.label, color = selectedColor, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                                if (showTabLabels) {
+                                    Text(tab.label, color = selectedColor, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                                }
                             }
                         }
                     }
@@ -274,7 +282,7 @@ internal fun BarcodeComposeBottomTabBar(
                     )
                     var tabPlaced by remember { mutableStateOf(false) }
                     DisposableEffect(Unit) { onDispose { tabPlaced = false } }
-                    val itemColor = if (!showSelectionIndicator && selected) selectedColor else unselectedColor
+                    val itemColor = if ((!showSelectionIndicator || effects.opaqueGlass) && selected) selectedColor else unselectedColor
                     val tapScale = animateFloatAsState(
                         targetValue = if (!effects.reduceMotion && tapPulseTab == index) .92f else 1f,
                         animationSpec = if (effects.reduceMotion) tween(0) else ComposeAnimationConfig.pressSpring(),
@@ -385,14 +393,16 @@ internal fun BarcodeComposeBottomTabBar(
                                     translationY = squash * 12.dp.toPx()
                                 },
                             )
-                            Text(
-                                tab.label,
-                                color = itemColor,
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                            )
+                            if (showTabLabels) {
+                                Text(
+                                    tab.label,
+                                    color = itemColor,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 }

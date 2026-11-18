@@ -69,7 +69,7 @@ internal fun GlassRoundActionButton(
         animationSpec = if (effects.reduceMotion) snap() else spring(dampingRatio = .72f, stiffness = 520f),
         label = "result-action-glass-press",
     )
-    val material = resultActionGlassMaterial(colors.surfaces.background).let {
+    val material = resultActionGlassMaterial(colors.surfaces.background, effects.glassStrengthPercent).let {
         if (effects.opaqueGlass) it.copy(accentTint = 0f, surfaceOpacity = 1f) else it
     }
     val glassColor = tabGlassFill(colors.surfaces.background, tint, material)
@@ -135,7 +135,7 @@ internal fun GlassRoundActionButton(
                         val lightSurface = colors.surfaces.background.luminance() > .5f
                         val press = pressProgress.coerceIn(0f, 1f)
                         drawCircle((if (lightSurface) Color.White else Color(0xFF121212))
-                            .copy(alpha = .18f + .16f * press))
+                            .copy(alpha = glassOpacityForStrength(.18f, effects.glassStrengthPercent) + .16f * press))
                         drawGlassTouchHighlight(touch.touchPosition, press, if (lightSurface) .12f else .18f)
                     },
                 ) else Modifier.clip(CircleShape)),
@@ -143,7 +143,8 @@ internal fun GlassRoundActionButton(
         ) {
             Canvas(Modifier.matchParentSize()) {
                 // Kyant 路径由 drawBackdrop 绘制材质；兼容路径使用本地静态底色。
-                if (!useKyantGlass) drawCircle(glassColor.copy(alpha = if (effects.opaqueGlass) 1f else .88f))
+                if (!useKyantGlass) drawCircle(glassColor.copy(alpha = if (effects.opaqueGlass) 1f
+                    else glassOpacityForStrength(.88f, effects.glassStrengthPercent)))
                 // Keep the original circular control outline over Kyant's sampled glass surface.
                 drawResultActionRim(
                     colors.surfaces.background,

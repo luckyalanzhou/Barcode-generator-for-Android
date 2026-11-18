@@ -419,6 +419,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleAppBackPressed() {
         when (navigationViewModel.uiState.value.page) {
             AppRoute.Settings -> navigationViewModel.navigateTo(navigationViewModel.uiState.value.settingsReturnPage)
+            AppRoute.AppearanceTheme -> navigationViewModel.navigateTo(AppRoute.Settings)
             AppRoute.AboutUs -> navigationViewModel.navigateTo(AppRoute.Settings)
             AppRoute.Licenses -> navigationViewModel.navigateTo(AppRoute.AboutUs)
             AppRoute.LanShare -> { closeLanShare(); navigationViewModel.navigateTo(AppRoute.Settings) }

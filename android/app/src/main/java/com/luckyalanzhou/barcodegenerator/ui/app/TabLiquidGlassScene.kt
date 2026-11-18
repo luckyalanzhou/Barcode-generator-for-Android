@@ -5,10 +5,13 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.runtime.Composable
@@ -44,6 +47,7 @@ import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import android.os.Build
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.*
+import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
 import kotlin.math.abs
 import kotlin.math.sign
@@ -62,20 +66,23 @@ internal fun TabLiquidGlassScene(
     var sceneSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current.density
     val policy = LocalVisualEffectsPolicy.current
+    val colors = LocalAppColorScheme.current
     val kyantBackdrop = LocalLiquidGlassBackdrop.current
     val tabsBackdrop = rememberLayerBackdrop()
     val renderer = rememberGlassBackdropRenderer()
     val backdropAvailable = Build.VERSION.SDK_INT >= 33 && kyantBackdrop != null && !policy.opaqueGlass
-    val material = remember(background, sceneSize.height, density) {
-        tabGlassMaterial(background, sceneSize.height / density)
+    val material = remember(background, sceneSize.height, density, policy.glassStrengthPercent) {
+        tabGlassMaterial(background, sceneSize.height / density, policy.glassStrengthPercent)
     }
     val resolvedMaterial = if (policy.opaqueGlass) material.copy(surfaceOpacity = 1f, accentTint = 0f) else material
+    val containerOpacity = glassOpacityForStrength(.4f, policy.glassStrengthPercent)
     val containerColor = if (background.luminance() > .5f) {
-        Color(0xFFFAFAFA).copy(alpha = .4f)
+        Color(0xFFFAFAFA).copy(alpha = containerOpacity)
     } else {
-        Color(0xFF121212).copy(alpha = .4f)
+        Color(0xFF121212).copy(alpha = containerOpacity)
     }
-    val sampledContainerColor = containerColor.copy(alpha = .22f)
+    val sampledContainerColor = containerColor.copy(
+        alpha = glassOpacityForStrength(.22f, policy.glassStrengthPercent))
     val backdropBlurPx = 2.5f * density
     val active = !policy.reduceMotion && visible && motion.pressed
     val activity = animateFloatAsState(
@@ -120,6 +127,32 @@ internal fun TabLiquidGlassScene(
     }
     // Draw the real row once, then let the selected glass capsule sample its tinted backdrop copy.
     Box(Modifier.fillMaxSize().onSizeChanged { sceneSize = it }) {
+        if (visible && policy.opaqueGlass) {
+            Box(
+                Modifier.fillMaxWidth().height(64.dp).align(Alignment.Center)
+                    .clip(CircleShape)
+                    .background(colors.surfaces.surface)
+                    .then(Modifier.drawBehind {
+                        drawRoundRect(
+                            color = colors.borders.card,
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),
+                            style = Stroke(1f * density),
+                        )
+                    }),
+            )
+            Box(
+                Modifier.align(Alignment.CenterStart).padding(horizontal = 4.dp)
+                    .graphicsLayer {
+                        val frame = frameProvider()
+                        val cellWidth = (frame.width - 8f * density) / tabCount
+                        translationX = frame.centerX - 4f * density - cellWidth / 2f
+                    }
+                    .height(56.dp)
+                    .fillMaxWidth(1f / tabCount)
+                    .clip(CircleShape)
+                    .background(colors.controls.selectedContainer),
+            )
+        }
         if (backdropAvailable && visible) {
             Box(
                 Modifier.fillMaxWidth().height(64.dp).align(Alignment.Center).graphicsLayer {

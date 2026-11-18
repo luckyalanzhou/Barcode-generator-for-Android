@@ -63,7 +63,7 @@ internal fun dropdownVisualSource(anchor: Rect, visualHeight: Float): Rect {
 internal fun CornerDropdownMenu(
     expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier,
     shape: Shape, color: Color, anchorHeight: Dp?, clearerGlass: Boolean, dynamicBackdrop: Boolean,
-    shadowElevation: Dp,
+    shadowElevation: Dp, backdropWindow: android.view.Window? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
@@ -123,6 +123,7 @@ internal fun CornerDropdownMenu(
                     clearerGlass = clearerGlass,
                     shadowElevation = shadowElevation,
                     backdropRenderer = backdropRenderer,
+                    backdropWindow = backdropWindow,
                 ) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
                 }

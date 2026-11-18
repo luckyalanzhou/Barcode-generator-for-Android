@@ -7,6 +7,7 @@ import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 import com.luckyalanzhou.barcodegenerator.ui.app.*
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeConfirmDialog
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalGlassDialogWindow
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
     var saveInProgress = false
     showComposeDialog(compact = false, canCancel = { !saveInProgress }) { dismiss ->
         val dark = isDark()
+        val parentDialogWindow = LocalGlassDialogWindow.current
         if (resultState.items.isEmpty()) {
             LaunchedEffect(Unit) { dismiss() }
             return@showComposeDialog
@@ -86,7 +88,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                 persistFavorite(request) { finishSave(request.folder) }
             },
             onOpenRootFolderEditor = { onFolderCreated ->
-                showFolderEditorCompose(dataState) { folder ->
+                showFolderEditorCompose(dataState, backdropSourceWindow = parentDialogWindow) { folder ->
                     if (onCreateFolder(folder)) {
                         onFolderCreated(folder)
                         true
@@ -100,11 +102,18 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                     dataState = dataState,
                     parent = root,
                     onCreated = onFolderCreated,
+                    backdropSourceWindow = parentDialogWindow,
                     onCreateFolder = onCreateFolder,
                 )
             },
             onShowOverwriteConfirmation = { title, message, onConfirm ->
-                showComposeConfirmDialog(title, message, getString(R.string.action_overwrite), onConfirm)
+                showComposeConfirmDialog(
+                    title = title,
+                    message = message,
+                    positive = getString(R.string.action_overwrite),
+                    backdropSourceWindow = parentDialogWindow,
+                    onConfirm = onConfirm,
+                )
             },
             onValidationMessage = { toast(it) },
             onCancel = { if (!saving) dismiss() },

@@ -392,6 +392,11 @@
     <string name="settings_restore_barcode_style">還原樣式</string>
     <string name="settings_row_application_theme">應用程式主題</string>
     <string name="settings_liquid_glass">液態玻璃效果</string>
+    <string name="settings_appearance_theme">外觀主題</string>
+    <string name="settings_liquid_glass_strength">強度</string>
+    <string name="settings_navigation_bar">導覽列</string>
+    <string name="settings_navigation_bar_labels">顯示導覽列名稱</string>
+    <string name="settings_strength_percent">%1$d%%</string>
     <string name="settings_row_language">語言</string>
     <string name="settings_save_failed">設定未儲存，目前的調整仍保留，請重試。</string>
     <string name="settings_section_general">一般</string>

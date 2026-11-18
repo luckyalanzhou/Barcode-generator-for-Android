@@ -7,14 +7,18 @@ import com.luckyalanzhou.barcodegenerator.MainActivity
 import android.content.Context
 import android.app.Dialog
 import android.view.Gravity
+import android.view.Window
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalGlassBackdropSourceWindow
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalGlassDialogWindow
 import kotlin.math.roundToInt
 
 /** 创建 Compose 弹窗使用的平台窗口；独立 seam 允许测试取消策略。 */
@@ -30,6 +34,7 @@ internal fun MainActivity.showComposeDialog(
     compact: Boolean,
     onCancel: (() -> Unit)? = null,
     canCancel: () -> Boolean = { true },
+    backdropSourceWindow: Window? = null,
     content: @Composable (dismiss: () -> Unit) -> Unit,
 ) {
     val dialog = createComposeDialog(this, canCancel)
@@ -48,10 +53,19 @@ internal fun MainActivity.showComposeDialog(
     }
     composeView.setViewTreeLifecycleOwner(this)
     composeView.setViewTreeSavedStateRegistryOwner(this)
+    val dialogWindow = dialog.window
     composeView.setContent {
         val settings by settingsViewModel.uiState.collectAsStateWithLifecycle()
-        val effects = rememberVisualEffectsPolicy(settings.liquidGlassEnabled)
-        AppTheme(settings.style.colorScheme, effects) { content { dialog.dismiss() } }
+        val effects = rememberVisualEffectsPolicy(
+            liquidGlassEnabled = settings.liquidGlassEnabled,
+            glassStrengthPercent = settings.liquidGlassStrengthPercent,
+        )
+        CompositionLocalProvider(
+            LocalGlassDialogWindow provides dialogWindow,
+            LocalGlassBackdropSourceWindow provides backdropSourceWindow,
+        ) {
+            AppTheme(settings.style.colorScheme, effects) { content { dialog.dismiss() } }
+        }
     }
     dialog.setContentView(composeView)
     dialog.setCanceledOnTouchOutside(true)

@@ -141,9 +141,12 @@ internal fun GlassBackdropSurface(
     renderer: BackdropRenderer? = rememberGlassBackdropRenderer(),
     screenCoordinates: Boolean = false,
     diagnosticName: String = "surface",
+    strengthPercent: Int? = null,
 ) {
     val source = LocalGlassBackdrop.current
     val policy = LocalVisualEffectsPolicy.current
+    val resolvedStrengthPercent = strengthPercent ?: policy.glassStrengthPercent
+    val effectiveOpacity = glassOpacityForStrength(opacity, resolvedStrengthPercent)
     val density = LocalDensity.current.density
     var origin by remember { mutableStateOf(Offset.Zero) }
     var screenOrigin by remember { mutableStateOf(Offset.Zero) }
@@ -172,7 +175,7 @@ internal fun GlassBackdropSurface(
             val thickness = thicknessProgress().coerceIn(0f, 1f)
             val traceEffectSetup = shouldTraceBackdropDraw()
             renderEffect = withBackdropTraceSection(traceEffectSetup, "GlassBackdrop.shaderSetup") {
-                renderer.effect(size, density, color, opacity, cornerDp, blurDp * (.45f + .55f * thickness),
+                renderer.effect(size, density, color, effectiveOpacity, cornerDp, blurDp * (.45f + .55f * thickness),
                     if (policy.reduceMotion) 0f else refractionDp(), capsule?.invoke())
             }
         } else renderEffect = null
@@ -185,7 +188,7 @@ internal fun GlassBackdropSurface(
             }
         } else if (drawFallback) {
             drawRoundRect(
-                color.copy(alpha = glassFallbackOpacity(opacity, capsule != null, policy.opaqueGlass)),
+                color.copy(alpha = glassFallbackOpacity(opacity, capsule != null, policy.opaqueGlass, resolvedStrengthPercent)),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerDp * density),
             )
         }
@@ -198,8 +201,16 @@ internal fun backdropSampleOffset(sourceWindow: Offset, sourceScreen: Offset,
     if (screenCoordinates) sourceScreen - targetScreen else sourceWindow - targetWindow
 
 /** 菜单材质负责保护文字；即使没有着色器，小控件也保持预定的覆盖范围。 */
-internal fun glassFallbackOpacity(opacity: Float, smallControl: Boolean, opaque: Boolean): Float =
-    if (opaque) 1f else if (smallControl) opacity.coerceIn(0f, 1f) else opacity.coerceIn(.92f, 1f)
+internal fun glassFallbackOpacity(
+    opacity: Float,
+    smallControl: Boolean,
+    opaque: Boolean,
+    strengthPercent: Int = 50,
+): Float = if (opaque) 1f else if (smallControl) {
+    glassOpacityForStrength(opacity.coerceIn(0f, 1f), strengthPercent)
+} else {
+    glassOpacityForStrength(opacity.coerceIn(.92f, 1f), strengthPercent)
+}
 
 @RequiresApi(33)
 internal class BackdropRenderer(private val shader: RuntimeShader, private val menuMaterial: Boolean = false) {

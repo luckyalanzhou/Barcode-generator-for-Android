@@ -6,6 +6,8 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalGlassBackdropSourceWindow
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalGlassDialogWindow
 
 
 import androidx.compose.foundation.background
@@ -57,6 +59,7 @@ internal fun AnchoredDropdownMenu(
     cornerReveal: Boolean = false,
     clearerGlass: Boolean = false,
     dynamicBackdrop: Boolean = true,
+    backdropWindow: android.view.Window? = LocalGlassDialogWindow.current,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val containerSize = LocalWindowInfo.current.containerSize
@@ -71,7 +74,7 @@ internal fun AnchoredDropdownMenu(
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
             containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
-            anchorHeight, clearerGlass, dynamicBackdrop, shadowElevation, content)
+            anchorHeight, clearerGlass, dynamicBackdrop, shadowElevation, backdropWindow, content)
         return
     }
     DropdownMenu(
@@ -93,6 +96,7 @@ internal fun AnchoredDropdownMenu(
             dynamicBackdrop = dynamicBackdrop,
             clearerGlass = clearerGlass,
             color = containerColor ?: LocalAppColorScheme.current.surfaces.overlay,
+            backdropWindow = backdropWindow,
         ) { Column(content = content) }
     }
 }
@@ -107,6 +111,8 @@ internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 20.dp
         color = card,
         dynamicBackdrop = true,
         screenSpaceBackdrop = true,
+        backdropWindow = LocalGlassBackdropSourceWindow.current,
+        trackPointer = false,
         shadowElevation = 2.dp,
         waitForScreenBackdropFrame = true,
     ) {

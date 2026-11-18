@@ -186,7 +186,11 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         onCreateFolder = { favoritesViewModel.createFavoriteFolder(it) },
     )
     override fun showFolderEditor(initial: String, onSaved: suspend (String) -> Boolean) =
-        this@composeAppShellActions.showFolderEditorCompose(favoritesViewModel.dataState.value, initial, onSaved)
+        this@composeAppShellActions.showFolderEditorCompose(
+            dataState = favoritesViewModel.dataState.value,
+            initial = initial,
+            onSaved = onSaved,
+        )
     override fun showMoveDialog(group: FavoriteGroup) = this@composeAppShellActions.showFavoriteMoveDialogCompose(
         group = group,
         dataState = favoritesViewModel.dataState.value,
@@ -199,7 +203,12 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         onNavigateFavorites = { navigationViewModel.navigateTo(AppRoute.Favorites) },
     )
     override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
-        this@composeAppShellActions.showComposeConfirmDialogImpl(title, message, positive, onConfirm)
+        this@composeAppShellActions.showComposeConfirmDialogImpl(
+            title = title,
+            message = message,
+            positive = positive,
+            onConfirm = onConfirm,
+        )
     override fun confirmDurable(title: String, message: String, positive: String, onConfirm: suspend () -> Unit) =
         this@composeAppShellActions.showComposeDurableConfirmDialogImpl(title, message, positive, onConfirm)
     override fun saveFavorite() {

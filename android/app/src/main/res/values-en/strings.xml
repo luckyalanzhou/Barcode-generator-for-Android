@@ -392,6 +392,11 @@
     <string name="settings_restore_barcode_style">Restore style</string>
     <string name="settings_row_application_theme">App theme</string>
     <string name="settings_liquid_glass">Liquid glass</string>
+    <string name="settings_appearance_theme">Appearance Theme</string>
+    <string name="settings_liquid_glass_strength">Strength</string>
+    <string name="settings_navigation_bar">Navigation Bar</string>
+    <string name="settings_navigation_bar_labels">Show tab labels</string>
+    <string name="settings_strength_percent">%1$d%%</string>
     <string name="settings_row_language">Language</string>
     <string name="settings_save_failed">Settings were not saved. Your changes are still on screen. Try again.</string>
     <string name="settings_section_general">General</string>

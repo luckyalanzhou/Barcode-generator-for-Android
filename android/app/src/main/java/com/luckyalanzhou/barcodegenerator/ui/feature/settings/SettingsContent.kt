@@ -40,8 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,7 +54,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,22 +80,17 @@ internal fun SettingsContent(
     onCheckForUpdates: () -> Unit,
     onNotice: (String) -> Unit,
     onEnterAbout: () -> Unit = {},
+    onEnterAppearanceTheme: () -> Unit = {},
     listBottomPadding: Dp = 8.dp,
     languageRow: @Composable () -> Unit = {},
-    onLiquidGlassEnabledChange: (Boolean) -> Unit = {},
 ) {
     val localizedResources = LocalResources.current
     val colors = rememberSettingsColors()
-    var schemeMenu by remember { mutableStateOf(false) }
     var ocrMenu by remember { mutableStateOf(false) }
-    var schemeButtonWidth by remember { mutableIntStateOf(0) }
     var ocrButtonWidth by remember { mutableIntStateOf(0) }
-    var schemeButtonHeight by remember { mutableIntStateOf(0) }
     var ocrButtonHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val schemeWidth = schemeButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrWidth = ocrButtonWidth.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
-    val schemeHeight = schemeButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val ocrHeight = ocrButtonHeight.takeIf { it > 0 }?.let { with(density) { it.toDp() } }
     val dimensions = LocalAppDimensions.current
     val scrollState = rememberScrollState()
@@ -109,55 +101,11 @@ internal fun SettingsContent(
         verticalArrangement = Arrangement.spacedBy(dimensions.settingsCardSpacing),
     ) {
         SettingsSection(stringResource(R.string.settings_section_general), dark) {
-            SettingsRow(
-                stringResource(R.string.settings_row_application_theme),
-                colors.settingsText.primary,
+            SettingsNavigationRow(
+                stringResource(R.string.settings_appearance_theme),
+                onEnterAppearanceTheme,
                 leading = { SettingsLeadingIcon(SettingsIconKind.Theme) },
-            ) {
-                Box {
-                    SettingsDropdownButton(
-                        text = when (settings.style.colorScheme) {
-                            "dark" -> stringResource(R.string.theme_dark)
-                            "light" -> stringResource(R.string.theme_light)
-                            else -> stringResource(R.string.settings_option_automatic)
-                        },
-                        contentColor = colors.settingsText.secondary,
-                        onClick = { schemeMenu = true },
-                        onMeasured = { schemeButtonWidth = it.width; schemeButtonHeight = it.height },
-                        pickerLabel = stringResource(R.string.settings_row_application_theme),
-                        expanded = schemeMenu,
-                    )
-                    SettingsDropdown(dark, schemeMenu, 160.dp, schemeWidth, schemeHeight,
-                        onDismiss = { schemeMenu = false }) {
-                        listOf(stringResource(R.string.settings_option_automatic) to "system", stringResource(R.string.theme_light) to "light", stringResource(R.string.theme_dark) to "dark").forEachIndexed { index, (label, value) ->
-                            if (index > 0) ComposeDropdownDivider(dark)
-                            val selectedScheme = settings.style.colorScheme.takeIf { it == "light" || it == "dark" } ?: "system"
-                            SingleChoiceMenuItem(label, value == selectedScheme, highlightSelection = false) {
-                                schemeMenu = false
-                                persist(settings.style.copy(colorScheme = value))
-                            }
-                        }
-                    }
-                }
-            }
-            val liquidGlassLabel = stringResource(R.string.settings_liquid_glass)
-            SettingsRow(
-                liquidGlassLabel,
-                colors.settingsText.primary,
-                leading = { SettingsLeadingIcon(SettingsIconKind.LiquidGlass) },
-            ) {
-                Switch(
-                    checked = settings.liquidGlassEnabled,
-                    onCheckedChange = onLiquidGlassEnabledChange,
-                    modifier = Modifier.semantics { contentDescription = liquidGlassLabel },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = colors.controls.toggleOn,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = colors.controls.toggleOff,
-                    ),
-                )
-            }
+            )
             languageRow()
         }
         SettingsSection(stringResource(R.string.settings_barcode_style), dark) {

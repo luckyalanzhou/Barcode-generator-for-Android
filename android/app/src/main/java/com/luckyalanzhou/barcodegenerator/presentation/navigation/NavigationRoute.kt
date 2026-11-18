@@ -13,6 +13,7 @@ enum class NavigationRoute(
     History("history", R.string.title_history, true, 1),
     Favorites("favorites", R.string.title_favorites, true, 2),
     Settings("settings", R.string.title_settings, true, 3),
+    AppearanceTheme("appearanceTheme", R.string.settings_appearance_theme, false, null),
     AboutUs("aboutUs", R.string.title_about, false, null),
     Licenses("licenses", R.string.title_licenses, false, null),
     Results("results", R.string.title_results, false, null),

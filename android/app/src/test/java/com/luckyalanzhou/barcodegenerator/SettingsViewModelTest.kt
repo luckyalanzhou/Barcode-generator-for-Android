@@ -24,8 +24,12 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings(colorScheme = "dark", textSize = 19f)
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = completedJob()
             override fun getOcrConfusionReplacementMask() = 6
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
@@ -56,8 +60,12 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = pending.also { writes++ }
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
@@ -91,8 +99,12 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = pending
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
@@ -132,8 +144,12 @@ class SettingsViewModelTest {
             }
 
             override fun loadStyle() = StyleSettings(colorScheme = "dark", textSize = 14f, barWidth = 270f, showText = false)
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = completedJob().also { savedStyles += style.copy() }
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = completedJob().also { savedOcrMasks += mask }
@@ -175,8 +191,12 @@ class SettingsViewModelTest {
             }
 
             override fun loadStyle() = StyleSettings(colorScheme = "dark")
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
 
             override fun saveStyle(style: StyleSettings) = completedJob()
 
@@ -264,8 +284,12 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = pending
             override fun getOcrConfusionReplacementMask() = 0
             override fun setOcrConfusionReplacementMask(mask: Int) = pending
@@ -307,8 +331,12 @@ class SettingsViewModelTest {
         val repository = object : SettingsRepository {
             override suspend fun load() = Unit
             override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassStrengthPercent() = 50
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob()
             override fun getLiquidGlassEnabled() = true
             override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
             override fun saveStyle(style: StyleSettings) = completedJob()
             override fun getOcrConfusionReplacementMask() = storedMask
             override fun setOcrConfusionReplacementMask(mask: Int) = pendingWrite
@@ -329,5 +357,93 @@ class SettingsViewModelTest {
         pendingWrite.complete()
         storedMask = 7
         assertEquals(7, model.getOcrMask())
+    }
+
+    @Test
+    fun liquidGlassStrengthPublishesAndPersistsClampedSelectionImmediately() {
+        var persistedStrength = 40
+        val writtenStrengths = mutableListOf<Int>()
+        val repository = object : SettingsRepository {
+            override suspend fun load() = Unit
+            override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassStrengthPercent() = persistedStrength
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob().also {
+                persistedStrength = percent
+                writtenStrengths += percent
+            }
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
+            override fun saveStyle(style: StyleSettings) = completedJob()
+            override fun getOcrConfusionReplacementMask() = 0
+            override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
+            override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
+        }
+        val migration = object : SettingsMigration {
+            override suspend fun migrateIfNeeded(): StyleSettings? = null
+        }
+        val model = SettingsViewModel(repository, migration, AppLogger { _, _, _ -> })
+        model.initialize(StyleSettings(), 0, liquidGlassStrengthPercent = 40)
+
+        model.setLiquidGlassStrengthPercent(63)
+        assertEquals(63, model.uiState.value.liquidGlassStrengthPercent)
+        assertEquals(63, persistedStrength)
+        model.setLiquidGlassStrengthPercent(120)
+
+        assertEquals(100, model.uiState.value.liquidGlassStrengthPercent)
+        assertEquals(100, persistedStrength)
+        assertEquals(listOf(63, 100), writtenStrengths)
+
+        model.setLiquidGlassEnabled(false)
+        model.setLiquidGlassEnabled(true)
+        assertEquals(100, model.uiState.value.liquidGlassStrengthPercent)
+        assertEquals(listOf(63, 100), writtenStrengths)
+    }
+
+    @Test
+    fun liquidGlassStrengthChangedBeforeLoadIsPreservedAndPersistedAfterInitialization() = runBlocking {
+        val loadStarted = CompletableDeferred<Unit>()
+        val finishLoad = CompletableDeferred<Unit>()
+        var persistedStrength = 28
+        val writtenStrengths = mutableListOf<Int>()
+        val repository = object : SettingsRepository {
+            override suspend fun load() {
+                loadStarted.complete(Unit)
+                finishLoad.await()
+            }
+            override fun loadStyle() = StyleSettings()
+            override fun getLiquidGlassStrengthPercent() = persistedStrength
+            override fun setLiquidGlassStrengthPercent(percent: Int) = completedJob().also {
+                persistedStrength = percent
+                writtenStrengths += percent
+            }
+            override fun getLiquidGlassEnabled() = true
+            override fun setLiquidGlassEnabled(enabled: Boolean) = completedJob()
+            override fun getBottomTabLabelsVisible() = true
+            override fun setBottomTabLabelsVisible(visible: Boolean) = completedJob()
+            override fun saveStyle(style: StyleSettings) = completedJob()
+            override fun getOcrConfusionReplacementMask() = 0
+            override fun setOcrConfusionReplacementMask(mask: Int) = completedJob()
+            override fun setUpdateError(error: String) = completedJob()
+            override suspend fun getIgnoredUpdateVersion() = null
+            override suspend fun setIgnoredUpdateVersion(version: String) = Unit
+        }
+        val migration = object : SettingsMigration {
+            override suspend fun migrateIfNeeded(): StyleSettings? = null
+        }
+        val model = SettingsViewModel(repository, migration, AppLogger { _, _, _ -> })
+        val loading = async { model.loadPersistedState() }
+
+        loadStarted.await()
+        model.setLiquidGlassStrengthPercent(76)
+        finishLoad.complete(Unit)
+        loading.await()
+
+        assertEquals(76, model.uiState.value.liquidGlassStrengthPercent)
+        assertEquals(76, persistedStrength)
+        assertEquals(listOf(76), writtenStrengths)
     }
 }

@@ -290,3 +290,82 @@ internal fun SettingsSliderRow(
         )
     }
 }
+
+/** Strength slider with the barcode slider's track, thumb, palette, and touch target, without text entry. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun LiquidGlassStrengthSliderRow(
+    title: String,
+    value: Int,
+    enabled: Boolean,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColorScheme.current
+    val shownValue = stringResource(R.string.settings_strength_percent, value)
+    Row(
+        modifier = modifier.fillMaxWidth().heightIn(min = LocalAppDimensions.current.settingsRowHeight),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            color = colors.settingsText.primary,
+            fontSize = 16.sp,
+            maxLines = 1,
+            softWrap = false,
+        )
+        Slider(
+            value = value.coerceIn(0, 100).toFloat(),
+            onValueChange = { onValueChange((it / 10f).roundToInt() * 10) },
+            valueRange = 0f..100f,
+            steps = 9,
+            enabled = enabled,
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp).padding(horizontal = 6.dp)
+                .semantics {
+                    contentDescription = title
+                    stateDescription = shownValue
+                },
+            colors = SliderDefaults.colors(
+                thumbColor = Color.Transparent,
+                disabledThumbColor = Color.Transparent,
+                activeTrackColor = Color.Transparent,
+                inactiveTrackColor = Color.Transparent,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+            track = { sliderState ->
+                val sliderColors = LocalAppColorScheme.current.sliders
+                val fraction = (sliderState.value / 100f).coerceIn(0f, 1f)
+                val activeTrack = sliderColors.activeTrack.copy(alpha = if (enabled) 1f else 0.38f)
+                val inactiveTrack = sliderColors.inactiveTrack.copy(alpha = if (enabled) 1f else 0.38f)
+                Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+                    val centerY = size.height / 2f
+                    val centerX = size.width * fraction
+                    val gap = 10.dp.toPx()
+                    val stroke = 4.dp.toPx()
+                    val activeEnd = (centerX - gap).coerceAtLeast(0f)
+                    val inactiveStart = (centerX + gap).coerceAtMost(size.width)
+                    if (activeEnd > 0f) drawLine(activeTrack, Offset(0f, centerY), Offset(activeEnd, centerY), stroke, StrokeCap.Round)
+                    if (inactiveStart < size.width) drawLine(inactiveTrack, Offset(inactiveStart, centerY), Offset(size.width, centerY), stroke, StrokeCap.Round)
+                }
+            },
+            thumb = {
+                val thumbAlpha = if (enabled) 1f else 0.38f
+                Box(
+                    Modifier.requiredSize(22.dp)
+                        .background(colors.sliders.thumb.copy(alpha = thumbAlpha), CircleShape)
+                        .border(1.dp, colors.sliders.thumbBorder.copy(alpha = thumbAlpha), CircleShape),
+                )
+            },
+        )
+        Text(
+            shownValue,
+            color = colors.settingsText.secondary,
+            fontSize = 14.sp,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.widthIn(min = 42.dp).padding(start = 2.dp),
+        )
+    }
+}

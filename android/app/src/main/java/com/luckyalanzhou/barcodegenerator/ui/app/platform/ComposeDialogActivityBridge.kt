@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import android.view.Window
 import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -105,9 +106,10 @@ internal fun MainActivity.showComposeConfirmDialog(
     title: String,
     message: String,
     positive: String,
+    backdropSourceWindow: Window? = null,
     onConfirm: () -> Unit,
 ) {
-    showComposeDialog(compact = false) { dismiss ->
+    showComposeDialog(compact = false, backdropSourceWindow = backdropSourceWindow) { dismiss ->
         val dark = isDark()
         ComposeGlassDialogCard(dark) {
             Text(title, color = LocalAppColorScheme.current.text.primary, fontSize = 18.sp)

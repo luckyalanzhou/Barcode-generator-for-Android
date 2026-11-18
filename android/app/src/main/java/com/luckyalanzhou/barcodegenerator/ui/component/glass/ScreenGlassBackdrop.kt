@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -20,6 +21,7 @@ import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
+import android.view.Window
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import androidx.compose.ui.geometry.Offset
@@ -30,12 +32,19 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.unit.Density
 import com.kyant.backdrop.Backdrop
 
+/** 当前 Compose Dialog 的窗口；其内部弹出菜单应从这一层取样。 */
+internal val LocalGlassDialogWindow = staticCompositionLocalOf<Window?> { null }
+
+/** 嵌套 Dialog 的玻璃背景来源；顶层 Dialog 留空并回退到 Activity 窗口。 */
+internal val LocalGlassBackdropSourceWindow = staticCompositionLocalOf<Window?> { null }
+
 /** Popup 与主窗口使用屏幕坐标对齐，避免 positionInWindow 跨窗口采样错位。 */
 @Composable
 internal fun rememberScreenGlassBackdrop(
     softenBackdropColor: Boolean = false,
     captureKey: Any? = Unit,
     waitForNextFrame: Boolean = false,
+    sourceWindow: Window? = null,
 ): ScreenGlassBackdrop? {
     // Activity-hosted Compose dialogs use a separate composition from the app shell,
     // so they may not inherit a recorded layer. PixelCopy can still provide their
@@ -46,19 +55,20 @@ internal fun rememberScreenGlassBackdrop(
         generateSequence(context) { (it as? ContextWrapper)?.baseContext }
             .filterIsInstance<Activity>().firstOrNull()
     } ?: return null
+    val captureWindow = sourceWindow ?: activity.window
     val origin = remember { mutableStateOf(Offset.Zero) }
     // 从 Window 复制图像；不在主窗口与 Popup 之间重放或读取 Compose GraphicsLayer。
-    val snapshot = produceState<ImageBitmap?>(null, source, activity, captureKey, waitForNextFrame) {
+    val snapshot = produceState<ImageBitmap?>(null, source, captureWindow, captureKey, waitForNextFrame) {
         // 页面切换时弹层可能先于宿主窗口的新页面完成绘制；等下一帧后再取样，避免沿用上一页。
         if (waitForNextFrame) withFrameNanos { }
-        val decor = activity.window.decorView
+        val decor = captureWindow.decorView
         if (decor.width <= 0 || decor.height <= 0) return@produceState
         val location = IntArray(2)
         decor.getLocationOnScreen(location)
         origin.value = Offset(location[0].toFloat(), location[1].toFloat())
         val bitmap = Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888)
         value = suspendCancellableCoroutine { continuation ->
-            PixelCopy.request(activity.window, bitmap, { result ->
+            PixelCopy.request(captureWindow, bitmap, { result ->
                 if (result == PixelCopy.SUCCESS && continuation.isActive) {
                     continuation.resume(bitmap.asImageBitmap())
                 } else {
@@ -71,7 +81,7 @@ internal fun rememberScreenGlassBackdrop(
             }, Handler(Looper.getMainLooper()))
         }
     }
-    return remember(source, softenBackdropColor, captureKey, waitForNextFrame) {
+    return remember(source, captureWindow, softenBackdropColor, captureKey, waitForNextFrame) {
         val colorFilter = if (softenBackdropColor) {
             ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(.22f) })
         } else null

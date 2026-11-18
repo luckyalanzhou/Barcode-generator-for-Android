@@ -4,6 +4,7 @@ import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
+import com.luckyalanzhou.barcodegenerator.ui.component.glass.LocalGlassDialogWindow
 
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.AnchoredDropdownMenu
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeDropdownDivider
@@ -74,6 +75,7 @@ internal fun ComposeChoiceField(
             cornerReveal = compact,
             alignEndWithAnchor = compact,
             dynamicBackdrop = true,
+            backdropWindow = LocalGlassDialogWindow.current,
             anchorHeight = with(density) { buttonHeight.toDp() },
             menuWidth = buttonWidth.takeIf { it > 0 }?.let {
                 val measured = with(density) { it.toDp() }

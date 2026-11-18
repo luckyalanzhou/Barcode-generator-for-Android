@@ -18,12 +18,34 @@ class MenuMaterialSpecTest {
         assertTrue(light.blurDp >= 12f)
     }
 
+    @Test fun strengthChangesOpacityAtEveryTenPercentStepWithoutChangingOptics() {
+        for (background in listOf(Color.White, Color.Black)) {
+            val baseline = menuMaterialSpec(background, if (background == Color.White) Color.Black else Color.White,
+                160f, highContrast = false)
+            var previousOpacity = -1f
+            for (strength in 0..100 step 10) {
+                val spec = menuMaterialSpec(background, if (background == Color.White) Color.Black else Color.White,
+                    160f, highContrast = false, strengthPercent = strength)
+                assertTrue("menu opacity must increase at $strength%", spec.opacity > previousOpacity)
+                assertTrue(spec.opacity in 0f..1f)
+                assertEquals(baseline.blurDp, spec.blurDp, 0f)
+                assertEquals(baseline.outline, spec.outline)
+                assertEquals(baseline.highlight, spec.highlight)
+                if (strength == 0) assertEquals(baseline.opacity * .75f, spec.opacity, .001f)
+                if (strength == 50) assertEquals(baseline.opacity, spec.opacity, 0f)
+                previousOpacity = spec.opacity
+            }
+        }
+    }
+
     @Test fun contrastUsesOpaqueUnblurredPanelWithoutSpecularEffects() {
         for (background in listOf(Color.Black, Color.White)) {
             val spec = menuMaterialSpec(background, Color.Gray, 200f, true)
             assertEquals(1f, spec.opacity, 0f)
             assertEquals(0f, spec.blurDp, 0f)
             assertEquals(0f, spec.highlight.alpha, 0f)
+            assertEquals(1f, menuMaterialSpec(background, Color.Gray, 200f, true, 0).opacity, 0f)
+            assertEquals(1f, menuMaterialSpec(background, Color.Gray, 200f, true, 100).opacity, 0f)
         }
     }
 

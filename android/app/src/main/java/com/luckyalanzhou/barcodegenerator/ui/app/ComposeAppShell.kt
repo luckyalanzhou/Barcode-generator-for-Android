@@ -152,7 +152,10 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val chromeVisible = currentRoute.chromeVisible
     val pageStateHolder = rememberSaveableStateHolder()
     val favoritesRowsProjectionCache = remember { FavoritesRowsProjectionCache() }
-    val effects = rememberVisualEffectsPolicy(settingsUiState.liquidGlassEnabled)
+    val effects = rememberVisualEffectsPolicy(
+        liquidGlassEnabled = settingsUiState.liquidGlassEnabled,
+        glassStrengthPercent = settingsUiState.liquidGlassStrengthPercent,
+    )
     var focusToRestore by remember { mutableStateOf<(() -> Unit)?>(null) }
     val tabMenu = remember { TabMenuPresentation<TabLongPressMenuState> { focusToRestore = it.restoreFocus } }
     val menuGesture = remember { ContextMenuGestureSession() }
@@ -378,6 +381,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         BarcodeComposeBottomTabBar(
                             selectedIndex = appUiState.selectedTab,
                             dark = dark,
+                            showTabLabels = settingsUiState.bottomTabLabelsVisible,
                             onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
                             onGeneratePhotoFill = dependencies.actions::captureText,
                             onHistoryClear = dependencies.actions::clearHistory,
