@@ -209,7 +209,10 @@
     <string name="favorite_save_duplicate_or_failed">폴더에서 이름을 이미 사용 중일 수 있습니다. 이름을 확인하고 다시 저장하세요.</string>
     <string name="favorite_save_failed">즐겨찾기를 저장할 수 없습니다. 입력 내용은 유지됩니다. 다시 시도하세요.</string>
     <string name="favorite_save_location">즐겨찾기를 저장할 위치 선택</string>
-    <string name="favorite_saved_to">%1$s에 저장했습니다</string>
+    <string name="favorite_save_destination">저장 위치: %1$s</string>
+    <string name="favorite_saved_to">즐겨찾기에 저장됨: %1$s</string>
+    <string name="saved_barcode_to_album">바코드 이미지를 %1$s 앨범에 저장했어요</string>
+    <string name="saved_barcode_file_name">바코드 이미지가 저장됐어요: %1$s</string>
     <string name="favorite_search_description">즐겨찾기 이름, 폴더 또는 바코드 내용 검색</string>
     <string name="favorite_search_failed">검색에 실패하여 이전 결과를 표시합니다. 검색어를 바꿔 다시 시도하세요.</string>
     <string name="favorite_search_placeholder">이름, 폴더 또는 내용 검색</string>
@@ -493,4 +496,23 @@
     <string name="waiting_for_connection">연결 대기 중</string>
     <string name="waiting_for_device">기기 연결 대기 중</string>
     <string name="waiting_for_qr_scan">다른 기기에서 스캔 대기 중</string>
+    <string name="favorite_folder_choose_value">선택</string>
+    <string name="favorite_subfolder_none_value">없음</string>
+    <string name="batch_paste_one_per_line">한 줄에 바코드 하나</string>
+    <string name="batch_paste_show_rules">붙여넣기 규칙</string>
+    <string name="batch_paste_hide_rules">규칙 숨기기</string>
+    <string name="save_to_gallery_detail">저장한 이미지를 갤러리에서 확인</string>
+    <string name="save_to_file_detail">파일 이름과 저장 위치 선택</string>
+    <string name="about_update_found">새 버전 %1$s 사용 가능</string>
+    <string name="history_search">기록의 바코드 검색</string>
+    <string name="history_search_empty">검색어와 일치하는 기록이 없습니다</string>
+    <plurals name="history_batch_size">
+        <item quantity="one">%1$d개</item>
+        <item quantity="other">%1$d개</item>
+    </plurals>
+    <string name="settings_data_management">데이터 관리</string>
+    <string name="settings_favorites_backup_scope">ZIP 백업에는 즐겨찾기만 포함됩니다. 기록과 설정은 포함되지 않습니다.</string>
+    <string name="license_misans_official">브라우저에서 공식 라이선스 열기</string>
+    <string name="license_misans_page">라이선스 %2$d페이지 중 %1$d페이지</string>
+    <string name="license_misans_read_failed">오프라인 라이선스를 표시할 수 없습니다.</string>
 </resources>

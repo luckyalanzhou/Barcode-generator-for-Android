@@ -209,7 +209,10 @@
     <string name="favorite_save_duplicate_or_failed">Es posible que ese nombre ya se use en la carpeta. Revísalo y vuelve a guardar.</string>
     <string name="favorite_save_failed">No se pudo guardar el favorito. Se conservó tu entrada. Inténtalo de nuevo.</string>
     <string name="favorite_save_location">Elige dónde guardar el favorito</string>
-    <string name="favorite_saved_to">Guardado en %1$s</string>
+    <string name="favorite_save_destination">Guardar en: %1$s</string>
+    <string name="favorite_saved_to">Añadido a favoritos: %1$s</string>
+    <string name="saved_barcode_to_album">Imagen guardada en el álbum %1$s</string>
+    <string name="saved_barcode_file_name">Imagen del código guardada: %1$s</string>
     <string name="favorite_search_description">Buscar nombres de favoritos, carpetas o contenido de códigos</string>
     <string name="favorite_search_failed">Falló la búsqueda. Se muestran los resultados anteriores. Cambia el término y vuelve a intentarlo.</string>
     <string name="favorite_search_placeholder">Busca nombres, carpetas o contenido</string>
@@ -493,4 +496,23 @@
     <string name="waiting_for_connection">Esperando conexión</string>
     <string name="waiting_for_device">Esperando a que se conecte un dispositivo</string>
     <string name="waiting_for_qr_scan">Esperando a que el otro dispositivo escanee</string>
+    <string name="favorite_folder_choose_value">Elegir</string>
+    <string name="favorite_subfolder_none_value">Ninguna</string>
+    <string name="batch_paste_one_per_line">Un código de barras por línea</string>
+    <string name="batch_paste_show_rules">Reglas de pegado</string>
+    <string name="batch_paste_hide_rules">Ocultar reglas</string>
+    <string name="save_to_gallery_detail">Consulta la imagen en la galería</string>
+    <string name="save_to_file_detail">Elige el nombre y la ubicación del archivo</string>
+    <string name="about_update_found">Nueva versión disponible: %1$s</string>
+    <string name="history_search">Buscar en el historial</string>
+    <string name="history_search_empty">No hay coincidencias en el historial</string>
+    <plurals name="history_batch_size">
+        <item quantity="one">%1$d código</item>
+        <item quantity="other">%1$d códigos</item>
+    </plurals>
+    <string name="settings_data_management">Gestión de datos</string>
+    <string name="settings_favorites_backup_scope">La copia ZIP solo incluye los favoritos. El historial y los ajustes quedan excluidos.</string>
+    <string name="license_misans_official">Abrir la licencia oficial en el navegador</string>
+    <string name="license_misans_page">Página %1$d de %2$d de la licencia</string>
+    <string name="license_misans_read_failed">No se pudo mostrar la licencia sin conexión.</string>
 </resources>

@@ -1,7 +1,13 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import com.luckyalanzhou.barcodegenerator.R
+import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.updateFailureMessage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +22,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,13 +39,21 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 internal fun AboutUsContent(
     appVersion: String,
     versionCode: Int,
-    checkingForUpdates: Boolean,
+    manualCheckResult: UpdateCheckResult?,
     dark: Boolean,
     onBack: () -> Unit,
     onOpenLicenses: () -> Unit,
     onCheckForUpdates: () -> Unit,
 ) {
     val colors = rememberSettingsColors()
+    val checkingForUpdates = manualCheckResult == UpdateCheckResult.InProgress
+    val status = when (manualCheckResult) {
+        is UpdateCheckResult.Available -> stringResource(R.string.about_update_found, manualCheckResult.version)
+        UpdateCheckResult.UpToDate -> stringResource(R.string.latest_version_installed)
+        is UpdateCheckResult.Failed ->
+            LocalResources.current.updateFailureMessage(manualCheckResult.reason, manualCheckResult.httpStatus)
+        UpdateCheckResult.InProgress, null -> null
+    }
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -60,6 +78,21 @@ internal fun AboutUsContent(
                     modifier = Modifier.widthIn(min = 112.dp, max = 220.dp).height(48.dp),
                 )
             }
+            if (status != null) {
+                val scheme = LocalAppColorScheme.current
+                Text(
+                    status,
+                    color = if (manualCheckResult is UpdateCheckResult.Failed) {
+                        scheme.text.destructive
+                    } else {
+                        colors.settingsText.secondary
+                    },
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
         }
         SettingsSection(stringResource(R.string.title_licenses), dark) {
             SettingsNavigationRow(stringResource(R.string.title_licenses), onOpenLicenses)
@@ -74,6 +107,11 @@ internal fun LicensesContent(
     onShowOpenSourceLicenses: () -> Unit,
     onOpenMiSansLicense: () -> Unit,
 ) {
+    var viewingMiSans by rememberSaveable { mutableStateOf(false) }
+    if (viewingMiSans) {
+        MiSansLicenseContent(dark, onBack = { viewingMiSans = false }, onOpenOfficial = onOpenMiSansLicense)
+        return
+    }
     val colors = rememberSettingsColors()
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 8.dp),
@@ -104,7 +142,7 @@ internal fun LicensesContent(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
             )
             SettingsDivider(dark)
-            SettingsNavigationRow(stringResource(R.string.license_misans_view), onOpenMiSansLicense)
+            SettingsNavigationRow(stringResource(R.string.license_misans_view), { viewingMiSans = true })
             SettingsDivider(dark)
             SettingsRow("Material Symbols Outlined", colors.settingsText.primary) {
                 Text("Apache 2.0", color = colors.settingsText.secondary, fontSize = 13.sp)

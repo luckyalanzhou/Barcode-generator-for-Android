@@ -25,6 +25,8 @@ import android.content.Intent
 import java.io.File
 import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
@@ -227,12 +229,17 @@ internal fun MainActivity.saveResultPage() = withResultPageImage(ResultExportAct
                     handedOffToSave = true
                     dismiss()
                 }
-            }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+            }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                supportingText = getString(R.string.save_to_gallery_detail))
             DialogAction(getString(R.string.save_to_file), dark, {
                 handedOffToSave = true
                 dismiss()
                 saveResultImageDocument(result)
-            }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+            }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                supportingText = getString(R.string.save_to_file_detail))
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                DialogAction(getString(R.string.action_cancel), dark, dismiss)
+            }
         }
     }
 }

@@ -127,9 +127,12 @@ private fun ComposePageRoute(
                 val historyViewModel = dependencies.historyViewModel()
                 val historyState by historyViewModel.dataState.collectAsStateWithLifecycle()
                 val refreshGeneration by historyViewModel.refreshGeneration.collectAsStateWithLifecycle()
+                val query by historyViewModel.query.collectAsStateWithLifecycle()
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
                 HistoryScreen(
+                    query = query,
+                    onQueryChange = historyViewModel::updateQuery,
                     listBottomPadding = listBottomPadding,
                     items = historyState.items,
                     isReady = historyState.isReady,
@@ -311,6 +314,7 @@ private fun ComposePageRoute(
                     },
                     onOcrMaskChange = { dependencies.settingsViewModel.setOcrMaskPersisted(it) },
                     onEnterAbout = { dependencies.actions.navigateTo(AppRoute.AboutUs) },
+                    onOpenFavoritesBackup = dependencies.actions::openFavoritesBackup,
                     onEnterAppearanceTheme = { dependencies.actions.navigateTo(AppRoute.AppearanceTheme) },
                     onEnterLanShare = dependencies.actions::enterLanShare,
                     onShareDebugLog = dependencies.actions::shareDebugLog,
@@ -342,18 +346,19 @@ private fun ComposePageRoute(
                     },
                     onLiquidGlassEnabledChange = dependencies.settingsViewModel::setLiquidGlassEnabled,
                     onBottomTabLabelsVisibleChange = dependencies.settingsViewModel::setBottomTabLabelsVisible,
+                    listBottomPadding = listBottomPadding,
                 )
             }
             AppRoute.AboutUs -> {
-                val update by dependencies.updateViewModel.uiState.collectAsStateWithLifecycle()
+                val manualCheckResult by dependencies.updateViewModel.manualCheckResult.collectAsStateWithLifecycle()
                 AboutUsContent(
                     appVersion = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_NAME,
                     versionCode = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_CODE,
-                    checkingForUpdates = update.checking,
+                    manualCheckResult = manualCheckResult,
                     dark = dark,
                     onBack = { dependencies.actions.navigateTo(AppRoute.Settings) },
                     onOpenLicenses = { dependencies.actions.navigateTo(AppRoute.Licenses) },
-                    onCheckForUpdates = dependencies.actions::checkForUpdates,
+                    onCheckForUpdates = dependencies.actions::checkForUpdatesFromAbout,
                 )
             }
             AppRoute.Licenses -> {

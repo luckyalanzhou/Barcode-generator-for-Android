@@ -209,7 +209,10 @@
     <string name="favorite_save_duplicate_or_failed">该文件夹下已有同名收藏，或保存失败；请检查名称后重试</string>
     <string name="favorite_save_failed">收藏保存失败，输入已保留，请重试</string>
     <string name="favorite_save_location">选择收藏保存位置</string>
-    <string name="favorite_saved_to">已保存到 %1$s</string>
+    <string name="favorite_save_destination">保存位置：%1$s</string>
+    <string name="favorite_saved_to">已收藏至 %1$s</string>
+    <string name="saved_barcode_to_album">条码图片已保存到相册「%1$s」</string>
+    <string name="saved_barcode_file_name">条码图片已保存：%1$s</string>
     <string name="favorite_search_description">搜索收藏名称、文件夹或条码内容</string>
     <string name="favorite_search_failed">搜索失败，当前显示上次结果；请修改搜索词重试</string>
     <string name="favorite_search_placeholder">搜索名称、文件夹或内容</string>
@@ -493,4 +496,23 @@
     <string name="waiting_for_connection">等待连接</string>
     <string name="waiting_for_device">等待设备连接</string>
     <string name="waiting_for_qr_scan">等待设备扫码</string>
+    <string name="favorite_folder_choose_value">请选择</string>
+    <string name="favorite_subfolder_none_value">无</string>
+    <string name="batch_paste_one_per_line">每行一个条码</string>
+    <string name="batch_paste_show_rules">粘贴规则</string>
+    <string name="batch_paste_hide_rules">收起规则</string>
+    <string name="save_to_gallery_detail">保存后可在相册中查看</string>
+    <string name="save_to_file_detail">自行选择文件名和保存位置</string>
+    <string name="about_update_found">发现新版本 %1$s</string>
+    <string name="history_search">搜索历史条码</string>
+    <string name="history_search_empty">未找到匹配的历史记录</string>
+    <plurals name="history_batch_size">
+        <item quantity="one">%1$d 条</item>
+        <item quantity="other">%1$d 条</item>
+    </plurals>
+    <string name="settings_data_management">数据管理</string>
+    <string name="settings_favorites_backup_scope">ZIP 备份仅包含收藏，不包含历史记录和设置。</string>
+    <string name="license_misans_official">在浏览器打开官方协议</string>
+    <string name="license_misans_page">许可协议第 %1$d 页，共 %2$d 页</string>
+    <string name="license_misans_read_failed">无法显示离线许可协议。</string>
 </resources>

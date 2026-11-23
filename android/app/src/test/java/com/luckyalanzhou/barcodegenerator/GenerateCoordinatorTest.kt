@@ -13,6 +13,20 @@ import kotlinx.coroutines.runBlocking
 
 class GenerateCoordinatorTest {
     @Test
+    fun commitReplacesDeletedHistoryWhenDatabaseReusesItsId() = runBlocking {
+        val deleted = CodeItem(2L, "deleted", "Code 128-B", inHistory = false)
+        val generated = CodeItem(2L, "new", "Code 128-B", inHistory = true)
+        val store = LibraryStateStore().apply { edit { items += deleted } }
+        var persisted = emptyList<CodeItem>()
+        val coordinator = GenerateCoordinator(store) { persisted = store.itemsSnapshot() }
+
+        coordinator.commit(listOf(generated), ResultUiState())
+
+        assertEquals(listOf(generated), persisted)
+        assertEquals(listOf(generated), store.itemsSnapshot())
+    }
+
+    @Test
     fun commitPersistsGeneratedItemsAndPreservesFavoriteReturnContext() = runBlocking {
         val existing = CodeItem(1L, "existing", "Code 128-B", 1L)
         val generated = CodeItem(2L, "new", "Code 128-B", 2L)

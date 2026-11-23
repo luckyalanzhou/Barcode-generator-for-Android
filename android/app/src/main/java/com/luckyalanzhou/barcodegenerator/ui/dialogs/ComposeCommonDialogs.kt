@@ -74,7 +74,7 @@ internal fun AnchoredDropdownMenu(
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
             containerColor ?: LocalAppColorScheme.current.surfaces.panel,
-            anchorHeight, clearerGlass, dynamicBackdrop, shadowElevation, backdropWindow, content)
+            anchorHeight, clearerGlass, dynamicBackdrop, shadowElevation, backdropWindow, content = content)
         return
     }
     DropdownMenu(
@@ -134,6 +134,7 @@ internal fun DialogAction(
     primary: Boolean = false,
     destructive: Boolean = false,
     enabled: Boolean = true,
+    supportingText: String? = null,
 ) {
     val colors = LocalAppColorScheme.current
     val foreground = when {
@@ -156,8 +157,20 @@ internal fun DialogAction(
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = foreground, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            style = LocalTextStyle.current.copy(background = Color.Transparent))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text, color = foreground, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                style = LocalTextStyle.current.copy(background = Color.Transparent))
+            if (supportingText != null) {
+                Text(
+                    supportingText,
+                    color = if (enabled) colors.text.secondary else colors.text.disabled,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
     }
 }
 

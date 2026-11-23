@@ -16,6 +16,7 @@ import com.luckyalanzhou.barcodegenerator.ui.app.platform.captureText
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.checkForUpdates
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.createFavoritesExportCompose
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.restoreFavoritesImport
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.showFavoritesBackupActions
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeConfirmDialog as showComposeConfirmDialogImpl
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showComposeDurableConfirmDialog as showComposeDurableConfirmDialogImpl
 import com.luckyalanzhou.barcodegenerator.ui.app.platform.showUpdateAvailableDialogCompose
@@ -56,7 +57,9 @@ internal interface ComposeAppShellActions {
     fun enterLanShare()
     fun restoreFavorites()
     fun exportFavorites()
+    fun openFavoritesBackup() {}
     fun checkForUpdates()
+    fun checkForUpdatesFromAbout() = checkForUpdates()
     fun openLanShareCamera()
     fun openLanShareGallery()
     fun openLanShareFiles()
@@ -102,8 +105,8 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
             favoritesViewModel.collapseAllFolders()
             favoritesViewModel.requestScrollToTop()
         }
-        if (index == 3 && navigationViewModel.uiState.value.page != AppRoute.Settings) {
-            val current = navigationViewModel.uiState.value.page
+        if (index == 3 && currentPage != AppRoute.Settings && currentPage != AppRoute.AppearanceTheme) {
+            val current = currentPage
             val returnPage = current.takeIf { it.mainTabIndex != null && it != AppRoute.Settings }
                 ?: resultsViewModel.resultUiState.value.returnPage
             navigationViewModel.updateSettingsReturnPage(returnPage)
@@ -235,7 +238,10 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
     override fun enterLanShare() = traceAction("lan_share_enter") { this@composeAppShellActions.enterLanShare() }
     override fun restoreFavorites() = this@composeAppShellActions.restoreFavoritesImport()
     override fun exportFavorites() = this@composeAppShellActions.createFavoritesExportCompose()
+    override fun openFavoritesBackup() = this@composeAppShellActions.showFavoritesBackupActions()
     override fun checkForUpdates() = this@composeAppShellActions.checkForUpdates()
+    override fun checkForUpdatesFromAbout() =
+        this@composeAppShellActions.checkForUpdates(showCompletionNotice = false)
     override fun openLanShareCamera() = this@composeAppShellActions.openLanShareCamera()
     override fun openLanShareGallery() = this@composeAppShellActions.openLanShareGallery()
     override fun openLanShareFiles() = this@composeAppShellActions.openLanShareFiles()

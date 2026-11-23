@@ -150,6 +150,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
     val currentRoute = appUiState.page
     val pageTransition = updateTransition(currentRoute, label = "pageTransition")
     val chromeVisible = currentRoute.chromeVisible
+    val bottomTabVisible = chromeVisible || currentRoute == AppRoute.AppearanceTheme
     val pageStateHolder = rememberSaveableStateHolder()
     val favoritesRowsProjectionCache = remember { FavoritesRowsProjectionCache() }
     val effects = rememberVisualEffectsPolicy(
@@ -291,9 +292,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 ) {
                     Column(Modifier.fillMaxSize()
                         .padding(bottom = contentBottomPadding)
-                        .then(if (chromeVisible && !effects.opaqueGlass && android.os.Build.VERSION.SDK_INT >= 33)
+                        .then(if (bottomTabVisible && !effects.opaqueGlass && android.os.Build.VERSION.SDK_INT >= 33)
                             Modifier.layerBackdrop(kyantTabBackdrop) else Modifier)
-                        .then(if (chromeVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(
+                        .then(if (bottomTabVisible && !effects.opaqueGlass) Modifier.recordGlassBackdrop(
                             backdrop,
                             enabled = android.os.Build.VERSION.SDK_INT < 33 || tabMenu.menu != null,
                         ) else Modifier)
@@ -333,7 +334,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         )
                         Box(Modifier.fillMaxWidth().weight(1f)
                                 .padding(bottom = pageBottomInset)
-                                .then(if (currentRoute == AppRoute.Favorites) Modifier.imePadding() else Modifier)
+                                .then(if (currentRoute == AppRoute.Favorites || currentRoute == AppRoute.History) Modifier.imePadding() else Modifier)
                                 .clipToBounds()
                                 .background(colors.surfaces.background)) {
                         AppPageTransitionHost(
@@ -365,7 +366,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                 dark = dark,
                                 pageStateHolder = pageStateHolder,
                                 horizontalPadding = dimensions.pageHorizontalPadding,
-                                listBottomPadding = if (targetPage == AppRoute.Favorites && imeVisible) {
+                                listBottomPadding = if (imeVisible && (targetPage == AppRoute.Favorites || targetPage == AppRoute.History)) {
                                     8.dp
                                 } else pageListBottomPadding(
                                     targetPage,
@@ -377,7 +378,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                         }
                         }
                     }
-                    if (chromeVisible) {
+                    if (bottomTabVisible) {
                         if (extendsToBottom && effects.opaqueGlass) {
                             // Keep the system gesture area continuous with the page canvas. The
                             // opaque capsule has its own surface in TabLiquidGlassScene.
@@ -390,26 +391,33 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                                     .background(colors.surfaces.background),
                             )
                         }
-                        BarcodeComposeBottomTabBar(
-                            selectedIndex = appUiState.selectedTab,
-                            dark = dark,
-                            showTabLabels = settingsUiState.bottomTabLabelsVisible,
-                            onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
-                            onGeneratePhotoFill = dependencies.actions::captureText,
-                            onHistoryClear = dependencies.actions::clearHistory,
-                            onFavoritesImport = dependencies.actions::restoreFavorites,
-                            onFavoritesExport = dependencies.actions::exportFavorites,
-                            onFavoritesClear = dependencies.actions::clearFavorites,
-                            onCheckForUpdates = dependencies.actions::checkForUpdates,
-                            onLongPressActionMenuRequested = ::showMenu,
-                            showSelectionIndicator = tabMenu.menu == null,
-                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                                .then(if (extendsToBottom) Modifier.windowInsetsPadding(navigationInsets.only(WindowInsetsSides.Bottom)) else Modifier)
-                                .padding(bottom = shellInsets.tabBarBottomPadding)
-                                .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight),
-                        )
                     }
                 }
+            }
+            if (bottomTabVisible) {
+                // Keep the Tab bar visible while its page backdrop is blurred by a long-press menu.
+                // The full-screen menu overlay above it still owns touch and accessibility focus.
+                BarcodeComposeBottomTabBar(
+                    selectedIndex = appUiState.selectedTab,
+                    dark = dark,
+                    showTabLabels = settingsUiState.bottomTabLabelsVisible,
+                    onTabSelected = { index, fromSwipe -> dependencies.actions.selectTab(index, fromSwipe) },
+                    onGeneratePhotoFill = dependencies.actions::captureText,
+                    onHistoryClear = dependencies.actions::clearHistory,
+                    onFavoritesImport = dependencies.actions::restoreFavorites,
+                    onFavoritesExport = dependencies.actions::exportFavorites,
+                    onFavoritesClear = dependencies.actions::clearFavorites,
+                    onCheckForUpdates = dependencies.actions::checkForUpdates,
+                    onLongPressActionMenuRequested = ::showMenu,
+                    showSelectionIndicator = tabMenu.menu == null,
+                    showOnlySelectedTab = tabMenu.menu?.tabAnchor == true,
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .then(if (extendsToBottom) Modifier.windowInsetsPadding(navigationInsets.only(WindowInsetsSides.Bottom)) else Modifier)
+                        .padding(bottom = shellInsets.tabBarBottomPadding)
+                        .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight)
+                        .then(if (tabMenu.menu != null) Modifier.clearAndSetSemantics { }
+                            .focusProperties { canFocus = false } else Modifier),
+                )
             }
             tabMenu.menu?.let { menuState ->
                 TabLongPressActionOverlay(

@@ -104,6 +104,7 @@ internal fun BarcodeComposeBottomTabBar(
     onLongPressActionMenuRequested: (TabLongPressMenuState) -> Unit,
     modifier: Modifier = Modifier,
     showSelectionIndicator: Boolean = true,
+    showOnlySelectedTab: Boolean = false,
 ) {
     val localizedResources = LocalResources.current
     val tabs = listOf(
@@ -153,7 +154,7 @@ internal fun BarcodeComposeBottomTabBar(
 
     Box(
         modifier = modifier.fillMaxSize()
-            .then(if (effects.opaqueGlass) Modifier.background(themeColors.surfaces.background) else Modifier)
+            .then(if (effects.opaqueGlass && !showOnlySelectedTab) Modifier.background(themeColors.surfaces.background) else Modifier)
             .padding(horizontal = 4.dp)
             .pointerInput(motion, showSelectionIndicator, density) {
                 if (!showSelectionIndicator) return@pointerInput
@@ -268,7 +269,11 @@ internal fun BarcodeComposeBottomTabBar(
                     )
                     var tabPlaced by remember { mutableStateOf(false) }
                     DisposableEffect(Unit) { onDispose { tabPlaced = false } }
-                    val itemColor = if ((!showSelectionIndicator || effects.opaqueGlass) && selected) selectedColor else unselectedColor
+                    val itemColor = if (selected && (!showSelectionIndicator || effects.opaqueGlass)) {
+                        selectedColor
+                    } else {
+                        unselectedColor
+                    }
                     val tapScale = animateFloatAsState(
                         targetValue = if (!effects.reduceMotion && tapPulseTab == index) .92f else 1f,
                         animationSpec = if (effects.reduceMotion) tween(0) else ComposeAnimationConfig.pressSpring(),
@@ -360,34 +365,36 @@ internal fun BarcodeComposeBottomTabBar(
                             .then(tabClickModifier),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
-                                scaleX = menuPressScale.value
-                                scaleY = menuPressScale.value
-                            },
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = null,
-                                tint = itemColor,
-                                modifier = Modifier.size(26.dp).graphicsLayer {
-                                    val squash = 1f - tapScale.value
-                                    scaleX = 1f + squash * .34f
-                                    scaleY = tapScale.value
-                                    translationY = squash * 12.dp.toPx()
+                        if (!showOnlySelectedTab || selected) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
+                                    scaleX = menuPressScale.value
+                                    scaleY = menuPressScale.value
                                 },
-                            )
-                            if (showTabLabels) {
-                                Text(
-                                    tab.label,
-                                    color = itemColor,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = null,
+                                    tint = itemColor,
+                                    modifier = Modifier.size(26.dp).graphicsLayer {
+                                        val squash = 1f - tapScale.value
+                                        scaleX = 1f + squash * .34f
+                                        scaleY = tapScale.value
+                                        translationY = squash * 12.dp.toPx()
+                                    },
                                 )
+                                if (showTabLabels) {
+                                    Text(
+                                        tab.label,
+                                        color = itemColor,
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                    )
+                                }
                             }
                         }
                     }

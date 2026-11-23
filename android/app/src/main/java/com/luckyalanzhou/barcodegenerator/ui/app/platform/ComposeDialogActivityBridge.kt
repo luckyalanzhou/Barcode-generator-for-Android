@@ -107,6 +107,7 @@ internal fun MainActivity.showComposeConfirmDialog(
     message: String,
     positive: String,
     backdropSourceWindow: Window? = null,
+    destructive: Boolean = false,
     onConfirm: () -> Unit,
 ) {
     showComposeDialog(compact = false, backdropSourceWindow = backdropSourceWindow) { dismiss ->
@@ -121,7 +122,8 @@ internal fun MainActivity.showComposeConfirmDialog(
             )
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 DialogAction(getString(R.string.action_cancel), dark, dismiss)
-                DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 20.dp))
+                DialogAction(positive, dark, { onConfirm(); dismiss() }, Modifier.padding(start = 20.dp),
+                    primary = !destructive, destructive = destructive)
             }
         }
     }

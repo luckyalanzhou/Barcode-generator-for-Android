@@ -59,11 +59,12 @@ class FavoriteSaveFormInteractionTest {
             }
         }
 
-        compose.onNodeWithText("选择一级文件夹").performClick()
+        compose.onNodeWithText("一级文件夹").performClick()
         compose.onNodeWithText("Root").performClick()
-        compose.onNodeWithText("选择二级文件夹").performClick()
+        compose.onNodeWithText("二级文件夹").performClick()
         compose.onNodeWithText("Child").performClick()
         compose.onNode(hasSetTextAction()).performTextInput("Saved file")
+        compose.onNodeWithText("保存位置：Root / Child / Saved file").assertDoesNotExist()
         compose.onNodeWithText("保存").assertIsDisplayed().assertHasClickAction().performClick()
         compose.waitForIdle()
 
@@ -85,9 +86,11 @@ class FavoriteSaveFormInteractionTest {
     @Test
     fun editingFavoriteKeepsItsIdentityAndSelectedFolder() {
         val item = CodeItem(id = 42L, text = "TEST-123", format = "Code 128-B")
+        val root = "QA warehouse and incoming shipment records"
+        val folder = "$root/Child"
         val group = FavoriteGroup(
             id = 77L,
-            folder = "Root/Child",
+            folder = folder,
             name = "Existing file",
             savedAt = 1L,
             itemIds = mutableListOf(item.id),
@@ -103,7 +106,7 @@ class FavoriteSaveFormInteractionTest {
                         returnPage = NavigationRoute.Favorites,
                         selectedFavoriteGroup = group,
                     ),
-                    dataState = BarcodeDataState(folders = listOf("Root", "Root/Child"), groups = listOf(group)),
+                    dataState = BarcodeDataState(folders = listOf(root, folder), groups = listOf(group)),
                     dark = false,
                     saving = false,
                     findExistingGroupId = { _, _, excluded ->
@@ -120,6 +123,7 @@ class FavoriteSaveFormInteractionTest {
             }
         }
 
+        compose.onNodeWithText("保存位置：$root / Child / Existing file").assertIsDisplayed()
         compose.onNodeWithText("保存").assertIsDisplayed().assertHasClickAction().performClick()
         compose.waitForIdle()
 
@@ -130,7 +134,7 @@ class FavoriteSaveFormInteractionTest {
                     itemIds = listOf(42L),
                     editingGroupId = 77L,
                     targetGroupId = 77L,
-                    folder = "Root/Child",
+                    folder = folder,
                     name = "Existing file",
                 ),
                 request.get(),
@@ -169,9 +173,9 @@ class FavoriteSaveFormInteractionTest {
             }
         }
 
-        compose.onNodeWithText("选择一级文件夹").performClick()
+        compose.onNodeWithText("一级文件夹").performClick()
         compose.onNodeWithText("Root").performClick()
-        compose.onNodeWithText("选择二级文件夹").performClick()
+        compose.onNodeWithText("二级文件夹").performClick()
         compose.onNodeWithText("Child").performClick()
         compose.onNode(hasSetTextAction()).performTextInput("Saved file")
         compose.onNodeWithText("保存").assertIsDisplayed().performClick()

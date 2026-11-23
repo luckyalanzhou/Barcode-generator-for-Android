@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.luckyalanzhou.barcodegenerator.R
+import com.luckyalanzhou.barcodegenerator.icons.CloudDownloadIcon
 
 /** Decorative icons used only by rows on the top-level Settings page. */
 internal enum class SettingsIconKind {
@@ -26,6 +27,7 @@ internal enum class SettingsIconKind {
     Language,
     Correction,
     LanShare,
+    FavoritesBackup,
     Logs,
     About,
     BarcodeHeight,
@@ -42,7 +44,7 @@ internal fun SettingsLeadingIcon(kind: SettingsIconKind) {
     val background = when (kind) {
         SettingsIconKind.Theme -> Color(0xFFE91E63)
         SettingsIconKind.LiquidGlass -> Color(0xFF5B67D8)
-        SettingsIconKind.Language, SettingsIconKind.About -> Color(0xFF1688F8)
+        SettingsIconKind.Language, SettingsIconKind.About, SettingsIconKind.FavoritesBackup -> Color(0xFF1688F8)
         SettingsIconKind.Correction -> Color(0xFF1A9B57)
         SettingsIconKind.LanShare -> Color(0xFFD87800)
         SettingsIconKind.Logs -> Color(0xFF9C35B8)
@@ -68,6 +70,10 @@ internal fun SettingsLeadingIcon(kind: SettingsIconKind) {
 
 @Composable
 private fun SettingsGlyph(kind: SettingsIconKind, color: Color, modifier: Modifier) {
+    if (kind == SettingsIconKind.FavoritesBackup) {
+        Icon(CloudDownloadIcon, contentDescription = null, tint = color, modifier = modifier)
+        return
+    }
     val vector = when (kind) {
         SettingsIconKind.Theme -> R.drawable.settings_symbol_palette
         SettingsIconKind.LiquidGlass -> R.drawable.settings_symbol_blur_on
@@ -78,6 +84,7 @@ private fun SettingsGlyph(kind: SettingsIconKind, color: Color, modifier: Modifi
         SettingsIconKind.About -> R.drawable.settings_symbol_info
         SettingsIconKind.TextSize -> R.drawable.settings_symbol_format_size
         SettingsIconKind.RestoreStyle -> R.drawable.settings_symbol_tune
+        SettingsIconKind.FavoritesBackup,
         SettingsIconKind.BarcodeHeight,
         SettingsIconKind.BarcodeWidth,
         SettingsIconKind.BarcodeSpacing -> null

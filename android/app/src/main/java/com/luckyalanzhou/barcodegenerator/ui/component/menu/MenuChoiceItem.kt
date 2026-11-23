@@ -39,8 +39,17 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 
 /** 值选项共用显示：勾号表示保存状态，底色只表示当前按压或悬停，不参与业务状态更新。 */
 @Composable
-internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean = false, highlightSelection: Boolean = false, onClick: () -> Unit) {
+internal fun MenuChoiceItem(
+    label: String,
+    checked: Boolean,
+    multiple: Boolean = false,
+    highlightSelection: Boolean = false,
+    trailingCheckmark: Boolean = false,
+    labelMaxLines: Int = 2,
+    onClick: () -> Unit,
+) {
     val colors = LocalAppColorScheme.current
+    val labelColor = if (checked && trailingCheckmark) colors.text.link else colors.text.primary
     val density = LocalDensity.current
     val iconSize = menuOptionIconSize(density)
     val interactions = remember { MutableInteractionSource() }
@@ -52,7 +61,24 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
         dark = colors.surfaces.background.luminance() < .35f,
         highContrast = policy.highContrast,
     ).selection
-    // 16sp 正文、22sp 行高，与长按菜单共用 48dp 的选项行。
+    val checkmark: @Composable () -> Unit = {
+        Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+            if (checked) Canvas(Modifier.size(iconSize).clearAndSetSemantics { }) {
+                // 保留与正文相差 4dp 的布局尺寸，只将勾号墨迹收至 84%，平衡旁边的线性图标。
+                val checkmarkGlyphScale = .84f
+                val glyphWidth = size.width * checkmarkGlyphScale
+                val glyphHeight = size.height * checkmarkGlyphScale
+                val glyphLeft = (size.width - glyphWidth) / 2f
+                val glyphTop = (size.height - glyphHeight) / 2f
+                val strokeWidth = size.minDimension * checkmarkGlyphScale * .13f
+                val joint = Offset(glyphLeft + glyphWidth * .42f, glyphTop + glyphHeight * .72f)
+                drawLine(labelColor, Offset(glyphLeft + glyphWidth * .16f, glyphTop + glyphHeight * .50f), joint,
+                    strokeWidth, cap = StrokeCap.Round)
+                drawLine(labelColor, joint, Offset(glyphLeft + glyphWidth * .86f, glyphTop + glyphHeight * .24f),
+                    strokeWidth, cap = StrokeCap.Round)
+            }
+        }
+    }
     Row(
         modifier = Modifier.fillMaxWidth()
             .hoverable(interactions)
@@ -66,25 +92,15 @@ internal fun MenuChoiceItem(label: String, checked: Boolean, multiple: Boolean =
             }.padding(horizontal = MenuMetrics.choiceHorizontalPadding, vertical = menuOptionVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(iconSize).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-            // 勾号放在文字前，使用同色笔画；未选中也保留标记列，避免文字跳动。
-            if (checked) Canvas(Modifier.size(iconSize).clearAndSetSemantics { }) {
-                // 保留与正文相差 4dp 的布局尺寸，只将勾号墨迹收至 84%，平衡旁边的线性图标。
-                val checkmarkGlyphScale = .84f
-                val glyphWidth = size.width * checkmarkGlyphScale
-                val glyphHeight = size.height * checkmarkGlyphScale
-                val glyphLeft = (size.width - glyphWidth) / 2f
-                val glyphTop = (size.height - glyphHeight) / 2f
-                val strokeWidth = size.minDimension * checkmarkGlyphScale * .13f
-                val joint = Offset(glyphLeft + glyphWidth * .42f, glyphTop + glyphHeight * .72f)
-                drawLine(colors.text.primary, Offset(glyphLeft + glyphWidth * .16f, glyphTop + glyphHeight * .50f), joint,
-                    strokeWidth, cap = StrokeCap.Round)
-                drawLine(colors.text.primary, joint, Offset(glyphLeft + glyphWidth * .86f, glyphTop + glyphHeight * .24f),
-                    strokeWidth, cap = StrokeCap.Round)
-            }
+        if (!trailingCheckmark) {
+            checkmark()
+            Spacer(Modifier.width(MenuMetrics.choiceMarkGap))
         }
-        Spacer(Modifier.width(MenuMetrics.choiceMarkGap))
-        Text(label, color = colors.text.primary, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight,
-            style = MenuLineStyle, maxLines = 2, modifier = Modifier.weight(1f))
+        Text(label, color = labelColor, fontSize = MenuMetrics.optionTextSize, lineHeight = menuOptionLineHeight,
+            style = MenuLineStyle, maxLines = labelMaxLines, modifier = Modifier.weight(1f))
+        if (trailingCheckmark) {
+            Spacer(Modifier.width(MenuMetrics.choiceMarkGap))
+            checkmark()
+        }
     }
 }

@@ -209,7 +209,10 @@
     <string name="favorite_save_duplicate_or_failed">This name may already be in use in that folder. Check it and try saving again.</string>
     <string name="favorite_save_failed">Could not save the favorite. Your input was kept. Try again.</string>
     <string name="favorite_save_location">Choose where to save the favorite</string>
-    <string name="favorite_saved_to">Saved to %1$s</string>
+    <string name="favorite_save_destination">Save to: %1$s</string>
+    <string name="favorite_saved_to">Added to favorites: %1$s</string>
+    <string name="saved_barcode_to_album">Barcode image saved to album %1$s</string>
+    <string name="saved_barcode_file_name">Barcode image saved: %1$s</string>
     <string name="favorite_search_description">Search favorite names, folders, or barcode content</string>
     <string name="favorite_search_failed">Search failed. Showing the previous results. Change the search terms and try again.</string>
     <string name="favorite_search_placeholder">Search names, folders, or content</string>
@@ -493,4 +496,23 @@
     <string name="waiting_for_connection">Waiting to connect</string>
     <string name="waiting_for_device">Waiting for a device to connect</string>
     <string name="waiting_for_qr_scan">Waiting for the other device to scan</string>
+    <string name="favorite_folder_choose_value">Choose</string>
+    <string name="favorite_subfolder_none_value">None</string>
+    <string name="batch_paste_one_per_line">One barcode per line</string>
+    <string name="batch_paste_show_rules">Paste rules</string>
+    <string name="batch_paste_hide_rules">Hide rules</string>
+    <string name="save_to_gallery_detail">Find the image in your gallery</string>
+    <string name="save_to_file_detail">Choose a filename and location</string>
+    <string name="about_update_found">New version available: %1$s</string>
+    <string name="history_search">Search history</string>
+    <string name="history_search_empty">No matching history</string>
+    <plurals name="history_batch_size">
+        <item quantity="one">%1$d code</item>
+        <item quantity="other">%1$d codes</item>
+    </plurals>
+    <string name="settings_data_management">Data management</string>
+    <string name="settings_favorites_backup_scope">The ZIP backup includes favorites only. History and settings are excluded.</string>
+    <string name="license_misans_official">Open official license in browser</string>
+    <string name="license_misans_page">License page %1$d of %2$d</string>
+    <string name="license_misans_read_failed">Could not display the offline license.</string>
 </resources>

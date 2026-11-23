@@ -580,7 +580,23 @@ class MainActivity : AppCompatActivity() {
                                 } else {
                                     DebugLog.record("results", "result_image_save_completed operation=$operation")
                                 }
-                                toast(if (written) getString(R.string.file_saved) else getString(R.string.save_file_failed))
+                                val displayName = if (written) withContext(Dispatchers.IO) {
+                                    try {
+                                        val column = android.provider.OpenableColumns.DISPLAY_NAME
+                                        contentResolver.query(targetUri, arrayOf(column), null, null, null)?.use { cursor ->
+                                            if (cursor.moveToFirst()) cursor.getString(0) else null
+                                        }
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                } else null
+                                toast(when {
+                                    !written -> getString(R.string.save_file_failed)
+                                    !displayName.isNullOrBlank() -> getString(R.string.saved_barcode_file_name, displayName)
+                                    else -> getString(R.string.file_saved)
+                                })
                             } catch (cancelled: CancellationException) {
                                 DebugLog.record("results", "result_image_save_cancelled operation=$operation")
                                 throw cancelled

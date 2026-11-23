@@ -91,7 +91,7 @@ internal fun MainActivity.showFavoriteRenameDialogCompose(group: FavoriteGroup, 
                             }
                         }
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }
@@ -179,7 +179,7 @@ internal fun MainActivity.showFavoriteMoveDialogCompose(group: FavoriteGroup, da
                             }
                         }
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }
@@ -232,7 +232,7 @@ internal fun MainActivity.showGroupEditorCompose(
                         if (onUpdate(group.id, cleanName, cleanFolder)) dismiss()
                         else toast(getString(R.string.favorite_duplicate_name_or_folder))
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }
@@ -271,7 +271,7 @@ internal fun MainActivity.moveToFolderCompose(item: CodeItem, onPersist: (CodeIt
                         onPersist(item)
                         dismiss()
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }

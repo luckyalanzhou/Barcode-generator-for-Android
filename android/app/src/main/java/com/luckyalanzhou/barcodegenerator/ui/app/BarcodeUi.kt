@@ -84,6 +84,7 @@ internal fun MainActivity.shareText(text: String) {
 
 internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String, onFinished: () -> Unit = {}) {
     lifecycleScope.launch {
+        val album = "BarcodeGenerator"
         val operation = System.nanoTime()
         DebugLog.record("image_export", "gallery_save_started operation=$operation")
         var createdUri: Uri? = null
@@ -93,7 +94,7 @@ internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String, onFinished: 
                     put(MediaStore.Images.Media.DISPLAY_NAME, shareImageFileName(label))
                     put(MediaStore.Images.Media.MIME_TYPE, "image/png")
                     if (Build.VERSION.SDK_INT >= 29) {
-                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/BarcodeGenerator")
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "${android.os.Environment.DIRECTORY_PICTURES}/$album")
                         put(MediaStore.Images.Media.IS_PENDING, 1)
                     }
                 }
@@ -108,7 +109,8 @@ internal fun MainActivity.saveBitmap(bitmap: Bitmap, label: String, onFinished: 
                         ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) > 0)
                 }
             }
-            toast(getString(R.string.saved_to_gallery))
+            toast(if (Build.VERSION.SDK_INT >= 29) getString(R.string.saved_barcode_to_album, album)
+                else getString(R.string.saved_to_gallery))
             DebugLog.record("image_export", "gallery_save_succeeded operation=$operation")
         } catch (error: CancellationException) {
             DebugLog.record("image_export", "gallery_save_cancelled operation=$operation")

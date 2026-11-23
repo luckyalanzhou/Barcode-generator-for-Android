@@ -30,6 +30,12 @@ class HistoryViewModel @Inject constructor(
     val dataState: StateFlow<BarcodeDataState> = dataSession.dataState
     private val mutableRefreshGeneration = MutableStateFlow(0L)
     val refreshGeneration: StateFlow<Long> = mutableRefreshGeneration.asStateFlow()
+    private val mutableQuery = MutableStateFlow("")
+    val query: StateFlow<String> = mutableQuery.asStateFlow()
+
+    fun updateQuery(value: String) {
+        mutableQuery.value = value
+    }
 
     fun refreshHistory() {
         viewModelScope.launch(Dispatchers.IO) {

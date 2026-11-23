@@ -26,9 +26,9 @@ import java.io.File
  * 更新确认、下载进度、失败重试和安装权限界面全部由 ComposeUpdateDialogs.kt 绘制；
  * 本文件只保留网络、版本、签名和文件系统逻辑。
  */
-internal fun MainActivity.checkForUpdates() {
+internal fun MainActivity.checkForUpdates(showCompletionNotice: Boolean = true) {
     DebugLog.record("update", "manual check started current=${BuildConfig.VERSION_NAME}")
-    updateViewModel.startManualCheck()
+    updateViewModel.startManualCheck(showCompletionNotice)
 }
 
 /** Activity 重建后由新实例接收 ViewModel 持有的手动检查结果。 */

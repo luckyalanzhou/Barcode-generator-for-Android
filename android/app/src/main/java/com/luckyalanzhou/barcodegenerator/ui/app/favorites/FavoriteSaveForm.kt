@@ -4,36 +4,27 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.icons.CreateNewFolderIcon
-import com.luckyalanzhou.barcodegenerator.icons.FolderIcon
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowDownIcon
-import com.luckyalanzhou.barcodegenerator.icons.KeyboardArrowRightIcon
 import com.luckyalanzhou.barcodegenerator.presentation.BarcodeDataState
 import com.luckyalanzhou.barcodegenerator.presentation.ResultUiState
 import com.luckyalanzhou.barcodegenerator.ui.component.iosPressFeedback
-import com.luckyalanzhou.barcodegenerator.ui.component.glass.resultActionEdgeChrome
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.ComposeGlassDialogCard
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
 import com.luckyalanzhou.barcodegenerator.ui.feature.editor.ComposeChoiceField
 import com.luckyalanzhou.barcodegenerator.ui.feature.favorites.favoriteFolderDestination
 import com.luckyalanzhou.barcodegenerator.ui.app.AppRoute
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
-import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -42,9 +33,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -103,6 +93,10 @@ internal fun FavoriteSaveForm(
         .sorted()
     val selectedFolder = favoriteFolderDestination(selectedRoot, selectedChild)
     var name by remember { mutableStateOf(editingGroup?.name.orEmpty()) }
+    var rootOverflow by remember(selectedRoot) { mutableStateOf(false) }
+    var childOverflow by remember(selectedChild) { mutableStateOf(false) }
+    val chooseFolder = stringResource(R.string.favorite_folder_choose_value)
+    val noSubfolder = stringResource(R.string.favorite_subfolder_none_value)
 
     ComposeGlassDialogCard(dark) {
         Text(
@@ -110,190 +104,100 @@ internal fun FavoriteSaveForm(
             color = LocalAppColorScheme.current.text.primary,
             fontSize = 18.sp,
         )
-        Text(
-            stringResource(R.string.favorite_save_location),
-            color = LocalAppColorScheme.current.text.secondary,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        if (roots.isEmpty()) {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             Text(
-                stringResource(R.string.favorite_no_root_folders),
+                stringResource(R.string.favorite_save_location),
                 color = LocalAppColorScheme.current.text.secondary,
-                fontSize = 15.sp,
-                modifier = Modifier.padding(top = 8.dp),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 12.dp),
             )
-        } else {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Icon(
-                        FolderIcon,
-                        stringResource(R.string.favorite_root_folder),
-                        tint = LocalAppColorScheme.current.content.folder,
-                        modifier = Modifier.size(24.dp),
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ComposeChoiceField(
+                        value = selectedRoot,
+                        options = roots,
+                        dark = dark,
+                        modifier = Modifier.weight(1f),
+                        enabled = roots.isNotEmpty(),
+                        scrollableFolderMenu = true,
+                        fieldLabel = stringResource(R.string.favorite_root_folder),
+                        optionLabel = { it.ifBlank { chooseFolder } },
+                        onValueOverflowChanged = { rootOverflow = it },
+                        onSelected = { selectedRoot = it; selectedChild = "" },
                     )
-                    Text(
-                        stringResource(R.string.favorite_root_folder_step),
-                        color = LocalAppColorScheme.current.text.primary,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-                ComposeChoiceField(
-                    value = selectedRoot.ifBlank { stringResource(R.string.favorite_choose_root_folder) },
-                    options = roots,
-                    dark = dark,
-                    modifier = Modifier.padding(start = 32.dp),
-                    onSelected = { selectedRoot = it; selectedChild = "" },
-                )
-                Row(
-                    modifier = Modifier.padding(start = 12.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.width(20.dp).height(28.dp)) {
-                        Box(
-                            Modifier.padding(start = 7.dp).width(2.dp).height(28.dp)
-                                .background(LocalAppColorScheme.current.controls.button),
-                        )
-                    }
-                    Icon(
-                        FolderIcon,
-                        stringResource(R.string.favorite_nested_folder),
-                        tint = LocalAppColorScheme.current.content.childFolder,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Text(
-                        stringResource(R.string.favorite_nested_folder_step),
-                        color = LocalAppColorScheme.current.text.primary,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-                ComposeChoiceField(
-                    value = selectedChild.ifBlank { stringResource(R.string.favorite_choose_nested_folder) },
-                    options = childOptions,
-                    dark = dark,
-                    modifier = Modifier.padding(start = 52.dp),
-                    enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
-                    onSelected = { selectedChild = it },
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                    .background(LocalAppColorScheme.current.surfaces.input, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.favorite_current_location), color = LocalAppColorScheme.current.text.secondary, fontSize = 12.sp)
-                    Row(Modifier.padding(top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        if (selectedRoot.isBlank()) {
-                            Text(stringResource(R.string.favorite_no_root_selected), color = LocalAppColorScheme.current.text.secondary, fontSize = 14.sp)
-                        } else {
-                            Icon(FolderIcon, stringResource(R.string.favorite_current_root_folder), tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
-                            Text(selectedRoot, color = LocalAppColorScheme.current.text.primary, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
-                            if (selectedChild.isNotBlank()) {
-                                Icon(KeyboardArrowRightIcon, stringResource(R.string.favorite_hierarchy), tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp).padding(horizontal = 2.dp))
-                                Icon(FolderIcon, stringResource(R.string.favorite_current_nested_folder), tint = LocalAppColorScheme.current.controls.accent, modifier = Modifier.size(18.dp))
-                                Text(selectedChild, color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
+                    CreateFolderButton(stringResource(R.string.favorite_create_root_folder), enabled = !saving) {
+                        onOpenRootFolderEditor { folder ->
+                            if (folder !in folders) folders = folders + folder
+                            selectedRoot = folder
+                            selectedChild = ""
                         }
                     }
                 }
-                Icon(KeyboardArrowDownIcon, stringResource(R.string.favorite_expand_hierarchy), tint = LocalAppColorScheme.current.text.secondary, modifier = Modifier.size(20.dp))
+                if (roots.isEmpty()) {
+                    Text(
+                        stringResource(R.string.favorite_no_root_folders),
+                        color = LocalAppColorScheme.current.text.secondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ComposeChoiceField(
+                        value = selectedChild,
+                        options = listOf("") + childOptions,
+                        dark = dark,
+                        modifier = Modifier.weight(1f),
+                        enabled = selectedRoot.isNotBlank() && childOptions.isNotEmpty(),
+                        scrollableFolderMenu = true,
+                        fieldLabel = stringResource(R.string.favorite_nested_folder),
+                        optionLabel = { it.ifBlank { noSubfolder } },
+                        onValueOverflowChanged = { childOverflow = it },
+                        onSelected = { selectedChild = it },
+                    )
+                    CreateFolderButton(
+                        stringResource(R.string.favorite_create_nested_folder),
+                        enabled = selectedRoot.isNotBlank() && !saving,
+                    ) {
+                        val root = selectedRoot
+                        onOpenChildFolderEditor(root) { child ->
+                            val path = "$root/$child"
+                            if (path !in folders) folders = folders + path
+                            if (selectedRoot == root) selectedChild = child
+                        }
+                    }
+                }
             }
-            if (selectedRoot.isNotBlank() && childOptions.isEmpty()) {
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedTextColor = LocalAppColorScheme.current.text.primary,
+                    focusedLabelColor = LocalAppColorScheme.current.text.primary,
+                    unfocusedLabelColor = LocalAppColorScheme.current.text.secondary,
+                    cursorColor = LocalAppColorScheme.current.text.primary,
+                ),
+                label = { Text(stringResource(R.string.favorite_filename)) },
+            )
+            if (selectedRoot.isNotBlank() && (rootOverflow || (selectedChild.isNotBlank() && childOverflow))) {
+                val destination = listOf(selectedRoot, selectedChild, name.trim())
+                    .filter(String::isNotEmpty).joinToString(" / ")
                 Text(
-                    stringResource(R.string.favorite_no_subfolders),
+                    stringResource(R.string.favorite_save_destination, destination),
                     color = LocalAppColorScheme.current.text.secondary,
                     fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 6.dp),
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
         }
-
-        val rootInteractions = remember { MutableInteractionSource() }
-        val childInteractions = remember { MutableInteractionSource() }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = {
-                    onOpenRootFolderEditor { folder ->
-                        if (folder !in folders) folders = (folders + folder).distinct()
-                        selectedRoot = folder
-                        selectedChild = ""
-                    }
-                },
-                interactionSource = rootInteractions,
-                modifier = Modifier.weight(1f).heightIn(min = 40.dp).iosPressFeedback(rootInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
-                contentPadding = PaddingValues(horizontal = 6.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = null,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
-            ) {
-                Icon(CreateNewFolderIcon, stringResource(R.string.favorite_create_root_folder), tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
-                Text(
-                    stringResource(R.string.favorite_create_root_folder),
-                    color = LocalAppColorScheme.current.text.primary,
-                    fontSize = 12.sp,
-                    lineHeight = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).padding(start = 4.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Clip,
-                )
-            }
-            OutlinedButton(
-                onClick = {
-                    if (selectedRoot.isBlank()) onValidationMessage(localizedResources.getString(R.string.favorite_select_root_first))
-                    else onOpenChildFolderEditor(selectedRoot) { child ->
-                        val path = "$selectedRoot/$child"
-                        if (path !in folders) folders = (folders + path).distinct()
-                        selectedChild = child
-                    }
-                },
-                interactionSource = childInteractions,
-                modifier = Modifier.weight(1f).heightIn(min = 40.dp).iosPressFeedback(childInteractions).resultActionEdgeChrome(RoundedCornerShape(8.dp)),
-                contentPadding = PaddingValues(horizontal = 6.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = null,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColorScheme.current.text.primary),
-            ) {
-                Icon(CreateNewFolderIcon, stringResource(R.string.favorite_create_nested_folder), tint = LocalAppColorScheme.current.text.primary, modifier = Modifier.size(20.dp))
-                Text(
-                    stringResource(R.string.favorite_create_nested_folder),
-                    color = LocalAppColorScheme.current.text.primary,
-                    fontSize = 12.sp,
-                    lineHeight = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).padding(start = 4.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Clip,
-                )
-            }
-        }
-
-        Text(stringResource(R.string.favorite_filename), color = LocalAppColorScheme.current.text.primary, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-            singleLine = true,
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = LocalAppColorScheme.current.text.primary,
-                unfocusedTextColor = LocalAppColorScheme.current.text.primary,
-                focusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
-                unfocusedPlaceholderColor = LocalAppColorScheme.current.text.secondary,
-                cursorColor = LocalAppColorScheme.current.text.primary,
-            ),
-            placeholder = { Text(stringResource(R.string.favorite_filename), color = LocalAppColorScheme.current.text.secondary) },
-        )
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
             DialogAction(stringResource(R.string.action_cancel), dark, { if (!saving) onCancel() })
             DialogAction(
@@ -329,8 +233,30 @@ internal fun FavoriteSaveForm(
                         }
                     }
                 },
-                modifier = Modifier.padding(start = 20.dp),
+                modifier = Modifier.padding(start = 12.dp),
+                primary = true,
+                enabled = !saving && selectedFolder.isNotBlank() && name.isNotBlank(),
             )
         }
+    }
+}
+
+
+@Composable
+private fun CreateFolderButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val colors = LocalAppColorScheme.current
+    val interactions = remember { MutableInteractionSource() }
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interactions,
+        modifier = Modifier.size(48.dp).iosPressFeedback(interactions),
+    ) {
+        Icon(
+            CreateNewFolderIcon,
+            contentDescription = label,
+            modifier = Modifier.size(22.dp),
+            tint = if (enabled) colors.text.link else colors.text.disabled,
+        )
     }
 }

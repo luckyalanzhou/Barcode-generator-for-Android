@@ -172,6 +172,7 @@ internal fun GenerateContent(
     fun syncDraft() { onDraftChanged(values.toList()) }
 
     if (batchPasteDialog) {
+        var showPasteHelp by rememberSaveable { mutableStateOf(false) }
         Dialog(onDismissRequest = { batchPasteDialog = false }) {
             val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
             androidx.compose.runtime.SideEffect {
@@ -181,14 +182,14 @@ internal fun GenerateContent(
                 Text(stringResource(R.string.batch_paste), color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                     Text(
-                        stringResource(R.string.batch_paste_help),
+                        stringResource(R.string.batch_paste_one_per_line),
                         modifier = Modifier.padding(top = 6.dp),
                         color = secondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
                     )
                     val previewText = when (val preview = batchPastePreview) {
-                        BatchBarcodePastePreview.Empty -> stringResource(R.string.batch_paste_empty)
+                        BatchBarcodePastePreview.Empty -> null
                         is BatchBarcodePastePreview.Ready -> pluralStringResource(R.plurals.batch_paste_preview, preview.addedCount, preview.addedCount, preview.totalCount)
                         is BatchBarcodePastePreview.Invalid -> {
                             val reason = preview.rowLimit?.let { stringResource(preview.reason, it) }
@@ -196,7 +197,7 @@ internal fun GenerateContent(
                             preview.line?.let { stringResource(R.string.row_error, it, reason) } ?: reason
                         }
                     }
-                    Text(
+                    if (previewText != null) Text(
                         previewText,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                             .semantics { liveRegion = LiveRegionMode.Polite },
@@ -237,6 +238,12 @@ internal fun GenerateContent(
                                 }
                             },
                         )
+                    }
+                    TextButton(onClick = { showPasteHelp = !showPasteHelp }) {
+                        Text(stringResource(if (showPasteHelp) R.string.batch_paste_hide_rules else R.string.batch_paste_show_rules))
+                    }
+                    if (showPasteHelp) {
+                        Text(stringResource(R.string.batch_paste_help), color = secondary, fontSize = 14.sp, lineHeight = 20.sp)
                     }
                 }
                 Row(

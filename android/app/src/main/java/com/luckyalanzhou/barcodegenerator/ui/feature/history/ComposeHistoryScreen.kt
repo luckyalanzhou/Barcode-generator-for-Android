@@ -54,6 +54,8 @@ internal fun HistoryScreen(
     loadFailed: Boolean = false,
     onRetry: () -> Unit = {},
     listBottomPadding: Dp = 8.dp,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val locale = rememberApplicationFormattingLocale()
@@ -102,6 +104,8 @@ internal fun HistoryScreen(
     }
 
     HistoryComposePage(
+        query = query,
+        onQueryChange = onQueryChange,
         listBottomPadding = listBottomPadding,
         entries = entries,
         isReady = isReady,

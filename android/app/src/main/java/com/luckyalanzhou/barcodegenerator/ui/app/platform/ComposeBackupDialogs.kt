@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,26 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun MainActivity.showFavoritesBackupActions() {
+    showComposeDialog(compact = true) { dismiss ->
+        val dark = isDark()
+        val colors = LocalAppColorScheme.current
+        ComposeGlassDialogCard(dark) {
+            Text(stringResource(R.string.backup_title), color = colors.text.primary, fontSize = 18.sp)
+            Text(stringResource(R.string.settings_favorites_backup_scope), color = colors.text.secondary,
+                fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+            ComposeDialogChoice(stringResource(R.string.favorite_import), dark) {
+                dismiss()
+                restoreFavoritesImport()
+            }
+            ComposeDialogChoice(stringResource(R.string.favorite_export), dark) {
+                dismiss()
+                createFavoritesExportCompose()
+            }
+        }
+    }
+}
 
 /** 收藏导出方式选择，继续调用原有系统分享和 SAF 文件保存入口。 */
 internal fun MainActivity.createFavoritesExportCompose() {
@@ -113,12 +134,14 @@ private fun MainActivity.showFavoriteImportConflictDialog(
                     dark,
                     { importFavoritesForCompose(backup, overwriteConflicts = false); dismiss() },
                     Modifier.padding(start = 20.dp),
+                    primary = true,
                 )
                 DialogAction(
                     getString(R.string.favorite_import_overwrite),
                     dark,
                     { importFavoritesForCompose(backup, overwriteConflicts = true); dismiss() },
                     Modifier.padding(start = 20.dp),
+                    destructive = true,
                 )
             }
         }

@@ -209,7 +209,10 @@
     <string name="favorite_save_duplicate_or_failed">フォルダーに同じ名前のお気に入りがある可能性があります。名前を確認して保存し直してください。</string>
     <string name="favorite_save_failed">お気に入りを保存できませんでした。入力内容は保持されています。もう一度お試しください。</string>
     <string name="favorite_save_location">お気に入りの保存先を選択</string>
-    <string name="favorite_saved_to">%1$s に保存しました</string>
+    <string name="favorite_save_destination">保存先：%1$s</string>
+    <string name="favorite_saved_to">お気に入りに保存しました：%1$s</string>
+    <string name="saved_barcode_to_album">バーコード画像をアルバム「%1$s」に保存しました</string>
+    <string name="saved_barcode_file_name">バーコード画像を保存しました：%1$s</string>
     <string name="favorite_search_description">お気に入り名、フォルダー、バーコードの内容を検索</string>
     <string name="favorite_search_failed">検索に失敗しました。前回の結果を表示しています。検索語句を変えてお試しください。</string>
     <string name="favorite_search_placeholder">名前、フォルダー、または内容を検索</string>
@@ -493,4 +496,23 @@
     <string name="waiting_for_connection">接続待ち</string>
     <string name="waiting_for_device">端末の接続を待機中</string>
     <string name="waiting_for_qr_scan">他の端末での読み取りを待機中</string>
+    <string name="favorite_folder_choose_value">選択</string>
+    <string name="favorite_subfolder_none_value">なし</string>
+    <string name="batch_paste_one_per_line">1 行にバーコード 1 件</string>
+    <string name="batch_paste_show_rules">貼り付けのルール</string>
+    <string name="batch_paste_hide_rules">ルールを閉じる</string>
+    <string name="save_to_gallery_detail">保存した画像をギャラリーで表示</string>
+    <string name="save_to_file_detail">ファイル名と保存先を選択</string>
+    <string name="about_update_found">新しいバージョン %1$s が利用できます</string>
+    <string name="history_search">履歴のバーコードを検索</string>
+    <string name="history_search_empty">一致する履歴がありません</string>
+    <plurals name="history_batch_size">
+        <item quantity="one">%1$d 件</item>
+        <item quantity="other">%1$d 件</item>
+    </plurals>
+    <string name="settings_data_management">データ管理</string>
+    <string name="settings_favorites_backup_scope">ZIP バックアップにはお気に入りのみが含まれます。履歴と設定は含まれません。</string>
+    <string name="license_misans_official">ブラウザで公式ライセンスを開く</string>
+    <string name="license_misans_page">ライセンス全 %2$d ページ中 %1$d ページ目</string>
+    <string name="license_misans_read_failed">オフラインのライセンスを表示できませんでした。</string>
 </resources>

@@ -64,6 +64,7 @@ internal fun CornerDropdownMenu(
     expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier,
     shape: Shape, color: Color, anchorHeight: Dp?, clearerGlass: Boolean, dynamicBackdrop: Boolean,
     shadowElevation: Dp, backdropWindow: android.view.Window? = null,
+    scrollableContent: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
@@ -87,7 +88,8 @@ internal fun CornerDropdownMenu(
             easing = FastOutSlowInEasing,
         )
     }, label = "button-to-menu-bounds") { if (it) 1f else 0f }
-    val position = remember { CornerMenuPositionProvider() }
+    val preferAbove = scrollableContent != null
+    val position = remember(preferAbove) { CornerMenuPositionProvider(preferAbove) }
     val density = LocalDensity.current
     val visualHeight = with(density) { anchorHeight?.toPx() ?: 0f }
     val dismiss by rememberUpdatedState(onDismiss)
@@ -125,8 +127,13 @@ internal fun CornerDropdownMenu(
                     shadowElevation = shadowElevation,
                     backdropRenderer = backdropRenderer,
                     backdropWindow = backdropWindow,
+                    trackPointer = scrollableContent == null,
                 ) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
+                    if (scrollableContent != null) {
+                        scrollableContent()
+                    } else {
+                        Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
+                    }
                 }
             }
         }
@@ -134,7 +141,7 @@ internal fun CornerDropdownMenu(
 }
 
 /** 右侧锚定，空间不足向上；将实际来源与最终菜单放在同一个窗口内。 */
-internal class CornerMenuPositionProvider : PopupPositionProvider {
+internal class CornerMenuPositionProvider(private val preferAbove: Boolean = false) : PopupPositionProvider {
     var above by mutableStateOf(false)
         private set
     var anchor by mutableStateOf(IntRect.Zero)
@@ -144,7 +151,10 @@ internal class CornerMenuPositionProvider : PopupPositionProvider {
     override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
         layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
         val menuHeight = (popupContentSize.height - anchorBounds.height).coerceAtLeast(0)
-        above = anchorBounds.bottom + menuHeight > windowSize.height && anchorBounds.top >= menuHeight
+        val spaceAbove = anchorBounds.top.coerceAtLeast(0)
+        val spaceBelow = (windowSize.height - anchorBounds.bottom).coerceAtLeast(0)
+        // 收藏目录下方是文件名和保存按钮；上方容得下完整菜单时优先向上。
+        above = spaceAbove >= menuHeight && (preferAbove || spaceBelow < menuHeight)
         anchor = anchorBounds
         val x = (anchorBounds.right - popupContentSize.width)
             .coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))

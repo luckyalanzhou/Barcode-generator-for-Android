@@ -5,6 +5,7 @@ import androidx.compose.ui.res.stringResource
 import com.luckyalanzhou.barcodegenerator.R
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.luckyalanzhou.barcodegenerator.ui.component.LibrarySearchField
 import com.luckyalanzhou.barcodegenerator.ui.component.unframedActionPressFeedback
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
@@ -74,9 +75,16 @@ internal fun formatHistoryTime(
     return SimpleDateFormat(pattern, locale).format(date)
 }
 
-internal fun historyBatchSummary(batch: List<CodeItem>): String =
-    batch.firstOrNull()?.text.orEmpty().replace('\n', ' ').replace('\r', ' ') +
+internal fun historyBatchSummary(batch: List<CodeItem>, query: String = ""): String =
+    (batch.firstOrNull { it.text.contains(query.trim(), ignoreCase = true) } ?: batch.firstOrNull())
+        ?.text.orEmpty().replace('\n', ' ').replace('\r', ' ') +
         if (batch.size > 1) "…" else ""
+
+internal fun filterHistoryBatches(entries: List<HistoryBatchEntry>, query: String): List<HistoryBatchEntry> {
+    val term = query.trim()
+    if (term.isEmpty()) return entries
+    return entries.filter { entry -> entry.items.any { it.text.contains(term, ignoreCase = true) } }
+}
 
 /** 历史行用持久批次 ID 区分新数据；旧数据继续以时间戳作为兼容身份。 */
 internal data class HistoryBatchEntry(
@@ -102,6 +110,8 @@ internal fun HistoryComposePage(
     loadFailed: Boolean = false,
     onRetry: () -> Unit = {},
     listBottomPadding: Dp = 8.dp,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
 ) {
     val themeColors = LocalAppColorScheme.current
     val primary = themeColors.text.primary
@@ -109,6 +119,11 @@ internal fun HistoryComposePage(
     val hapticView = LocalView.current
     val reduceMotion = LocalVisualEffectsPolicy.current.reduceMotion
     val listState = rememberLazyListState()
+    val visibleEntries = remember(entries, query) { filterHistoryBatches(entries, query) }
+    fun changeQuery(value: String) {
+        if (query.trim() != value.trim()) listState.requestScrollToItem(0)
+        onQueryChange(value)
+    }
     var appliedRefreshGeneration by rememberSaveable { mutableLongStateOf(refreshGeneration) }
     LaunchedEffect(refreshGeneration) {
         if (appliedRefreshGeneration != refreshGeneration) {
@@ -118,63 +133,76 @@ internal fun HistoryComposePage(
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = listBottomPadding),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        if (!isReady) {
-            item(key = "history-loading") {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        if (loadFailed) stringResource(R.string.history_load_failed) else stringResource(R.string.history_loading),
-                        color = if (loadFailed) primary else secondary,
-                        fontSize = 17.sp,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        textAlign = TextAlign.Center,
-                    )
-                    if (loadFailed) {
-                        DialogAction(stringResource(R.string.action_retry), dark, onRetry, modifier = Modifier.padding(top = 12.dp), primary = true)
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (isReady && (entries.isNotEmpty() || query.isNotEmpty())) {
+            val label = stringResource(R.string.history_search)
+            LibrarySearchField(
+                query = query,
+                onQueryChange = ::changeQuery,
+                placeholder = label,
+                accessibilityLabel = label,
+            )
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = listBottomPadding),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (!isReady) {
+                item(key = "history-loading") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            if (loadFailed) stringResource(R.string.history_load_failed) else stringResource(R.string.history_loading),
+                            color = if (loadFailed) primary else secondary,
+                            fontSize = 17.sp,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            textAlign = TextAlign.Center,
+                        )
+                        if (loadFailed) {
+                            DialogAction(stringResource(R.string.action_retry), dark, onRetry, modifier = Modifier.padding(top = 12.dp), primary = true)
+                        }
                     }
                 }
             }
+            if (isReady && visibleEntries.isEmpty()) {
+                item(key = "history-empty") {
+                    HistoryEmptyState(color = secondary, searching = query.isNotBlank())
+                }
+            } else if (visibleEntries.isNotEmpty()) {
+                items(
+                    items = visibleEntries,
+                    key = { entry -> "history-${entry.key}" },
+                    contentType = { "history-batch" },
+                ) { entry ->
+                    val batch = entry.items.sortedBy { it.id }
+                    HistoryBatchCard(
+                        batch = batch,
+                        summary = historyBatchSummary(batch, query),
+                        time = timeText(entry.time),
+                        dark = dark,
+                        primary = primary,
+                        onOpen = { onOpen(batch) },
+                        onEdit = {
+                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                            onEdit(batch)
+                        },
+                        onDelete = { onDelete(batch) },
+                    )
+                }
+            }
         }
-        if (isReady && entries.isEmpty()) {
-            item(key = "history-empty") {
-                HistoryEmptyState(color = secondary)
-            }
-        } else if (entries.isNotEmpty()) {
-            items(
-                items = entries,
-                key = { entry -> "history-${entry.key}" },
-                contentType = { "history-batch" },
-            ) { entry ->
-                val batch = entry.items.sortedBy { it.id }
-                HistoryBatchCard(
-                    batch = batch,
-                    time = timeText(entry.time),
-                    dark = dark,
-                    primary = primary,
-                    onOpen = { onOpen(batch) },
-                    onEdit = {
-                        hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                        onEdit(batch)
-                    },
-                    onDelete = { onDelete(batch) },
-                )
-            }
     }
-}
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryBatchCard(
     batch: List<CodeItem>,
+    summary: String,
     time: String,
     dark: Boolean,
     primary: Color,
@@ -208,11 +236,18 @@ private fun HistoryBatchCard(
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 15.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(historyBatchSummary(batch), color = primary, fontSize = 16.sp, maxLines = 1,
+            Text(summary, color = primary, fontSize = 16.sp, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
-            Text(time, color = colors.text.secondary, fontSize = 12.sp, maxLines = 1,
-                overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
-                modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp))
+            Column(
+                modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                horizontalAlignment = Alignment.End,
+            ) {
+                Text(time, color = colors.text.secondary, fontSize = 12.sp, maxLines = 1)
+                if (batch.size > 1) {
+                    Text(pluralStringResource(R.plurals.history_batch_size, batch.size, batch.size),
+                        color = colors.text.secondary, fontSize = 11.sp, maxLines = 1)
+                }
+            }
             val editInteractions = remember { MutableInteractionSource() }
             IconButton(
                 onClick = onEdit,
@@ -231,12 +266,13 @@ private fun HistoryBatchCard(
 }
 
 @Composable
-private fun HistoryEmptyState(color: Color) {
+private fun HistoryEmptyState(color: Color, searching: Boolean) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(stringResource(R.string.history_empty), color = color, fontSize = 17.sp)
+        Text(stringResource(if (searching) R.string.history_search_empty else R.string.history_empty),
+            color = color, fontSize = 17.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
 }
 

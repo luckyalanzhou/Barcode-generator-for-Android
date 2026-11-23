@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.ui.component.SingleChoiceMenuItem
@@ -33,6 +34,7 @@ internal fun AppearanceThemeContent(
     onStyleChange: (StyleSettings) -> Unit,
     onLiquidGlassEnabledChange: (Boolean) -> Unit,
     onBottomTabLabelsVisibleChange: (Boolean) -> Unit,
+    listBottomPadding: Dp = 0.dp,
 ) {
     val colors = rememberSettingsColors()
     var schemeMenu by remember { mutableStateOf(false) }
@@ -45,7 +47,7 @@ internal fun AppearanceThemeContent(
     val glassTitle = stringResource(R.string.settings_liquid_glass)
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = listBottomPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         SecondarySettingsHeader(stringResource(R.string.settings_appearance_theme), onBack)

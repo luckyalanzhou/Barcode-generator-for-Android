@@ -40,7 +40,8 @@ internal fun pageContentBottomInset(route: AppRoute, tabBarHeight: Dp): Dp =
     if (route == AppRoute.Generate) tabBarHeight + 8.dp else 0.dp
 
 internal val AppRoute.drawsBehindSystemNavigation: Boolean
-    get() = this == AppRoute.History || this == AppRoute.Favorites || this == AppRoute.Settings
+    get() = this == AppRoute.History || this == AppRoute.Favorites ||
+        this == AppRoute.Settings || this == AppRoute.AppearanceTheme
 
 internal fun pageListBottomPadding(route: AppRoute, tabBarHeight: Dp, bottomChromeInset: Dp = 0.dp): Dp =
     if (route.drawsBehindSystemNavigation) tabBarHeight + bottomChromeInset + 8.dp else 8.dp

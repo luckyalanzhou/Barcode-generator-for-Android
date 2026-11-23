@@ -104,7 +104,7 @@ internal fun MainActivity.showFolderEditorCompose(
                             }
                         }
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }
@@ -176,7 +176,7 @@ internal fun MainActivity.showSubfolderEditorCompose(
                             }
                         }
                     }
-                }, modifier = Modifier.padding(start = 20.dp))
+                }, modifier = Modifier.padding(start = 20.dp), primary = true)
             }
         }
     }

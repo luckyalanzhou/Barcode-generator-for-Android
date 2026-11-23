@@ -209,7 +209,10 @@
     <string name="favorite_save_duplicate_or_failed">資料夾中可能已有同名收藏，請檢查名稱後重新儲存。</string>
     <string name="favorite_save_failed">無法儲存收藏，輸入內容已保留，請重試。</string>
     <string name="favorite_save_location">選擇收藏儲存位置</string>
-    <string name="favorite_saved_to">已儲存至 %1$s</string>
+    <string name="favorite_save_destination">儲存位置：%1$s</string>
+    <string name="favorite_saved_to">已收藏至 %1$s</string>
+    <string name="saved_barcode_to_album">條碼圖片已儲存到相簿「%1$s」</string>
+    <string name="saved_barcode_file_name">條碼圖片已儲存：%1$s</string>
     <string name="favorite_search_description">搜尋收藏名稱、資料夾或條碼內容</string>
     <string name="favorite_search_failed">搜尋失敗，目前顯示上次結果。請修改搜尋詞後重試。</string>
     <string name="favorite_search_placeholder">搜尋名稱、資料夾或內容</string>
@@ -493,4 +496,23 @@
     <string name="waiting_for_connection">等待連線</string>
     <string name="waiting_for_device">等待裝置連線</string>
     <string name="waiting_for_qr_scan">等待另一部裝置掃描</string>
+    <string name="favorite_folder_choose_value">請選擇</string>
+    <string name="favorite_subfolder_none_value">無</string>
+    <string name="batch_paste_one_per_line">每行一個條碼</string>
+    <string name="batch_paste_show_rules">貼上規則</string>
+    <string name="batch_paste_hide_rules">收合規則</string>
+    <string name="save_to_gallery_detail">儲存後可在相簿查看</string>
+    <string name="save_to_file_detail">自行選擇檔名和儲存位置</string>
+    <string name="about_update_found">發現新版本 %1$s</string>
+    <string name="history_search">搜尋歷史條碼</string>
+    <string name="history_search_empty">找不到符合的歷史記錄</string>
+    <plurals name="history_batch_size">
+        <item quantity="one">%1$d 條</item>
+        <item quantity="other">%1$d 條</item>
+    </plurals>
+    <string name="settings_data_management">資料管理</string>
+    <string name="settings_favorites_backup_scope">ZIP 備份只包含收藏，不包含歷史記錄和設定。</string>
+    <string name="license_misans_official">在瀏覽器開啟官方授權條款</string>
+    <string name="license_misans_page">授權條款第 %1$d 頁，共 %2$d 頁</string>
+    <string name="license_misans_read_failed">無法顯示離線授權條款。</string>
 </resources>

@@ -81,6 +81,7 @@ internal fun SettingsContent(
     onNotice: (String) -> Unit,
     onEnterAbout: () -> Unit = {},
     onEnterAppearanceTheme: () -> Unit = {},
+    onOpenFavoritesBackup: () -> Unit = {},
     listBottomPadding: Dp = 8.dp,
     languageRow: @Composable () -> Unit = {},
 ) {
@@ -174,6 +175,13 @@ internal fun SettingsContent(
                     }
                 }
             }
+        }
+        SettingsSection(stringResource(R.string.settings_data_management), dark) {
+            SettingsNavigationRow(
+                stringResource(R.string.backup_title),
+                onOpenFavoritesBackup,
+                leading = { SettingsLeadingIcon(SettingsIconKind.FavoritesBackup) },
+            )
         }
         SettingsSection(stringResource(R.string.settings_file_transfer), dark) {
             SettingsNavigationRow(

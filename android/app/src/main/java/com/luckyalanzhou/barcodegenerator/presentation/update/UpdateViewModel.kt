@@ -9,6 +9,7 @@ import com.luckyalanzhou.barcodegenerator.domain.ApkDownloadGateway
 import com.luckyalanzhou.barcodegenerator.domain.ApkValidationGateway
 import com.luckyalanzhou.barcodegenerator.domain.SettingsRepository
 import com.luckyalanzhou.barcodegenerator.domain.UpdateCatalogGateway
+import com.luckyalanzhou.barcodegenerator.domain.UpdateFailure
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateDownloadUiState
 import com.luckyalanzhou.barcodegenerator.presentation.UpdateEvent
@@ -20,13 +21,19 @@ import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicLong
+
+private const val MANUAL_UPDATE_CHECK_TIMEOUT_MILLIS = 18_000L
 
 /** 更新页状态与操作的所有者，独立于条码、历史和收藏状态。 */
 @HiltViewModel
@@ -51,6 +58,8 @@ class UpdateViewModel @Inject constructor(
     val events: Flow<UpdateEvent> = updateFacade.events
     private val manualCheckResultChannel = Channel<UpdateCheckResult>(Channel.BUFFERED)
     val manualCheckResults: Flow<UpdateCheckResult> = manualCheckResultChannel.receiveAsFlow()
+    private val _manualCheckResult = MutableStateFlow<UpdateCheckResult?>(null)
+    val manualCheckResult: StateFlow<UpdateCheckResult?> = _manualCheckResult.asStateFlow()
     private val ignoreOperation = AtomicLong(0L)
 
     fun setStartupCheckStarted(value: Boolean) = updateFacade.setStartupCheckStarted(value)
@@ -64,15 +73,31 @@ class UpdateViewModel @Inject constructor(
         }
     }
     /** 手动更新检查归 ViewModel 持有，Activity 重建后仍可消费完成结果。 */
-    fun startManualCheck() = startManualCheck(viewModelScope)
+    fun startManualCheck(showCompletionNotice: Boolean = true) =
+        startManualCheck(viewModelScope, showCompletionNotice)
 
-    internal fun startManualCheck(scope: CoroutineScope) {
+    internal fun startManualCheck(scope: CoroutineScope, showCompletionNotice: Boolean = true) {
+        if (_manualCheckResult.value == UpdateCheckResult.InProgress) return
+        _manualCheckResult.value = UpdateCheckResult.InProgress
         scope.launch {
-            val result = checkForUpdates()
+            // The UI deadline must also hold when a blocking connection takes time to unwind.
+            val request = scope.async { checkForUpdates() }
+            val result = try {
+                withTimeoutOrNull(MANUAL_UPDATE_CHECK_TIMEOUT_MILLIS) { request.await() }
+                    ?: UpdateCheckResult.Failed(UpdateFailure.CheckFailed)
+            } catch (cancelled: CancellationException) {
+                _manualCheckResult.value = null
+                throw cancelled
+            } finally {
+                request.cancel()
+            }
+            _manualCheckResult.value = result
             if (result is UpdateCheckResult.Available && uiState.value.availableUpdateKey == result.ignoreKey) {
                 setDialogShowing(true)
             }
-            manualCheckResultChannel.send(result)
+            if (showCompletionNotice || result is UpdateCheckResult.Available) {
+                manualCheckResultChannel.send(result)
+            }
         }
     }
     /** 静默启动检查由 ViewModel 持有，Activity 因配置变化销毁时请求仍可完成。 */

@@ -15,7 +15,12 @@ internal class GenerateCoordinator(
     suspend fun commit(generated: List<CodeItem>, currentResult: ResultUiState): ResultUiState {
         val editingFavorite = currentResult.selectedFavoriteGroup
             ?.takeIf { currentResult.returnPage == AppRoute.Favorites }
-        store.edit { items.addAll(0, generated) }
+        val generatedIds = generated.mapTo(HashSet(), CodeItem::id)
+        store.edit {
+            // Room may reuse IDs after deletion while the in-memory snapshot still holds old rows.
+            items.removeAll { it.id in generatedIds }
+            items.addAll(0, generated)
+        }
         persistItems()
         val nextResult = currentResult.copy(
             items = generated,

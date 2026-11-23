@@ -72,7 +72,14 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
             dismiss()
             window.decorView.post {
                 if (!isFinishing && !isDestroyed) {
-                    toast(getString(R.string.favorite_saved_to, folder))
+                    val path = folder.replace("/", " / ")
+                    val metrics = resources.displayMetrics
+                    val textPaint = android.text.TextPaint().apply {
+                        textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 14f, metrics)
+                    }
+                    val visiblePath = android.text.TextUtils.ellipsize(path, textPaint, 160 * metrics.density,
+                        android.text.TextUtils.TruncateAt.MIDDLE)
+                    toast(getString(R.string.favorite_saved_to, visiblePath))
                     onSaved()
                 }
             }
@@ -111,6 +118,7 @@ internal fun MainActivity.saveResultAsFavoriteCompose(
                     title = title,
                     message = message,
                     positive = getString(R.string.action_overwrite),
+                    destructive = true,
                     backdropSourceWindow = parentDialogWindow,
                     onConfirm = onConfirm,
                 )
