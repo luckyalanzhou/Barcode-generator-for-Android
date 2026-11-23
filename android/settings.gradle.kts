@@ -1,5 +1,11 @@
 pluginManagement {
-    repositories { google(); mavenCentral(); gradlePluginPortal() }
+    repositories {
+        google {
+            content { excludeGroupByRegex("org[.]jetbrains[.]kotlin([.].*)?") }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id == "com.google.android.gms.oss-licenses-plugin") {
