@@ -6,6 +6,7 @@ import androidx.core.graphics.createBitmap
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
+import com.google.zxing.oned.Code128Writer
 import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
 import com.luckyalanzhou.barcodegenerator.barcodeFormatId
@@ -18,12 +19,24 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.recordSafely
 import com.luckyalanzhou.barcodegenerator.domain.barcodeRenderSize
 import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 
+private const val CODE128_QUIET_ZONE_MODULES = 10
+
 /** ZXing 图像渲染适配器，封装在 Presentation 图像渲染接口之后。 */
 class ZxingBarcodeImageRenderer(
     private val imageCache: BarcodeImageCache,
     private val logger: AppLogger,
 ) : BarcodeImageRenderer {
     private val renderLocks = Array(64) { Any() }
+
+    override fun measureCode128Width(text: String, style: StyleSettings, density: Float): Int? =
+        captureRecoverableBarcodeEncoding(
+            operation = {
+                val requested = barcodeRenderSize(BarcodeFormatIds.CODE_128, style, density).first
+                val modules = Code128Writer().encode(text).size
+                (modules + 2 * CODE128_QUIET_ZONE_MODULES) * (requested / modules).coerceAtLeast(1)
+            },
+            onFailure = { error -> logger.recordSafely("barcode", "Code 128 width measurement failed", error, error) },
+        )
 
     override fun loadOrCreate(item: CodeItem, style: StyleSettings, dark: Boolean, density: Float): Bitmap? {
         val formatId = barcodeFormatId(item.format)
@@ -82,6 +95,10 @@ class ZxingBarcodeImageRenderer(
         } else encoded
     }
 
+    override fun createQrExportImage(text: String, width: Int, dark: Boolean): Bitmap? =
+        encode(text, BarcodeFormat.QR_CODE, StyleSettings(), dark, density = 1f,
+            withBackground = dark, foregroundColor = BarcodeImageColors.foreground(dark), qrExportWidth = width)
+
     private fun encode(
         text: String,
         format: BarcodeFormat,
@@ -90,9 +107,11 @@ class ZxingBarcodeImageRenderer(
         density: Float,
         withBackground: Boolean = true,
         foregroundColor: Int = BarcodeImageColors.foreground(dark),
+        qrExportWidth: Int? = null,
     ): Bitmap? = captureRecoverableBarcodeEncoding(
         operation = {
-            val (width, barcodeHeight) = barcodeRenderSize(formatId(format), style, density)
+            val (width, barcodeHeight) = qrExportWidth?.let { it to it }
+                ?: barcodeRenderSize(formatId(format), style, density)
             val matrix = MultiFormatWriter().encode(text, format, width, barcodeHeight, barcodeEncodeHints(format))
             val background = if (withBackground) BarcodeImageColors.background(dark) else Color.TRANSPARENT
             val pixels = IntArray(matrix.width * matrix.height) { index ->
@@ -141,7 +160,7 @@ class ZxingBarcodeImageRenderer(
 
     private fun addQuietZone(source: Bitmap, backgroundColor: Int, foregroundColor: Int): Bitmap {
         // Code 128 静区按窄模块宽度计算，避免短码或高密度下固定条高留白不足。
-        val quiet = maxOf(8, narrowestModuleWidth(source, foregroundColor) * 10)
+        val quiet = maxOf(8, narrowestModuleWidth(source, foregroundColor) * CODE128_QUIET_ZONE_MODULES)
         val paddedWidth = source.width + quiet * 2
         // 直接把条码行写入带静区的目标数组，避免同时保留源图和目标图两份整图像素数组。
         val pixels = IntArray(paddedWidth * source.height) { backgroundColor }

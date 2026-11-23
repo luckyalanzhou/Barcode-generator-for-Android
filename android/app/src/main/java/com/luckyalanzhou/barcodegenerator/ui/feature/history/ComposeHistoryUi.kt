@@ -134,7 +134,7 @@ internal fun HistoryComposePage(
     }
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (isReady && (entries.isNotEmpty() || query.isNotEmpty())) {
+        if (isReady || query.isNotEmpty()) {
             val label = stringResource(R.string.history_search)
             LibrarySearchField(
                 query = query,

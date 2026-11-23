@@ -3,7 +3,7 @@ package com.luckyalanzhou.barcodegenerator
 import com.luckyalanzhou.barcodegenerator.domain.GenerateBarcodesUseCase
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateEditorStateHolder
 import com.luckyalanzhou.barcodegenerator.presentation.generate.GenerateViewModel
-import org.junit.Assert.assertFalse
+import com.luckyalanzhou.barcodegenerator.presentation.generate.OcrDraftResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,8 +22,20 @@ class GenerateViewModelTest {
             recognizedLines = listOf("OCR-RESULT"),
         )
 
-        assertFalse(applied)
+        assertEquals(OcrDraftResult.DraftChanged, applied)
         assertEquals(listOf("MANUAL-EDIT"), viewModel.uiState.value.inputDraft)
+    }
+
+    @Test
+    fun ocrAppendsToTheDraftAndKeepsItWhenTheCombinedResultExceedsCapacity() {
+        val viewModel = GenerateViewModel(GenerateEditorStateHolder(), GenerateBarcodesUseCase())
+        val draft = List(99) { "manual-$it" }
+        viewModel.updateDraft(draft)
+
+        assertEquals(OcrDraftResult.CapacityExceeded, viewModel.applyOcrResultIfDraftUnchanged(draft, listOf("A", "B")))
+        assertEquals(draft, viewModel.uiState.value.inputDraft)
+        assertEquals(OcrDraftResult.Appended, viewModel.applyOcrResultIfDraftUnchanged(draft, listOf("A")))
+        assertEquals(draft + "A", viewModel.uiState.value.inputDraft)
     }
 
     @Test

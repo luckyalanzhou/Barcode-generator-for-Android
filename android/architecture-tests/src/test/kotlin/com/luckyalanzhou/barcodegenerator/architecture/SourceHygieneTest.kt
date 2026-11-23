@@ -27,7 +27,7 @@ class SourceHygieneTest {
     @Test fun `local AI instructions session state and generated critiques are ignored`() {
         val ignoreRules = File("../.gitignore").readLines().map(String::trim)
         val localAiRules = listOf(
-            "AGENTS.md",
+            "**/AGENTS.md",
             "CLAUDE.md",
             "GEMINI.md",
             ".codex/",
@@ -39,6 +39,7 @@ class SourceHygieneTest {
         )
 
         assertTrue("本地 AI 文件规则缺失：${localAiRules - ignoreRules.toSet()}", localAiRules.all { it in ignoreRules })
+        assertTrue("仓库根目录的项目规则应允许跟踪", ignoreRules.indexOf("!/AGENTS.md") > ignoreRules.indexOf("**/AGENTS.md"))
         assertTrue("本地 AI 规则不应只匹配仓库根目录", localAiRules.none { it.startsWith("/") })
     }
 }

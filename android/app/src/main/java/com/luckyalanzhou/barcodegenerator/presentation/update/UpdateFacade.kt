@@ -32,7 +32,7 @@ internal class UpdateFacade(
     val events: Flow<UpdateEvent> = coordinator.events
 
     fun setStartupCheckStarted(value: Boolean) = coordinator.setStartupCheckStarted(value)
-    suspend fun checkForUpdates(): UpdateCheckResult = coordinator.checkForUpdates()
+    suspend fun checkForUpdates(): UpdateCheckResult = coordinator.checkForUpdates(joinExisting = true)
     fun setAvailableUpdate(version: String?, url: String?, expectedSize: Long?, sha256: String?, ignoreKey: String? = version) =
         coordinator.setAvailableUpdate(version, url, expectedSize, sha256, ignoreKey)
     fun clearAvailableUpdate() = coordinator.clearAvailableUpdate()

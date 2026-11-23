@@ -352,10 +352,9 @@ class LibraryDataCoordinatorLoggerFailureTest {
                     check(allowSnapshotReadToReturn.await(5, TimeUnit.SECONDS))
                     captured
                 }
-                "saveItems" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val savedItems = args!![0] as List<CodeItem>
-                    persisted.set(persisted.get().copy(items = savedItems))
+                "deleteHistoryBatch" -> {
+                    check(args!![0] == oldItem.historyBatchId && args[1] == oldItem.createdAt)
+                    persisted.set(persisted.get().copy(items = emptyList()))
                     deleteWriteFinished.countDown()
                     Unit
                 }

@@ -4,6 +4,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ResultExportBatchTest {
+    @Test fun oversizedQrBatchFitsWithoutDroppingRowsOrQuietZones() {
+        for (count in listOf(20, 100)) {
+            val compact = requireNotNull(compactQrExportDimensions(count, 1124, 11, 22))
+            assertTrue(compact.width in 185 until 1124)
+            assertEquals(compact.width * count + 11 * (count - 1) + 44, compact.height)
+            assertTrue(compact.height <= 32_767)
+            assertTrue(compact.width.toLong() * compact.height <= 24_000_000)
+        }
+    }
+
     @Test fun everyItemIsConsumedInOriginalOrderAndReleased() {
         val consumed = mutableListOf<String>()
         val released = mutableListOf<String>()

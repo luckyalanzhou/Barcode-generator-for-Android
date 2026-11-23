@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.data
 
 
 import android.content.Context
+import kotlinx.coroutines.flow.Flow
 import androidx.room.Dao
 import androidx.room.ColumnInfo
 import androidx.room.Database
@@ -89,10 +90,24 @@ interface BarcodeDao {
     suspend fun touchGroupsForItem(itemId: Long, savedAt: Long)
     @Query("UPDATE favorite_groups SET name = :name, folder = :folder, savedAt = :savedAt WHERE id = :groupId")
     suspend fun updateGroupMetadata(groupId: Long, name: String, folder: String, savedAt: Long)
+    @Query("SELECT * FROM code_items WHERE inHistory = 1")
+    fun observeHistoryItems(): Flow<List<CodeItemEntity>>
     @Query("SELECT * FROM code_items ORDER BY createdAt DESC, id DESC") suspend fun loadItems(): List<CodeItemEntity>
     @Query("SELECT id FROM code_items") suspend fun loadItemIds(): List<Long>
     @Query("SELECT DISTINCT itemId FROM favorite_group_items") suspend fun loadLinkedItemIds(): List<Long>
-    @Query("SELECT * FROM code_items WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500") suspend fun loadStartupItems(): List<CodeItemEntity>
+    @Query("""
+        WITH recent AS (
+            SELECT historyBatchId, createdAt FROM code_items
+            WHERE inHistory = 1 ORDER BY createdAt DESC, id DESC LIMIT 500
+        )
+        SELECT * FROM code_items
+        WHERE inHistory = 1 AND (
+            (historyBatchId <> '' AND historyBatchId IN (SELECT historyBatchId FROM recent))
+            OR (historyBatchId = '' AND createdAt IN (SELECT createdAt FROM recent WHERE historyBatchId = ''))
+        )
+        ORDER BY createdAt DESC, id DESC
+    """)
+    suspend fun loadStartupItems(): List<CodeItemEntity>
     @Query("SELECT * FROM code_items WHERE id IN (:ids)") suspend fun loadItemsByIds(ids: List<Long>): List<CodeItemEntity>
     @Query("SELECT DISTINCT ci.* FROM code_items ci INNER JOIN favorite_group_items gi ON gi.itemId = ci.id WHERE ci.favorite = 1 AND lower(ci.text) LIKE '%' || lower(:query) || '%' ESCAPE '\\' AND (:cursorCreatedAt IS NULL OR ci.createdAt < :cursorCreatedAt OR (ci.createdAt = :cursorCreatedAt AND ci.id < :cursorId)) ORDER BY ci.createdAt DESC, ci.id DESC LIMIT :limit") suspend fun searchFavoriteItems(query: String, limit: Int, cursorCreatedAt: Long?, cursorId: Long?): List<CodeItemEntity>
     // 不要对被 `favorite_group_items` 引用的记录使用 REPLACE：SQLite 会先删除再插入，导致收藏关联被级联删除。
@@ -113,6 +128,11 @@ interface BarcodeDao {
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (:ids)") suspend fun clearFavoriteFlags(ids: List<Long>)
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE favorite = 1") suspend fun clearAllFavoriteFlags()
     @Query("UPDATE code_items SET inHistory = 0") suspend fun clearAllHistoryFlags()
+    @Query("""
+        UPDATE code_items SET inHistory = 0 WHERE inHistory = 1 AND historyBatchId = :historyBatchId
+        AND (:historyBatchId <> '' OR createdAt = :legacyCreatedAt)
+    """)
+    suspend fun clearHistoryBatchFlags(historyBatchId: String, legacyCreatedAt: Long)
     @Query("UPDATE code_items SET favorite = 0, folder = '' WHERE id IN (SELECT itemId FROM favorite_group_items WHERE groupId IN (:groupIds)) AND NOT EXISTS (SELECT 1 FROM favorite_group_items remaining WHERE remaining.itemId = code_items.id AND remaining.groupId NOT IN (:groupIds))") suspend fun clearFavoriteFlagsForGroups(groupIds: List<Long>)
 
     @Query("SELECT * FROM favorite_groups ORDER BY savedAt DESC, id DESC") suspend fun loadGroups(): List<FavoriteGroupEntity>

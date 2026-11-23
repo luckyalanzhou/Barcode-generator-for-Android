@@ -672,25 +672,25 @@ class FavoritesImportRefreshTest {
     }
 
     @Test
-    fun historyBatchDeleteWaitsForLibraryMutationAndPersistsTheFreshSnapshot() = runBlocking {
+    fun historyBatchDeleteWaitsForLibraryMutationAndPreservesTheImportedFavorite() = runBlocking {
         val oldItem = CodeItem(1L, "old-item", "Code 128-B", favorite = false, inHistory = true)
         val importedItem = CodeItem(
             1L,
             "imported-item",
             "Code 128-B",
             favorite = true,
+            createdAt = oldItem.createdAt,
             folder = "导入目录",
             inHistory = true,
         )
-        val persistedItems = CompletableDeferred<List<CodeItem>>()
+        val persistedBatch = CompletableDeferred<Pair<String, Long>>()
         val repository = Proxy.newProxyInstance(
             BarcodeRepository::class.java.classLoader,
             arrayOf(BarcodeRepository::class.java),
         ) { _, method, args ->
             when (method.name) {
-                "saveItems" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    persistedItems.complete((args!![0] as List<CodeItem>).map(CodeItem::copy))
+                "deleteHistoryBatch" -> {
+                    persistedBatch.complete((args!![0] as String) to (args[1] as Long))
                     Unit
                 }
                 else -> error("Unexpected repository operation: ${method.name}")
@@ -721,12 +721,13 @@ class FavoritesImportRefreshTest {
             dataSession.publishDataState(isReady = true)
         }
 
-        val saved = withTimeout(5_000) { persistedItems.await() }
-        assertEquals("imported-item", saved.single().text)
-        assertTrue("the imported favorite flag must survive history deletion", saved.single().favorite)
-        assertEquals("导入目录", saved.single().folder)
-        assertFalse("the requested history deletion must still be applied", saved.single().inHistory)
+        assertEquals("" to oldItem.createdAt, withTimeout(5_000) { persistedBatch.await() })
         persistence.awaitPendingWrites()
+        val item = dataSession.store.itemsSnapshot().single()
+        assertEquals("imported-item", item.text)
+        assertTrue("the imported favorite flag must survive history deletion", item.favorite)
+        assertEquals("导入目录", item.folder)
+        assertFalse("the requested history deletion must still be applied", item.inHistory)
     }
 
     @Test

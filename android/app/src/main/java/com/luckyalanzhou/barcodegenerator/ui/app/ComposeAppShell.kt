@@ -15,6 +15,8 @@ import com.luckyalanzhou.barcodegenerator.presentation.shared.LibraryDataViewMod
 import com.luckyalanzhou.barcodegenerator.presentation.lanshare.LanShareQrBitmapFactory
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrViewModel
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
+import com.luckyalanzhou.barcodegenerator.presentation.generate.OcrDraftResult
+import com.luckyalanzhou.barcodegenerator.domain.MAX_GENERATE_INPUT_ROWS
 import com.luckyalanzhou.barcodegenerator.MainActivity
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 import com.luckyalanzhou.barcodegenerator.ui.animation.ComposeAnimationConfig
@@ -410,9 +412,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onLongPressActionMenuRequested = ::showMenu,
                     showSelectionIndicator = tabMenu.menu == null,
-                    showOnlySelectedTab = tabMenu.menu?.tabAnchor == true,
+                    hideTabItems = tabMenu.menu?.tabAnchor == true,
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                        .then(if (extendsToBottom) Modifier.windowInsetsPadding(navigationInsets.only(WindowInsetsSides.Bottom)) else Modifier)
+                        .windowInsetsPadding(navigationInsets)
                         .padding(bottom = shellInsets.tabBarBottomPadding)
                         .padding(horizontal = dimensions.pageHorizontalPadding).height(dimensions.bottomTabBarHeight)
                         .then(if (tabMenu.menu != null) Modifier.clearAndSetSemantics { }
@@ -467,7 +469,7 @@ private fun AppPageContent(
 @Composable
 internal fun CameraOcrEventCollector(
     events: Flow<CameraOcrEvent>,
-    onRecognizedText: (List<String>, List<String>?) -> Boolean,
+    onRecognizedText: (List<String>, List<String>?) -> OcrDraftResult,
     onNavigateToGenerate: () -> Unit,
     onNotice: (String) -> Unit,
 ) {
@@ -482,8 +484,12 @@ internal fun CameraOcrEventCollector(
                     val applied = currentOnRecognizedText(event.lines, event.expectedDraft)
                     currentOnNavigateToGenerate()
                     currentOnNotice(
-                        if (applied) localizedResources.getString(R.string.ocr_added_lines)
-                        else localizedResources.getString(R.string.ocr_draft_changed),
+                        when (applied) {
+                            OcrDraftResult.Appended -> localizedResources.getString(R.string.ocr_added_lines)
+                            OcrDraftResult.DraftChanged -> localizedResources.getString(R.string.ocr_draft_changed)
+                            OcrDraftResult.CapacityExceeded ->
+                                localizedResources.getString(R.string.input_capacity_exceeded, MAX_GENERATE_INPUT_ROWS)
+                        },
                     )
                 }
                 is CameraOcrEvent.Notice -> currentOnNotice(

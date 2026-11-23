@@ -1,5 +1,7 @@
 package com.luckyalanzhou.barcodegenerator.data
 
+import kotlinx.coroutines.flow.map
+
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroup
 import com.luckyalanzhou.barcodegenerator.domain.FavoriteGroupItem
@@ -21,6 +23,8 @@ private const val SQLITE_SAFE_REPEATED_ID_BATCH_SIZE = SQLITE_SAFE_ID_BATCH_SIZE
 /** Room 实现；只在 Data 层处理 Entity 和旧版数据迁移。 */
 class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepository {
     private val dao get() = database.barcodeDao()
+
+    override fun observeHistoryItems() = dao.observeHistoryItems().map { items -> items.map { it.toDomain() } }
 
     override suspend fun saveAll(snapshot: BarcodeSnapshot) {
         database.withTransaction {
@@ -90,6 +94,13 @@ class RoomBarcodeRepository(private val database: BarcodeDatabase) : BarcodeRepo
             // 调用方只持有最近的有限历史窗口；缺席的旧记录不是删除指令。
             dao.upsertItems(items.map(CodeItem::toEntity))
             dao.reconcileFavoriteFlags()
+            dao.deleteUnreferencedItemsNotInHistory()
+        }
+    }
+
+    override suspend fun deleteHistoryBatch(historyBatchId: String, legacyCreatedAt: Long) {
+        database.withTransaction {
+            dao.clearHistoryBatchFlags(historyBatchId, legacyCreatedAt)
             dao.deleteUnreferencedItemsNotInHistory()
         }
     }

@@ -619,7 +619,6 @@ async function uploadFile(file) {
             uploadRecords.delete(transferId);
             renderTimeline();
         }
-        if (messageInput) messageInput.value = '';
     } catch (error) {
         uploadRecords.delete(transferId);
         renderTimeline();

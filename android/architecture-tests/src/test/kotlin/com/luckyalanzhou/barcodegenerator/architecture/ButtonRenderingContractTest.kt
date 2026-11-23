@@ -119,7 +119,7 @@ class ButtonRenderingContractTest {
 
     @Test fun `ordinary action entry points share the same static outline`() {
         for (name in listOf("ComposeSettingsComponents.kt",
-            "ComposeCommonDialogs.kt", "EditorChoiceField.kt", "FavoriteSaveForm.kt",
+            "ComposeCommonDialogs.kt", "EditorChoiceField.kt",
             "LanShareInputBar.kt",
             "LanShareContent.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
             "ComposeLanShareQrDialog.kt",
@@ -150,8 +150,9 @@ class ButtonRenderingContractTest {
     }
 
     @Test fun `requested controls reuse result action rim while unframed pickers stay unframed`() {
+        assertTrue(source("FavoriteSaveForm.kt").contains("ComposeChoiceField("))
         for (name in listOf("ComposeSettingsComponents.kt", "ComposeCommonDialogs.kt", "EditorChoiceField.kt",
-            "FavoriteSaveForm.kt", "ComposeLanShareQrDialog.kt",
+            "ComposeLanShareQrDialog.kt",
             "LanShareImagePreviewDialog.kt", "LanShareContent.kt", "LanShareInputBar.kt",
             "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt")) {
             assertTrue("$name 的既有外框必须复用结果页边缘高光", source(name).contains(".resultActionEdgeChrome("))
@@ -214,8 +215,9 @@ class ButtonRenderingContractTest {
     }
 
     @Test fun `ordinary buttons share explicit press feedback without taking over callbacks`() {
+        assertTrue(source("FavoritesContent.kt").contains("LibrarySearchField("))
         for (name in listOf("GenerateContent.kt", "ComposeGenerateActionButton.kt", "EditorChoiceField.kt",
-            "FavoriteSaveForm.kt", "FavoritesContent.kt", "ComposeLanShareQrDialog.kt",
+            "FavoriteSaveForm.kt", "LibrarySearchField.kt", "ComposeLanShareQrDialog.kt",
             "LanShareImagePreviewDialog.kt", "ComposeSettingsComponents.kt",
             "LanShareInputBar.kt", "LanShareMessageBubble.kt", "LanShareUploadingBubble.kt",
             "ComposeCommonDialogs.kt")) {

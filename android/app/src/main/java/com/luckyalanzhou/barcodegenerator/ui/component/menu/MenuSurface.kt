@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -54,7 +53,6 @@ import com.kyant.backdrop.shadow.Shadow
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
-import kotlin.math.tanh
 
 /** 操作菜单和上下文菜单共享 Kyant 材质；跨窗口背景按屏幕坐标采样。 */
 @Composable
@@ -70,7 +68,6 @@ internal fun MenuSurface(
     backdropRenderer: BackdropRenderer? = null,
     screenBackdropCaptureKey: Any? = Unit,
     waitForScreenBackdropFrame: Boolean = false,
-    externalGlassMotion: State<Offset>? = null,
     backdropWindow: android.view.Window? = null,
     trackPointer: Boolean = true,
     drawBottomOutline: Boolean = true,
@@ -92,8 +89,7 @@ internal fun MenuSurface(
     val touch = remember { GlassPointerTracker() }
     val press by animateFloatAsState(if (trackPointer && touch.isPressed) 1f else 0f,
         if (policy.reduceMotion) snap() else spring(.7f, 400f), label = "menu-glass-contact")
-    val currentGlassMotion = { externalGlassMotion?.value ?: Offset.Zero }
-    val glassProgress = { maxOf(press, currentGlassMotion().getDistance().coerceIn(0f, 1f)) }
+    val glassProgress = { press }
     val layoutDirection = LocalLayoutDirection.current
     var heightDp by remember { mutableFloatStateOf(80f) }
     val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp,
@@ -141,17 +137,6 @@ internal fun MenuSurface(
             val rim = ((if (clearerGlass) 16f else 12f) + 6f * strength).coerceAtMost(cornerDp)
             if (rim > 0f) lens(rim.dp.toPx(), (10f + 10f * strength).dp.toPx())
         },
-        layerBlock = {
-            val strength = glassProgress()
-            val motion = currentGlassMotion()
-            val drag = if (touch.isPressed) touch.dragOffset else Offset.Zero
-            val maxOffset = size.minDimension.coerceAtLeast(1f)
-            translationX = maxOffset * tanh(.05f * drag.x / maxOffset) + motion.x * 2.dp.toPx()
-            translationY = maxOffset * tanh(.05f * drag.y / maxOffset) + motion.y * 2.dp.toPx()
-            val scale = 1f + .02f * strength
-            scaleX = scale
-            scaleY = scale
-        },
         highlight = if (drawKyantHighlight) {
             { Highlight.Default.copy(alpha = .36f + .28f * glassProgress()) }
         } else null,
@@ -174,15 +159,7 @@ internal fun MenuSurface(
             } else {
                 drawRect(color.copy(alpha = edgeTint))
             }
-            val motion = currentGlassMotion()
-            val localTouch = if (touch.isPressed || (strength > .001f && motion == Offset.Zero)) {
-                touch.touchPosition
-            } else if (strength > .001f) {
-                Offset(size.width * (.5f + .35f * motion.x), size.height * (.5f + .35f * motion.y))
-            } else {
-                touch.touchPosition
-            }
-            drawGlassTouchHighlight(localTouch, strength, if (surfaceLuminance > .5f) .14f else .18f)
+            drawGlassTouchHighlight(touch.touchPosition, strength, if (surfaceLuminance > .5f) .14f else .18f)
         },
     ) else Modifier).clip(shape).then(if (trackPointer) touch.pointerModifier else Modifier).onSizeChanged {
         heightDp = with(density) { it.height.toDp().value }

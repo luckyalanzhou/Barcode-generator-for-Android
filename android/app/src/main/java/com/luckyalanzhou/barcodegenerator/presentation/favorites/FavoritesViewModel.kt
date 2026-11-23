@@ -292,6 +292,7 @@ class FavoritesViewModel @Inject constructor(
         name: String,
     ): Boolean = withDurableMutation {
         try {
+            persistence.loadMissingItems(dataSession.store, resultItemIds)
             if (!mutations.saveResultAsFavorite(resultItemIds, editingGroupId, targetGroupId, folder, name)) return@withDurableMutation false
         } catch (cancelled: CancellationException) {
             restoreAfterMutationFailure(cancelled)

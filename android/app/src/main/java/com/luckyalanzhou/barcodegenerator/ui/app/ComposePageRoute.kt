@@ -2,6 +2,7 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import com.luckyalanzhou.barcodegenerator.domain.BarcodeInputError
 import androidx.compose.ui.platform.LocalResources
+import com.luckyalanzhou.barcodegenerator.ui.app.platform.updateFailureMessage
 import androidx.compose.ui.res.stringResource
 import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.canonicalBarcodeFormatName
@@ -128,15 +129,18 @@ private fun ComposePageRoute(
                 val historyState by historyViewModel.dataState.collectAsStateWithLifecycle()
                 val refreshGeneration by historyViewModel.refreshGeneration.collectAsStateWithLifecycle()
                 val query by historyViewModel.query.collectAsStateWithLifecycle()
+                val search by historyViewModel.search.collectAsStateWithLifecycle()
+                val searching = query.isNotBlank()
+                val currentSearch = search.takeIf { it.term == query.trim() }
                 val settings by dependencies.settingsViewModel.uiState.collectAsStateWithLifecycle()
                 val density = LocalDensity.current.density
                 HistoryScreen(
                     query = query,
                     onQueryChange = historyViewModel::updateQuery,
                     listBottomPadding = listBottomPadding,
-                    items = historyState.items,
-                    isReady = historyState.isReady,
-                    loadFailed = historyState.loadFailed,
+                    items = if (searching) currentSearch?.items.orEmpty() else historyState.items,
+                    isReady = historyState.isReady && (!searching || currentSearch?.items != null),
+                    loadFailed = historyState.loadFailed || currentSearch?.failed == true,
                     refreshGeneration = refreshGeneration,
                     dark = dark,
                     onOpen = { batch ->
@@ -155,7 +159,7 @@ private fun ComposePageRoute(
                             historyViewModel.deleteHistoryBatch(batch)
                         }
                     },
-                    onRetry = ::retryLibraryLoad,
+                    onRetry = if (currentSearch?.failed == true) historyViewModel::refreshHistory else ::retryLibraryLoad,
                 )
             }
             AppRoute.Favorites -> {
@@ -350,11 +354,22 @@ private fun ComposePageRoute(
                 )
             }
             AppRoute.AboutUs -> {
-                val manualCheckResult by dependencies.updateViewModel.manualCheckResult.collectAsStateWithLifecycle()
+                val manualCheckState by dependencies.updateViewModel.manualCheckResult.collectAsStateWithLifecycle()
+                val manualCheckResult = manualCheckState
+                val status = when (manualCheckResult) {
+                    is UpdateCheckResult.Available ->
+                        localizedResources.getString(R.string.about_update_found, manualCheckResult.version)
+                    UpdateCheckResult.UpToDate -> localizedResources.getString(R.string.latest_version_installed)
+                    is UpdateCheckResult.Failed ->
+                        localizedResources.updateFailureMessage(manualCheckResult.reason, manualCheckResult.httpStatus)
+                    UpdateCheckResult.InProgress, null -> null
+                }
                 AboutUsContent(
                     appVersion = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_NAME,
                     versionCode = com.luckyalanzhou.barcodegenerator.BuildConfig.VERSION_CODE,
-                    manualCheckResult = manualCheckResult,
+                    checkingForUpdates = manualCheckResult == UpdateCheckResult.InProgress,
+                    status = status,
+                    updateFailed = manualCheckResult is UpdateCheckResult.Failed,
                     dark = dark,
                     onBack = { dependencies.actions.navigateTo(AppRoute.Settings) },
                     onOpenLicenses = { dependencies.actions.navigateTo(AppRoute.Licenses) },

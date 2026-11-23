@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.domain
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
 /** 收藏分组与条码之间的持久化关联。 */
 data class FavoriteGroupItem(
     val groupId: Long,
@@ -72,6 +75,7 @@ interface BarcodeRepository {
     suspend fun applyFavoritesMutation(snapshot: BarcodeSnapshot)
     /** 只更新传入的条码快照；未包含的记录可能位于有限加载窗口之外，不能视为删除。 */
     suspend fun saveItems(items: List<CodeItem>)
+    suspend fun deleteHistoryBatch(historyBatchId: String, legacyCreatedAt: Long)
     /** 清除所有已保存的历史记录，包括启动快照范围之外的记录，同时保留收藏。 */
     suspend fun clearHistory()
     suspend fun upsertItems(items: List<CodeItem>)
@@ -97,6 +101,7 @@ interface BarcodeRepository {
     suspend fun deleteFavoriteFolder(path: String)
     suspend fun saveFavoriteFolders(folders: List<String>)
 
+    fun observeHistoryItems(): Flow<List<CodeItem>> = flow { emit(loadItems().filter { it.inHistory }) }
     suspend fun loadItems(): List<CodeItem>
     suspend fun loadGroups(): List<FavoriteGroup>
     suspend fun loadGroupItems(): List<FavoriteGroupItem>

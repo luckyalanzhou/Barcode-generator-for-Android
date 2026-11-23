@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -63,15 +62,8 @@ class UpdateViewModel @Inject constructor(
     private val ignoreOperation = AtomicLong(0L)
 
     fun setStartupCheckStarted(value: Boolean) = updateFacade.setStartupCheckStarted(value)
-    /** 并发检查时等待并重试，确保手动检查不会被静默启动检查吞掉。 */
-    suspend fun checkForUpdates(): UpdateCheckResult {
-        while (true) {
-            when (val result = updateFacade.checkForUpdates()) {
-                UpdateCheckResult.InProgress -> uiState.first { !it.checking }
-                else -> return result
-            }
-        }
-    }
+    /** 自动与手动检查并发时，等待同一份结果。 */
+    suspend fun checkForUpdates(): UpdateCheckResult = updateFacade.checkForUpdates()
     /** 手动更新检查归 ViewModel 持有，Activity 重建后仍可消费完成结果。 */
     fun startManualCheck(showCompletionNotice: Boolean = true) =
         startManualCheck(viewModelScope, showCompletionNotice)
@@ -80,7 +72,7 @@ class UpdateViewModel @Inject constructor(
         if (_manualCheckResult.value == UpdateCheckResult.InProgress) return
         _manualCheckResult.value = UpdateCheckResult.InProgress
         scope.launch {
-            // The UI deadline must also hold when a blocking connection takes time to unwind.
+            // The timeout applies to this caller, so startup can still receive the shared result.
             val request = scope.async { checkForUpdates() }
             val result = try {
                 withTimeoutOrNull(MANUAL_UPDATE_CHECK_TIMEOUT_MILLIS) { request.await() }
@@ -88,8 +80,6 @@ class UpdateViewModel @Inject constructor(
             } catch (cancelled: CancellationException) {
                 _manualCheckResult.value = null
                 throw cancelled
-            } finally {
-                request.cancel()
             }
             _manualCheckResult.value = result
             if (result is UpdateCheckResult.Available && uiState.value.availableUpdateKey == result.ignoreKey) {
@@ -107,44 +97,42 @@ class UpdateViewModel @Inject constructor(
         if (uiState.value.startupCheckStarted) return
         setStartupCheckStarted(true)
         scope.launch {
-            while (true) {
-                when (val result = checkForUpdates()) {
-                    UpdateCheckResult.InProgress -> uiState.first { !it.checking }
-                    is UpdateCheckResult.Available -> {
-                        val storedIgnoredVersion = try {
-                            settingsRepository.getIgnoredUpdateVersion()
+            when (val result = checkForUpdates()) {
+                UpdateCheckResult.InProgress -> return@launch
+                is UpdateCheckResult.Available -> {
+                    val storedIgnoredVersion = try {
+                        settingsRepository.getIgnoredUpdateVersion()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (interrupted: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        logger.recordSafely("update", "ignored version read interrupted", interrupted, interrupted)
+                        null
+                    } catch (error: Exception) {
+                        logger.recordSafely("update", "ignored version read failed", error, error)
+                        null
+                    }
+                    // 旧版只存版本名；首次命中时迁移为当前构建身份，兼容已有忽略记录。
+                    val ignoredVersion = if (storedIgnoredVersion == result.version && result.ignoreKey != result.version) {
+                        try {
+                            settingsRepository.setIgnoredUpdateVersion(result.ignoreKey)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
-                        } catch (interrupted: InterruptedException) {
-                            Thread.currentThread().interrupt()
-                            logger.recordSafely("update", "ignored version read interrupted", interrupted, interrupted)
-                            null
                         } catch (error: Exception) {
-                            logger.recordSafely("update", "ignored version read failed", error, error)
-                            null
+                            logger.recordSafely("update", "ignored version migration failed", error, error)
                         }
-                        // 旧版只存版本名；首次命中时迁移为当前构建身份，兼容已有忽略记录。
-                        val ignoredVersion = if (storedIgnoredVersion == result.version && result.ignoreKey != result.version) {
-                            try {
-                                settingsRepository.setIgnoredUpdateVersion(result.ignoreKey)
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (error: Exception) {
-                                logger.recordSafely("update", "ignored version migration failed", error, error)
-                            }
-                            result.ignoreKey
-                        } else {
-                            storedIgnoredVersion
-                        }
-                        // 设置读取可能等待；手动检查期间若当前版本已被替换或清空，不展示旧启动结果。
-                        if (uiState.value.availableUpdateKey == result.ignoreKey && ignoredVersion != result.ignoreKey) {
-                            setDialogShowing(true)
-                        }
-                        return@launch
+                        result.ignoreKey
+                    } else {
+                        storedIgnoredVersion
                     }
-                    UpdateCheckResult.UpToDate -> return@launch
-                    is UpdateCheckResult.Failed -> return@launch
+                    // 设置读取可能等待；手动检查期间若当前版本已被替换或清空，不展示旧启动结果。
+                    if (uiState.value.availableUpdateKey == result.ignoreKey && ignoredVersion != result.ignoreKey) {
+                        setDialogShowing(true)
+                    }
+                    return@launch
                 }
+                UpdateCheckResult.UpToDate -> return@launch
+                is UpdateCheckResult.Failed -> return@launch
             }
         }
     }

@@ -6,6 +6,7 @@ import com.luckyalanzhou.barcodegenerator.ui.dialogs.*
 
 import com.luckyalanzhou.barcodegenerator.ui.theme.*
 
+import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.BarcodeImageColors
 import com.luckyalanzhou.barcodegenerator.barcodeFormatId
 import com.luckyalanzhou.barcodegenerator.MainActivity
@@ -13,7 +14,9 @@ import com.luckyalanzhou.barcodegenerator.ui.support.logging.DebugLog
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.ResultExportAction
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.startExclusiveResultExport
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.composeResultRowImage
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.isCode128ResultFormat
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.consumeCompleteExportBatch
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.compactQrExportDimensions
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultExportDimensions
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultImageRowSize
 import com.luckyalanzhou.barcodegenerator.ui.feature.results.resultImageSpacing
@@ -105,17 +108,28 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? =
     val contentWidth = resultImageContentWidthPx.takeIf { it > 0 } ?: return@handoffCancellableResource null
     withContext(Dispatchers.Default) {
         if (resultItems.isEmpty()) return@withContext null
+        var exportWidth = contentWidth
+        for (item in resultItems) {
+            if (!isCode128ResultFormat(item)) continue
+            val barcodeWidth = resultsViewModel.measureCode128Width(item.text, style, density) ?: return@withContext null
+            exportWidth = maxOf(exportWidth, barcodeWidth)
+        }
         val rowSizes = resultItems.map { item ->
-            resultImageRowSize(item, style, contentWidth, density, fontScale)
+            resultImageRowSize(item, style, exportWidth, density, fontScale)
         }
         val spacing = resultImageSpacing(style.margin, density)
         val outerPadding = (8 * density).toInt().coerceAtLeast(0)
-        val pageSize = resultExportDimensions(
+        val fullSize = resultExportDimensions(
             rowWidths = rowSizes.map { it.width },
             rowHeights = rowSizes.map { it.height },
             spacing = spacing,
             outerPadding = outerPadding,
-        ) ?: return@withContext null
+        )
+        val compactSize = if (fullSize == null && resultItems.all { barcodeFormatId(it.format) == BarcodeFormatIds.QR_CODE }) {
+            compactQrExportDimensions(resultItems.size, contentWidth, spacing, outerPadding)
+        } else null
+        val pageSize = fullSize ?: compactSize ?: return@withContext null
+        val rowWidth = compactSize?.width ?: exportWidth
 
         val pageImage = createBitmap(pageSize.width, pageSize.height, Bitmap.Config.ARGB_8888)
         var completed = false
@@ -126,7 +140,8 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? =
             val batchComplete = consumeCompleteExportBatch(
                 items = resultItems,
                 render = { item ->
-                    resultsViewModel.createBarcodeImage(
+                    val image = if (compactSize != null) resultsViewModel.createQrExportImage(item.text, rowWidth, dark)
+                    else resultsViewModel.createBarcodeImage(
                         item.text,
                         barcodeFormatId(item.format),
                         style,
@@ -134,10 +149,13 @@ private suspend fun MainActivity.createResultPageImage(): ResultPageImage? =
                         density,
                         // 深色结果页保留浅色条码静区，供外部扫描枪稳定识别。
                         withBackground = dark,
-                    )?.let { bitmap -> item to bitmap }
+                    )
+                    image?.let { bitmap -> item to bitmap }
                 },
                 consume = { (item, barcode) ->
-                    val row = composeResultRowImage(barcode, item, style, dark, contentWidth, density, fontScale)
+                    val row = composeResultRowImage(
+                        barcode, item, style, dark, rowWidth, density, fontScale, preserveCode128Pixels = true,
+                    )
                     try {
                         canvas.drawBitmap(row, (pageSize.width - row.width) / 2f, top.toFloat(), null)
                         top += row.height + spacing

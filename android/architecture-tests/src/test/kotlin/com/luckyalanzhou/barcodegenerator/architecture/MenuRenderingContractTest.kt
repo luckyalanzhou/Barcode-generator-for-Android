@@ -78,12 +78,17 @@ class MenuRenderingContractTest {
 
     @Test fun `choice check precedes label and shares its text color`() {
         val item = source("MenuChoiceItem.kt")
-        assertTrue(item.indexOf("Box(Modifier.width(iconSize)") < item.indexOf("Text(label,"))
+        val labelPosition = item.indexOf("Text(label,")
+        val leadingMark = item.indexOf("if (!trailingCheckmark)")
+        val trailingMark = item.indexOf("if (trailingCheckmark)", labelPosition)
+        assertTrue(leadingMark >= 0 && leadingMark < labelPosition && labelPosition < trailingMark)
+        assertTrue(item.substring(leadingMark, labelPosition).contains("checkmark()"))
+        assertTrue(item.substring(trailingMark).contains("checkmark()"))
         assertTrue(item.contains("Canvas(Modifier.size(iconSize)"))
         assertTrue(item.contains("checkmarkGlyphScale = .84f"))
         assertTrue(item.contains("checkmarkGlyphScale * .13f"))
-        assertTrue(item.contains("drawLine(colors.text.primary"))
-        assertTrue(item.contains("Text(label, color = colors.text.primary"))
+        assertTrue(item.contains("drawLine(labelColor"))
+        assertTrue(item.contains("Text(label, color = labelColor"))
         assertTrue(item.contains("clearAndSetSemantics"))
     }
 

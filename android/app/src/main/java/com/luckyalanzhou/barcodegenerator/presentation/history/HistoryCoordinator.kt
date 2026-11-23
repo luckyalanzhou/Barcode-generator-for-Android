@@ -12,13 +12,17 @@ import com.luckyalanzhou.barcodegenerator.domain.CodeItem
  */
 internal class HistoryCoordinator(
     private val store: LibraryStateStore,
-    private val persistItems: (List<CodeItem>) -> Unit,
+    private val persistDeletion: (String, Long) -> Unit,
 ) {
     fun deleteBatch(batch: List<CodeItem>) {
-        val ids = batch.map { it.id }.toSet()
-        if (ids.isEmpty()) return
-        store.edit { items.filter { it.id in ids }.forEach { it.inHistory = false } }
-        persistItems(store.itemsSnapshot())
+        val first = batch.firstOrNull() ?: return
+        val batchId = first.historyBatchId
+        store.edit {
+            items.filter { item ->
+                item.historyBatchId == batchId && (batchId.isNotEmpty() || item.createdAt == first.createdAt)
+            }.forEach { it.inHistory = false }
+        }
+        persistDeletion(batchId, first.createdAt)
     }
 
     fun clearHistory() {

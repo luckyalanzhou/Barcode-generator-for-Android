@@ -14,12 +14,14 @@ import com.luckyalanzhou.barcodegenerator.domain.AppLogger
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 import com.luckyalanzhou.barcodegenerator.presentation.shared.BarcodeImageCache
+import com.luckyalanzhou.barcodegenerator.ui.feature.results.composeResultRowImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -157,6 +159,53 @@ class BarcodePreviewTransparencyTest {
             assertTrue("结果条码只包含深色条纹和对应静区", colors.all {
                 it == expectedBackgroundColor || it == expectedBarColor
             })
+        }
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun minimumWidthLongCode128DecodesAfterResultExportInBothThemes() {
+        val item = CodeItem(1, "QA" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(4), "Code 128-B")
+        val style = StyleSettings(barWidth = 120f)
+        val renderer = ZxingBarcodeImageRenderer(InMemoryBarcodeImageCache(), AppLogger { _, _, _ -> })
+        for (dark in listOf(false, true)) {
+            val raw = requireNotNull(renderer.loadOrCreate(item, style, dark, density = 3f))
+            val exportWidth = requireNotNull(renderer.measureCode128Width(item.text, style, density = 3f))
+            assertEquals(raw.width, exportWidth)
+            val row = composeResultRowImage(
+                raw, item, style, dark, exportWidth, density = 3f, fontScale = 1f, preserveCode128Pixels = true,
+            )
+            try {
+                val pixels = IntArray(row.width * row.height)
+                row.getPixels(pixels, 0, row.width, 0, 0, row.width, row.height)
+                val image = BinaryBitmap(HybridBinarizer(RGBLuminanceSource(row.width, row.height, pixels)))
+                val decoded = MultiFormatReader().decode(image, mapOf(DecodeHintType.TRY_HARDER to true))
+                assertEquals(item.text, decoded.text)
+            } finally {
+                row.recycle()
+                raw.recycle()
+            }
+        }
+    }
+
+    @Test
+    fun compactExportReencodesDenseQrAtTheRequestedPixelWidth() {
+        val renderer = ZxingBarcodeImageRenderer(InMemoryBarcodeImageCache(), AppLogger { _, _, _ -> })
+        val value = "QA" + "A".repeat(4294)
+        for (dark in listOf(false, true)) {
+            val bitmap = requireNotNull(renderer.createQrExportImage(value, 316, dark))
+            try {
+                assertEquals(316, bitmap.width)
+                val pixels = IntArray(bitmap.width * bitmap.height)
+                bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                pixels.indices.forEach { if (Color.alpha(pixels[it]) == 0) pixels[it] = Color.WHITE }
+                val source = RGBLuminanceSource(bitmap.width, bitmap.height, pixels)
+                val decoded = MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(source)),
+                    mapOf(DecodeHintType.TRY_HARDER to true, DecodeHintType.PURE_BARCODE to true))
+                assertEquals(value, decoded.text)
+            } finally {
+                bitmap.recycle()
+            }
         }
     }
 

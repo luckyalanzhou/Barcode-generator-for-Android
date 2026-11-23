@@ -371,6 +371,8 @@ private class FakeFavoriteRepository(
     private val beforeLoadPage: suspend () -> Unit = {},
     private val beforeLoadGroupContent: suspend (Long) -> FavoriteGroupContent? = { null },
 ) : BarcodeRepository {
+    override suspend fun deleteHistoryBatch(historyBatchId: String, legacyCreatedAt: Long) =
+        error("History deletion is not used by these query tests")
     val requestedCursors = mutableListOf<FavoriteGroupPageCursor?>()
 
     override suspend fun loadFavoriteGroupPage(limit: Int, cursor: FavoriteGroupPageCursor?): List<FavoriteGroup> {

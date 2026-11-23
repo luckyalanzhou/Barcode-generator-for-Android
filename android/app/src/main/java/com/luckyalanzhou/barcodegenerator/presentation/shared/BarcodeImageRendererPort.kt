@@ -1,12 +1,24 @@
 package com.luckyalanzhou.barcodegenerator.presentation.shared
 
 import android.graphics.Bitmap
+import com.luckyalanzhou.barcodegenerator.BarcodeFormatIds
 import com.luckyalanzhou.barcodegenerator.domain.CodeItem
 import com.luckyalanzhou.barcodegenerator.domain.StyleSettings
 
 /** 页面层生成条码图片的接口，不暴露具体条码库。 */
 interface BarcodeImageRenderer {
     fun loadOrCreate(item: CodeItem, style: StyleSettings, dark: Boolean, density: Float): Bitmap?
+
+    fun measureCode128Width(text: String, style: StyleSettings, density: Float): Int? {
+        val bitmap = create(text, BarcodeFormatIds.CODE_128, style, dark = false, density = density) ?: return null
+        return try {
+            bitmap.width
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    fun createQrExportImage(text: String, width: Int, dark: Boolean): Bitmap? = null
 
     fun create(
         text: String,

@@ -19,6 +19,14 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE, sdk = [35])
 class LanShareWebScriptTest {
     @Test
+    fun attachingFilesLeavesTheSeparateTextDraftIntact() {
+        val script = LanShareWebTemplates.page()
+        val upload = script.substringAfter("async function uploadFile(file)").substringBefore("uploadForm.onsubmit")
+        assertTrue(upload.contains("request.send(file)"))
+        assertFalse(upload.contains("messageInput.value"))
+    }
+
+    @Test
     fun defaultPageDeclaresSimplifiedChineseAndSuppliesRuntimeMessages() {
         val page = LanShareWebTemplates.page()
 

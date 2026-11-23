@@ -12,7 +12,9 @@ import com.luckyalanzhou.barcodegenerator.domain.UpdateLookupResult
 import com.luckyalanzhou.barcodegenerator.presentation.shared.recordSafely
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +25,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 
 /** 更新领域的协调器，负责检查、下载、校验以及一次性更新事件。 */
 internal class UpdateCoordinator(
@@ -46,18 +47,33 @@ internal class UpdateCoordinator(
 
     private val downloadGeneration = AtomicLong(0L)
     private var downloadJob: Job? = null
-    private val checkMutex = Mutex()
+    private val activeCheck = AtomicReference<CompletableDeferred<UpdateCheckResult>?>(null)
 
     fun setStartupCheckStarted(value: Boolean) {
         _uiState.update { it.copy(startupCheckStarted = value) }
     }
 
-    suspend fun checkForUpdates(): UpdateCheckResult {
-        if (!checkMutex.tryLock()) {
+    suspend fun checkForUpdates(joinExisting: Boolean = false): UpdateCheckResult {
+        val request = CompletableDeferred<UpdateCheckResult>()
+        while (!activeCheck.compareAndSet(null, request)) {
+            val running = activeCheck.get() ?: continue
+            if (joinExisting) return running.await()
             recordSafely("check skipped reason=in_progress", null, null)
             return UpdateCheckResult.InProgress
         }
         _uiState.update { it.copy(checking = true) }
+        try {
+            return fetchUpdate().also { request.complete(it) }
+        } catch (failure: Throwable) {
+            request.completeExceptionally(failure)
+            throw failure
+        } finally {
+            _uiState.update { it.copy(checking = false) }
+            activeCheck.compareAndSet(request, null)
+        }
+    }
+
+    private suspend fun fetchUpdate(): UpdateCheckResult {
         try {
             recordSafely("check start", null, null)
             return when (val result = updateCatalogGateway.check()) {
@@ -92,9 +108,6 @@ internal class UpdateCoordinator(
         } catch (error: Exception) {
             recordSafely("check failed exception", error, error)
             return UpdateCheckResult.Failed(UpdateFailure.CheckFailed)
-        } finally {
-            _uiState.update { it.copy(checking = false) }
-            checkMutex.unlock()
         }
     }
 

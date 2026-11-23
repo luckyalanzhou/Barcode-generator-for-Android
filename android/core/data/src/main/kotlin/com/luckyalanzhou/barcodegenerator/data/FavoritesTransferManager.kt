@@ -21,6 +21,7 @@ import java.util.zip.ZipInputStream
 import java.util.zip.CRC32
 
 private const val FAVORITES_DIRECTORY = "favorites"
+private const val FOLDER_MANIFEST = "barcode-generator-folders.json"
 private const val MAX_BACKUP_FAVORITE_JSON_BYTES = 1 * 1024 * 1024
 private const val MAX_BACKUP_UNCOMPRESSED_BYTES = 32L * 1024 * 1024
 private const val ZIP_LOCAL_HEADER_BYTES = 30L
@@ -43,13 +44,17 @@ object FavoritesTransferManager {
         validateExport(entries)
         PortableZipWriter(output).use { zip ->
             entries.forEach { entry ->
-                val bytes = entry.favorite?.let(::favoriteBytes) ?: ByteArray(0)
+                val bytes = exportEntryBytes(entry)
                 zip.writeEntry(entry.path, bytes)
             }
         }
     }
 
-    private data class ExportEntry(val path: String, val favorite: InterchangeFavorite?)
+    private data class ExportEntry(
+        val path: String,
+        val favorite: InterchangeFavorite? = null,
+        val folderManifest: ByteArray? = null,
+    )
 
     private fun buildExportEntries(snapshot: BarcodeSnapshot): List<ExportEntry> {
         val itemById = snapshot.items.associateBy { it.id }
@@ -62,14 +67,32 @@ object FavoritesTransferManager {
             var path = ""
             directory.split('/').filter { it.isNotBlank() }.map(::safeArchiveFolderSegment).forEach { part ->
                 path = if (path.isBlank()) part else "$path/$part"
-                if (writtenDirectories.add(path)) entries += ExportEntry("$path/", null)
+                if (writtenDirectories.add(path)) entries += ExportEntry("$path/")
             }
         }
 
         ensureDirectories(FAVORITES_DIRECTORY)
-        snapshot.folders.filter { it.isNotBlank() }.forEach { folder ->
-            val parts = splitFolder(folder)
-            ensureDirectories(listOf(FAVORITES_DIRECTORY, parts.first, parts.second).filter { it.isNotBlank() }.joinToString("/"))
+        val originalFolders = (snapshot.folders + snapshot.groups.map { it.folder }).filter(String::isNotBlank).map { folder ->
+            val (root, child) = splitFolder(folder)
+            listOf(root, child).filter(String::isNotBlank).joinToString("/")
+        }.filter(String::isNotBlank).distinct()
+        originalFolders.forEach { folder ->
+            ensureDirectories("$FAVORITES_DIRECTORY/$folder")
+        }
+        if (originalFolders.any { folder -> folder.split('/').any { it != safeArchiveFolderSegment(it) } }) {
+            requireBackup(originalFolders.size <= MAX_FAVORITES_BACKUP_ENTRIES, FavoriteBackupIssue.TooManyEntries) {
+                "收藏备份包含过多目录"
+            }
+            val manifest = buildString {
+                append('[')
+                originalFolders.forEachIndexed { index, folder ->
+                    if (index > 0) append(',')
+                    appendJsonString(folder)
+                }
+                append(']')
+            }.toByteArray(Charsets.UTF_8)
+            // Kept beside favorites/ so older importers still read the portable directory entries.
+            entries += ExportEntry(FOLDER_MANIFEST, folderManifest = manifest)
         }
         snapshot.groups.forEach { group ->
             val groupItems = linksByGroup[group.id].orEmpty()
@@ -101,7 +124,7 @@ object FavoritesTransferManager {
             requireBackup(entry.path.length <= 65_535, FavoriteBackupIssue.PathTooLong) { "收藏文件路径过长，无法导出" }
             val nameBytes = entry.path.toByteArray(Charsets.UTF_8)
             requireBackup(nameBytes.size <= 65_535, FavoriteBackupIssue.PathTooLong) { "收藏文件路径过长，无法导出" }
-            val dataBytes = entry.favorite?.let(::favoriteBytes) ?: ByteArray(0)
+            val dataBytes = exportEntryBytes(entry)
             requireBackup(dataBytes.size <= MAX_BACKUP_FAVORITE_JSON_BYTES, FavoriteBackupIssue.FavoriteTooLarge) { "收藏文件“${entry.favorite?.name}”超过 1 MB 限制" }
             uncompressedBytes += dataBytes.size.toLong()
             requireBackup(uncompressedBytes <= MAX_BACKUP_UNCOMPRESSED_BYTES, FavoriteBackupIssue.UncompressedTooLarge) { "收藏备份解压后内容超过 32 MB 限制" }
@@ -110,6 +133,9 @@ object FavoritesTransferManager {
             requireBackup(archiveBytes <= MAX_FAVORITES_BACKUP_INPUT_BYTES.toLong(), FavoriteBackupIssue.ArchiveTooLarge) { "收藏备份超过 64 MB 限制" }
         }
     }
+
+    private fun exportEntryBytes(entry: ExportEntry): ByteArray =
+        entry.folderManifest ?: entry.favorite?.let(::favoriteBytes) ?: ByteArray(0)
 
     private fun favoriteBytes(favorite: InterchangeFavorite): ByteArray {
         requireBackup(minimumFavoriteJsonLength(favorite) <= MAX_BACKUP_FAVORITE_JSON_BYTES, FavoriteBackupIssue.FavoriteTooLarge) { "收藏文件“${favorite.name}”超过 1 MB 限制" }
@@ -147,18 +173,36 @@ object FavoritesTransferManager {
             var entries = 0
             var uncompressed = 0L
             val favorites = mutableListOf<InterchangeFavorite>()
-            val folders = linkedSetOf<String>()
+            val archiveFolders = linkedSetOf<String>()
+            var originalFolders: List<String>? = null
             var hasFavoritesRoot = false
             while (true) {
                 val entry = zip.nextEntry ?: break
                 requireBackup(++entries <= MAX_FAVORITES_BACKUP_ENTRIES, FavoriteBackupIssue.TooManyEntries) { "ZIP 备份包含过多文件" }
                 val relativePath = favoriteRelativePath(entry.name)
-                if (relativePath != null && entry.isDirectory) {
+                val entryName = entry.name.replace('\\', '/')
+                if (relativePath == null && !entry.isDirectory && entryName.substringAfterLast('/') == FOLDER_MANIFEST) {
+                    requireBackup(originalFolders == null, FavoriteBackupIssue.InvalidJson) { "备份内存在重复的目录清单" }
+                    ByteArrayOutputStream().use { output ->
+                        val remaining = MAX_BACKUP_UNCOMPRESSED_BYTES - uncompressed
+                        val limit = minOf(MAX_BACKUP_FAVORITE_JSON_BYTES.toLong(), remaining)
+                        uncompressed += copyEntryLimited(zip, limit, output, FavoriteBackupIssue.UncompressedTooLarge)
+                        val folders = parseFavoriteJsonOrError { JSONArray(output.toString(Charsets.UTF_8.name())).toStrings() }
+                        requireBackup(folders.size <= MAX_FAVORITES_BACKUP_ENTRIES, FavoriteBackupIssue.TooManyEntries) {
+                            "收藏备份包含过多目录"
+                        }
+                        originalFolders = folders.flatMap { folder ->
+                            val (root, child) = splitFolder(folder)
+                            listOf(root, "$root/$child".takeIf { child.isNotBlank() }.orEmpty())
+                                .filter(String::isNotBlank)
+                        }.distinct()
+                    }
+                } else if (relativePath != null && entry.isDirectory) {
                     hasFavoritesRoot = true
                     relativePath.trim('/').takeIf { it.isNotBlank() }?.let { folder ->
                         val parts = splitFolder(folder)
-                        if (parts.first.isNotBlank()) folders += parts.first
-                        if (folder.isNotBlank()) folders += folder
+                        if (parts.first.isNotBlank()) archiveFolders += parts.first
+                        if (folder.isNotBlank()) archiveFolders += folder
                     }
                     uncompressed += copyEntryLimited(
                         zip,
@@ -181,8 +225,8 @@ object FavoritesTransferManager {
                     }
                     val favorite = parseFavoriteJson(content.toString(Charsets.UTF_8))
                     favorites += favorite
-                    if (favorite.rootFolder.isNotBlank()) folders += favorite.rootFolder
-                    if (favorite.folder.isNotBlank()) folders += favorite.folder
+                    if (favorite.rootFolder.isNotBlank()) archiveFolders += favorite.rootFolder
+                    if (favorite.folder.isNotBlank()) archiveFolders += favorite.folder
                 } else {
                     // ZIP 中不导入的文件和目录也必须计入解压预算；closeEntry() 会继续
                     // 解压并跳过剩余内容，因此不能把它当作有界的快速跳过操作。
@@ -198,7 +242,10 @@ object FavoritesTransferManager {
             if (hasFavoritesRoot) {
                 // 每个 ZIP JSON 文件都代表一个独立收藏。相同文件夹、名称和正文
                 // 仍可能对应不同的收藏记录，不能在解析阶段按内容丢弃或拒绝。
-                return InterchangeBackup(favorites, folders.toList())
+                val folders = originalFolders?.let { original ->
+                    (original + favorites.flatMap { listOf(it.rootFolder, it.folder).filter(String::isNotBlank) }).distinct()
+                } ?: archiveFolders.toList()
+                return InterchangeBackup(favorites, folders)
             }
         }
         throw FavoriteBackupContentException(FavoriteBackupIssue.NoFavoritesRoot, "ZIP 备份中未找到收藏文件")

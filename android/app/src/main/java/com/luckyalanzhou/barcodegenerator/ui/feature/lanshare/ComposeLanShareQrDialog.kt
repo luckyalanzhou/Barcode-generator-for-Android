@@ -20,21 +20,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
@@ -68,25 +62,7 @@ internal fun ComposeLanShareQrDialog(
     }
     val closeInteractions = remember { MutableInteractionSource() }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val sheetHeightPx = remember { mutableFloatStateOf(0f) }
-    val sheetGlassMotion = remember { mutableStateOf(Offset.Zero) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(sheetState) {
-        var expandedOffset = Float.NaN
-        snapshotFlow {
-            if (sheetState.currentValue == SheetValue.Expanded) sheetState.requireOffset() else Float.NaN
-        }.collect { offset ->
-            if (!offset.isFinite()) {
-                expandedOffset = Float.NaN
-                sheetGlassMotion.value = Offset.Zero
-            } else {
-                if (!expandedOffset.isFinite()) expandedOffset = offset
-                val height = sheetHeightPx.floatValue
-                val drag = if (height > 0f) ((offset - expandedOffset) / height).coerceIn(-1f, 1f) else 0f
-                sheetGlassMotion.value = Offset(0f, drag)
-            }
-        }
-    }
     val closeSheet: () -> Unit = {
         scope.launch {
             sheetState.hide()
@@ -105,7 +81,7 @@ internal fun ComposeLanShareQrDialog(
         dragHandle = null,
     ) {
         MenuSurface(
-            modifier = Modifier.fillMaxWidth().onSizeChanged { sheetHeightPx.floatValue = it.height.toFloat() },
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             color = colors.surfaces.panel,
             dynamicBackdrop = true,
@@ -113,7 +89,6 @@ internal fun ComposeLanShareQrDialog(
             obscuresBackdropContent = true,
             screenBackdropCaptureKey = session.shareUrl,
             waitForScreenBackdropFrame = true,
-            externalGlassMotion = sheetGlassMotion,
             drawBottomOutline = false,
             drawKyantHighlight = false,
         ) {

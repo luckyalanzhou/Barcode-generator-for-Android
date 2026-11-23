@@ -31,16 +31,12 @@ class GenerateViewModel @Inject constructor(
     }
 
     /** OCR 结果与拍摄开始时的草稿做原子比较；冲突时保留用户较新的输入。 */
-    fun applyOcrResultIfDraftUnchanged(
+    internal fun applyOcrResultIfDraftUnchanged(
         expectedDraft: List<String>?,
         recognizedLines: List<String>,
-    ): Boolean {
-        if (expectedDraft == null) {
-            updateDraft(recognizedLines)
-            return true
-        }
-        val applied = editor.updateDraftIfUnchanged(expectedDraft, recognizedLines)
-        if (applied) _validationError.value = null
+    ): OcrDraftResult {
+        val applied = editor.appendOcrIfUnchanged(expectedDraft, recognizedLines)
+        if (applied == OcrDraftResult.Appended) _validationError.value = null
         return applied
     }
 

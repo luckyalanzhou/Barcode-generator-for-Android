@@ -104,7 +104,7 @@ internal fun BarcodeComposeBottomTabBar(
     onLongPressActionMenuRequested: (TabLongPressMenuState) -> Unit,
     modifier: Modifier = Modifier,
     showSelectionIndicator: Boolean = true,
-    showOnlySelectedTab: Boolean = false,
+    hideTabItems: Boolean = false,
 ) {
     val localizedResources = LocalResources.current
     val tabs = listOf(
@@ -154,7 +154,7 @@ internal fun BarcodeComposeBottomTabBar(
 
     Box(
         modifier = modifier.fillMaxSize()
-            .then(if (effects.opaqueGlass && !showOnlySelectedTab) Modifier.background(themeColors.surfaces.background) else Modifier)
+            .then(if (effects.opaqueGlass && !hideTabItems) Modifier.background(themeColors.surfaces.background) else Modifier)
             .padding(horizontal = 4.dp)
             .pointerInput(motion, showSelectionIndicator, density) {
                 if (!showSelectionIndicator) return@pointerInput
@@ -328,7 +328,8 @@ internal fun BarcodeComposeBottomTabBar(
                                         anchorBoundsOnScreen = tabBoundsOnScreen[index],
                                         focusIcon = tab.icon,
                                         focusLabel = tab.label,
-                                        focusTint = if (!showSelectionIndicator && selected) selectedColor else unselectedColor,
+                                        focusTint = if (selected) selectedColor else unselectedColor,
+                                        showFocusLabel = showTabLabels,
                                         dark = dark,
                                         actions = actions,
                                         restoreFocus = { if (tabPlaced) tabFocus[index].requestFocus() },
@@ -365,7 +366,7 @@ internal fun BarcodeComposeBottomTabBar(
                             .then(tabClickModifier),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (!showOnlySelectedTab || selected) {
+                        if (!hideTabItems) {
                             Column(
                                 modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
                                     scaleX = menuPressScale.value

@@ -86,7 +86,22 @@ class BarcodePersistenceCoordinator @Inject constructor(
         return enqueue { barcodeRepository.saveItems(snapshot) }
     }
 
+    /** 在共享库写入锁内补齐从全历史搜索打开的条码。 */
+    internal suspend fun loadMissingItems(store: LibraryStateStore, ids: List<Long>) {
+        val loadedIds = store.itemsSnapshot().mapTo(mutableSetOf()) { it.id }
+        val missingIds = ids.distinct().filterNot(loadedIds::contains)
+        if (missingIds.isEmpty()) return
+        awaitPendingWrites()
+        val savedItems = barcodeRepository.loadItemsByIds(missingIds)
+        store.edit { items.addAll(savedItems) }
+    }
+
+    fun observeHistoryItems(): Flow<List<CodeItem>> = barcodeRepository.observeHistoryItems()
+
     fun clearHistory(): Deferred<Result<Unit>> = enqueue { barcodeRepository.clearHistory() }
+
+    fun deleteHistoryBatch(historyBatchId: String, legacyCreatedAt: Long): Deferred<Result<Unit>> =
+        enqueue { barcodeRepository.deleteHistoryBatch(historyBatchId, legacyCreatedAt) }
 
     suspend fun insertGeneratedItems(items: List<CodeItem>): List<CodeItem> {
         val drafts = items.map { it.copy() }

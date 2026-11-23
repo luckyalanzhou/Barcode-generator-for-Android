@@ -314,6 +314,12 @@ class ResultsViewModel @Inject constructor(
         density: Float,
     ): Bitmap? = imageRenderer.loadOrCreate(item, style, dark, density)
 
+    fun createQrExportImage(text: String, width: Int, dark: Boolean): Bitmap? =
+        imageRenderer.createQrExportImage(text, width, dark)
+
+    fun measureCode128Width(text: String, style: StyleSettings, density: Float): Int? =
+        imageRenderer.measureCode128Width(text, style, density)
+
     fun createBarcodeImage(
         text: String,
         formatId: String,

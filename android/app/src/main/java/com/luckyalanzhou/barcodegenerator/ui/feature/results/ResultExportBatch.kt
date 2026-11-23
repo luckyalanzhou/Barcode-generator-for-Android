@@ -41,3 +41,24 @@ internal fun resultExportDimensions(
 
 private const val MAX_RESULT_EXPORT_DIMENSION = 32_767L
 private const val MAX_RESULT_EXPORT_PIXELS = 24_000_000L
+
+/** 在像素预算内为超限的纯二维码批次寻找可重新编码的最大宽度。 */
+internal fun compactQrExportDimensions(
+    count: Int, requestedWidth: Int, spacing: Int, outerPadding: Int,
+): ResultExportDimensions? {
+    if (count <= 0) return null
+    // Version 40 contains 177 modules, with a four-module quiet zone at either edge.
+    var lower = 185
+    var upper = requestedWidth
+    var best: ResultExportDimensions? = null
+    while (lower <= upper) {
+        val width = lower + (upper - lower) / 2
+        val dimensions = resultExportDimensions(List(count) { width }, List(count) { width }, spacing, outerPadding)
+        if (dimensions == null) upper = width - 1
+        else {
+            best = dimensions
+            lower = width + 1
+        }
+    }
+    return best
+}

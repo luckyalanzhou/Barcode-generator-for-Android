@@ -31,7 +31,7 @@ class BarcodeItemViewModel @Inject constructor(
                 store.loadedGroupLinkIdsSnapshot(),
             )
         },
-        persistItems = { persistence.persistItems(store.itemsSnapshot()) },
+        persistItem = { persistence.persistItems(listOf(it)) },
         persistDeletion = { id, time -> persistence.deleteItem(id, time) },
     )
     private val favoritesQuerySession = querySession
@@ -45,16 +45,23 @@ class BarcodeItemViewModel @Inject constructor(
 
     fun updateBarcodeItem(itemId: Long, text: String, format: String) {
         withLibraryMutation {
+            persistence.loadMissingItems(store, listOf(itemId))
             mutations.updateItem(itemId, text, format)
             publishAfterMutation()
         }
     }
 
     /** 无竞争时保持同步更新；导入等长事务持锁时，排队到新快照发布后再修改。 */
-    private fun withLibraryMutation(block: () -> Unit) {
+    private fun withLibraryMutation(block: suspend () -> Unit) {
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             // UI 已接收的编辑必须等导入刷新后提交，Activity 结束不能取消排队中的写入。
-            withContext(NonCancellable) { persistence.withLibraryMutation(block) }
+            try {
+                withContext(NonCancellable) { persistence.withLibraryMutation(block) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                appLogger.recordSafely("library", "barcode mutation failed", diagnosticError = error, primaryError = error)
+            }
         }
     }
 

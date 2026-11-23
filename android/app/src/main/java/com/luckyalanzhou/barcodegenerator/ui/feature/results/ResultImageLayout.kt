@@ -56,10 +56,12 @@ internal fun resultImageRowLayout(
     width: Int,
     density: Float,
     fontScale: Float,
+    preserveCode128Pixels: Boolean = false,
 ): ResultImageRowLayout {
     val safeWidth = width.coerceAtLeast(1)
     val barWidth = if (isCode128ResultFormat(item)) {
-        (style.barWidth.coerceIn(120f, 300f) * density).roundToInt().coerceAtMost(safeWidth)
+        if (preserveCode128Pixels) barcode.width
+        else (style.barWidth.coerceIn(120f, 300f) * density).roundToInt().coerceAtMost(safeWidth)
     } else safeWidth
     val barHeight = if (isCode128ResultFormat(item)) {
         (style.barHeight.coerceIn(30, 80) * density).roundToInt()
@@ -130,13 +132,14 @@ internal fun composeResultRowImage(
     width: Int, density: Float, fontScale: Float,
     bitmapConfig: Bitmap.Config = Bitmap.Config.ARGB_8888,
     rasterWidthLimit: Int? = null,
+    preserveCode128Pixels: Boolean = false,
 ): Bitmap {
     // 屏幕预览可直接保留非 Code 128 原始条码像素，避免先放大整行再长期驻留；导出不传此限制。
     val outputWidth = rasterWidthLimit
         ?.takeIf { !isCode128ResultFormat(item) }
         ?.let { minOf(width.coerceAtLeast(1), it.coerceAtLeast(1)) }
         ?: width
-    val layout = resultImageRowLayout(barcode, item, style, dark, outputWidth, density, fontScale)
+    val layout = resultImageRowLayout(barcode, item, style, dark, outputWidth, density, fontScale, preserveCode128Pixels)
     // 结果行背景始终不透明；预览和导出都保留主题色精度，屏幕预览另以原始条码宽度控制内存。
     val result = createBitmap(layout.width, layout.height.coerceAtLeast(1), bitmapConfig)
     try {

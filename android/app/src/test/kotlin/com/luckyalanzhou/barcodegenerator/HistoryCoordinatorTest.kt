@@ -9,18 +9,20 @@ import org.junit.Test
 
 class HistoryCoordinatorTest {
     @Test
-    fun deleteBatchOnlyClearsHistoryAndPersistsSnapshot() {
+    fun deleteBatchClearsEveryMemberAndPersistsTheBatchIdentity() {
         val store = LibraryStateStore()
-        val first = CodeItem(1, "one", "CODE_128", 1L, favorite = true, folder = "A", inHistory = true)
+        val first = CodeItem(1, "one", "CODE_128", 1L, favorite = true, folder = "A", inHistory = true, historyBatchId = "batch")
         val second = CodeItem(2, "two", "CODE_128", 2L, favorite = false, folder = "", inHistory = true)
-        store.replace(listOf(first, second), emptyList(), emptyList())
-        val persisted = mutableListOf<List<CodeItem>>()
+        val otherMember = CodeItem(3, "three", "CODE_128", 1L, historyBatchId = "batch")
+        store.replace(listOf(first, second, otherMember), emptyList(), emptyList())
+        val persisted = mutableListOf<Pair<String, Long>>()
 
-        HistoryCoordinator(store) { persisted += it }.deleteBatch(listOf(first))
+        HistoryCoordinator(store) { batchId, createdAt -> persisted += batchId to createdAt }.deleteBatch(listOf(first))
 
         assertTrue(store.itemsSnapshot().first { it.id == 1L }.inHistory.not())
         assertTrue(store.itemsSnapshot().first { it.id == 2L }.inHistory)
-        assertEquals(listOf(false, true), persisted.single().map { it.inHistory })
+        assertEquals(listOf("batch" to 1L), persisted)
+        assertTrue(store.itemsSnapshot().first { it.id == 3L }.inHistory.not())
         assertTrue(store.itemsSnapshot().first { it.id == 1L }.favorite)
     }
 
@@ -35,7 +37,7 @@ class HistoryCoordinatorTest {
             emptyList(),
             emptyList(),
         )
-        HistoryCoordinator(store) {}.clearHistory()
+        HistoryCoordinator(store) { _, _ -> }.clearHistory()
 
         assertEquals(listOf(false, false), store.itemsSnapshot().map { it.inHistory })
     }

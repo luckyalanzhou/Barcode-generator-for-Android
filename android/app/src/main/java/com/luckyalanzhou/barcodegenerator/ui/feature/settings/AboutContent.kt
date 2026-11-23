@@ -1,13 +1,10 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.settings
 
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import com.luckyalanzhou.barcodegenerator.R
-import com.luckyalanzhou.barcodegenerator.presentation.UpdateCheckResult
-import com.luckyalanzhou.barcodegenerator.ui.app.platform.updateFailureMessage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,21 +36,15 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 internal fun AboutUsContent(
     appVersion: String,
     versionCode: Int,
-    manualCheckResult: UpdateCheckResult?,
+    checkingForUpdates: Boolean,
+    status: String?,
+    updateFailed: Boolean,
     dark: Boolean,
     onBack: () -> Unit,
     onOpenLicenses: () -> Unit,
     onCheckForUpdates: () -> Unit,
 ) {
     val colors = rememberSettingsColors()
-    val checkingForUpdates = manualCheckResult == UpdateCheckResult.InProgress
-    val status = when (manualCheckResult) {
-        is UpdateCheckResult.Available -> stringResource(R.string.about_update_found, manualCheckResult.version)
-        UpdateCheckResult.UpToDate -> stringResource(R.string.latest_version_installed)
-        is UpdateCheckResult.Failed ->
-            LocalResources.current.updateFailureMessage(manualCheckResult.reason, manualCheckResult.httpStatus)
-        UpdateCheckResult.InProgress, null -> null
-    }
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -82,7 +73,7 @@ internal fun AboutUsContent(
                 val scheme = LocalAppColorScheme.current
                 Text(
                     status,
-                    color = if (manualCheckResult is UpdateCheckResult.Failed) {
+                    color = if (updateFailed) {
                         scheme.text.destructive
                     } else {
                         colors.settingsText.secondary

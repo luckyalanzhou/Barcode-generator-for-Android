@@ -149,7 +149,7 @@ class UpdateStartupCheckTest {
             releaseFirstCheck.complete(Unit)
 
             assertTrue(manualCheck.await() is UpdateCheckResult.Available)
-            assertEquals(2, checks)
+            assertEquals(1, checks)
         } finally {
             scope.cancel()
         }
@@ -311,21 +311,15 @@ class UpdateStartupCheckTest {
     }
 
     @Test
-    fun startupCheckWaitsForAnExistingCheckThenRetries() = runBlocking {
+    fun startupCheckSharesAnExistingCheckWithoutRetrying() = runBlocking {
         val firstStarted = CompletableDeferred<Unit>()
         val releaseFirst = CompletableDeferred<Unit>()
-        val retryStarted = CompletableDeferred<Unit>()
         var calls = 0
         val viewModel = updateViewModel {
             calls++
-            if (calls == 1) {
-                firstStarted.complete(Unit)
-                releaseFirst.await()
-                UpdateLookupResult.UpToDate
-            } else {
-                retryStarted.complete(Unit)
-                UpdateLookupResult.Available("1.2.3", "https://example.test/update.apk", 123L, "b".repeat(64))
-            }
+            firstStarted.complete(Unit)
+            releaseFirst.await()
+            UpdateLookupResult.UpToDate
         }
         val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         try {
@@ -337,10 +331,8 @@ class UpdateStartupCheckTest {
 
             releaseFirst.complete(Unit)
             assertEquals(UpdateCheckResult.UpToDate, existingCheck.await())
-            withTimeout(5_000) { retryStarted.await() }
-            assertEquals(2, calls)
-            assertTrue(viewModel.uiState.value.dialogShowing)
-            assertEquals("1.2.3", viewModel.uiState.value.availableVersion)
+            assertEquals(1, calls)
+            assertFalse(viewModel.uiState.value.dialogShowing)
         } finally {
             viewModelScope.cancel()
         }

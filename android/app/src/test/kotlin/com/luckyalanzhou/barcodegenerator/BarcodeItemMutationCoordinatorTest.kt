@@ -39,7 +39,7 @@ class BarcodeItemMutationCoordinatorTest {
         val coordinator = BarcodeItemMutationCoordinator(
             store = store,
             persistAllFavorites = { favoriteWrites++ },
-            persistItems = { itemWrites++ },
+            persistItem = { itemWrites++ },
             persistDeletion = { id, _ -> deletedIds += id },
         )
 
@@ -69,7 +69,7 @@ class BarcodeItemMutationCoordinatorTest {
         val coordinator = BarcodeItemMutationCoordinator(
             store = store,
             persistAllFavorites = { favoriteWrites++ },
-            persistItems = { itemWrites++ },
+            persistItem = { itemWrites++ },
             persistDeletion = { _, _ -> },
         )
 

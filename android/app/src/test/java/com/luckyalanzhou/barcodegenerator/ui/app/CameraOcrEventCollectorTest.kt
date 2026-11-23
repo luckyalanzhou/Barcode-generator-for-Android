@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import com.luckyalanzhou.barcodegenerator.presentation.camera.CameraOcrEvent
+import com.luckyalanzhou.barcodegenerator.presentation.generate.OcrDraftResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,7 +33,7 @@ class CameraOcrEventCollectorTest {
             // 此 collector 独立于生成页路由，模拟从其他 Tab 长按后执行拍照填充。
             CameraOcrEventCollector(
                 events = events,
-                onRecognizedText = { lines, _ -> generateDraft.value = lines; true },
+                onRecognizedText = { lines, _ -> generateDraft.value = lines; OcrDraftResult.Appended },
                 onNavigateToGenerate = { selectedTab = 0; navigationCount++ },
                 onNotice = notices::add,
             )
@@ -64,7 +65,7 @@ class CameraOcrEventCollectorTest {
         compose.setContent {
             CameraOcrEventCollector(
                 events = events,
-                onRecognizedText = { _, _ -> false },
+                onRecognizedText = { _, _ -> OcrDraftResult.DraftChanged },
                 onNavigateToGenerate = { selectedTab = 0 },
                 onNotice = notices::add,
             )
