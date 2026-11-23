@@ -76,6 +76,8 @@ internal class ContextMenuGestureSession {
     var lastHapticAt = 0L
     var feedbackPoint by mutableStateOf<Offset?>(null)
         private set
+    val sourceDragOffset: Offset?
+        get() = feedbackPoint?.takeIf { ready && continuation && moved }?.minus(origin)
 
     fun open() {
         selection.entries.clear()

@@ -26,8 +26,11 @@ class ContextMenuGestureSessionTest {
     @Test fun draggingWithinSourceIconThenReleasingKeepsMenuOpen() {
         val session = longPress()
         session.sourceBounds = Rect(60f, 220f, 140f, 280f)
+        assertNull(session.sourceDragOffset)
         session.move(Offset(120f, 270f), 8f, bounds)
+        assertEquals(Offset(20f, 20f), session.sourceDragOffset)
         assertEquals(ContextMenuRelease.KeepOpen, session.release(Offset(120f, 270f), bounds))
+        assertNull(session.sourceDragOffset)
         assertNull(session.feedbackPoint)
     }
 
@@ -90,6 +93,7 @@ class ContextMenuGestureSessionTest {
         session.ready = true
         assertTrue(session.gesture.begin(Offset(100f, 124f), bounds))
         session.move(Offset(300f, 350f), 8f, bounds)
+        assertNull(session.sourceDragOffset)
         assertEquals(ContextMenuRelease.Dismiss, session.release(Offset(300f, 350f), bounds))
         assertNull(session.selection.selected)
     }

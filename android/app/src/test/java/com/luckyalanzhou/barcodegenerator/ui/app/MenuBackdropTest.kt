@@ -13,7 +13,7 @@ class MenuBackdropTest {
     }
     @Test fun closingContinuouslyRemovesBlurUsingOnePresentationCoordinate() {
         var previous = menuBackdropBlurPx(1f, 3f, false)
-        assertEquals(72f, previous, 0f)
+        assertEquals(60f, previous, 0f)
         for (step in 99 downTo 0) {
             val value = menuBackdropBlurPx(step / 100f, 3f, false)
             assertTrue(value <= previous)
@@ -22,8 +22,8 @@ class MenuBackdropTest {
         assertEquals(0f, previous, 0f)
     }
 
-    @Test fun blurIsBoundedAndOpaquePolicyDisablesIt() {
-        assertEquals(48f, menuBackdropBlurPx(10f, 2f, false), 0f)
+    @Test fun blurIsBoundedAndReducedMotionDisablesIt() {
+        assertEquals(40f, menuBackdropBlurPx(10f, 2f, false), 0f)
         assertEquals(0f, menuBackdropBlurPx(-1f, 2f, false), 0f)
         assertEquals(0f, menuBackdropBlurPx(1f, 2f, true), 0f)
         assertEquals(0f, menuBackdropBlurPx(Float.NaN, 2f, false), 0f)

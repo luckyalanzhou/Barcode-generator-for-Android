@@ -94,7 +94,7 @@ internal fun FavoriteGroupRow(
     val openMenu: () -> Unit = {
         view.performLightMenuOpenHaptic()
         val rowBounds = coordinates.rowBounds()
-        menuHost(TabLongPressMenuState(rowBounds, AttachFileIcon, group.name, fileColor, dark,
+        menuHost(TabLongPressMenuState(rowBounds, group.name, dark,
             actions = listOf(
                 TabLongPressAction(localizedResources.getString(R.string.edit_barcodes), EditIcon) { onEdit(group) },
                 TabLongPressAction(localizedResources.getString(R.string.action_move), DriveFileMoveIcon) { onShowMoveDialog(group) },

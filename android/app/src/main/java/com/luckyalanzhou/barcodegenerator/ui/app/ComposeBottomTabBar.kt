@@ -64,6 +64,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,6 +84,27 @@ private data class ComposeTabSpec(
     val description: String,
     val icon: ImageVector,
 )
+
+@Composable
+private fun BottomTabItemContent(
+    tab: ComposeTabSpec,
+    color: Color,
+    showLabel: Boolean,
+    modifier: Modifier = Modifier,
+    iconModifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(vertical = 3.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Icon(tab.icon, contentDescription = null, tint = color, modifier = Modifier.size(26.dp).then(iconModifier))
+        if (showLabel) {
+            Text(tab.label, color = color, fontSize = 12.sp, lineHeight = 16.sp,
+                fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+    }
+}
 
 /**
  * 主导航栏：点击切换页面，滑动手势由外层路由协调；重新点击历史/收藏 Tab 可请求回到默认滚动位置。
@@ -326,13 +348,13 @@ internal fun BarcodeComposeBottomTabBar(
                                 onLongPressActionMenuRequested(
                                     TabLongPressMenuState(
                                         anchorBoundsOnScreen = tabBoundsOnScreen[index],
-                                        focusIcon = tab.icon,
                                         focusLabel = tab.label,
-                                        focusTint = if (selected) selectedColor else unselectedColor,
-                                        showFocusLabel = showTabLabels,
                                         dark = dark,
                                         actions = actions,
                                         restoreFocus = { if (tabPlaced) tabFocus[index].requestFocus() },
+                                        sourceContent = {
+                                            BottomTabItemContent(tab, if (selected) selectedColor else unselectedColor, showTabLabels)
+                                        },
                                     ),
                                 )
                     }
@@ -367,36 +389,21 @@ internal fun BarcodeComposeBottomTabBar(
                         contentAlignment = Alignment.Center,
                     ) {
                         if (!hideTabItems) {
-                            Column(
-                                modifier = Modifier.padding(vertical = 3.dp).graphicsLayer {
+                            BottomTabItemContent(
+                                tab = tab,
+                                color = itemColor,
+                                showLabel = showTabLabels,
+                                modifier = Modifier.graphicsLayer {
                                     scaleX = menuPressScale.value
                                     scaleY = menuPressScale.value
                                 },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
-                                Icon(
-                                    imageVector = tab.icon,
-                                    contentDescription = null,
-                                    tint = itemColor,
-                                    modifier = Modifier.size(26.dp).graphicsLayer {
-                                        val squash = 1f - tapScale.value
-                                        scaleX = 1f + squash * .34f
-                                        scaleY = tapScale.value
-                                        translationY = squash * 12.dp.toPx()
-                                    },
-                                )
-                                if (showTabLabels) {
-                                    Text(
-                                        tab.label,
-                                        color = itemColor,
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
+                                iconModifier = Modifier.graphicsLayer {
+                                    val squash = 1f - tapScale.value
+                                    scaleX = 1f + squash * .34f
+                                    scaleY = tapScale.value
+                                    translationY = squash * 12.dp.toPx()
+                                },
+                            )
                         }
                     }
                 }

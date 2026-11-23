@@ -262,7 +262,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     val blurPx = if (android.os.Build.VERSION.SDK_INT >= 31) {
-                        menuBackdropBlurPx(tabMenuProgress.value, density, effects.opaqueGlass || effects.reduceMotion)
+                        menuBackdropBlurPx(tabMenuProgress.value, density, effects.reduceMotion)
                     } else 0f
                     compositingStrategy = if (blurPx > .1f) {
                         androidx.compose.ui.graphics.CompositingStrategy.Offscreen
@@ -412,7 +412,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                     onCheckForUpdates = dependencies.actions::checkForUpdates,
                     onLongPressActionMenuRequested = ::showMenu,
                     showSelectionIndicator = tabMenu.menu == null,
-                    hideTabItems = tabMenu.menu?.tabAnchor == true,
+                    hideTabItems = tabMenu.ready && tabMenu.menu?.tabAnchor == true,
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                         .windowInsetsPadding(navigationInsets)
                         .padding(bottom = shellInsets.tabBarBottomPadding)
@@ -425,9 +425,7 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 TabLongPressActionOverlay(
                     state = menuState,
                     progress = tabMenuProgress,
-                    sourceProgress = menuMotion.source,
-                    panelProgress = menuMotion.panel,
-                    opacity = menuMotion.opacity,
+                    previewReady = tabMenu.ready,
                     actionExit = menuMotion.actionExit,
                     actionClosing = tabMenu.actionClosing,
                     interactive = tabMenu.open,

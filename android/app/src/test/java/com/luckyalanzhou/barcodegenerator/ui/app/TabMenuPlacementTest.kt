@@ -39,7 +39,7 @@ class TabMenuPlacementTest {
             400f, 24f, 12f, 8f, 10f, false)
         assertEquals(20f, placement.left, 0f)
         assertEquals(0f, placement.pivotX, 0f)
-        assertEquals(row.bottom + 8f, placement.top - 10f, 0f)
+        assertEquals(row.bottom + 8f, placement.top, 0f)
     }
 
     @Test fun lowerSourceLiftsEnoughToKeepMenuBelowAndOnScreen() {
@@ -49,6 +49,16 @@ class TabMenuPlacementTest {
         assertEquals(row.width, lifted.width, 0f)
         assertTrue(lifted.bottom + 8f + 200f <= 768f)
         assertTrue(lifted.top >= 32f)
+    }
+
+    @Test fun shiftedRowKeepsAnEightPixelGapAndTheMenuBelow() {
+        val row = Rect(20f, 650f, 380f, 700f)
+        val lifted = liftedRowMenuAnchor(row, Offset.Zero, 800f, 24f, 24f, 8f, 200f, 12f)
+        val space = contextMenuSpace(lifted, Offset.Zero, 800f, 24f, 24f, 8f, 12f, 200f, false)
+        assertFalse(space.above)
+        val panel = rowMenuPlacement(lifted, Offset.Zero, IntSize(200, 200), 400f, 24f, 12f, 8f, 12f, space.above)
+        assertEquals(8f, panel.top - lifted.bottom, 0f)
+        assertTrue(panel.top - 12f + 200f < 776f)
     }
 
     @Test fun upperSourceStaysInPlaceAndOversizedMenuUsesFallback() {
@@ -99,13 +109,21 @@ class TabMenuPlacementTest {
         val row = Rect(20f, 90f, 380f, 140f)
         val space = contextMenuSpace(row, Offset(0f, 20f), 800f, 24f, 48f, 8f, 10f, 200f, false)
         assertFalse(space.above)
-        assertEquals(606f, space.height, 0f)
+        assertEquals(626f, space.height, 0f)
     }
 
     @Test fun tinyWindowsNeverReportNegativeCapacity() {
         val space = contextMenuSpace(Rect(0f, 20f, 60f, 70f), Offset.Zero,
             80f, 24f, 48f, 8f, 10f, 200f, false)
         assertTrue(space.height >= 0f)
+    }
+
+    @Test fun oversizedRowMenuUsesTheRoomierSide() {
+        val row = Rect(20f, 160f, 380f, 210f)
+        val space = contextMenuSpace(row, Offset.Zero, 600f, 24f, 24f,
+            8f, 12f, 500f, false)
+        assertFalse(space.above)
+        assertEquals(362f, space.height, 0f)
     }
     @Test fun leftAndRightTabsStayOnScreenAndMenuTracksTheirCenters() {
         for (x in listOf(20f, 120f, 220f, 320f)) {

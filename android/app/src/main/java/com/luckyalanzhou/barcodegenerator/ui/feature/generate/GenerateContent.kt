@@ -69,7 +69,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
@@ -494,11 +494,18 @@ internal fun GenerateContent(
                 }
                 Box {
                     Button(
-                        onClick = { openFormatAfterImeDismiss = true },
+                        onClick = {
+                            if (imeInsets.getBottom(density) == 0 && !openFormatAfterImeDismiss) {
+                                focusManager.clearFocus()
+                                formatExpanded = true
+                            } else {
+                                openFormatAfterImeDismiss = true
+                            }
+                        },
                         interactionSource = formatInteractions,
-                        modifier = Modifier.iosPressFeedback(formatInteractions).onGloballyPositioned {
-                            formatButtonWidth = it.size.width
-                            formatButtonHeight = it.size.height
+                        modifier = Modifier.iosPressFeedback(formatInteractions).onSizeChanged {
+                            formatButtonWidth = it.width
+                            formatButtonHeight = it.height
                         }
                             .heightIn(min = 48.dp)
                             .semantics {

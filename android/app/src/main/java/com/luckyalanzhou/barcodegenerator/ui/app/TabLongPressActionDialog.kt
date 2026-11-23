@@ -2,6 +2,8 @@ package com.luckyalanzhou.barcodegenerator.ui.app
 
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import com.luckyalanzhou.barcodegenerator.R
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuSourceScale
 import com.luckyalanzhou.barcodegenerator.ui.animation.contextMenuFocusScale
@@ -21,7 +23,6 @@ import com.luckyalanzhou.barcodegenerator.ui.component.ContextMenuGestureSession
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.key
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.focusable
@@ -33,7 +34,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,6 +85,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -98,6 +99,7 @@ import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuColors
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuShadowColors
 import com.luckyalanzhou.barcodegenerator.ui.theme.actionMenuWidthDp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Tab 长按操作菜单：按 Tab 锚点显示，手指在菜单项上滑动时更新选中反馈，松开后执行当前项。
@@ -107,9 +109,7 @@ import kotlin.math.roundToInt
 internal fun TabLongPressActionOverlay(
     state: TabLongPressMenuState,
     progress: State<Float>,
-    sourceProgress: State<Float>,
-    panelProgress: State<Float>,
-    opacity: State<Float>,
+    previewReady: Boolean,
     actionExit: State<Float>,
     actionClosing: Boolean,
     interactive: Boolean,
@@ -122,15 +122,27 @@ internal fun TabLongPressActionOverlay(
     val dark = state.dark
     val anchorBoundsOnScreen = state.anchorBoundsOnScreen
     val menuAnchorBoundsOnScreen = state.menuAnchorBoundsOnScreen
-    val focusIcon = state.focusIcon
     val focusLabel = state.focusLabel
-    val focusTint = state.focusTint
     val actions = state.actions
     val showTitle = menuShowsTitle(state.title)
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
+    val dragScale = if (state.tabAnchor && !effects.reduceMotion) remember(state) { Animatable(1f) } else null
+    if (dragScale != null) {
+        val touchSlop = LocalViewConfiguration.current.touchSlop
+        val resistance = with(density) { 64.dp.toPx() }
+        LaunchedEffect(gesture, dragScale, touchSlop, resistance) {
+            snapshotFlow { gesture.sourceDragOffset }.collectLatest { offset ->
+                if (offset == null) {
+                    dragScale.animateTo(1f, spring(dampingRatio = 1f, stiffness = 450f))
+                } else {
+                    dragScale.snapTo(tabMenuDragScale(offset, touchSlop, resistance))
+                }
+            }
+        }
+    }
     // 普通选项自然测量；标题动态取最高选项高度的 3/4，兼容大字体与换行。
     val optionIconSize = menuOptionIconSize(density)
     val estimatedRowHeightPx = with(density) {
@@ -146,9 +158,8 @@ internal fun TabLongPressActionOverlay(
     var overlayOriginOnScreen by remember { mutableStateOf(Offset.Zero) }
     var overlayCoordinatesReady by remember { mutableStateOf(false) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }
-    val actionsReady by remember(progress, panelProgress, opacity, effects.reduceMotion, interactive) {
-        derivedStateOf { interactive && opacity.value >= .99f &&
-            (effects.reduceMotion || (progress.value >= .95f && panelProgress.value >= .99f)) }
+    val actionsReady by remember(progress, interactive) {
+        derivedStateOf { interactive && progress.value >= .99f }
     }
     BoxWithConstraints(
         Modifier.fillMaxSize().onGloballyPositioned { coordinates ->
@@ -176,14 +187,20 @@ internal fun TabLongPressActionOverlay(
             val gapPx = with(density) { 8.dp.toPx() }
             val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
             val bottomInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
-            val focusLiftPx = with(density) { if (effects.reduceMotion) 0f else 12.dp.toPx() }
+            // Keep the pressed Tab raised even when the system disables the transition.
+            val focusLift = when {
+                state.tabAnchor -> 18.dp
+                effects.reduceMotion -> 0.dp
+                else -> 12.dp
+            }
+            val focusLiftPx = with(density) { focusLift.toPx() }
             val desiredHeightPx = (if (showTitle) measuredRowHeightPx * (3f / 4f) else 0f) + actions.size * measuredRowHeightPx
             val rowMenuAnchor = if (state.tabAnchor) menuAnchorBoundsOnScreen else liftedRowMenuAnchor(
                 anchorBoundsOnScreen, overlayOriginOnScreen, screenHeightPx, statusBarTopPx,
-                bottomInsetPx, gapPx, desiredHeightPx)
+                bottomInsetPx, gapPx, desiredHeightPx, focusLiftPx)
             val sourceShiftPx = if (state.tabAnchor) 0f else rowMenuAnchor.top - anchorBoundsOnScreen.top
             LaunchedEffect(gesture, rowMenuAnchor, focusLiftPx, actionClosing, effects.reduceMotion) {
-                snapshotFlow { sourceProgress.value }.collect { value ->
+                snapshotFlow { progress.value }.collect { value ->
                     // 再次按住时以当前显示中的卡片位置为起点，而非列表中原始行的位置。
                     gesture.sourceBounds = anchorBoundsOnScreen.translate(
                         Offset(0f, (sourceShiftPx - focusLiftPx) *
@@ -208,7 +225,7 @@ internal fun TabLongPressActionOverlay(
                 gesture.ready = popupReady && actionsReady
             }
             LaunchedEffect(popupReady, interactive) { if (popupReady && interactive) menuFocus.requestFocus() }
-            if (popupReady) {
+            if (popupReady && previewReady) {
                 // 预览只轻微聚焦，尺寸随实际目标适配；不再套用统一的大幅放大比例。
                 val focusScale = if (effects.reduceMotion) 1f else contextMenuFocusScale(
                     if (state.tabAnchor) with(density) { 64.dp.toPx() } else anchorBoundsOnScreen.width,
@@ -217,7 +234,7 @@ internal fun TabLongPressActionOverlay(
                     minOf(anchorBoundsOnScreen.width,
                         (screenWidthPx - edgePaddingPx * 2f) / focusScale).toDp()
                 }
-                val focusHeight = if (state.tabAnchor) 54.dp else with(density) { anchorBoundsOnScreen.height.toDp() }
+                val focusHeight = with(density) { anchorBoundsOnScreen.height.toDp() }
                 val focusWidthPx = with(density) { focusWidth.toPx() }
                 val focusHeightPx = with(density) { focusHeight.toPx() }
                 val focusCenterY = (anchorBoundsOnScreen.top + anchorBoundsOnScreen.bottom) / 2f - overlayOriginOnScreen.y
@@ -234,16 +251,15 @@ internal fun TabLongPressActionOverlay(
                             val exit = actionExit.value
                             alpha = when {
                                 actionClosing -> 1f - exit
-                                effects.reduceMotion -> opacity.value
-                                interactive -> 1f
-                                else -> (progress.value / .15f).coerceIn(0f, 1f)
+                                 state.tabAnchor -> 1f
+                                 else -> (progress.value / .2f).coerceIn(0f, 1f)
                             }
-                            val pop = contextMenuSourceScale(sourceProgress.value,
+                             val pop = contextMenuSourceScale(progress.value,
                                 if (actionClosing) exit else 0f, effects.reduceMotion, focusScale)
                             scaleX = pop
                             scaleY = pop
                             translationY = (sourceShiftPx - focusLiftPx) *
-                                (if (actionClosing || effects.reduceMotion) 1f else sourceProgress.value.coerceIn(0f, 1.06f))
+                                 (if (actionClosing || effects.reduceMotion) 1f else progress.value.coerceIn(0f, 1f))
                             if (!state.tabAnchor) {
                                 shape = sourceCardShape
                                 shadowElevation = 12.dp.toPx() * progress.value.coerceIn(0f, 1f)
@@ -266,28 +282,7 @@ internal fun TabLongPressActionOverlay(
                         .clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (state.tabAnchor) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Icon(
-                            imageVector = focusIcon,
-                            contentDescription = focusLabel,
-                            tint = focusTint,
-                            modifier = Modifier.size(26.dp),
-                        )
-                        if (state.showFocusLabel) Text(
-                            text = focusLabel,
-                            color = focusTint,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                        )
-                    }
-                    } else {
-                        state.sourceContent?.invoke()
-                    }
+                     state.sourceContent()
                 }
             }
             val availableHeightPx = menuSpace.height.coerceAtLeast(with(density) { 48.dp.toPx() })
@@ -302,8 +297,8 @@ internal fun TabLongPressActionOverlay(
                             )
                         }
                         .graphicsLayer {
-                            val reveal = menuGlassReveal(if (actionClosing) 1f else panelProgress.value, effects.reduceMotion)
-                            alpha = opacity.value
+                             val reveal = menuGlassReveal(progress.value, effects.reduceMotion)
+                             alpha = reveal.alpha
                             // 全部选项作为完整面板同时出现，不再依次裁切标题和菜单行。
                             shape = RoundedCornerShape(panelCorner)
                             clip = true
@@ -316,17 +311,22 @@ internal fun TabLongPressActionOverlay(
                             scaleX = presentationScale
                             scaleY = presentationScale
                             transformOrigin = TransformOrigin(placement.pivotX, pivotY)
-                            val source = if (actionClosing || effects.reduceMotion) 1f else sourceProgress.value.coerceIn(0f, 1.06f)
+                             val source = if (actionClosing || effects.reduceMotion) 1f else progress.value.coerceIn(0f, 1f)
                             translationY = -focusLiftPx * source - sourceShiftPx * (1f - source)
                             if (!effects.reduceMotion && !actionClosing) {
                                 // 从靠近来源的一侧短距离展开，方向随上下锚定改变。
-                                val remaining = 1f - panelProgress.value.coerceIn(0f, 1f)
+                                 val remaining = 1f - progress.value.coerceIn(0f, 1f)
                                 translationX = (if (state.tabAnchor && placement.anchorCenterX >= screenWidthPx / 2f)
                                     10f else -10f).dp.toPx() * remaining
                                 translationY += (if (menuSpace.above) 14f else -14f).dp.toPx() *
-                                    (1f - panelProgress.value.coerceIn(0f, 1.08f))
+                                     remaining
                             }
                         }
+                        .then(if (dragScale != null) Modifier.graphicsLayer {
+                            scaleX = dragScale.value
+                            scaleY = dragScale.value
+                            transformOrigin = tabMenuDragOrigin(placement.anchorCenterX < screenWidthPx / 2f)
+                        } else Modifier)
                         .focusRequester(menuFocus)
                         .focusable()
                         .onPreviewKeyEvent {

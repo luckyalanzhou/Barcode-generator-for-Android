@@ -88,7 +88,7 @@ internal fun FavoriteFolderRow(
             add(R.string.action_delete)
         }
         val rowBounds = coordinates.rowBounds()
-        menuHost(TabLongPressMenuState(rowBounds, FolderIcon, row.label, folderColor, dark,
+        menuHost(TabLongPressMenuState(rowBounds, row.label, dark,
             actions = labels.map { label ->
                 TabLongPressAction(localizedResources.getString(label), when (label) {
                     R.string.folder_create -> CreateNewFolderIcon

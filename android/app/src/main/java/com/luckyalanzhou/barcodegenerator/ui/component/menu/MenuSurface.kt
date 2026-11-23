@@ -76,7 +76,9 @@ internal fun MenuSurface(
 ) {
     val policy = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current
-    val screenBackdrop = if (screenSpaceBackdrop && dynamicBackdrop && !policy.opaqueGlass &&
+    // An opaque tint fully covers the backdrop, so copying and refracting it has no visible contribution.
+    val sampleBackdrop = dynamicBackdrop && !obscuresBackdropContent && !policy.opaqueGlass
+    val screenBackdrop = if (screenSpaceBackdrop && sampleBackdrop &&
         android.os.Build.VERSION.SDK_INT >= 33) rememberScreenGlassBackdrop(
             softenBackdropColor = clearerGlass,
             captureKey = screenBackdropCaptureKey,
@@ -85,7 +87,7 @@ internal fun MenuSurface(
         ) else null
     val backdrop = if (screenSpaceBackdrop) screenBackdrop else LocalLiquidGlassBackdrop.current
     var screenBounds by remember { mutableStateOf(Rect.Zero) }
-    val useKyant = android.os.Build.VERSION.SDK_INT >= 33 && backdrop != null && dynamicBackdrop && !policy.opaqueGlass
+    val useKyant = android.os.Build.VERSION.SDK_INT >= 33 && backdrop != null && sampleBackdrop
     val touch = remember { GlassPointerTracker() }
     val press by animateFloatAsState(if (trackPointer && touch.isPressed) 1f else 0f,
         if (policy.reduceMotion) snap() else spring(.7f, 400f), label = "menu-glass-contact")
@@ -94,7 +96,6 @@ internal fun MenuSurface(
     var heightDp by remember { mutableFloatStateOf(80f) }
     val spec = menuMaterialSpec(color, LocalAppColorScheme.current.text.primary, heightDp,
         policy.highContrast)
-    val surfaceOpacity = if (obscuresBackdropContent) 1f else spec.opacity
     val thickness = ((heightDp - 80f) / 240f).coerceIn(0f, 1f)
     val surfaceLuminance = color.luminance()
     val shadowColors = actionMenuShadowColors(surfaceLuminance < .35f)
@@ -106,7 +107,7 @@ internal fun MenuSurface(
         if (policy.reduceMotion) snap() else spring(1f, 400f),
         label = "menu-background-contrast",
     )
-    val renderer = if (dynamicBackdrop && !policy.opaqueGlass && !useKyant) {
+    val renderer = if (sampleBackdrop && !useKyant) {
         backdropRenderer ?: rememberGlassBackdropRenderer(menuMaterial = true)
     } else null
     // 轮廓取实际 shape，防止 16dp 下拉菜单却用 12dp shader 蒙版。
@@ -125,9 +126,9 @@ internal fun MenuSurface(
         if (windowOrigin.x.isFinite() && windowOrigin.y.isFinite()) {
             screenBounds = coordinates.boundsInWindow().translate(windowOrigin)
         }
-    } else Modifier).graphicsLayer {
+    } else Modifier).then(if (sampleBackdrop) Modifier.graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
-    }.then(if (useKyant) Modifier.drawBackdrop(
+    } else Modifier).then(if (useKyant) Modifier.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
         effects = {
@@ -143,10 +144,9 @@ internal fun MenuSurface(
         shadow = { Shadow(alpha = .16f + .10f * glassProgress()) },
         onDrawSurface = {
             val strength = glassProgress()
-            val tint = if (obscuresBackdropContent) surfaceOpacity
-                else if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
-            val edgeTint = if (obscuresBackdropContent) 1f else (tint + contrastTint).coerceIn(0f, 1f)
-            if (clearerGlass && !obscuresBackdropContent) {
+            val tint = if (clearerGlass) .34f + .12f * thickness else .36f + .16f * thickness
+            val edgeTint = (tint + contrastTint).coerceIn(0f, 1f)
+            if (clearerGlass) {
                 val rimFraction = (16.dp.toPx() / size.height).coerceIn(.01f, .45f)
                 val edge = color.copy(alpha = edgeTint)
                 val center = color.copy(alpha = (tint + contrastTint + .30f).coerceAtMost(.92f))
@@ -175,6 +175,9 @@ internal fun MenuSurface(
         )
         onDrawWithContent {
             drawContent()
+            if (dynamicBackdrop && obscuresBackdropContent && !policy.opaqueGlass) {
+                drawGlassTouchHighlight(touch.touchPosition, glassProgress(), if (surfaceLuminance > .5f) .14f else .18f)
+            }
             if (drawBottomOutline) {
                 drawOutline(outline, spec.outline, style = stroke)
                 if (!policy.highContrast && !policy.opaqueGlass) drawOutline(outline, highlight, style = Stroke(1f))
@@ -189,8 +192,8 @@ internal fun MenuSurface(
         }
     }) {
         if (!useKyant) Box(Modifier.matchParentSize().background(color))
-        if (dynamicBackdrop && !useKyant) {
-            GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = surfaceOpacity,
+        if (sampleBackdrop && !useKyant) {
+            GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = spec.opacity,
                 cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f },
                 drawFallback = false, screenCoordinates = true, renderer = renderer)
         }

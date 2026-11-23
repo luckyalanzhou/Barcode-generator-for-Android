@@ -1,5 +1,19 @@
 package com.luckyalanzhou.barcodegenerator.ui.app
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.TransformOrigin
+
+internal fun tabMenuDragScale(offset: Offset, touchSlop: Float, resistance: Float): Float {
+    if (offset.y < -touchSlop) return 1f
+    val distance = (Offset(offset.x, offset.y.coerceAtLeast(0f)).getDistance() - touchSlop)
+        .coerceAtLeast(0f)
+    return 1f - .24f * distance / (distance + resistance)
+}
+
+/** Shrink toward the corner while leaving room for the corner itself to move inward. */
+internal fun tabMenuDragOrigin(leftSide: Boolean): TransformOrigin =
+    TransformOrigin(if (leftSide) .18f else .82f, .82f)
+
 // HIG：上下文菜单标题只有在能说明操作对象或操作结果时才有价值。
 internal fun menuShowsTitle(title: String): Boolean = title.isNotBlank()
 

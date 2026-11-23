@@ -30,9 +30,9 @@ internal data class ContextMenuSpace(val above: Boolean, val height: Float)
 /** 保持列表项与菜单锚点相对位置不变；通过上移来源卡片为下方菜单腾出空间。 */
 internal fun liftedRowMenuAnchor(
     row: Rect, origin: Offset, screenHeight: Float, statusTop: Float,
-    bottomInset: Float, gap: Float, desiredHeight: Float,
+    bottomInset: Float, gap: Float, desiredHeight: Float, lift: Float = 0f,
 ): Rect {
-    val safeTop = origin.y + statusTop + gap
+    val safeTop = origin.y + statusTop + gap + lift
     val safeBottom = origin.y + screenHeight - bottomInset - gap
     if (row.height + gap + desiredHeight > safeBottom - safeTop) return row
     val top = minOf(row.top, safeBottom - desiredHeight - gap - row.height)
@@ -48,16 +48,17 @@ internal fun rowMenuPlacement(
         edgePadding, gap, lift, above)
     val left = (row.left - origin.x).coerceIn(edgePadding,
         (screenWidth - panel.width - edgePadding).coerceAtLeast(edgePadding))
-    return base.copy(left = left, pivotX = 0f)
+    return base.copy(left = left, top = if (above) base.top else base.top - lift, pivotX = 0f)
 }
 
-/** Tab 菜单始终显示在上方；标题菜单优先显示在下方，空间不足时再改为上方。 */
+/** Tab 菜单始终显示在上方；行菜单优先完整显示在下方，放不下时选择空间较大的一侧。 */
 internal fun contextMenuSpace(
     anchor: Rect, origin: Offset, screenHeight: Float, statusTop: Float, bottomInset: Float,
     gap: Float, lift: Float, desiredHeight: Float, tabAnchor: Boolean,
 ): ContextMenuSpace {
     val above = (anchor.top - origin.y - statusTop - gap * 2 - lift).coerceAtLeast(0f)
-    val below = (screenHeight - bottomInset - gap * 2 - anchor.bottom + origin.y - lift).coerceAtLeast(0f)
-    val useAbove = tabAnchor || below < desiredHeight
+    // The preview lifts upward, so it frees room below while consuming room above.
+    val below = (screenHeight - bottomInset - gap * 2 - anchor.bottom + origin.y + lift).coerceAtLeast(0f)
+    val useAbove = tabAnchor || (below < desiredHeight && above > below)
     return ContextMenuSpace(useAbove, if (useAbove) above else below)
 }

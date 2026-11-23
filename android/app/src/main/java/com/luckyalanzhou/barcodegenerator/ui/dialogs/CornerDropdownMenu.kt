@@ -6,7 +6,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
@@ -14,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.*
@@ -23,7 +27,6 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalVisualEffectsPolicy
-import com.luckyalanzhou.barcodegenerator.ui.component.glass.rememberGlassBackdropRenderer
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 
 private const val DROPDOWN_MOTION_DURATION_MILLIS = 180
@@ -69,15 +72,6 @@ internal fun CornerDropdownMenu(
 ) {
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
-    var backdropRequested by remember { mutableStateOf(false) }
-    SideEffect {
-        if (expanded) backdropRequested = true
-    }
-    // Popup 关闭后会销毁内容树；把着色器记录在锚点组合树中，避免每次重开都重新创建。
-    val backdropRenderer = rememberGlassBackdropRenderer(
-        menuMaterial = true,
-        enabled = dynamicBackdrop && (expanded || backdropRequested || state.currentState || !state.isIdle),
-    )
     val reduced = LocalVisualEffectsPolicy.current.reduceMotion
     val transition = rememberTransition(state, label = "settings-menu")
     val reveal = transition.animateFloat(transitionSpec = {
@@ -102,7 +96,20 @@ internal fun CornerDropdownMenu(
             }
             // 窗口同时包含来源与最终菜单，避免展开初期在 Popup 边缘被裁掉。
             // 来源预留区也是空白关闭区域；菜单项消费自己的点击，不触发这里。
-            Box(modifier.pointerInput(Unit) { detectTapGestures { dismiss() } }.graphicsLayer {
+            Box(modifier.pointerInput(position) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val startedOnAnchor = position.sourceInPopup.contains(down.position)
+                    if (startedOnAnchor || !state.targetState) {
+                        // The animated rows can pass over the source. Reserve that tap before a row handles it.
+                        down.consume()
+                        waitForUpOrCancellation(PointerEventPass.Initial)?.let { up ->
+                            up.consume()
+                            if (startedOnAnchor && position.sourceInPopup.contains(up.position)) dismiss()
+                        }
+                    }
+                }
+            }.pointerInput(Unit) { detectTapGestures { dismiss() } }.graphicsLayer {
                 val sourceHeight = position.anchor.height.toFloat()
                 val target = Rect(0f, if (position.above) 0f else sourceHeight,
                     size.width, if (position.above) size.height - sourceHeight else size.height)
@@ -125,7 +132,6 @@ internal fun CornerDropdownMenu(
                     clearerGlass = clearerGlass,
                     obscuresBackdropContent = true,
                     shadowElevation = shadowElevation,
-                    backdropRenderer = backdropRenderer,
                     backdropWindow = backdropWindow,
                     trackPointer = scrollableContent == null,
                 ) {
