@@ -155,7 +155,12 @@ private fun ComposePageRoute(
                     },
                     onEdit = dependencies.actions::editHistory,
                     onDelete = { batch ->
-                        dependencies.actions.confirm(localizedResources.getString(R.string.history_delete), localizedResources.getString(R.string.history_delete_confirm), localizedResources.getString(R.string.action_delete)) {
+                        dependencies.actions.confirm(
+                            title = localizedResources.getString(R.string.history_delete),
+                            message = localizedResources.getString(R.string.history_delete_confirm),
+                            positive = localizedResources.getString(R.string.action_delete),
+                            destructive = true,
+                        ) {
                             historyViewModel.deleteHistoryBatch(batch)
                         }
                     },

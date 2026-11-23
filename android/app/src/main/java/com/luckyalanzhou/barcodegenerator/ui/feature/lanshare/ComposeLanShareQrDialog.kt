@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
@@ -29,7 +31,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +39,8 @@ import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.domain.LanShareSession
 import com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface
 import com.luckyalanzhou.barcodegenerator.ui.dialogs.DialogAction
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.PopupKind
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.popupAppearance
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
 import kotlinx.coroutines.launch
 
@@ -55,6 +58,8 @@ internal fun ComposeLanShareQrDialog(
 ) {
     val qrSize = 260.dp
     val colors = LocalAppColorScheme.current
+    val appearance = popupAppearance(PopupKind.Sheet)
+    val shape = appearance.topShape
     val foreground = colors.barcode.qrForeground.toArgb()
     val background = colors.barcode.qrBackground.toArgb()
     val bitmap = remember(session.shareUrl, dark) {
@@ -72,21 +77,21 @@ internal fun ComposeLanShareQrDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        // Keep the navigation-bar inset on the same surface tint; MenuSurface draws
-        // the sampled glass over the sheet content itself.
-        containerColor = colors.surfaces.panel,
+        shape = shape,
+        containerColor = Color.Transparent,
         contentColor = primary,
         tonalElevation = 0.dp,
         dragHandle = null,
+        contentWindowInsets = { WindowInsets.statusBars },
     ) {
         MenuSurface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            shape = shape,
             color = colors.surfaces.panel,
-            dynamicBackdrop = true,
+            dynamicBackdrop = appearance.glass,
             screenSpaceBackdrop = true,
-            obscuresBackdropContent = true,
+            obscuresBackdropContent = !appearance.glass,
+            popupGlass = appearance.glass,
             screenBackdropCaptureKey = session.shareUrl,
             waitForScreenBackdropFrame = true,
             drawBottomOutline = false,
@@ -94,6 +99,7 @@ internal fun ComposeLanShareQrDialog(
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth()
+                    .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 20.dp),
@@ -110,7 +116,8 @@ internal fun ComposeLanShareQrDialog(
                         )
                     }
                     TextButton(onClick = closeSheet, interactionSource = closeInteractions,
-                        modifier = Modifier.iosPressFeedback(closeInteractions).resultActionEdgeChrome()) {
+                        modifier = Modifier.iosPressFeedback(closeInteractions)
+                            .then(if (appearance.glass) Modifier.resultActionEdgeChrome() else Modifier)) {
                         Text(stringResource(R.string.action_off), color = secondary)
                     }
                 }

@@ -96,8 +96,8 @@ class ButtonRenderingContractTest {
         assertTrue(generate.contains("if (generateEnabled) themeColors.controls.primaryAction"))
         assertTrue(generate.contains("if (generateEnabled) themeColors.text.onAccent"))
         val dialogs = source("ComposeCommonDialogs.kt")
-        assertTrue(dialogs.contains("if (primary) colors.controls.primaryAction"))
-        assertTrue(dialogs.contains("primary -> colors.text.onAccent"))
+        assertTrue(dialogs.contains("if (filled) colors.controls.primaryAction"))
+        assertTrue(dialogs.contains("filled -> colors.text.onAccent"))
         assertTrue(source("LightColorScheme.kt").contains("primary = colors.controls.primaryAction"))
         assertTrue(source("DarkColorScheme.kt").contains("primary = colors.controls.primaryAction"))
     }

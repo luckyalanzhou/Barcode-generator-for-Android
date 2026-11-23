@@ -1,5 +1,8 @@
 package com.luckyalanzhou.barcodegenerator.ui.feature.lanshare
 
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.PopupKind
+import com.luckyalanzhou.barcodegenerator.ui.dialogs.popupAppearance
+
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.luckyalanzhou.barcodegenerator.R
@@ -25,7 +28,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -81,7 +83,6 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
-import com.kyant.shapes.Capsule
 
 /** 全屏图片预览：支持手势缩放/平移，点关闭按钮或系统返回键退出，不触发文件下载。 */
 @Composable
@@ -113,7 +114,9 @@ internal fun LanShareImagePreviewDialog(
             label = "preview-close-glass-press",
         )
         val imageBackdrop = rememberLayerBackdrop()
-        val useKyantGlass = Build.VERSION.SDK_INT >= 33 && !effectsPolicy.opaqueGlass
+        val appearance = popupAppearance(PopupKind.Preview)
+        val useKyantGlass = appearance.glass
+        val closeShape = popupAppearance(PopupKind.Action).shape
         // 高清图替换缩略图时保持手势状态和识别器，不打断已经开始的缩放。
         var transform by remember(fileName) { mutableStateOf(LanSharePreviewTransform()) }
         val currentBitmap by rememberUpdatedState(bitmap)
@@ -130,9 +133,10 @@ internal fun LanShareImagePreviewDialog(
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             Box(
                 modifier = Modifier.fillMaxSize()
+                    .then(if (useKyantGlass) Modifier.layerBackdrop(imageBackdrop) else Modifier)
+                    .background(Color.Black)
                     .padding(start = 8.dp, end = 8.dp, top = topInset + 76.dp, bottom = bottomInset + 16.dp)
                     .onSizeChanged { viewportSize.value = it }
-                    .then(if (useKyantGlass) Modifier.layerBackdrop(imageBackdrop) else Modifier)
             ) {
                 Image(
                     bitmap = bitmap.asImageBitmap(),
@@ -175,10 +179,11 @@ internal fun LanShareImagePreviewDialog(
             MenuSurface(
                 modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding()
                     .padding(start = 16.dp, end = 16.dp, top = 10.dp),
-                shape = Capsule(),
+                shape = appearance.shape,
                 color = colors.surfaces.panel,
-                dynamicBackdrop = true,
-                obscuresBackdropContent = true,
+                dynamicBackdrop = useKyantGlass,
+                obscuresBackdropContent = !useKyantGlass,
+                popupGlass = useKyantGlass,
                 trackPointer = false,
             ) {
                 Row(
@@ -200,10 +205,10 @@ internal fun LanShareImagePreviewDialog(
                         modifier = Modifier.size(48.dp).iosPressFeedback(closeInteractions)
                             .then(closeTouch.pointerModifier)
                             .then(if (useKyantGlass) Modifier else Modifier.resultActionEdgeChrome(
-                                    RoundedCornerShape(10.dp), rimBackground = Color.Black, rimAccent = Color.White,
+                                    closeShape, rimBackground = colors.surfaces.panel, rimAccent = colors.text.secondary,
                                 )).then(if (useKyantGlass) Modifier.drawBackdrop(
                                     backdrop = imageBackdrop,
-                                    shape = { RoundedCornerShape(10.dp) },
+                                    shape = { closeShape },
                                     effects = {
                                         vibrancy()
                                         blur(6f * density)
@@ -218,24 +223,24 @@ internal fun LanShareImagePreviewDialog(
                                     highlight = { Highlight.Default.copy(alpha = .24f + .48f * closePress) },
                                     shadow = { Shadow(alpha = .12f + .20f * closePress) },
                                     onDrawSurface = {
-                                        drawRect(Color.Black.copy(alpha = (.58f + .06f * closePress).coerceAtMost(1f)))
+                                        drawRect(colors.surfaces.input.copy(alpha = .88f + .06f * closePress))
                                         drawGlassTouchHighlight(closeTouch.touchPosition, closePress, .16f)
                                     },
                                 ) else Modifier.background(
-                                    if (effectsPolicy.opaqueGlass) Color(0xFF303034) else Color.White.copy(alpha = .16f),
-                                    RoundedCornerShape(10.dp),
+                                    colors.surfaces.input,
+                                    closeShape,
                                 ))
                                 .semantics {
                                     contentDescription = localizedResources.getString(R.string.close_image_preview)
                                 },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = closeShape,
                         color = Color.Transparent,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = CloseSmallIcon,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = colors.text.primary,
                                 modifier = Modifier.size(28.dp),
                             )
                         }

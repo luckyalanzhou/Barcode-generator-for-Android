@@ -47,7 +47,7 @@ internal interface ComposeAppShellActions {
     fun showFolderEditor(initial: String, onSaved: suspend (String) -> Boolean)
     fun showMoveDialog(group: FavoriteGroup)
     fun showRenameDialog(group: FavoriteGroup)
-    fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit)
+    fun confirm(title: String, message: String, positive: String, destructive: Boolean = false, onConfirm: () -> Unit)
     fun confirmDurable(title: String, message: String, positive: String, onConfirm: suspend () -> Unit)
     fun saveFavorite()
     fun shareResult()
@@ -205,11 +205,12 @@ internal fun MainActivity.composeAppShellActions(): ComposeAppShellActions = obj
         onRename = favoritesViewModel::renameFavoriteGroup,
         onNavigateFavorites = { navigationViewModel.navigateTo(AppRoute.Favorites) },
     )
-    override fun confirm(title: String, message: String, positive: String, onConfirm: () -> Unit) =
+    override fun confirm(title: String, message: String, positive: String, destructive: Boolean, onConfirm: () -> Unit) =
         this@composeAppShellActions.showComposeConfirmDialogImpl(
             title = title,
             message = message,
             positive = positive,
+            destructive = destructive,
             onConfirm = onConfirm,
         )
     override fun confirmDurable(title: String, message: String, positive: String, onConfirm: suspend () -> Unit) =

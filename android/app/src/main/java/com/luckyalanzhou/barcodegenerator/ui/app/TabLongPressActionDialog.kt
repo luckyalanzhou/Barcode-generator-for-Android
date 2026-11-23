@@ -76,6 +76,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,6 +90,7 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luckyalanzhou.barcodegenerator.ui.theme.LocalAppColorScheme
@@ -109,6 +111,7 @@ import kotlinx.coroutines.flow.collectLatest
 internal fun TabLongPressActionOverlay(
     state: TabLongPressMenuState,
     progress: State<Float>,
+    unblurredBottom: Dp,
     previewReady: Boolean,
     actionExit: State<Float>,
     actionClosing: Boolean,
@@ -127,6 +130,7 @@ internal fun TabLongPressActionOverlay(
     val showTitle = menuShowsTitle(state.title)
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
+    val frosted = android.os.Build.VERSION.SDK_INT >= 31 && !effects.opaqueGlass && !effects.reduceMotion
     val menuFocus = remember { FocusRequester() }
     val density = LocalDensity.current
     val dragScale = if (state.tabAnchor && !effects.reduceMotion) remember(state) { Animatable(1f) } else null
@@ -170,10 +174,8 @@ internal fun TabLongPressActionOverlay(
     ) {
             Box(
                 Modifier.fillMaxSize()
-                    // 轻微降低背景对比度；整页模糊仍负责隐藏可辨认的底层内容。
-                    .drawWithContent {
-                        drawContent()
-                        drawRect(Color.Black.copy(alpha = menuBackdropDimAlpha(progress.value, dark)))
+                    .drawBehind {
+                        drawRect(menuBackdropVeil(progress.value, dark, frosted))
                     }
                     .clickable(interactionSource = remember { MutableInteractionSource() },
                         indication = null, onClick = onDismiss)
@@ -215,6 +217,9 @@ internal fun TabLongPressActionOverlay(
             else rowMenuPlacement(rowMenuAnchor.copy(left = menuAnchorBoundsOnScreen.left), overlayOriginOnScreen, panelSize,
                 screenWidthPx, statusBarTopPx, edgePaddingPx, gapPx, focusLiftPx, menuSpace.above)
             val popupReady = overlayCoordinatesReady && anchorBoundsOnScreen != Rect.Zero && panelSize != IntSize.Zero
+            // The bar is drawn above the blurred page. Keep the panel opaque wherever it could cover those controls.
+            val panelFrosted = frosted && popupReady && placement.top + panelSize.height <=
+                screenHeightPx - with(density) { unblurredBottom.toPx() }
             LaunchedEffect(popupReady) {
                 if (popupReady) {
                     onMeasured() // Measurement starts the reveal; it must not wait for the reveal.
@@ -346,6 +351,9 @@ internal fun TabLongPressActionOverlay(
                         },
                     shape = RoundedCornerShape(panelCorner),
                     color = colors.surfaces.panel,
+                    fillOpacity = if (panelFrosted) {
+                        { frostedMenuPanelAlpha(progress.value, dark) }
+                    } else null,
                     obscuresBackdropContent = true,
                 ) {
                     key(state) {

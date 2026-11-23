@@ -425,6 +425,9 @@ internal fun ComposeAppShell(dependencies: ComposeAppShellDependencies) {
                 TabLongPressActionOverlay(
                     state = menuState,
                     progress = tabMenuProgress,
+                    unblurredBottom = navigationBottomInset + if (bottomTabVisible) {
+                        dimensions.bottomTabBarHeight + shellInsets.tabBarBottomPadding
+                    } else 0.dp,
                     previewReady = tabMenu.ready,
                     actionExit = menuMotion.actionExit,
                     actionClosing = tabMenu.actionClosing,

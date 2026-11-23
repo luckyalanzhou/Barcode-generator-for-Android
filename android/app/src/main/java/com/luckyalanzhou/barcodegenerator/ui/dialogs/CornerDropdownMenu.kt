@@ -73,6 +73,7 @@ internal fun CornerDropdownMenu(
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
     val reduced = LocalVisualEffectsPolicy.current.reduceMotion
+    val appearance = popupAppearance(PopupKind.Options)
     val transition = rememberTransition(state, label = "settings-menu")
     val reveal = transition.animateFloat(transitionSpec = {
         // 固定时长，避免弹簧动画因菜单高度/选项数不同而出现不同的完成时间。
@@ -125,12 +126,14 @@ internal fun CornerDropdownMenu(
             }.padding(top = if (position.above) 0.dp else reserve,
                 bottom = if (position.above) reserve else 0.dp)) {
                 MenuSurface(
-                    shape = shape,
+                    shape = if (appearance.glass) appearance.shape else shape,
                     color = color,
-                    dynamicBackdrop = dynamicBackdrop,
+                    dynamicBackdrop = dynamicBackdrop && appearance.glass,
                     screenSpaceBackdrop = true,
                     clearerGlass = clearerGlass,
-                    obscuresBackdropContent = true,
+                    obscuresBackdropContent = !appearance.glass,
+                    popupGlass = appearance.glass,
+                    waitForScreenBackdropFrame = true,
                     shadowElevation = shadowElevation,
                     backdropWindow = backdropWindow,
                     trackPointer = scrollableContent == null,

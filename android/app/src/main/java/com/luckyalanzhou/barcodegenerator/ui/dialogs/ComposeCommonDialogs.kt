@@ -70,6 +70,7 @@ internal fun AnchoredDropdownMenu(
     val widthModifier = if (menuWidth != null) Modifier.width(resolvedMenuWidth ?: maxWidth) else Modifier.widthIn(max = maxWidth)
     val horizontalOffset = if (alignEndWithAnchor && anchorWidth != null && resolvedMenuWidth != null) anchorWidth - resolvedMenuWidth else 0.dp
     val hostView = androidx.compose.ui.platform.LocalView.current
+    val appearance = popupAppearance(PopupKind.Options)
     if (cornerReveal) {
         CornerDropdownMenu(expanded, onDismissRequest,
             modifier.then(widthModifier).heightIn(max = maxHeight), shape,
@@ -91,12 +92,14 @@ internal fun AnchoredDropdownMenu(
             onDispose { hostView.postInvalidateOnAnimation() }
         }
         com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface(
-            shape = shape,
+            shape = if (appearance.glass) appearance.shape else shape,
             screenSpaceBackdrop = true,
-            dynamicBackdrop = dynamicBackdrop,
+            dynamicBackdrop = dynamicBackdrop && appearance.glass,
             clearerGlass = clearerGlass,
             color = containerColor ?: LocalAppColorScheme.current.surfaces.panel,
-            obscuresBackdropContent = true,
+            obscuresBackdropContent = !appearance.glass,
+            popupGlass = appearance.glass,
+            waitForScreenBackdropFrame = true,
             backdropWindow = backdropWindow,
         ) { Column(content = content) }
     }
@@ -106,16 +109,18 @@ internal fun AnchoredDropdownMenu(
 @Suppress("UNUSED_PARAMETER")
 internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 20.dp, content: @Composable ColumnScope.() -> Unit) {
     val card = LocalAppColorScheme.current.surfaces.panel
+    val appearance = popupAppearance(PopupKind.Card)
     MenuSurface(
         modifier = Modifier.widthIn(min = 280.dp, max = 400.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = appearance.shape,
         color = card,
-        dynamicBackdrop = true,
+        dynamicBackdrop = appearance.glass,
         screenSpaceBackdrop = true,
-        obscuresBackdropContent = true,
+        obscuresBackdropContent = !appearance.glass,
+        popupGlass = appearance.glass,
         backdropWindow = LocalGlassBackdropSourceWindow.current,
         trackPointer = false,
-        shadowElevation = 2.dp,
+        shadowElevation = if (appearance.glass) 3.dp else 0.dp,
         waitForScreenBackdropFrame = true,
     ) {
         Column(
@@ -137,22 +142,26 @@ internal fun DialogAction(
     supportingText: String? = null,
 ) {
     val colors = LocalAppColorScheme.current
+    val appearance = popupAppearance(PopupKind.Action)
+    val filled = appearance.glass && primary && enabled && !destructive
     val foreground = when {
         !enabled -> colors.text.disabled
-        primary -> colors.text.onAccent
         destructive -> colors.text.destructive
+        filled -> colors.text.onAccent
+        primary -> colors.controls.primaryAction
         else -> colors.text.primary
     }
-    val background = if (!enabled) colors.controls.disabledContainer
-        else if (primary) colors.controls.primaryAction else colors.controls.button
+    val background = if (!appearance.glass) Color.Transparent
+        else if (!enabled) colors.controls.disabledContainer
+        else if (filled) colors.controls.primaryAction else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
             .widthIn(min = 48.dp)
             .iosPressFeedback(interactionSource)
-            .resultActionEdgeChrome(RoundedCornerShape(12.dp))
-            .background(background, RoundedCornerShape(12.dp))
+            .then(if (appearance.glass) Modifier.resultActionEdgeChrome(appearance.shape) else Modifier)
+            .background(background, appearance.shape)
             .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,

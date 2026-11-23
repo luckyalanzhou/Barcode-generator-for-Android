@@ -86,6 +86,8 @@ internal fun rememberScreenGlassBackdrop(
             ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(.22f) })
         } else null
         object : ScreenGlassBackdrop {
+            override val hasSnapshot: Boolean get() = snapshot.value != null
+
             override fun averageLuminance(bounds: Rect): Float? {
                 val bitmap = snapshot.value?.asAndroidBitmap() ?: return null
                 val position = origin.value
@@ -121,5 +123,6 @@ internal fun rememberScreenGlassBackdrop(
 }
 
 internal interface ScreenGlassBackdrop : Backdrop {
+    val hasSnapshot: Boolean
     fun averageLuminance(bounds: Rect): Float?
 }
