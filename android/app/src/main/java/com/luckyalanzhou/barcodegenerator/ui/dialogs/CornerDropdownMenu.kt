@@ -128,11 +128,12 @@ internal fun CornerDropdownMenu(
                 MenuSurface(
                     shape = if (appearance.glass) appearance.shape else shape,
                     color = color,
-                    dynamicBackdrop = dynamicBackdrop && appearance.glass,
+                    dynamicBackdrop = dynamicBackdrop,
                     screenSpaceBackdrop = true,
                     clearerGlass = clearerGlass,
                     obscuresBackdropContent = !appearance.glass,
                     popupGlass = appearance.glass,
+                    classicPopupMaterial = appearance.classicMaterial,
                     waitForScreenBackdropFrame = true,
                     shadowElevation = shadowElevation,
                     backdropWindow = backdropWindow,

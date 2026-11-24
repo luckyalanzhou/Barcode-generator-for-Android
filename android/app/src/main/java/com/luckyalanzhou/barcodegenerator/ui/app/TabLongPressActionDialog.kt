@@ -80,6 +80,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -154,7 +155,7 @@ internal fun TabLongPressActionOverlay(
     }
     var measuredRowHeightPx by remember(state, density) { mutableFloatStateOf(estimatedRowHeightPx) }
     val headingHeight = with(density) { (measuredRowHeightPx * (3f / 4f)).toDp() }
-    val panelCorner = ActionMenuMetrics.corner
+    val panelShape = RoundedCornerShape(ActionMenuMetrics.corner)
     val sourceCardShape = remember { RoundedCornerShape(14.dp) }
     val menuColors = actionMenuColors(colors, dark, effects.highContrast)
     val menuShadowColors = actionMenuShadowColors(dark)
@@ -291,6 +292,14 @@ internal fun TabLongPressActionOverlay(
                 }
             }
             val availableHeightPx = menuSpace.height.coerceAtLeast(with(density) { 48.dp.toPx() })
+            val drawPanelChrome: GraphicsLayerScope.() -> Unit = {
+                shape = panelShape
+                clip = true
+                shadowElevation = MenuMetrics.surfaceShadowElevation.toPx() *
+                    menuGlassReveal(progress.value, effects.reduceMotion).shadow
+                ambientShadowColor = menuShadowColors.ambient
+                spotShadowColor = menuShadowColors.spot
+            }
             MenuSurface(
                     modifier = Modifier.width(panelWidth)
                         .heightIn(max = with(density) { availableHeightPx.toDp() })
@@ -305,11 +314,7 @@ internal fun TabLongPressActionOverlay(
                              val reveal = menuGlassReveal(progress.value, effects.reduceMotion)
                              alpha = reveal.alpha
                             // 全部选项作为完整面板同时出现，不再依次裁切标题和菜单行。
-                            shape = RoundedCornerShape(panelCorner)
-                            clip = true
-                            shadowElevation = MenuMetrics.surfaceShadowElevation.toPx() * reveal.shadow
-                            ambientShadowColor = menuShadowColors.ambient
-                            spotShadowColor = menuShadowColors.spot
+                            if (dragScale == null) drawPanelChrome()
                             val presentationScale = if (effects.reduceMotion) 1f else if (actionClosing) 1f - .03f * actionExit.value
                                 else reveal.scale
                             val pivotY = if (menuSpace.above) 1f else 0f
@@ -328,6 +333,8 @@ internal fun TabLongPressActionOverlay(
                             }
                         }
                         .then(if (dragScale != null) Modifier.graphicsLayer {
+                            // Keep the shadow and clip in the same layer as the dragged panel.
+                            drawPanelChrome()
                             scaleX = dragScale.value
                             scaleY = dragScale.value
                             transformOrigin = tabMenuDragOrigin(placement.anchorCenterX < screenWidthPx / 2f)
@@ -349,7 +356,7 @@ internal fun TabLongPressActionOverlay(
                                 waitForUpOrCancellation()?.consume()
                             }
                         },
-                    shape = RoundedCornerShape(panelCorner),
+                    shape = panelShape,
                     color = colors.surfaces.panel,
                     fillOpacity = if (panelFrosted) {
                         { frostedMenuPanelAlpha(progress.value, dark) }

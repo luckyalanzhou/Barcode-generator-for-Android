@@ -116,6 +116,7 @@ internal fun LanShareImagePreviewDialog(
         val imageBackdrop = rememberLayerBackdrop()
         val appearance = popupAppearance(PopupKind.Preview)
         val useKyantGlass = appearance.glass
+        val useBackdropMaterial = appearance.glass || appearance.classicMaterial
         val closeShape = popupAppearance(PopupKind.Action).shape
         // 高清图替换缩略图时保持手势状态和识别器，不打断已经开始的缩放。
         var transform by remember(fileName) { mutableStateOf(LanSharePreviewTransform()) }
@@ -133,7 +134,7 @@ internal fun LanShareImagePreviewDialog(
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             Box(
                 modifier = Modifier.fillMaxSize()
-                    .then(if (useKyantGlass) Modifier.layerBackdrop(imageBackdrop) else Modifier)
+                    .then(if (useBackdropMaterial) Modifier.layerBackdrop(imageBackdrop) else Modifier)
                     .background(Color.Black)
                     .padding(start = 8.dp, end = 8.dp, top = topInset + 76.dp, bottom = bottomInset + 16.dp)
                     .onSizeChanged { viewportSize.value = it }
@@ -181,9 +182,10 @@ internal fun LanShareImagePreviewDialog(
                     .padding(start = 16.dp, end = 16.dp, top = 10.dp),
                 shape = appearance.shape,
                 color = colors.surfaces.panel,
-                dynamicBackdrop = useKyantGlass,
+                dynamicBackdrop = useBackdropMaterial,
                 obscuresBackdropContent = !useKyantGlass,
                 popupGlass = useKyantGlass,
+                classicPopupMaterial = appearance.classicMaterial,
                 trackPointer = false,
             ) {
                 Row(

@@ -55,7 +55,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
 
-/** 操作菜单和上下文菜单共享 Kyant 材质；跨窗口背景按屏幕坐标采样。 */
+/** 弹窗与选项表面共享材质入口；跨窗口背景按屏幕坐标采样。 */
 @Composable
 internal fun MenuSurface(
     modifier: Modifier = Modifier,
@@ -75,12 +75,17 @@ internal fun MenuSurface(
     drawKyantHighlight: Boolean = true,
     fillOpacity: (() -> Float)? = null,
     popupGlass: Boolean = false,
+    classicPopupMaterial: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val policy = LocalVisualEffectsPolicy.current
     val density = LocalDensity.current
     // These surfaces either cover the backdrop or blend with an already blurred layer behind them.
-    val sampleBackdrop = dynamicBackdrop && !obscuresBackdropContent && !policy.opaqueGlass
+    // Popup classic mode uses a static frosted material even when Liquid Glass is disabled.
+    // Other surfaces (including the custom Tab long-press menu) retain the original policy.
+    val sampleBackdrop = dynamicBackdrop &&
+        (!obscuresBackdropContent || classicPopupMaterial) &&
+        (!policy.opaqueGlass || classicPopupMaterial)
     val screenBackdrop = if (screenSpaceBackdrop && sampleBackdrop &&
         android.os.Build.VERSION.SDK_INT >= 33) rememberScreenGlassBackdrop(
             softenBackdropColor = clearerGlass,
@@ -91,7 +96,7 @@ internal fun MenuSurface(
     val backdrop = if (screenSpaceBackdrop) screenBackdrop else LocalLiquidGlassBackdrop.current
     var screenBounds by remember { mutableStateOf(Rect.Zero) }
     val useKyant = android.os.Build.VERSION.SDK_INT >= 33 && backdrop != null && sampleBackdrop &&
-        (!popupGlass || !screenSpaceBackdrop || screenBackdrop?.hasSnapshot == true)
+        (!screenSpaceBackdrop || screenBackdrop?.hasSnapshot == true)
     val touch = remember { GlassPointerTracker() }
     val press by animateFloatAsState(if (trackPointer && touch.isPressed) 1f else 0f,
         if (policy.reduceMotion) snap() else spring(.7f, 400f), label = "menu-glass-contact")
@@ -136,25 +141,32 @@ internal fun MenuSurface(
         backdrop = backdrop,
         shape = { shape },
         effects = {
-            vibrancy()
-            blur((if (popupGlass) 20f else if (clearerGlass) 2f else 3f + 2f * thickness).dp.toPx())
-            val strength = glassProgress()
-            val rim = ((if (clearerGlass) 16f else 12f) + 6f * strength).coerceAtMost(cornerDp)
-            if (rim > 0f) lens(rim.dp.toPx(), (if (popupGlass) 5f + 3f * strength else 10f + 10f * strength).dp.toPx())
+            if (classicPopupMaterial) {
+                // Classic iOS-style material is static: blur the backdrop, without a lens,
+                // touch response, vibrancy, or animated highlight.
+                blur(spec.blurDp.dp.toPx())
+            } else {
+                vibrancy()
+                blur((if (popupGlass) 20f else if (clearerGlass) 2f else 3f + 2f * thickness).dp.toPx())
+                val strength = glassProgress()
+                val rim = ((if (clearerGlass) 16f else 12f) + 6f * strength).coerceAtMost(cornerDp)
+                if (rim > 0f) lens(rim.dp.toPx(), (if (popupGlass) 5f + 3f * strength else 10f + 10f * strength).dp.toPx())
+            }
         },
-        highlight = if (drawKyantHighlight) {
+        highlight = if (drawKyantHighlight && !classicPopupMaterial) {
             { Highlight.Default.copy(alpha = .36f + .28f * glassProgress()) }
         } else null,
-        shadow = { Shadow(alpha = .16f + .10f * glassProgress()) },
+        shadow = { Shadow(alpha = if (classicPopupMaterial) .12f else .16f + .10f * glassProgress()) },
         onDrawSurface = {
             val strength = glassProgress()
             val tint = when {
+                classicPopupMaterial -> spec.opacity
                 popupGlass -> if (surfaceLuminance < .35f) .81f else .84f
                 clearerGlass -> .34f + .12f * thickness
                 else -> .36f + .16f * thickness
             }
-            val edgeTint = (tint + contrastTint).coerceIn(0f, if (popupGlass) .92f else 1f)
-            if (clearerGlass && !popupGlass) {
+            val edgeTint = (tint + contrastTint).coerceIn(0f, if (popupGlass) .92f else if (classicPopupMaterial) .92f else 1f)
+            if (clearerGlass && !popupGlass && !classicPopupMaterial) {
                 val rimFraction = (16.dp.toPx() / size.height).coerceIn(.01f, .45f)
                 val edge = color.copy(alpha = edgeTint)
                 val center = color.copy(alpha = (tint + contrastTint + .30f).coerceAtMost(.92f))
@@ -167,7 +179,9 @@ internal fun MenuSurface(
             } else {
                 drawRect(color.copy(alpha = edgeTint))
             }
-            drawGlassTouchHighlight(touch.touchPosition, strength, if (surfaceLuminance > .5f) .14f else .18f)
+            if (!classicPopupMaterial) {
+                drawGlassTouchHighlight(touch.touchPosition, strength, if (surfaceLuminance > .5f) .14f else .18f)
+            }
         },
     ) else Modifier).clip(shape).then(if (trackPointer) touch.pointerModifier else Modifier).onSizeChanged {
         heightDp = with(density) { it.height.toDp().value }
@@ -183,16 +197,18 @@ internal fun MenuSurface(
         )
         onDrawWithContent {
             drawContent()
-            if (dynamicBackdrop && obscuresBackdropContent && !policy.opaqueGlass) {
+            if (dynamicBackdrop && obscuresBackdropContent && !policy.opaqueGlass && !classicPopupMaterial) {
                 drawGlassTouchHighlight(touch.touchPosition, glassProgress(), if (surfaceLuminance > .5f) .14f else .18f)
             }
             if (drawBottomOutline) {
                 drawOutline(outline, spec.outline, style = stroke)
-                if (!policy.highContrast && !policy.opaqueGlass) drawOutline(outline, highlight, style = Stroke(1f))
+                    if (!policy.highContrast && !policy.opaqueGlass && !classicPopupMaterial) {
+                        drawOutline(outline, highlight, style = Stroke(1f))
+                    }
             } else {
                 clipRect(bottom = (size.height - stroke.width * 2f).coerceAtLeast(0f)) {
                     drawOutline(outline, spec.outline, style = stroke)
-                    if (!policy.highContrast && !policy.opaqueGlass) {
+                    if (!policy.highContrast && !policy.opaqueGlass && !classicPopupMaterial) {
                         drawOutline(outline, highlight, style = Stroke(1f))
                     }
                 }
@@ -204,7 +220,7 @@ internal fun MenuSurface(
             else Modifier.drawBehind { drawRect(color.copy(alpha = fillOpacity())) }
             Box(Modifier.matchParentSize().then(fill))
         }
-        if (sampleBackdrop && !useKyant && !popupGlass) {
+        if (sampleBackdrop && !useKyant && !popupGlass && !classicPopupMaterial) {
             GlassBackdropSurface(Modifier.matchParentSize(), color, opacity = spec.opacity,
                 cornerDp = cornerDp, blurDp = spec.blurDp, refractionDp = { 0f },
                 drawFallback = false, screenCoordinates = true, renderer = renderer)

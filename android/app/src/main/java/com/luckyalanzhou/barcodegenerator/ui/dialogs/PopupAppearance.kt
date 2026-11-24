@@ -16,14 +16,22 @@ internal enum class PopupKind(val classicCorner: Dp, val glassCorner: Dp) {
     Action(8.dp, 24.dp),
 }
 
-internal data class PopupAppearance(val glass: Boolean, val corner: Dp) {
+internal data class PopupAppearance(
+    val glass: Boolean,
+    val classicMaterial: Boolean,
+    val corner: Dp,
+) {
     val shape get() = RoundedCornerShape(corner)
     val topShape get() = RoundedCornerShape(topStart = corner, topEnd = corner)
 }
 
 internal fun popupAppearance(kind: PopupKind, policy: VisualEffectsPolicy, sdk: Int): PopupAppearance {
     val glass = sdk >= 33 && policy.liquidGlassEnabled && !policy.opaqueGlass && !policy.highContrast
-    return PopupAppearance(glass, if (glass) kind.glassCorner else kind.classicCorner)
+    // Turning off Liquid Glass selects the classic frosted material. High contrast and older
+    // graphics paths stay on a solid surface so text remains predictable and rendering is safe.
+    val classicMaterial = !glass && sdk >= 33 && !policy.highContrast &&
+        (!policy.opaqueGlass || !policy.liquidGlassEnabled)
+    return PopupAppearance(glass, classicMaterial, if (glass) kind.glassCorner else kind.classicCorner)
 }
 
 @Composable

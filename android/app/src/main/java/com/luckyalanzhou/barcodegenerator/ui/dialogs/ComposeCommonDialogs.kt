@@ -94,11 +94,12 @@ internal fun AnchoredDropdownMenu(
         com.luckyalanzhou.barcodegenerator.ui.component.menu.MenuSurface(
             shape = if (appearance.glass) appearance.shape else shape,
             screenSpaceBackdrop = true,
-            dynamicBackdrop = dynamicBackdrop && appearance.glass,
+            dynamicBackdrop = dynamicBackdrop,
             clearerGlass = clearerGlass,
             color = containerColor ?: LocalAppColorScheme.current.surfaces.panel,
             obscuresBackdropContent = !appearance.glass,
             popupGlass = appearance.glass,
+            classicPopupMaterial = appearance.classicMaterial,
             waitForScreenBackdropFrame = true,
             backdropWindow = backdropWindow,
         ) { Column(content = content) }
@@ -114,13 +115,18 @@ internal fun ComposeGlassDialogCard(dark: Boolean, horizontalPadding: Dp = 20.dp
         modifier = Modifier.widthIn(min = 280.dp, max = 400.dp),
         shape = appearance.shape,
         color = card,
-        dynamicBackdrop = appearance.glass,
+        dynamicBackdrop = appearance.glass || appearance.classicMaterial,
         screenSpaceBackdrop = true,
         obscuresBackdropContent = !appearance.glass,
         popupGlass = appearance.glass,
+        classicPopupMaterial = appearance.classicMaterial,
         backdropWindow = LocalGlassBackdropSourceWindow.current,
         trackPointer = false,
-        shadowElevation = if (appearance.glass) 3.dp else 0.dp,
+        shadowElevation = when {
+            appearance.glass -> 3.dp
+            appearance.classicMaterial -> 2.dp
+            else -> 0.dp
+        },
         waitForScreenBackdropFrame = true,
     ) {
         Column(
@@ -142,26 +148,22 @@ internal fun DialogAction(
     supportingText: String? = null,
 ) {
     val colors = LocalAppColorScheme.current
-    val appearance = popupAppearance(PopupKind.Action)
-    val filled = appearance.glass && primary && enabled && !destructive
     val foreground = when {
         !enabled -> colors.text.disabled
+        primary -> colors.text.onAccent
         destructive -> colors.text.destructive
-        filled -> colors.text.onAccent
-        primary -> colors.controls.primaryAction
         else -> colors.text.primary
     }
-    val background = if (!appearance.glass) Color.Transparent
-        else if (!enabled) colors.controls.disabledContainer
-        else if (filled) colors.controls.primaryAction else colors.controls.button
+    val background = if (!enabled) colors.controls.disabledContainer
+        else if (primary) colors.controls.primaryAction else colors.controls.button
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
             .widthIn(min = 48.dp)
             .iosPressFeedback(interactionSource)
-            .then(if (appearance.glass) Modifier.resultActionEdgeChrome(appearance.shape) else Modifier)
-            .background(background, appearance.shape)
+            .resultActionEdgeChrome(RoundedCornerShape(12.dp), respectOpaqueGlass = false)
+            .background(background, RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,

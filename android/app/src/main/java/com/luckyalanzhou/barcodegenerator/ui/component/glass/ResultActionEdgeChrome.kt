@@ -18,6 +18,7 @@ internal fun Modifier.resultActionEdgeChrome(
     rimBackground: Color? = null,
     rimAccent: Color? = null,
     edgeHighlight: Boolean = true,
+    respectOpaqueGlass: Boolean = true,
 ): Modifier {
     val colors = LocalAppColorScheme.current
     val effects = LocalVisualEffectsPolicy.current
@@ -34,7 +35,7 @@ internal fun Modifier.resultActionEdgeChrome(
                 accent = accent,
                 density = density,
                 highContrast = effects.highContrast,
-                edgeHighlight = edgeHighlight && !effects.opaqueGlass,
+                edgeHighlight = edgeHighlight && (!respectOpaqueGlass || !effects.opaqueGlass),
                 bounds = size,
             )
         }

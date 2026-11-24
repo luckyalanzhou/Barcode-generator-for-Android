@@ -50,6 +50,14 @@ class ButtonRenderingContractTest {
         assertFalse(rim.contains("Color.Transparent"))
         assertFalse(rim.contains("RuntimeShader"))
     }
+    @Test fun `dialog action border stays independent from popup glass setting`() {
+        val dialogs = source("ComposeCommonDialogs.kt")
+            .substringAfter("internal fun DialogAction(")
+            .substringBefore("internal fun ComposeDropdownDivider(")
+        assertTrue(dialogs.contains("resultActionEdgeChrome(RoundedCornerShape(12.dp), respectOpaqueGlass = false)"))
+        val edgeChrome = source("ResultActionEdgeChrome.kt")
+        assertTrue(edgeChrome.contains("edgeHighlight && (!respectOpaqueGlass || !effects.opaqueGlass)"))
+    }
     @Test fun `settings distinguish current values from executable actions`() {
         val appearance = source("AppearanceThemeContent.kt")
         val settings = source("SettingsContent.kt")
@@ -96,8 +104,8 @@ class ButtonRenderingContractTest {
         assertTrue(generate.contains("if (generateEnabled) themeColors.controls.primaryAction"))
         assertTrue(generate.contains("if (generateEnabled) themeColors.text.onAccent"))
         val dialogs = source("ComposeCommonDialogs.kt")
-        assertTrue(dialogs.contains("if (filled) colors.controls.primaryAction"))
-        assertTrue(dialogs.contains("filled -> colors.text.onAccent"))
+        assertTrue(dialogs.contains("else if (primary) colors.controls.primaryAction"))
+        assertTrue(dialogs.contains("primary -> colors.text.onAccent"))
         assertTrue(source("LightColorScheme.kt").contains("primary = colors.controls.primaryAction"))
         assertTrue(source("DarkColorScheme.kt").contains("primary = colors.controls.primaryAction"))
     }
