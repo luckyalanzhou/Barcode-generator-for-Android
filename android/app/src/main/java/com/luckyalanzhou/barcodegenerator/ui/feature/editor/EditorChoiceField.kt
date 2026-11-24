@@ -89,7 +89,24 @@ internal fun ComposeChoiceField(
         ) {
             val colors = LocalAppColorScheme.current
             if (fieldLabel == null) {
-                Text(optionLabel(value), color = if (compact) colors.text.secondary else colors.text.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Value-only choice fields are clickable too; keep the disclosure cue on compact and full-width selectors.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        optionLabel(value),
+                        color = if (compact) colors.text.secondary else colors.text.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Icon(
+                        UnfoldMoreIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (enabled) colors.text.secondary else colors.text.disabled,
+                    )
+                }
             } else {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 32.dp),
